@@ -1,0 +1,89 @@
+import ujson as json
+import urllib2
+from tqdm import tqdm
+from settings import Config
+
+class Gene(object):
+    def __init__(self, id=None):
+
+        self.id = id
+        self.hgnc_id = None
+        self.approved_symbol = ""
+        self.approved_name = ""
+        self.status = ""
+        self.locus_group = ""
+        self.previous_symbols = []
+        self.previous_names = []
+        self.symbol_synonyms = []
+        self.name_synonyms = []
+        self.chromosome = ""
+
+        self.ensembl_gene_id = ""
+
+        self.gene_family_tag = ""
+        self.gene_family_description = ""
+
+        self.ensembl_external_name = ""
+        self.ensembl_gene_version = None
+
+        self.ensembl_release = None
+
+    def load_hgnc_data_from_json(self, data):
+
+        if 'ensembl_gene_id' in data:
+            self.ensembl_gene_id = data['ensembl_gene_id']
+            if not self.ensembl_gene_id:
+                self.ensembl_gene_id = data['ensembl_id_supplied_by_ensembl']
+            if 'hgnc_id' in data:
+                self.hgnc_id = data['hgnc_id']
+            if 'symbol' in data:
+                self.approved_symbol = data['symbol']
+            if 'name' in data:
+                self.approved_name = data['name']
+            if 'status' in data:
+                self.status = data['status']
+            if 'locus_group' in data:
+                self.locus_group = data['locus_group']
+            if 'prev_symbols' in data:
+                self.previous_symbols = data['prev_symbols']
+            if 'prev_names' in data:
+                self.previous_names = data['prev_names']
+            if 'alias_symbol' in data:
+                self.symbol_synonyms.extend( data['alias_symbol'])
+            if 'alias_name' in data:
+                self.name_synonyms = data['alias_name']
+
+            if 'gene_family_tag' in data:
+                self.gene_family_tag = data['gene_family_tag']
+            if 'gene_family_description' in data:
+                self.gene_family_description = data['gene_family_description']
+
+
+            if 'pubmed_id' in data:
+                self.pubmed_ids = data['pubmed_id']
+
+
+class GeneParser(object):
+    def __init__(self):
+        self.genes = dict()
+
+    def _get_hgnc_data_from_json(self):
+
+        req = urllib2.Request(Config.GENES_HGNC)
+        response = urllib2.urlopen(req)
+        print 'Received hgnc json respnse'
+        data = json.loads(response.read())
+        for row in tqdm(data['response']['docs'],
+                        desc='loading genes from HGNC',
+                        unit_scale=True,
+                        unit='genes',
+                        leave=False):
+            ensembl_gene_id = ''
+            if 'ensembl_gene_id' in row:
+                ensembl_gene_id = row['ensembl_gene_id']
+                if not ensembl_gene_id:
+                    ensembl_gene_id = data['ensembl_id_supplied_by_ensembl']
+            self.genes[row['name']] = ensembl_gene_id
+            # gene = Gene()
+            # gene.load_hgnc_data_from_json(row)
+            # self.genes.append(gene)
