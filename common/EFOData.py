@@ -61,6 +61,8 @@ class OBOParser():
 
                 line = line.split(': ')[1]
                 synonyms = []
+                xrefs = []
+                icd9s = []
                 data['id'] = line.strip(' \n')
                 name = ''
                 definition = ''
@@ -69,16 +71,39 @@ class OBOParser():
                 line = line.split(': ')[1]
                 name = line.strip(' \n')
                 synonyms.append(name.lower())
-            elif line.startswith('def'):
-
-                line = line.split(': ')[1]
-                definition = line
+            # elif line.startswith('def'):
+            #
+            #     line = line.split(': ')[1]
+            #     definition = line
 
             elif line.startswith('synonym'):
 
                 line = line.split(': ')[1]
                 line = line.split("\"")[1]
                 synonyms.append(line.lower())
+            elif line.startswith('xref:'):
+                line = line.split(': ')[1]
+                xrefs.append(line.strip(' \n'))
+
+
+            elif line.startswith('property_value:'):
+                line = line.split(': ')[1]
+                line = line.split(' ')
+                if line[0] == 'http://www.ebi.ac.uk/efo/ICD9CM_definition_citation' or line[
+                    0] == 'http://www.ebi.ac.uk/efo/ICD9_definition_citation':
+                    line = line[1].split(':')[1].split('-')
+
+                    for icd9 in line:
+                        try:
+                            icd9s.append(float(icd9))
+                        except ValueError:
+                            icd9s.append(icd9)
+                elif line[0].endswith('definition_citation'):
+                    xrefs.append(line[1])
+
+
 
         data['synonyms'] = synonyms
+        data['xref'] = xrefs
+        data['icd9'] = icd9s
         return data

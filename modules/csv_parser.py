@@ -2,17 +2,24 @@ import csv
 from common.EFOData import OBOParser
 from common.HGNCParser import GeneParser
 import json
-from settings import Config
+import logging
+
+
+logging.basicConfig(filename='output.log',
+                            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                            level=logging.INFO)
+
 
 class Phewas(object):
 
-    def __init__(self, phewas_id, snp = None, ensg_id = None, efo_id = None, phenotype = None, gene_name = None):
+    def __init__(self, phewas_id, snp = None, ensg_id = None, efo_id = None, phenotype = None, gene_name = None, xref = None):
         self.ensg_id = ensg_id
         self.efo_id = efo_id
         self.snp = snp
         self.phenotype = phenotype
         self.gene_name = gene_name
         self.phewas_id = phewas_id
+        self.xref = xref
 
     def toJSON(self):
         return json.dumps(self, default=lambda o: o.__dict__,
@@ -21,12 +28,10 @@ class Phewas(object):
 
 class CSVParser(object):
 
-    def __init__(self, filename):
-        self.filename = filename
 
 
-    def parse(self):
-        with open(self.filename, "rb") as csvfile:
+    def parse(self,filename):
+        with open(filename, "rb") as csvfile:
             reader = csv.DictReader(csvfile)
             for row in reader:
                 yield row
@@ -36,98 +41,94 @@ class PhewasProcessor(object):
     def __init__(self):
         self.genes = dict()
         self.efos = list()
+        self.icd9 = dict()
+        self.csv_parser = CSVParser()
 
 
 
 
+    def find_efo(self,phewas_phenotype, phecode):
 
-    def find_gene(self,gene_name):
-
-        #matched_gene = filter(lambda gene:gene.approved_symbol == gene_name,self.genes )
-        matched_gene = self.genes.get(gene_name)
-        # for gene in  matched_gene:
-        #     print 'Gene -->' + gene.ensembl_gene_id
-        # if matched_gene:
-        #     return matched_gene[0].ensembl_gene_id
+        matched_efos = [efo_dict for efo_dict in self.efos if phewas_phenotype.lower() in efo_dict['synonyms'] ]
+        if not matched_efos:
 
 
-    def find_disease(self,phewas_phenotype):
+            # matched_efos = [efo_dict for efo_dict in self.efos if
+            #                 any([True for e in self.icd9.get(phecode, []) if e in efo_dict['icd9']])]
+            matched_efos = []
+            icd9s = self.icd9.get(phecode, [])
+            for efo_dict in self.efos:
+                if icd9s:
 
-        #matched_disease = filter(lambda disease: disease.name.lower() == phewas_phenotype.lower() or phewas_phenotype.lower() in (n.lower() for n in disease.synonyms), self.diseases)
-        matched_disease = [efo_dict['id'] for efo_dict in self.efos if phewas_phenotype.lower() in efo_dict['synonyms'] ]
-
-        # for phenotype in matched_disease:
-        #     print 'Disease --> {}'.format(phenotype)
-        if matched_disease:
-            return matched_disease[0]
+                    for icd9 in icd9s:
+                        if icd9 in efo_dict['icd9']:
+                            matched_efos.append(efo_dict)
+                            break
 
 
-    def convert_phewas_catalog_evidence_json(self):
 
+            # if not matched_efos:
+            #     self.find_zooma_phenotype_mapping(phewas_phenotype)
+
+        return matched_efos
+
+
+    def setup(self):
         obo_parser = OBOParser('../efo.obo')
         obo_parser.parse()
         self.efos = obo_parser.efos
 
+        hp_obo_parser = OBOParser('../hp.obo')
+        hp_obo_parser.parse()
+        self.efos.extend(hp_obo_parser.efos)
 
         gene_parser = GeneParser()
         gene_parser._get_hgnc_data_from_json()
         self.genes = gene_parser.genes
 
-        csv_parser = CSVParser('../phewas-catalog.csv')
-        counter = 1
-        my_list = []
+
+        for icd9_row in self.csv_parser.parse('../phecode_icd9_rolled.csv'):
+            pheCode = icd9_row['PheCode']
+            try:
+
+                icd9_code = float(icd9_row['ICD9'])
+            except ValueError:
+                icd9_code = icd9_row['ICD9']
+
+            if self.icd9.get(pheCode):
+                self.icd9[pheCode].append(icd9_code)
+            else:
+                self.icd9[pheCode] = list()
+                self.icd9[pheCode].append(icd9_code)
+
+
+    def convert_phewas_catalog_evidence_json(self):
+
+        logging.info('Start processing ')
+
         missing_efo_fieldnames = ['phenotype', 'similar_efo']
-        fieldnames = ['phenotype', 'efo_id', 'gene_name','ensg_id','snp']
-        with open('../missing_efo.csv', 'w') as out_missing_csv , open('../phewas_efo_ensg.csv', 'w') as out_csv:
+        fieldnames = ['phenotype', 'efo_id', 'gene_name','ensg_id','snp','xref']
+        logging.info('Start the phewas catalog mapping')
+        with open('../missing_efo.csv', 'w') as out_missing_csv , open('../phewas_efo_ensg.csv', 'w') as out_csv, open('../phewas_efo_ensg.json', 'w') as out_json:
             writer = csv.DictWriter(out_csv, fieldnames)
             writer.writeheader()
             missing_efo_writer = csv.DictWriter(out_missing_csv, missing_efo_fieldnames)
             missing_efo_writer.writeheader()
-            for phewas_row in csv_parser.parse():
-                phewas_obj = Phewas(counter)
-                # print '------------------------------------------------------------------------------'
-                # print 'Phewas --> ' + phewas_row['phewas phenotype']
+            for phewas_row in self.csv_parser.parse('../phewas-catalog.csv'):
+
+                ensg_id =  self.genes.get(phewas_row['gene_name'])
+                matched_efos = self.find_efo(phewas_row['phewas phenotype'],phewas_row['phewas code'])
 
 
-                phewas_obj.ensg_id =  self.genes.get(phewas_row['gene_name'])#self.find_gene(phewas_row['gene_name'])
-                phewas_obj.efo_id = self.find_disease(phewas_row['phewas phenotype'])
-                phewas_obj.snp = phewas_row['snp']
-                phewas_obj.phenotype = phewas_row['phewas phenotype']
-                phewas_obj.gene_name = phewas_row['gene_name']
-
-                if phewas_obj.efo_id :
-                    inner_dict = dict(zip(fieldnames, [phewas_obj.phenotype, phewas_obj.efo_id,phewas_obj.gene_name,phewas_obj.ensg_id,phewas_obj.snp]))
-                    writer.writerow(inner_dict)
-                elif phewas_obj.efo_id is None:
+                if matched_efos :
+                    for efo in matched_efos:
+                        inner_dict = dict(zip(fieldnames, [phewas_row['phewas phenotype'], efo['id'],phewas_row['gene_name'],ensg_id,phewas_row['snp'],efo['xref']]))
+                        writer.writerow(inner_dict)
+                        json.dump(inner_dict,out_json)
+                else:
                     inner_dict = dict(zip(missing_efo_fieldnames, [phewas_row['phewas phenotype'], '']))
                     missing_efo_writer.writerow(inner_dict)
 
-                # batch the write process
-                # profile pycharm
-
-                #json.dump(phewas_obj.toJSON(),out_json)
+        logging.info('Completed')
 
 
-
-def remove_dup():
-
-
-    with open('../missing_efo.csv', 'r') as in_file, open('../missing_efos.csv', 'w') as out_file:
-        seen = set()  # set for fast O(1) amortized lookup
-        reader = csv.reader(in_file, dialect=csv.excel_tab)
-        for row in reader:
-            if row[0] in seen: continue  # skip duplicate
-
-            seen.add(row[0])
-            out_file.write(row[0])
-            out_file.write('\n')
-
-def main():
-    phewas_processor = PhewasProcessor()
-    phewas_processor.convert_phewas_catalog_evidence_json()
-    #remove_dup()
-    test = 'Hypoglycemia'
-
-
-if __name__ == "__main__":
-    main()
