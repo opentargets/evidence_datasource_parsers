@@ -7,7 +7,7 @@ from modules.csv_parser import PhewasProcessor
 logger = logging.getLogger(__name__)
 
 
-class LiteratureNLPTestCase(unittest.TestCase):
+class PhewasTestCase(unittest.TestCase):
 
 
     def test_efo_match(self):
