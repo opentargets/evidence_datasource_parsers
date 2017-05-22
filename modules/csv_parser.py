@@ -3,7 +3,7 @@ from common.EFOData import OBOParser
 from common.HGNCParser import GeneParser
 import json
 import logging
-
+from datetime import datetime
 
 logging.basicConfig(filename='output.log',
                             format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -107,7 +107,7 @@ class PhewasProcessor(object):
         logging.info('Start processing ')
 
         missing_efo_fieldnames = ['phenotype', 'similar_efo']
-        fieldnames = ['phenotype', 'efo_id', 'gene_name','ensg_id','snp','xref']
+        fieldnames = ['phenotype', 'efo_id', 'gene_name','ensg_id','cases','p-value','odds-ratio','snp']
         logging.info('Start the phewas catalog mapping')
         with open('../missing_efo.csv', 'w') as out_missing_csv , open('../phewas_efo_ensg.csv', 'w') as out_csv, open('../phewas_efo_ensg.json', 'w') as out_json:
             writer = csv.DictWriter(out_csv, fieldnames)
@@ -116,19 +116,86 @@ class PhewasProcessor(object):
             missing_efo_writer.writeheader()
             for phewas_row in self.csv_parser.parse('../phewas-catalog.csv'):
 
-                ensg_id =  self.genes.get(phewas_row['gene_name'])
+                ensg_id = self.genes.get(phewas_row['gene_name'])
                 matched_efos = self.find_efo(phewas_row['phewas phenotype'],phewas_row['phewas code'])
 
 
                 if matched_efos :
                     for efo in matched_efos:
-                        inner_dict = dict(zip(fieldnames, [phewas_row['phewas phenotype'], efo['id'],phewas_row['gene_name'],ensg_id,phewas_row['snp'],efo['xref']]))
+                        inner_dict = dict(zip(fieldnames, [phewas_row['phewas phenotype'], efo['id'],phewas_row['gene_name'],ensg_id,phewas_row['cases'],phewas_row['p-value'],phewas_row['odds-ratio'],phewas_row['snp']]))
+                        evidence = self.generate_evidence(phewas_row,efo['id'], ensg_id)
                         writer.writerow(inner_dict)
-                        json.dump(inner_dict,out_json)
+                        json.dump(evidence,out_json)
+                        out_json.write('\n')
                 else:
                     inner_dict = dict(zip(missing_efo_fieldnames, [phewas_row['phewas phenotype'], '']))
                     missing_efo_writer.writerow(inner_dict)
 
         logging.info('Completed')
 
+    def generate_evidence(self,phewas_dict, disease_id, target_id):
+        phewas_evidence = dict()
+        phewas_evidence['disease'] = {'id': disease_id}
+        phewas_evidence['target'] = {"activity": "http://identifiers.org/cttv.activity/predicted_damaging",
+                    "id": "http://identifiers.org/ensembl/{}".format(target_id),
+                    "target_type": "http://identifiers.org/cttv.target/gene_evidence"}
+        phewas_evidence['validated_against_schema_version'] = '1.2.5'
+        phewas_evidence["access_level"] = "public"
+        phewas_evidence["sourceID"] = "phewas_catalog"
+        phewas_evidence['type'] = 'genetic_association'
+        phewas_evidence["variant"]= {"type": "snp single", "id": "http://identifiers.org/dbsnp/{}".format(phewas_dict['snp'])}
+        phewas_evidence['unique_association_fields'] = {'odds_ratio':phewas_dict['odds-ratio'], 'cases' : phewas_dict['cases'], 'phenotype' : phewas_dict['phewas phenotype']}
 
+        phewas_evidence['resource_score'] = {'type': 'pvalue', 'method': {"description":"pvalue for the phenotype to snp association."},"value":phewas_dict['p-value']}
+        i = datetime.now()
+
+        evidence = dict()
+        evidence['variant2disease'] = {'unique_experiment_reference':'N/A',
+                                       'provenance_type': 'N/A', 'is_associated': True,
+                                       'resource_score':{'type': 'pvalue', 'method': {"description":"pvalue for the phenotype to snp association."},"value":phewas_dict['p-value']},
+                                       'date_asserted': i.strftime('%Y-%m-%d %H:%M:%S'),
+                                       'evidence_codes': ['http://identifiers.org/eco/GWAS','http://purl.obolibrary.org/obo/ECO_0000205'],
+                                       }
+        evidence['gene2variant'] = {'provenance_type': 'N/A', 'is_associated': True, 'date_asserted' : i.strftime('%Y-%m-%d %H:%M:%S'),
+                                    'evidence_codes':["http://identifiers.org/eco/cttv_mapping_pipeline", "http://purl.obolibrary.org/obo/ECO_0000205"],
+                                    'functional_consequence':'http://purl.obolibrary.org/obo/SO_0001632'}
+        phewas_evidence['evidence'] = evidence
+        return phewas_evidence
+
+
+
+def remove_dup():
+
+
+    with open('../missing_efo.csv', 'r') as in_file, open('../missing_efos.csv', 'w') as out_file:
+        seen = set()  # set for fast O(1) amortized lookup
+        reader = csv.reader(in_file, dialect=csv.excel_tab)
+        for row in reader:
+            if row[0] in seen: continue  # skip duplicate
+
+            seen.add(row[0])
+            out_file.write(row[0])
+            out_file.write('\n')
+
+def unique_phenotypes():
+    with open('../phewas-catalog.csv', 'r') as in_file, open('../unique_efos.csv', 'w') as out_file:
+        seen = set()  # set for fast O(1) amortized lookup
+        reader = csv.reader(in_file)
+        for row in reader:
+            if row[2] in seen: continue  # skip duplicate
+
+            seen.add(row[2])
+            out_file.write(row[2])
+            out_file.write('\n')
+
+def main():
+    phewas_processor = PhewasProcessor()
+    phewas_processor.setup()
+    phewas_processor.convert_phewas_catalog_evidence_json()
+    #remove_dup()
+    #unique_phenotypes()
+    #phewas_processor.find_zooma_phenotype_mapping('test')
+
+
+if __name__ == "__main__":
+    main()
