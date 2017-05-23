@@ -117,25 +117,29 @@ class PhewasProcessor(object):
             for phewas_row in self.csv_parser.parse('../phewas-catalog.csv'):
 
                 ensg_id = self.genes.get(phewas_row['gene_name'])
-                matched_efos = self.find_efo(phewas_row['phewas phenotype'],phewas_row['phewas code'])
-
-
-                if matched_efos :
-                    for efo in matched_efos:
-                        inner_dict = dict(zip(fieldnames, [phewas_row['phewas phenotype'], efo['id'],phewas_row['gene_name'],ensg_id,phewas_row['cases'],phewas_row['p-value'],phewas_row['odds-ratio'],phewas_row['snp']]))
-                        evidence = self.generate_evidence(phewas_row,efo['id'], ensg_id)
-                        writer.writerow(inner_dict)
-                        json.dump(evidence,out_json)
-                        out_json.write('\n')
-                else:
-                    inner_dict = dict(zip(missing_efo_fieldnames, [phewas_row['phewas phenotype'], '']))
-                    missing_efo_writer.writerow(inner_dict)
+                if ensg_id:
+                    matched_efos = self.find_efo(phewas_row['phewas phenotype'],phewas_row['phewas code'])
+                    if matched_efos :
+                        for efo in matched_efos:
+                            inner_dict = dict(zip(fieldnames, [phewas_row['phewas phenotype'], efo['id'],phewas_row['gene_name'],ensg_id,phewas_row['cases'],phewas_row['p-value'],phewas_row['odds-ratio'],phewas_row['snp']]))
+                            evidence = self.generate_evidence(phewas_row,efo['id'], ensg_id)
+                            writer.writerow(inner_dict)
+                            json.dump(evidence,out_json)
+                            out_json.write('\n')
+                    else:
+                        inner_dict = dict(zip(missing_efo_fieldnames, [phewas_row['phewas phenotype'], '']))
+                        missing_efo_writer.writerow(inner_dict)
 
         logging.info('Completed')
 
     def generate_evidence(self,phewas_dict, disease_id, target_id):
         phewas_evidence = dict()
-        phewas_evidence['disease'] = {'id': disease_id}
+        disease_id = disease_id.replace(':','_')
+
+        if disease_id.startswith('EFO'):
+            phewas_evidence['disease'] = {'id': 'http://www.ebi.ac.uk/efo/'+disease_id}
+        elif disease_id.startswith('HPO'):
+            phewas_evidence['disease'] = {'id': 'http://purl.obolibrary.org/obo/' + disease_id}
         phewas_evidence['target'] = {"activity": "http://identifiers.org/cttv.activity/predicted_damaging",
                     "id": "http://identifiers.org/ensembl/{}".format(target_id),
                     "target_type": "http://identifiers.org/cttv.target/gene_evidence"}
@@ -146,17 +150,17 @@ class PhewasProcessor(object):
         phewas_evidence["variant"]= {"type": "snp single", "id": "http://identifiers.org/dbsnp/{}".format(phewas_dict['snp'])}
         phewas_evidence['unique_association_fields'] = {'odds_ratio':phewas_dict['odds-ratio'], 'cases' : phewas_dict['cases'], 'phenotype' : phewas_dict['phewas phenotype']}
 
-        phewas_evidence['resource_score'] = {'type': 'pvalue', 'method': {"description":"pvalue for the phenotype to snp association."},"value":phewas_dict['p-value']}
+        #phewas_evidence['resource_score'] = {'type': 'pvalue', 'method': {"description":"pvalue for the phenotype to snp association."},"value":phewas_dict['p-value']}
         i = datetime.now()
 
         evidence = dict()
-        evidence['variant2disease'] = {'unique_experiment_reference':'N/A',
-                                       'provenance_type': 'N/A', 'is_associated': True,
+        evidence['variant2disease'] = {'unique_experiment_reference':'http://europepmc.org/abstract/MED/0',
+                                       'provenance_type': {}, 'is_associated': True,
                                        'resource_score':{'type': 'pvalue', 'method': {"description":"pvalue for the phenotype to snp association."},"value":phewas_dict['p-value']},
                                        'date_asserted': i.strftime('%Y-%m-%d %H:%M:%S'),
                                        'evidence_codes': ['http://identifiers.org/eco/GWAS','http://purl.obolibrary.org/obo/ECO_0000205'],
                                        }
-        evidence['gene2variant'] = {'provenance_type': 'N/A', 'is_associated': True, 'date_asserted' : i.strftime('%Y-%m-%d %H:%M:%S'),
+        evidence['gene2variant'] = {'provenance_type': {}, 'is_associated': True, 'date_asserted' : i.strftime('%Y-%m-%d %H:%M:%S'),
                                     'evidence_codes':["http://identifiers.org/eco/cttv_mapping_pipeline", "http://purl.obolibrary.org/obo/ECO_0000205"],
                                     'functional_consequence':'http://purl.obolibrary.org/obo/SO_0001632'}
         phewas_evidence['evidence'] = evidence
