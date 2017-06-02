@@ -155,12 +155,18 @@ class PhewasProcessor(object):
 
         evidence = dict()
         evidence['variant2disease'] = {'unique_experiment_reference':'http://europepmc.org/abstract/MED/0',
-                                       'provenance_type': {}, 'is_associated': True,
-                                       'resource_score':{'type': 'pvalue', 'method': {"description":"pvalue for the phenotype to snp association."},"value":phewas_dict['p-value']},
+                                       'provenance_type': {"literature":{"references":[{"lit_id":"N/A"}]},
+                                                           "expert":{"status":True,"statement":"Primary submitter of data"},
+                                                           "database":{"version":"2017-06-01T09:53:37+00:00","id":"PHEWAS Catalog",
+                                                                       "dbxref":{"version":"2017-06-01T09:53:37+00:00","id":"http://identifiers.org/phewascatalog"}}},
+                                       'is_associated': True,
+                                       'resource_score':{'type': 'pvalue', 'method': {"description":"pvalue for the phenotype to snp association."},"value":float(phewas_dict['p-value'])},
                                        'date_asserted': i.strftime('%Y-%m-%d %H:%M:%S'),
                                        'evidence_codes': ['http://identifiers.org/eco/GWAS','http://purl.obolibrary.org/obo/ECO_0000205'],
                                        }
-        evidence['gene2variant'] = {'provenance_type': {}, 'is_associated': True, 'date_asserted' : i.strftime('%Y-%m-%d %H:%M:%S'),
+        evidence['gene2variant'] = {'provenance_type': {"expert":{"status":True,"statement":"Primary submitter of data"},
+                                                        "database":{"version":"2017-06-01T09:53:37+00:00","id":"PHEWAS Catalog","dbxref":{"version":"2017-06-01T09:53:37+00:00","id":"http://identifiers.org/phewascatalog"}}},
+                                    'is_associated': True, 'date_asserted' : i.strftime('%Y-%m-%d %H:%M:%S'),
                                     'evidence_codes':["http://identifiers.org/eco/cttv_mapping_pipeline", "http://purl.obolibrary.org/obo/ECO_0000205"],
                                     'functional_consequence':'http://purl.obolibrary.org/obo/SO_0001632'}
         phewas_evidence['evidence'] = evidence
