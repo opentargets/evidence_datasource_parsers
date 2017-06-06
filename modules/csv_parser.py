@@ -138,7 +138,7 @@ class PhewasProcessor(object):
 
         if disease_id.startswith('EFO'):
             phewas_evidence['disease'] = {'id': 'http://www.ebi.ac.uk/efo/'+disease_id}
-        elif disease_id.startswith('HPO'):
+        elif disease_id.startswith('HP'):
             phewas_evidence['disease'] = {'id': 'http://purl.obolibrary.org/obo/' + disease_id}
         phewas_evidence['target'] = {"activity": "http://identifiers.org/cttv.activity/predicted_damaging",
                     "id": "http://identifiers.org/ensembl/{}".format(target_id),
