@@ -109,7 +109,7 @@ class PhewasProcessor(object):
         missing_efo_fieldnames = ['phenotype', 'similar_efo']
         fieldnames = ['phenotype', 'efo_id', 'gene_name','ensg_id','cases','p-value','odds-ratio','snp']
         logging.info('Start the phewas catalog mapping')
-        with open('../missing_efo.csv', 'w') as out_missing_csv , open('../phewas_efo_ensg.csv', 'w') as out_csv, open('../phewas_efo_ensg.json', 'w') as out_json:
+        with open('../missing_efo.csv', 'w') as out_missing_csv , open('../phewas_efo_ensg.csv', 'w') as out_csv, open('../phewas_catalog.json', 'w') as out_json:
             writer = csv.DictWriter(out_csv, fieldnames)
             writer.writeheader()
             missing_efo_writer = csv.DictWriter(out_missing_csv, missing_efo_fieldnames)
@@ -135,6 +135,8 @@ class PhewasProcessor(object):
     def generate_evidence(self,phewas_dict, disease_id, target_id):
         phewas_evidence = dict()
         disease_id = disease_id.replace(':','_')
+        #TODO ; Handle diseases like MP:0003254, NCBITaxon:1392,Orphanet:79211
+
 
         if disease_id.startswith('EFO'):
             phewas_evidence['disease'] = {'id': 'http://www.ebi.ac.uk/efo/'+disease_id}
@@ -143,7 +145,7 @@ class PhewasProcessor(object):
         phewas_evidence['target'] = {"activity": "http://identifiers.org/cttv.activity/predicted_damaging",
                     "id": "http://identifiers.org/ensembl/{}".format(target_id),
                     "target_type": "http://identifiers.org/cttv.target/gene_evidence"}
-        phewas_evidence['validated_against_schema_version'] = '1.2.5'
+        phewas_evidence['validated_against_schema_version'] = '1.2.6'
         phewas_evidence["access_level"] = "public"
         phewas_evidence["sourceID"] = "phewas_catalog"
         phewas_evidence['type'] = 'genetic_association'
@@ -155,7 +157,7 @@ class PhewasProcessor(object):
 
         evidence = dict()
         evidence['variant2disease'] = {'unique_experiment_reference':'http://europepmc.org/abstract/MED/0',
-                                       'provenance_type': {"literature":{"references":[{"lit_id":"N/A"}]},
+                                       'provenance_type': {"literature":{"references":[{"lit_id":"http://europepmc.org/abstract/MED/1"}]},
                                                            "expert":{"status":True,"statement":"Primary submitter of data"},
                                                            "database":{"version":"2017-06-01T09:53:37+00:00","id":"PHEWAS Catalog",
                                                                        "dbxref":{"version":"2017-06-01T09:53:37+00:00","id":"http://identifiers.org/phewascatalog"}}},
