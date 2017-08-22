@@ -38,11 +38,12 @@ class CSVParser(object):
 
 
 class PhewasProcessor(object):
-    def __init__(self):
+    def __init__(self,schema_version ):
         self.genes = dict()
         self.efos = list()
         self.icd9 = dict()
         self.csv_parser = CSVParser()
+        self.schema_version = schema_version
 
 
 
@@ -148,7 +149,7 @@ class PhewasProcessor(object):
                     "id": "http://identifiers.org/ensembl/{}".format(target_id),
                     "target_type": "http://identifiers.org/cttv.target/gene_evidence"}
         if phewas_evidence.get('target') and phewas_evidence.get('disease'):
-            phewas_evidence['validated_against_schema_version'] = '1.2.6'
+            phewas_evidence['validated_against_schema_version'] = self.schema_version
             phewas_evidence["access_level"] = "public"
             phewas_evidence["sourceID"] = "phewascatalog"
             phewas_evidence['type'] = 'genetic_association'

@@ -17,10 +17,13 @@ def main():
     parser.add_argument("--nferx", dest='biogen_nferx',
                         help="process nferx data and generate evidences for open targets pipeline",
                         action="append_const", const=str)
+    parser.add_argument("--schema-version", dest='schema_version',
+                        help="set the schema version",
+                        action='store', default='1.2.6')
     args = parser.parse_args()
 
     if args.phewas :
-        phewas_processor = PhewasProcessor()
+        phewas_processor = PhewasProcessor(schema_version = args.schema_version)
         phewas_processor.setup()
         phewas_processor.convert_phewas_catalog_evidence_json()
     # if args.biogen_23andme :

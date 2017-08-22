@@ -20,11 +20,17 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-* Run the phewas parser
+* Run the phewas parser - with default schema-version - 1.2.6
+
 ```sh
 python setup.py install
 phewascatalog_parser -h
 phewascatalog_parser --phewas
+```
+
+* Run the phewas parser - with updated schema-version
+```sh
+phewascatalog_parser --phewas --schema-version=1.2.7
 ```
 
 * Output file - phewascatalog.json
