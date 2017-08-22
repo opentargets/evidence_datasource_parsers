@@ -124,8 +124,9 @@ class PhewasProcessor(object):
                             inner_dict = dict(zip(fieldnames, [phewas_row['phewas phenotype'], efo['id'],phewas_row['gene_name'],ensg_id,phewas_row['cases'],phewas_row['p-value'],phewas_row['odds-ratio'],phewas_row['snp']]))
                             evidence = self.generate_evidence(phewas_row,efo['id'], ensg_id)
                             writer.writerow(inner_dict)
-                            json.dump(evidence,out_json)
-                            out_json.write('\n')
+                            if evidence:
+                                json.dump(evidence,out_json)
+                                out_json.write('\n')
                     else:
                         inner_dict = dict(zip(missing_efo_fieldnames, [phewas_row['phewas phenotype'], '']))
                         missing_efo_writer.writerow(inner_dict)
@@ -142,36 +143,41 @@ class PhewasProcessor(object):
             phewas_evidence['disease'] = {'id': 'http://www.ebi.ac.uk/efo/'+disease_id}
         elif disease_id.startswith('HP'):
             phewas_evidence['disease'] = {'id': 'http://purl.obolibrary.org/obo/' + disease_id}
+
         phewas_evidence['target'] = {"activity": "http://identifiers.org/cttv.activity/predicted_damaging",
                     "id": "http://identifiers.org/ensembl/{}".format(target_id),
                     "target_type": "http://identifiers.org/cttv.target/gene_evidence"}
-        phewas_evidence['validated_against_schema_version'] = '1.2.6'
-        phewas_evidence["access_level"] = "public"
-        phewas_evidence["sourceID"] = "phewas_catalog"
-        phewas_evidence['type'] = 'genetic_association'
-        phewas_evidence["variant"]= {"type": "snp single", "id": "http://identifiers.org/dbsnp/{}".format(phewas_dict['snp'])}
-        phewas_evidence['unique_association_fields'] = {'odds_ratio':phewas_dict['odds-ratio'], 'cases' : phewas_dict['cases'], 'phenotype' : phewas_dict['phewas phenotype']}
+        if phewas_evidence.get('target') and phewas_evidence.get('disease'):
+            phewas_evidence['validated_against_schema_version'] = '1.2.6'
+            phewas_evidence["access_level"] = "public"
+            phewas_evidence["sourceID"] = "phewas_catalog"
+            phewas_evidence['type'] = 'genetic_association'
+            phewas_evidence["variant"]= {"type": "snp single", "id": "http://identifiers.org/dbsnp/{}".format(phewas_dict['snp'])}
+            phewas_evidence['unique_association_fields'] = {'odds_ratio':phewas_dict['odds-ratio'], 'cases' : phewas_dict['cases'], 'phenotype' : phewas_dict['phewas phenotype']}
 
-        #phewas_evidence['resource_score'] = {'type': 'pvalue', 'method': {"description":"pvalue for the phenotype to snp association."},"value":phewas_dict['p-value']}
-        i = datetime.now()
+            #phewas_evidence['resource_score'] = {'type': 'pvalue', 'method': {"description":"pvalue for the phenotype to snp association."},"value":phewas_dict['p-value']}
+            i = datetime.now()
 
-        evidence = dict()
-        evidence['variant2disease'] = {'unique_experiment_reference':'http://europepmc.org/abstract/MED/0',
-                                       'provenance_type': {"literature":{"references":[{"lit_id":"http://europepmc.org/abstract/MED/1"}]},
-                                                           "expert":{"status":True,"statement":"Primary submitter of data"},
-                                                           "database":{"version":"2017-06-01T09:53:37+00:00","id":"PHEWAS Catalog",
-                                                                       "dbxref":{"version":"2017-06-01T09:53:37+00:00","id":"http://identifiers.org/phewascatalog"}}},
-                                       'is_associated': True,
-                                       'resource_score':{'type': 'pvalue', 'method': {"description":"pvalue for the phenotype to snp association."},"value":float(phewas_dict['p-value'])},
-                                       'date_asserted': i.strftime('%Y-%m-%d %H:%M:%S'),
-                                       'evidence_codes': ['http://identifiers.org/eco/GWAS','http://purl.obolibrary.org/obo/ECO_0000205'],
-                                       }
-        evidence['gene2variant'] = {'provenance_type': {"expert":{"status":True,"statement":"Primary submitter of data"},
-                                                        "database":{"version":"2017-06-01T09:53:37+00:00","id":"PHEWAS Catalog","dbxref":{"version":"2017-06-01T09:53:37+00:00","id":"http://identifiers.org/phewascatalog"}}},
-                                    'is_associated': True, 'date_asserted' : i.strftime('%Y-%m-%d %H:%M:%S'),
-                                    'evidence_codes':["http://identifiers.org/eco/cttv_mapping_pipeline", "http://purl.obolibrary.org/obo/ECO_0000205"],
-                                    'functional_consequence':'http://purl.obolibrary.org/obo/SO_0001632'}
-        phewas_evidence['evidence'] = evidence
+            evidence = dict()
+            evidence['variant2disease'] = {'unique_experiment_reference':'http://europepmc.org/abstract/MED/0',
+                                           'provenance_type': {"literature":{"references":[{"lit_id":"http://europepmc.org/abstract/MED/1"}]},
+                                                               "expert":{"status":True,"statement":"Primary submitter of data"},
+                                                               "database":{"version":"2017-07-01T09:53:37+00:00","id":"PHEWAS Catalog",
+                                                                           "dbxref":{"version":"2017-07-01T09:53:37+00:00","id":"http://identifiers.org/phewascatalog"}}},
+                                           'is_associated': True,
+                                           'resource_score':{'type': 'pvalue', 'method': {"description":"pvalue for the phenotype to snp association."},"value":float(phewas_dict['p-value'])},
+                                           'date_asserted': i.strftime('%Y-%m-%dT%H:%M:%S+00:00'),
+                                           'evidence_codes': ['http://identifiers.org/eco/GWAS','http://purl.obolibrary.org/obo/ECO_0000205'],
+                                           }
+            evidence['gene2variant'] = {'provenance_type': {"expert":{"status":True,"statement":"Primary submitter of data"},
+                                                            "database":{"version":"2017-07-01T09:53:37+00:00","id":"PHEWAS Catalog","dbxref":{"version":"2017-07-01T09:53:37+00:00","id":"http://identifiers.org/phewascatalog"}}},
+                                        'is_associated': True, 'date_asserted' : i.strftime('%Y-%m-%dT%H:%M:%S+00:00'),
+                                        'evidence_codes':["http://identifiers.org/eco/cttv_mapping_pipeline", "http://purl.obolibrary.org/obo/ECO_0000205"],
+                                        'functional_consequence':'http://purl.obolibrary.org/obo/SO_0001632'}
+            phewas_evidence['evidence'] = evidence
+        else:
+            phewas_evidence = None
+            logging.info('Missing disease/target evidence : {}'.format(phewas_evidence))
         return phewas_evidence
 
 
