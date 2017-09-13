@@ -107,3 +107,42 @@ class OBOParser():
         data['xref'] = xrefs
         data['icd9'] = icd9s
         return data
+
+    def get_obsolete_efos(self):
+        single_node = []
+        obsolete_efos = dict()
+        store = False
+        for line in file(self.filename):
+
+            if not line.strip():
+                store = False
+                if single_node:
+                    new_efo = None
+                    obsolete_efo = None
+                    for line_node in single_node:
+                        if line_node.startswith('id'):
+                            line_node = line_node.split(': ')[1]
+                            id = line_node.strip(' \n')
+                        if line_node.startswith('is_obsolete:'):
+                            obsolete_efo = id.replace(':','_')
+                        if line_node.startswith('replaced_by:'):
+                            try:
+
+                                line_node = line_node.split(': ')[1]
+                                line_node = line_node.split('/')
+                                new_efo = line_node[4].rstrip()
+                            except IndexError as e:
+                                new_efo = None
+
+                    if obsolete_efo:
+                        obsolete_efos[obsolete_efo] = new_efo
+
+
+                single_node = []
+            if line.startswith('[Term]'):
+                store = True
+            if store:
+                single_node.append(line)
+        obsolete_efos['other'] = None
+        print len(obsolete_efos)
+        return obsolete_efos

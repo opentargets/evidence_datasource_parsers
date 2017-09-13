@@ -75,11 +75,12 @@ class PhewasProcessor(object):
 
 
     def setup(self):
-        obo_parser = OBOParser('resources/efo.obo')
+        obo_parser = OBOParser('../resources/efo.obo')
         obo_parser.parse()
         self.efos = obo_parser.efos
+        self.obsolete_efos = obo_parser.get_obsolete_efos()
 
-        hp_obo_parser = OBOParser('resources/hp.obo')
+        hp_obo_parser = OBOParser('../resources/hp.obo')
         hp_obo_parser.parse()
         self.efos.extend(hp_obo_parser.efos)
 
@@ -88,7 +89,7 @@ class PhewasProcessor(object):
         self.genes = gene_parser.genes
 
 
-        for icd9_row in self.csv_parser.parse('resources/phecode_icd9_rolled.csv'):
+        for icd9_row in self.csv_parser.parse('../resources/phecode_icd9_rolled.csv'):
             pheCode = icd9_row['PheCode']
             try:
 
@@ -110,12 +111,12 @@ class PhewasProcessor(object):
         missing_efo_fieldnames = ['phenotype', 'similar_efo']
         fieldnames = ['phenotype', 'efo_id', 'gene_name','ensg_id','cases','p-value','odds-ratio','snp']
         logging.info('Start the phewas catalog mapping')
-        with open('missing_efo.csv', 'w') as out_missing_csv , open('phewas_efo_ensg.csv', 'w') as out_csv, open('phewascatalog.json', 'w') as out_json:
+        with open('missing_efo.csv', 'w') as out_missing_csv , open('phewas_efo_ensg.csv', 'w') as out_csv, open('../output/phewas_catalog.json', 'w') as out_json:
             writer = csv.DictWriter(out_csv, fieldnames)
             writer.writeheader()
             missing_efo_writer = csv.DictWriter(out_missing_csv, missing_efo_fieldnames)
             missing_efo_writer.writeheader()
-            for phewas_row in self.csv_parser.parse('resources/phewas-catalog.csv'):
+            for phewas_row in self.csv_parser.parse('../resources/phewas-catalog.csv'):
 
                 ensg_id = self.genes.get(phewas_row['gene_name'])
                 if ensg_id:
@@ -137,12 +138,21 @@ class PhewasProcessor(object):
     def generate_evidence(self,phewas_dict, disease_id, target_id):
         phewas_evidence = dict()
         disease_id = disease_id.replace(':','_')
-        #TODO ; Handle diseases like MP:0003254, NCBITaxon:1392,Orphanet:79211
-
+        if disease_id in self.obsolete_efos:
+            new_efo = self.obsolete_efos[disease_id]
+            if new_efo:
+                print 'Obsolete efo- {} New EFO - {}'.format(disease_id, new_efo)
+                disease_id = new_efo
+            else:
+                return None
 
         if disease_id.startswith('EFO'):
             phewas_evidence['disease'] = {'id': 'http://www.ebi.ac.uk/efo/'+disease_id}
-        elif disease_id.startswith('HP'):
+        elif disease_id.startswith('HP') or disease_id.startswith('MP') :
+            phewas_evidence['disease'] = {'id': 'http://purl.obolibrary.org/obo/' + disease_id}
+        elif disease_id.startswith('Orphanet') :
+            phewas_evidence['disease'] = {'id': 'http://www.orpha.net/ORDO/' + disease_id}
+        elif disease_id.startswith('NCBITaxon') :
             phewas_evidence['disease'] = {'id': 'http://purl.obolibrary.org/obo/' + disease_id}
 
         phewas_evidence['target'] = {"activity": "http://identifiers.org/cttv.activity/predicted_damaging",
@@ -151,7 +161,7 @@ class PhewasProcessor(object):
         if phewas_evidence.get('target') and phewas_evidence.get('disease'):
             phewas_evidence['validated_against_schema_version'] = self.schema_version
             phewas_evidence["access_level"] = "public"
-            phewas_evidence["sourceID"] = "phewascatalog"
+            phewas_evidence["sourceID"] = "phewas_catalog"
             phewas_evidence['type'] = 'genetic_association'
             phewas_evidence["variant"]= {"type": "snp single", "id": "http://identifiers.org/dbsnp/{}".format(phewas_dict['snp'])}
             phewas_evidence['unique_association_fields'] = {'odds_ratio':phewas_dict['odds-ratio'], 'cases' : phewas_dict['cases'], 'phenotype' : phewas_dict['phewas phenotype']}
@@ -209,7 +219,7 @@ def unique_phenotypes():
             out_file.write('\n')
 
 def main():
-    phewas_processor = PhewasProcessor()
+    phewas_processor = PhewasProcessor('1.2.7')
     phewas_processor.setup()
     phewas_processor.convert_phewas_catalog_evidence_json()
     #remove_dup()
