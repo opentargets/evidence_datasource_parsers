@@ -229,7 +229,7 @@ class DataTransformerProcess(RedisQueueWorkerProcess):
                                              "target_type": "http://identifiers.org/cttv.target/gene_evidence"}
                 phewas_evidence['validated_against_schema_version'] = '1.2.6'
                 phewas_evidence["access_level"] = "public"
-                phewas_evidence["sourceID"] = "23andme"
+                phewas_evidence["sourceID"] = "twentythreeandme"
                 phewas_evidence['type'] = 'genetic_association'
                 phewas_evidence["variant"] = {"type": "snp single",
                                               "id": "http://identifiers.org/dbsnp/{}".format(phewas_dict['assay_name'])}
