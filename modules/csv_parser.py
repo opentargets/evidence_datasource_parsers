@@ -170,8 +170,8 @@ class PhewasProcessor(object):
             i = datetime.now()
 
             evidence = dict()
-            evidence['variant2disease'] = {'unique_experiment_reference':'http://europepmc.org/abstract/MED/0',
-                                           'provenance_type': {"literature":{"references":[{"lit_id":"http://europepmc.org/abstract/MED/1"}]},
+            evidence['variant2disease'] = {'unique_experiment_reference':'https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3969265/',
+                                           'provenance_type': {"literature":{"references":[{"lit_id":"https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3969265/"}]},
                                                                "expert":{"status":True,"statement":"Primary submitter of data"},
                                                                "database":{"version":"2017-07-01T09:53:37+00:00","id":"PHEWAS Catalog",
                                                                            "dbxref":{"version":"2017-07-01T09:53:37+00:00","id":"http://identifiers.org/phewascatalog"}}},
