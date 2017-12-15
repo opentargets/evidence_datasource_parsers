@@ -1,5 +1,5 @@
 import ujson as json
-import urllib2
+import requests
 from tqdm import tqdm
 from settings import Config
 
@@ -69,10 +69,11 @@ class GeneParser(object):
 
     def _get_hgnc_data_from_json(self):
 
-        req = urllib2.Request(Config.GENES_HGNC)
-        response = urllib2.urlopen(req)
-        print 'Received hgnc json respnse'
-        data = json.loads(response.read())
+        #r = requests.get(Config.GENES_HGNC)
+        print('Received HGNC json response')
+        #data = r.json()
+        data = json.load(open(Config.GENES_HGNC))
+
         for row in tqdm(data['response']['docs'],
                         desc='loading genes from HGNC',
                         unit_scale=True,
@@ -92,3 +93,4 @@ class GeneParser(object):
             # gene = Gene()
             # gene.load_hgnc_data_from_json(row)
             # self.genes.append(gene)
+        print('All parsed')

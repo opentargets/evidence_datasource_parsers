@@ -114,35 +114,9 @@ class IntOGen():
     def __init__(self):
 
         self.evidence_strings = list()
-        self.ensembl_current = {}
+        self.genes = None
         self.symbols = {}
         self.logger = logging.getLogger(__name__)
-
-    def load_Ensembl(self):
-
-        self.logger.debug("Loading ES Ensembl {0} assembly genes and non reference assembly".format(
-            Config.EVIDENCEVALIDATION_ENSEMBL_ASSEMBLY))
-
-        for row in self.esquery.get_all_ensembl_genes():
-
-            self.ensembl_current[row["id"]] = row
-            # put the ensembl_id in symbols too
-            display_name = row["display_name"]
-            if display_name not in self.symbols:
-                self.symbols[display_name] = {}
-                self.symbols[display_name]["assembly_name"] = row["assembly_name"]
-                self.symbols[display_name]["ensembl_release"] = row["ensembl_release"]
-            if row["is_reference"]:
-                self.symbols[display_name]["ensembl_primary_id"] = row["id"]
-            else:
-                if "ensembl_secondary_id" not in self.symbols[display_name] or row["id"] < \
-                        self.symbols[display_name]["ensembl_secondary_id"]:
-                    self.symbols[display_name]["ensembl_secondary_id"] = row["id"];
-                if "ensembl_secondary_ids" not in self.symbols[display_name]:
-                    self.symbols[display_name]["ensembl_secondary_ids"] = []
-                self.symbols[display_name]["ensembl_secondary_ids"].append(row["id"])
-
-        self.logger.debug("Loading ES Ensembl finished")
 
     def process_intogen(self, infile=Config.INTOGEN_FILENAME, outfile=Config.INTOGEN_EVIDENCE_FILENAME):
 
@@ -150,7 +124,6 @@ class IntOGen():
         gene_parser._get_hgnc_data_from_json()
         self.genes = gene_parser.genes
 
-        #self.load_Ensembl()
         self.read_intogen(filename=infile)
         self.write_evidence_strings(filename=outfile)
 
@@ -219,7 +192,7 @@ class IntOGen():
 
                     ensembl_gene_id = self.genes.get(Symbol)
                     if not ensembl_gene_id:
-                        
+
                         self.logger.error("%s is not found in Ensembl" % Symbol)
                         continue
 

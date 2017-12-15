@@ -144,5 +144,5 @@ class OBOParser():
             if store:
                 single_node.append(line)
         obsolete_efos['other'] = None
-        print len(obsolete_efos)
+        print(len(obsolete_efos))
         return obsolete_efos

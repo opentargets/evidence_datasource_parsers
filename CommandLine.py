@@ -1,13 +1,15 @@
 import argparse
 import sys
 
-from  modules.csv_parser import PhewasProcessor
-from modules.G2P import G2PActions, G2P
-from modules.GE import GenomicsEnglandActions, GE
-from modules.MouseModels import MouseModelsActions, Phenodigm
+from  modules.PheWAS import PhewasProcessor
+from modules.G2P import G2P
+from modules.GenomicsEnglandPanelApp import GE
+from modules.MouseModels import Phenodigm
 from modules.IntOGen import IntOGen
 # from modules.mongo_multiprocessing import MongoDataManager
 # from modules.nferx_parser import NferxManager
+from settings import Config
+
 def main():
 
     parser = argparse.ArgumentParser(description='Open Targets evidence generator')
@@ -35,7 +37,7 @@ def main():
                         action="append_const", const=str)
     parser.add_argument("--schema-version", dest='schema_version',
                         help="set the schema version",
-                        action='store', default='1.2.6')
+                        action='store', default=Config.VALIDATED_AGAINST_SCHEMA_VERSION)
     args = parser.parse_args()
 
     if args.phewas:
@@ -43,14 +45,13 @@ def main():
         phewas_processor.setup()
         phewas_processor.convert_phewas_catalog_evidence_json()
     elif args.genomicsengland:
-        print "to be implemented"
+        GE().process_all()
     elif args.intogen:
-        print "to be implemented"
         IntOGen().process_intogen()
     elif args.gene2phenotype:
-        print "to be implemented"
+        print("to be implemented")
     elif args.phenodigm:
-        print "to be implemented"
+        Phenodigm().generate_evidence()
     # if args.biogen_23andme :
     #     mongo_processor = MongoDataManager()
     #     mongo_processor.setup()

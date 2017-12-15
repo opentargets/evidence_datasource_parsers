@@ -1,7 +1,7 @@
 
 import logging
 import unittest
-from modules.csv_parser import PhewasProcessor
+from modules.PheWAS import PhewasProcessor
 
 
 logger = logging.getLogger(__name__)
