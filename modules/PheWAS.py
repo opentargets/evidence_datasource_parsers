@@ -141,7 +141,7 @@ class PhewasProcessor(object):
         if disease_id in self.obsolete_efos:
             new_efo = self.obsolete_efos[disease_id]
             if new_efo:
-                print 'Obsolete efo- {} New EFO - {}'.format(disease_id, new_efo)
+                print ('Obsolete efo- %s New EFO - %s'%(disease_id, new_efo))
                 disease_id = new_efo
             else:
                 return None
