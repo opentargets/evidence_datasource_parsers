@@ -2,7 +2,7 @@ import argparse
 import sys
 
 from  modules.PheWAS import PhewasProcessor
-from modules.G2P import G2P
+from modules.Gene2Phenotype import G2P
 from modules.GenomicsEnglandPanelApp import GE
 from modules.MouseModels import Phenodigm
 from modules.IntOGen import IntOGen
@@ -49,7 +49,7 @@ def main():
     elif args.intogen:
         IntOGen().process_intogen()
     elif args.gene2phenotype:
-        print("to be implemented")
+        G2P().process_g2p()
     elif args.phenodigm:
         Phenodigm().generate_evidence()
     # if args.biogen_23andme :
