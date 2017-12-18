@@ -20,8 +20,7 @@ def file_or_resource(fname=None):
 
 class Config:
     PHEWAS_CATALOG_LOCN = 'https://storage.googleapis.com/phewas-catalog'
-    #GENES_HGNC =  'http://ftp.ebi.ac.uk/pub/databases/genenames/new/json/hgnc_complete_set.json'
-    GENES_HGNC = '/Users/otvisitor/Documents/data/hgnc_complete_set.json'
+    GENES_HGNC =  'http://ftp.ebi.ac.uk/pub/databases/genenames/new/json/hgnc_complete_set.json'
     PHEWAS_CATALOG_JSON = '../phewas.json'
 
     INTOGEN_FILENAME = file_or_resource('intogen_opentargets.tsv')
