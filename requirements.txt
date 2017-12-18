@@ -5,6 +5,7 @@ git+https://github.com/opentargets/data_model.git@1.2.7#egg=data-model
 git+https://github.com/opentargets/ontology-utils.git@master#egg=ontologyutils
 #git+https://github.com/opentargets/data_pipeline.git@master#egg=data_pipeline
 requests
+urllib
 urllib3
 iso8601
 rdflib
