@@ -19,16 +19,25 @@ def file_or_resource(fname=None):
             else res.resource_filename(resource_package, resource_path)
 
 class Config:
-    # Gene2Phenotype input/output
+    # Gene2Phenotype
     G2P_FILENAME = file_or_resource('DDG2P_14_5_2017.csv.gz')
     G2P_EVIDENCE_FILENAME = '/Users/ckong/Desktop/otar001_gene2phenotype-18-12-2017.json'
+
+    # Genomics England
+    GE_EVIDENCE_STRING = '/Users/ckong/Desktop/otar001_genomics_england-18-12-2017.json'
+    GE_LINKOUT_URL = 'https://panelapp.genomicsengland.co.uk/panels/'
+    GE_ZOOMA_DISEASE_MAPPING = '/tmp/zooma_disease_mapping.csv'
+    GE_ZOOMA_DISEASE_MAPPING_NOT_HIGH_CONFIDENT = '/tmp/zooma_disease_mapping_low_confidence.csv'
+
+    # IntoGEN
+    INTOGEN_FILENAME = file_or_resource('intogen_opentargets.tsv')
+    INTOGEN_EVIDENCE_FILENAME = '/Users/ckong/Desktop/otar001_intogen-18-12-2017.json'
+
 
     PHEWAS_CATALOG_LOCN = 'https://storage.googleapis.com/phewas-catalog'
     GENES_HGNC =  'http://ftp.ebi.ac.uk/pub/databases/genenames/new/json/hgnc_complete_set.json'
     PHEWAS_CATALOG_JSON = '../phewas.json'
 
-    INTOGEN_FILENAME = file_or_resource('intogen_opentargets.tsv')
-    INTOGEN_EVIDENCE_FILENAME = '/tmp/intogen.json'
 
     ONTOLOGY_CONFIG = configparser.ConfigParser()
     ONTOLOGY_CONFIG.read(file_or_resource('ontology_config.ini'))
@@ -37,12 +46,6 @@ class Config:
     OMIM_TO_EFO_MAP_URL = 'https://raw.githubusercontent.com/opentargets/platform_semantic/master/resources/xref_mappings/omim_to_efo.txt'
     ZOOMA_TO_EFO_MAP_URL = 'https://raw.githubusercontent.com/opentargets/platform_semantic/master/resources/zooma/cttv_indications_3.txt'
 
-    # GE Pipeline
-
-    GE_EVIDENCE_STRING = '/tmp/genomics_england_evidence_string.json'
-    GE_LINKOUT_URL = 'https://panelapp.genomicsengland.co.uk/panels/'
-    GE_ZOOMA_DISEASE_MAPPING = '/tmp/zooma_disease_mapping.csv'
-    GE_ZOOMA_DISEASE_MAPPING_NOT_HIGH_CONFIDENT = '/tmp/zooma_disease_mapping_low_confidence.csv'
 
     VALIDATED_AGAINST_SCHEMA_VERSION = '1.2.7'
 
