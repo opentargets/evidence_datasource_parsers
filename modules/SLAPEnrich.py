@@ -8,8 +8,6 @@ import opentargets.model.bioentity as bioentity
 import opentargets.model.evidence.core as evidence_core
 import opentargets.model.evidence.linkout as evidence_linkout
 import opentargets.model.evidence.association_score as association_score
-#from mrtarget.common.ElasticsearchQuery import ESQuery
-from tqdm import tqdm
 
 __copyright__ = "Copyright 2014-2017, Open Targets"
 __credits__   = ["Francesco Iorio", "Andrea Pierleoni", "ChuangKee Ong"]
@@ -134,32 +132,6 @@ class SLAPEnrich():
         self.symbols = {}
         self.logger = logging.getLogger(__name__)
 
-#     def load_Ensembl(self):
-
-#        self.logger.debug("Loading ES Ensembl {0} assembly genes and non reference assembly".format(
-#            Config.EVIDENCEVALIDATION_ENSEMBL_ASSEMBLY))
-
-#        for row in self.esquery.get_all_ensembl_genes():
-
-#            self.ensembl_current[row["id"]] = row
-            # put the ensembl_id in symbols too
-#            display_name = row["display_name"]
-#            if display_name not in self.symbols:
-#                self.symbols[display_name] = {}
-#                self.symbols[display_name]["assembly_name"] = row["assembly_name"]
-#                self.symbols[display_name]["ensembl_release"] = row["ensembl_release"]
-#            if row["is_reference"]:
-#                self.symbols[display_name]["ensembl_primary_id"] = row["id"]
-#            else:
-#                if "ensembl_secondary_id" not in self.symbols[display_name] or row["id"] < \
-#                        self.symbols[display_name]["ensembl_secondary_id"]:
-#                    self.symbols[display_name]["ensembl_secondary_id"] = row["id"]
-#                if "ensembl_secondary_ids" not in self.symbols[display_name]:
-#                    self.symbols[display_name]["ensembl_secondary_ids"] = []
-#                self.symbols[display_name]["ensembl_secondary_ids"].append(row["id"])
-
-#        self.logger.debug("Loading ES Ensembl finished")
-
     def process_slapenrich(self):
         gene_parser = GeneParser()
         gene_parser._get_hgnc_data_from_json()
@@ -246,17 +218,6 @@ class SLAPEnrich():
                     '''
                     if gene_symbol in self.symbols:
                         ensembl_gene_id = self.symbols[gene_symbol]
-
-                    #if gene_symbol in self.symbols:
-                    #    record = self.symbols
-                        # u'GNB3': {'assembly_name': u'GRCh38', 'ensembl_release': 89,'ensembl_primary_id': u'ENSG00000111664'},
-                    #    if "ensembl_primary_id" in record[gene_symbol]:
-                    #        ensembl_gene_id = record[gene_symbol]["ensembl_primary_id"]
-                    #    elif "ensembl_secondary_ids" in record:
-                    #        ensembl_gene_id = record[gene_symbol]["ensembl_secondary_ids"][0]
-                    #    else:
-                    #        self.logger.error("%s is in Ensembl but cound not find its ensembl_gene_id" %gene_symbol)
-                    #        continue
 
                         evidenceString.target = bioentity.Target(
                             id="http://identifiers.org/ensembl/{0}".format(ensembl_gene_id),
