@@ -70,26 +70,22 @@ class GeneParser(object):
     def _get_hgnc_data_from_json(self):
 
         r = requests.get(Config.GENES_HGNC)
-        print('Received HGNC json response')
         data = r.json()
 
         for row in tqdm(data['response']['docs'],
-                        desc='loading genes from HGNC',
-                        unit_scale=True,
-                        unit='genes',
-                        leave=False):
+                desc='Downloading HGNC genes from json response',
+                unit='genes'):
+
             ensembl_gene_id = ''
+
             if 'ensembl_gene_id' in row:
                 ensembl_gene_id = row['ensembl_gene_id']
                 if not ensembl_gene_id:
                     ensembl_gene_id = data['ensembl_id_supplied_by_ensembl']
             self.genes[row['symbol']] = ensembl_gene_id
+
             if 'prev_symbol' in row:
                 # to handle obsolete gene symbols like EFCAB4B
                 for prev_symbol in row['prev_symbol']:
                     self.genes[prev_symbol] = ensembl_gene_id
-
-            # gene = Gene()
-            # gene.load_hgnc_data_from_json(row)
-            # self.genes.append(gene)
-        print('All parsed')
+        print('All HGNC genes parsed')

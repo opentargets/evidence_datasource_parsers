@@ -19,6 +19,16 @@ def file_or_resource(fname=None):
             else res.resource_filename(resource_package, resource_path)
 
 class Config:
+    # schema version
+    EVIDENCEVALIDATION_SCHEMA = '1.2.7'
+
+    # HGNC
+    GENES_HGNC =  'http://ftp.ebi.ac.uk/pub/databases/genenames/new/json/hgnc_complete_set.json'
+
+    # SLAPEnrich
+    SLAPENRICH_FILENAME = file_or_resource('slapenrich_opentargets.tsv')
+    SLAPENRICH_EVIDENCE_FILENAME = '/Users/ckong/Desktop/otar001_slapenrich-19-12-2017.json'
+
     # Gene2Phenotype
     G2P_FILENAME = file_or_resource('DDG2P_14_5_2017.csv.gz')
     G2P_EVIDENCE_FILENAME = '/Users/ckong/Desktop/otar001_gene2phenotype-18-12-2017.json'
@@ -33,11 +43,9 @@ class Config:
     INTOGEN_FILENAME = file_or_resource('intogen_opentargets.tsv')
     INTOGEN_EVIDENCE_FILENAME = '/Users/ckong/Desktop/otar001_intogen-18-12-2017.json'
 
-
+    # Phewas
     PHEWAS_CATALOG_LOCN = 'https://storage.googleapis.com/phewas-catalog'
-    GENES_HGNC =  'http://ftp.ebi.ac.uk/pub/databases/genenames/new/json/hgnc_complete_set.json'
-    PHEWAS_CATALOG_JSON = '../phewas.json'
-
+    PHEWAS_CATALOG_JSON = '/Users/ckong/Desktop/otar001_phewas_catalog-19-12-2017.json'
 
     ONTOLOGY_CONFIG = configparser.ConfigParser()
     ONTOLOGY_CONFIG.read(file_or_resource('ontology_config.ini'))
