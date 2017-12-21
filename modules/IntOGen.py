@@ -123,7 +123,6 @@ class IntOGen():
         gene_parser = GeneParser()
         gene_parser._get_hgnc_data_from_json()
         self.genes = gene_parser.genes
-
         self.read_intogen(filename=infile)
         self.write_evidence_strings(filename=outfile)
 
@@ -143,9 +142,11 @@ class IntOGen():
                 references = [ evidence_core.Single_Lit_Reference(lit_id = "http://europepmc.org/abstract/MED/25759023") ]
             )
         )
-        error = provenance_type.validate(logging)
+        error = provenance_type.validate(self.logger)
+        print(error)
         if error > 0:
             self.logger.error(provenance_type.to_JSON(indentation=4))
+            print(provenance_type.to_JSON(indentation=4))
             sys.exit(1)
 
         with open(filename, 'r') as intogen_file:
@@ -165,7 +166,7 @@ class IntOGen():
                         value=INTOGEN_SCORE_MAP[Evidence])
 
                     evidenceString = opentargets.Literature_Curated()
-                    evidenceString.validated_against_schema_version = '1.2.6'
+                    evidenceString.validated_against_schema_version = '1.2.7'
                     evidenceString.access_level = "public"
                     evidenceString.type = "somatic_mutation"
                     evidenceString.sourceID = "intogen"
@@ -252,8 +253,8 @@ class IntOGen():
 
             self.logger.info("%s evidence parsed"%(n-1))
             self.logger.info("%s evidence created"%len(self.evidence_strings))
+            print("%s evidence created"%len(self.evidence_strings))
 
-        intogen_file.close()
 
     def write_evidence_strings(self, filename=Config.INTOGEN_EVIDENCE_FILENAME):
         self.logger.info("Writing IntOGen evidence strings")
