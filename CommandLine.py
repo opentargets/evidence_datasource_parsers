@@ -6,6 +6,7 @@ from modules.Gene2Phenotype import G2P
 from modules.GenomicsEnglandPanelApp import GE
 from modules.MouseModels import Phenodigm
 from modules.IntOGen import IntOGen
+from modules.SLAPEnrich import SLAPEnrich
 # from modules.mongo_multiprocessing import MongoDataManager
 # from modules.nferx_parser import NferxManager
 from settings import Config
@@ -28,6 +29,9 @@ def main():
                         action="append_const", const=str)
     parser.add_argument("--phenodigm", dest='phenodigm',
                         help="process phenodigm data and generate evidences for open targets pipeline",
+                        action="append_const", const=str)
+    parser.add_argument("--slapenrich", dest='slapenrich',
+                        help="process slapenrich data and generate evidences for open targets pipeline",
                         action="append_const", const=str)
     parser.add_argument("--23andme", dest='biogen_23andme',
                         help="process 23andme data and generate evidences for open targets pipeline",
@@ -52,7 +56,9 @@ def main():
         G2P().process_g2p()
     elif args.phenodigm:
         Phenodigm().generate_evidence()
-    # if args.biogen_23andme :
+    elif args.slapenrich:
+        SLAPEnrich().process_slapenrich()
+        # if args.biogen_23andme :
     #     mongo_processor = MongoDataManager()
     #     mongo_processor.setup()
     #     mongo_processor.process()

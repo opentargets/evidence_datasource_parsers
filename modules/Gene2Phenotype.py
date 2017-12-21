@@ -25,9 +25,8 @@ __maintainer__ = "ChuangKee Ong"
 __email__      = ["gautierk@targetvalidation.org", "ckong@ebi.ac.uk"]
 __status__     = "Production"
 
-G2P_FILENAME = file_or_resource('DDG2P_14_5_2017.csv.gz')
-G2P_EVIDENCE_FILENAME = '/Users/ckong/Desktop/cttv001_gene2phenotype-16-06-2017.json'
-G2P_EVIDENCE_FILENAME = '/Users/otvisitor/Documents/data/gene2phenotype-18-12-2017.json'
+G2P_FILENAME = Config.G2P_FILENAME
+G2P_EVIDENCE_FILENAME = Config.G2P_EVIDENCE_FILENAME
 
 class G2P(RareDiseaseMapper):
     def __init__(self, es=None):
