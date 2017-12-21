@@ -22,6 +22,8 @@ class Config:
     # schema version
     EVIDENCEVALIDATION_SCHEMA = '1.2.7'
 
+    GOOGLE_BUCKET_EVIDENCE_INPUT = 'otar000-evidence_input'
+
     # HGNC
     GENES_HGNC =  'http://ftp.ebi.ac.uk/pub/databases/genenames/new/json/hgnc_complete_set.json'
 
@@ -30,8 +32,9 @@ class Config:
     SLAPENRICH_EVIDENCE_FILENAME = '/Users/ckong/Desktop/otar001_slapenrich-19-12-2017.json'
 
     # Gene2Phenotype
-    G2P_FILENAME = file_or_resource('DDG2P_14_5_2017.csv.gz')
-    G2P_EVIDENCE_FILENAME = '/Users/ckong/Desktop/otar001_gene2phenotype-18-12-2017.json'
+    #G2P_FILENAME = file_or_resource('DDG2P_14_5_2017.csv.gz')
+    G2P_FILENAME = 'DDG2P_14_5_2017.csv.gz'
+    G2P_EVIDENCE_FILENAME = 'gene2phenotype.json'
 
     # Genomics England
     GE_EVIDENCE_STRING = '/Users/ckong/Desktop/otar001_genomics_england-18-12-2017.json'

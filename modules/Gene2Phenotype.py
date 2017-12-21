@@ -2,6 +2,8 @@ from settings import Config, file_or_resource
 from common.HGNCParser import GeneParser
 from common.RareDiseasesUtils import RareDiseaseMapper
 from tqdm import tqdm
+import google.cloud.storage as gcs
+import google.cloud.exceptions as gce
 
 import opentargets.model.core as opentargets
 import opentargets.model.bioentity as bioentity
@@ -34,7 +36,17 @@ class G2P(RareDiseaseMapper):
         super().__init__()
         self.genes = None
         self.evidence_strings = list()
+        self.gcs_client = gcs.Client()
+        self.bucket = None
         self._logger = logging.getLogger(__name__)
+
+        try:
+            for bucket in self.gcs_client.list_buckets():
+                print(bucket)
+            self.bucket = self.gcs_client.get_bucket(Config.GOOGLE_BUCKET_EVIDENCE_INPUT)
+        except gce.NotFound:
+            self._logger.error('Please set export GOOGLE_APPLICATION_CREDENTIALS=/path/to/key.json')
+            print('Sorry, that bucket does not exist!')
 
     def process_g2p(self):
 
@@ -49,8 +61,11 @@ class G2P(RareDiseaseMapper):
 
     def generate_evidence_strings(self, filename):
         total_efo = 0
+        blob = self.bucket.get_blob(filename)
+        with open('/tmp/%s'%(G2P_FILENAME), 'wb') as file_obj:
+            blob.download_to_file(file_obj)
 
-        with gzip.open(filename, mode='rt') as zf:
+        with gzip.open('/tmp/%s'%(G2P_FILENAME), mode='rt') as zf:
             reader = csv.reader(zf, delimiter=',', quotechar='"')
             c = 0
             for row in reader:
@@ -129,7 +144,7 @@ class G2P(RareDiseaseMapper):
 
     def write_evidence_strings(self, filename):
         self._logger.info("Writing IntOGen evidence strings")
-        with open(filename, 'w') as tp_file:
+        with open('/tmp/' + filename, 'w') as tp_file:
             n = 0
             for evidence_string in self.evidence_strings:
                 n += 1
@@ -142,7 +157,11 @@ class G2P(RareDiseaseMapper):
                     self._logger.error("REPORTING ERROR %i" % n)
                     self._logger.error(evidence_string.to_JSON(indentation=4))
                     # sys.exit(1)
-        tp_file.close()
+
+
+        blob = self.bucket.blob(filename)
+        with open('/tmp/' + filename, 'rb') as my_file:
+            blob.upload_from_file(my_file)
 
 def main():
     g2p = G2P()
