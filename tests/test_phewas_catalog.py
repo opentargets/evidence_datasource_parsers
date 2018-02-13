@@ -40,7 +40,8 @@ class PhewasTestCase(unittest.TestCase):
 
         '''no match'''
         #TODO: find another one!
-        # matched_efos = phewas_processor.find_efo('Iron metabolism disorder', '275.1')
+        matched_efos = phewas_processor.find_efo('Candidiasis', '275.1')
+        logger.info(matched_efos)
         # self.assertEqual(len(matched_efos),0 )
 
 

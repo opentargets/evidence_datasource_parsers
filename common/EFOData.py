@@ -40,7 +40,7 @@ class OBOParser():
     def parse(self):
         single_node = []
         store = False
-
+        logger.info('Downloading OBO file from {}'.format(self.url))
         with requests.get(self.url, stream=True) as r:
             for line in r.iter_lines(decode_unicode=True):
 
@@ -53,6 +53,8 @@ class OBOParser():
                     store = True
                 if store:
                     single_node.append(line)
+        logger.info('Finished downloading OBO file')
+
 
     def _parse_single_node(self, single_node):
         data = dict()
