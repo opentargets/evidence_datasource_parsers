@@ -80,7 +80,7 @@ class OBOParser():
             elif line.startswith('synonym'):
 
                 line = line.split(': ')[1]
-                line = line.split(b"\"")[1]
+                line = line.split('\"')[1]
                 synonyms.append(line.lower())
             elif line.startswith('xref:'):
                 line = line.split(': ')[1]
