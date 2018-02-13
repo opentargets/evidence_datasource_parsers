@@ -29,6 +29,9 @@ class Config:
     GOOGLE_DEFAULT_PROJECT = 'open-targets'
     GOOGLE_BUCKET_EVIDENCE_INPUT = 'otar000-evidence_input'
 
+    #Ontologies
+    EFO_URL = 'https://github.com/EBISPOT/efo/raw/v2018-01-15/efo.obo'
+    HP_URL = 'http://purl.obolibrary.org/obo/hp.obo'
 
     # HGNC
     GENES_HGNC =  'http://ftp.ebi.ac.uk/pub/databases/genenames/new/json/hgnc_complete_set.json'

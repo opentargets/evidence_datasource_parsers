@@ -74,12 +74,14 @@ class PhewasProcessor(object):
 
 
     def setup(self):
-        obo_parser = OBOParser('../resources/efo.obo')
+        obo_parser = OBOParser(Config.EFO_URL)
+        logger.info('Parsing EFO obo file from github')
         obo_parser.parse()
         self.efos = obo_parser.efos
         self.obsolete_efos = obo_parser.get_obsolete_efos()
 
-        hp_obo_parser = OBOParser('../resources/hp.obo')
+        hp_obo_parser = OBOParser(Config.HP_URL)
+        logger.info('Parsing HP obo file from github')
         hp_obo_parser.parse()
         self.efos.extend(hp_obo_parser.efos)
 
