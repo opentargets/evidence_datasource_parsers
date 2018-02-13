@@ -36,7 +36,7 @@ class G2P(RareDiseaseMapper):
         super().__init__()
         self.genes = None
         self.evidence_strings = list()
-        self.gcs_client = gcs.Client()
+        self.gcs_client = gcs.Client(Config.GOOGLE_DEFAULT_PROJECT)
         self.bucket = None
         self._logger = logging.getLogger(__name__)
 

@@ -19,7 +19,7 @@ def file_or_resource(fname=None):
             else res.resource_filename(resource_package, resource_path)
 
 class Config:
-
+    GOOGLE_DEFAULT_PROJECT = 'open-targets'
     GOOGLE_BUCKET_EVIDENCE_INPUT = 'otar000-evidence_input'
 
     # HGNC
