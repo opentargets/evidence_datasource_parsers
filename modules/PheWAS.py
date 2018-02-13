@@ -1,6 +1,7 @@
 import csv
-import gzip
-import io
+from zipfile import ZipFile
+from io import BytesIO, TextIOWrapper
+import requests
 from common.EFOData import OBOParser
 from common.HGNCParser import GeneParser
 import json
@@ -33,7 +34,6 @@ class PhewasProcessor(object):
         self.genes = dict()
         self.efos = list()
         self.icd9 = dict()
-        self.csv_parser = CSVParser()
         self.schema_version = schema_version
 
 
@@ -79,25 +79,25 @@ class PhewasProcessor(object):
 
         gene_parser = GeneParser()
         gene_parser._get_hgnc_data_from_json()
+        logger.info('Parsing gene data from HGNC')
         self.genes = gene_parser.genes
 
 
-        web_response = requests.get(Config.PHEWAS_PHECODE_MAP_URL, 
-                                    timeout=30, stream=True)
-        csv_gz_file = web_response.content # Content in bytes from requests.get
-                                   # See comments below why this is used.
+        with requests.get(Config.PHEWAS_PHECODE_MAP_URL) as phecode_res:
+            # let us state clearly that I hate zip files. use gzip people!
+            phecode_zip = ZipFile(BytesIO(phecode_res.content))        
+            phecode_file = phecode_zip.open(phecode_zip.namelist()[0])
 
-        f = io.BytesIO(csv_gz_file)
-        with gzip.GzipFile(fileobj=f) as fh:
-            # Passing a binary file to csv.reader works in PY2
-            reader = csv.reader(fh)
+        with TextIOWrapper(phecode_file) as phecode_map:
+            reader = csv.DictReader(phecode_map)
+            logger.debug(reader.fieldnames)
             for icd9_row in reader:
-                pheCode = icd9_row['PheCode']
+                pheCode = icd9_row['phecode']
                 try:
 
-                    icd9_code = float(icd9_row['ICD9'])
+                    icd9_code = float(icd9_row['icd9'])
                 except ValueError:
-                    icd9_code = icd9_row['ICD9']
+                    icd9_code = icd9_row['icd9']
 
                 if self.icd9.get(pheCode):
                     self.icd9[pheCode].append(icd9_code)
