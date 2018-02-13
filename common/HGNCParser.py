@@ -2,6 +2,9 @@ import ujson as json
 import requests
 from tqdm import tqdm
 from settings import Config
+import logging
+
+logger = logging.getLogger(__name__)
 
 class Gene(object):
     def __init__(self, id=None):
@@ -88,4 +91,4 @@ class GeneParser(object):
                 # to handle obsolete gene symbols like EFCAB4B
                 for prev_symbol in row['prev_symbol']:
                     self.genes[prev_symbol] = ensembl_gene_id
-        print('All HGNC genes parsed')
+        logger.info('All HGNC genes parsed')
