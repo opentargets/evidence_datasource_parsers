@@ -3,7 +3,6 @@ import logging
 import unittest
 from modules.PheWAS import PhewasProcessor
 
-
 logger = logging.getLogger(__name__)
 
 

@@ -1,7 +1,28 @@
+# OT evidence generator
+Install (requires python 3):
+
+```sh
+virtualenv -p python3 venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+Run tests:
+```sh
+(venv)$ python -m pytest
+```
+
+Run command:
+```sh
+#for eg.
+(venv)$ python -m CommandLine ----genomicsengland
+```
+
+
 # phewascatalog_parser
 script to convert phewascatalog database to JSONs, with ENSGIDs and EFO ids.
 
-* Download the full phewas catalog using url - https://phewascatalog.org/phewas
+* Download the full phewas catalog using url - https://phewascatalog.org/files/phewas-catalog.csv.zip
 * Clone this repo :  `git clone https://github.com/opentargets/phewascatalog_parser.git`
 
 ```sh
