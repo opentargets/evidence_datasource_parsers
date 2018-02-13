@@ -193,7 +193,7 @@ class SLAPEnrich():
                     )
 
                     evidenceString = opentargets.Literature_Curated()
-                    evidenceString.validated_against_schema_version = Config.EVIDENCEVALIDATION_SCHEMA
+                    evidenceString.validated_against_schema_version = Config.VALIDATED_AGAINST_SCHEMA_VERSION
                     evidenceString.access_level = "public"
                     evidenceString.type = "affected_pathway"
                     evidenceString.sourceID = "slapenrich"

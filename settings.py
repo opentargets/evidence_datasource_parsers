@@ -19,8 +19,6 @@ def file_or_resource(fname=None):
             else res.resource_filename(resource_package, resource_path)
 
 class Config:
-    # schema version
-    EVIDENCEVALIDATION_SCHEMA = '1.2.7'
 
     GOOGLE_BUCKET_EVIDENCE_INPUT = 'otar000-evidence_input'
 
