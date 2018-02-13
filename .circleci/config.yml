@@ -9,6 +9,7 @@ jobs:
           DATABASE_URL: postgresql://root@localhost/circle_test?sslmode=disable
     steps:
       - checkout
+      - run: sudo pip install virtualenv
       - run: virtualenv venv
       - run: source venv/bin/activate
       - restore_cache:
