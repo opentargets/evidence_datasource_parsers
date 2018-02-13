@@ -5,7 +5,6 @@ import json
 import logging
 from datetime import datetime
 from settings import Config
-import pkgutil
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +37,7 @@ class CSVParser(object):
 
 
 class PhewasProcessor(object):
-    def __init__(self,schema_version ):
+    def __init__(self,schema_version=Config.VALIDATED_AGAINST_SCHEMA_VERSION ):
         self.genes = dict()
         self.efos = list()
         self.icd9 = dict()

@@ -7,8 +7,8 @@ from modules.GenomicsEnglandPanelApp import GE
 from modules.MouseModels import Phenodigm
 from modules.IntOGen import IntOGen
 from modules.SLAPEnrich import SLAPEnrich
-# from modules.mongo_multiprocessing import MongoDataManager
-# from modules.nferx_parser import NferxManager
+
+
 from settings import Config
 
 def main():
@@ -33,12 +33,9 @@ def main():
     parser.add_argument("--slapenrich", dest='slapenrich',
                         help="process slapenrich data and generate evidences for open targets pipeline",
                         action="append_const", const=str)
-    parser.add_argument("--23andme", dest='biogen_23andme',
-                        help="process 23andme data and generate evidences for open targets pipeline",
-                        action="append_const", const=str)
-    parser.add_argument("--nferx", dest='biogen_nferx',
-                        help="process nferx data and generate evidences for open targets pipeline",
-                        action="append_const", const=str)
+    parser.add_argument("--update-cache", dest='update_cache',
+                        help="the cache for this datasource will be updated if True default: False",
+                        action='store_true', default=False)
     parser.add_argument("--schema-version", dest='schema_version',
                         help="set the schema version",
                         action='store', default=Config.VALIDATED_AGAINST_SCHEMA_VERSION)
@@ -55,16 +52,10 @@ def main():
     elif args.gene2phenotype:
         G2P().process_g2p()
     elif args.phenodigm:
-        Phenodigm().generate_evidence()
+        Phenodigm().generate_evidence(update_cache=args.update_cache)
     elif args.slapenrich:
         SLAPEnrich().process_slapenrich()
-        # if args.biogen_23andme :
-    #     mongo_processor = MongoDataManager()
-    #     mongo_processor.setup()
-    #     mongo_processor.process()
-    # if args.biogen_nferx :
-    #     nferx_manager = NferxManager()
-    #     nferx_manager.process('../nferx/nferx.json')
+
 
 
 if __name__ == '__main__':

@@ -1,4 +1,4 @@
-import urllib
+import requests
 import collections
 from tqdm import tqdm
 import logging
@@ -18,9 +18,7 @@ import opentargets.model.evidence.phenotype as evidence_phenotype
 import opentargets.model.evidence.core as evidence_core
 import opentargets.model.evidence.association_score as association_score
 
-logging.basicConfig(filename='output_phenodigm.log',
-                            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                            level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 __copyright__ = "Copyright 2014-2017, Open Targets"
 __credits__ = ["Gautier Koscielny", "Damian Smedley"]
@@ -83,8 +81,8 @@ class Phenodigm(RareDiseaseMapper):
         self._logger.info("Loaded {0} hs genes".format(len(self.mmGenes)))
 
     def update_cache(self):
-        hdr = { 'User-Agent' : 'open targets bot @ targetvalidation.org' }
-        conn = httplib.HTTPConnection(Config.MOUSEMODELS_PHENODIGM_SOLR)
+
+        url = Config.MOUSEMODELS_PHENODIGM_SOLR + '/solr/phenodigm/select'
 
         for dir in [Config.MOUSEMODELS_CACHE_DIRECTORY]:
             if not os.path.exists(dir):
@@ -94,22 +92,28 @@ class Phenodigm(RareDiseaseMapper):
         rows = 10000
         nbItems = rows
         counter = 0
+        total = 0
+        numFound = 1
 
-        while (nbItems == rows):
+        while (total < numFound):
             counter+=1
             #print start
-            uri = '/solr/phenodigm/select?q=*:*&wt=python&indent=true&start=%i&rows=%i' %(start,rows)
+
+            uri = url + '?q=*:*&wt=json&indent=true&start=%i&rows=%i' %(start,rows)
             self._logger.info("REQUEST {0}. {1}".format(counter, uri))
-            conn.request('GET', uri, headers=hdr)
-            raw = conn.getresponse().read()
-            rsp = eval (raw)
+            params = dict(q="*", wt="json", indent="true", start="%i"%start, rows="%i"%rows)
+            r = requests.get(url, params=params, timeout=30)
+            self._logger.info("REQUEST %s"%(r.url))
+            rsp = r.json()
+
+            numFound = rsp['response']['numFound']
+            self._logger.info("NumFound %i"%(numFound))
             nbItems = len(rsp['response']['docs'])
+            total+=nbItems
             phenodigmFile = open(Config.MOUSEMODELS_CACHE_DIRECTORY + "/part{0}".format(counter), "w")
-            phenodigmFile.write(raw)
+            phenodigmFile.write(json.dumps(rsp, indent=2))
             phenodigmFile.close()
             start+=nbItems
-
-        conn.close()
 
     def update_genes(self):
 
@@ -645,7 +649,11 @@ class Phenodigm(RareDiseaseMapper):
 
         cttvFile.close()
 
-    def generate_evidence(self):
+    def generate_evidence(self, update_cache=False):
+
+        if update_cache == True:
+            self.update_cache()
+            return
 
         bar = tqdm(desc='Generate PhenoDigm evidence strings',
                    total=8,
