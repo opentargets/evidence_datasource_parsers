@@ -2,6 +2,22 @@ import os
 import pkg_resources as res
 import configparser
 from pathlib import Path
+from envparse import env, ConfigurationError
+
+def read_option(option, cast=None,
+                **kwargs):
+
+    try:
+        default_value = kwargs.pop('default')
+    except KeyError:
+        default_value = None
+
+    try:
+        # reading the environment variable with envparse
+        return env(option, cast=cast, **kwargs)
+    except ConfigurationError:
+       return default_value
+
 
 def file_or_resource(fname=None):
     '''get filename and check if in getcwd then get from
@@ -73,3 +89,9 @@ class Config:
     MOUSEMODELS_PHENODIGM_SOLR = 'http://localhost:8983' # 'solrclouddev.sanger.ac.uk'
     # TODO remove refs to user directories
     MOUSEMODELS_CACHE_DIRECTORY =  HOME_DIR + '/.phenodigmcache'
+
+    # MONGO_URL = read_option('MONGO_URL', cast=str, default='')
+    # MONGO_DB = read_option('MONGO_DB', cast=str, default='')
+    # MONGO_TABLE = read_option('MONGO_TABLE', cast=str, default='')
+    # MONGO_USER = read_option('MONGO_USER', cast=str, default='')
+    # MONGO_PWD = read_option('MONGO_PWD', cast=str, default='')
