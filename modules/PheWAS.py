@@ -40,7 +40,9 @@ class PhewasProcessor(object):
 
 
     def find_efo(self,phewas_phenotype, phecode):
-
+        logger.debug(self.efos[:5])
+        logger.info(phecode)
+        logger.info(phecode in self.icd9.keys())
         matched_efos = [efo_dict for efo_dict in self.efos if phewas_phenotype.lower() in efo_dict['synonyms'] ]
         if not matched_efos:
 
@@ -94,7 +96,7 @@ class PhewasProcessor(object):
             for icd9_row in reader:
                 pheCode = icd9_row['phecode']
                 try:
-
+                    #TODO: wow, this needs fixing!!
                     icd9_code = float(icd9_row['icd9'])
                 except ValueError:
                     icd9_code = icd9_row['icd9']
@@ -108,32 +110,33 @@ class PhewasProcessor(object):
 
     def convert_phewas_catalog_evidence_json(self):
 
-        logger.info('Start processing ')
+        logger.info('Start processing phewas catalog csv')
 
         missing_efo_fieldnames = ['phenotype', 'similar_efo']
         fieldnames = ['phenotype', 'efo_id', 'gene_name','ensg_id','cases','p-value','odds-ratio','snp']
         logger.info('Start the phewas catalog mapping')
-        with open('missing_efo.csv', 'w') as out_missing_csv , open('phewas_efo_ensg.csv', 'w') as out_csv, open('../output/phewas_catalog.json', 'w') as out_json:
+        with open('output/missing_efo.csv', 'w') as out_missing_csv , open('output/phewas_efo_ensg.csv', 'w') as out_csv, open('output/phewas_catalog.json', 'w') as out_json:
             writer = csv.DictWriter(out_csv, fieldnames)
             writer.writeheader()
             missing_efo_writer = csv.DictWriter(out_missing_csv, missing_efo_fieldnames)
             missing_efo_writer.writeheader()
-            for phewas_row in self.csv_parser.parse('../resources/phewas-catalog.csv'):
 
-                ensg_id = self.genes.get(phewas_row['gene_name'])
-                if ensg_id:
-                    matched_efos = self.find_efo(phewas_row['phewas phenotype'],phewas_row['phewas code'])
-                    if matched_efos :
-                        for efo in matched_efos:
-                            inner_dict = dict(zip(fieldnames, [phewas_row['phewas phenotype'], efo['id'],phewas_row['gene_name'],ensg_id,phewas_row['cases'],phewas_row['p-value'],phewas_row['odds-ratio'],phewas_row['snp']]))
-                            evidence = self.generate_evidence(phewas_row,efo['id'], ensg_id)
-                            writer.writerow(inner_dict)
-                            if evidence:
-                                json.dump(evidence,out_json)
-                                out_json.write('\n')
-                    else:
-                        inner_dict = dict(zip(missing_efo_fieldnames, [phewas_row['phewas phenotype'], '']))
-                        missing_efo_writer.writerow(inner_dict)
+            with requests.get(Config.PHEWAS_CATALOG_URL, stream=True) as r:
+                for phewas_row in csv.DictReader(r.iter_lines(decode_unicode=True)):
+                    ensg_id = self.genes.get(phewas_row['gene'])
+                    if ensg_id:
+                        matched_efos = self.find_efo(phewas_row['phewas_string'],phewas_row['phewas_code'])
+                        if matched_efos :
+                            for efo in matched_efos:
+                                inner_dict = dict(zip(fieldnames, [phewas_row['phewas_string'], efo['id'],phewas_row['gene'],ensg_id,phewas_row['cases'],phewas_row['p'],phewas_row['odds_ratio'],phewas_row['snp']]))
+                                evidence = self.generate_evidence(phewas_row,efo['id'], ensg_id)
+                                writer.writerow(inner_dict)
+                                if evidence:
+                                    json.dump(evidence,out_json)
+                                    out_json.write('\n')
+                        else:
+                            inner_dict = dict(zip(missing_efo_fieldnames, [phewas_row['phewas_string'], '']))
+                            missing_efo_writer.writerow(inner_dict)
 
         logger.info('Completed')
 
@@ -221,7 +224,7 @@ def unique_phenotypes():
             out_file.write('\n')
 
 def main():
-    phewas_processor = PhewasProcessor('1.2.7')
+    phewas_processor = PhewasProcessor()
     phewas_processor.setup()
     phewas_processor.convert_phewas_catalog_evidence_json()
     #remove_dup()
