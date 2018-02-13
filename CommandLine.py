@@ -33,6 +33,9 @@ def main():
     parser.add_argument("--slapenrich", dest='slapenrich',
                         help="process slapenrich data and generate evidences for open targets pipeline",
                         action="append_const", const=str)
+    parser.add_argument("--update-cache", dest='update_cache',
+                        help="the cache for this datasource will be updated if True default: False",
+                        action='store_true', default=False)
     parser.add_argument("--schema-version", dest='schema_version',
                         help="set the schema version",
                         action='store', default=Config.VALIDATED_AGAINST_SCHEMA_VERSION)
@@ -49,7 +52,7 @@ def main():
     elif args.gene2phenotype:
         G2P().process_g2p()
     elif args.phenodigm:
-        Phenodigm().generate_evidence()
+        Phenodigm().generate_evidence(update_cache=args.update_cache)
     elif args.slapenrich:
         SLAPEnrich().process_slapenrich()
 
