@@ -1,4 +1,6 @@
 import csv
+import gzip
+import io
 from common.EFOData import OBOParser
 from common.HGNCParser import GeneParser
 import json
@@ -24,16 +26,6 @@ class Phewas(object):
         return json.dumps(self, default=lambda o: o.__dict__,
                           sort_keys=True, indent=4)
 
-
-class CSVParser(object):
-
-
-
-    def parse(self,filename):
-        with open(filename, "rb") as csvfile:
-            reader = csv.DictReader(csvfile)
-            for row in reader:
-                yield row
 
 
 class PhewasProcessor(object):
@@ -90,19 +82,28 @@ class PhewasProcessor(object):
         self.genes = gene_parser.genes
 
 
-        for icd9_row in self.csv_parser.parse('../resources/phecode_icd9_rolled.csv'):
-            pheCode = icd9_row['PheCode']
-            try:
+        web_response = requests.get(Config.PHEWAS_PHECODE_MAP_URL, 
+                                    timeout=30, stream=True)
+        csv_gz_file = web_response.content # Content in bytes from requests.get
+                                   # See comments below why this is used.
 
-                icd9_code = float(icd9_row['ICD9'])
-            except ValueError:
-                icd9_code = icd9_row['ICD9']
+        f = io.BytesIO(csv_gz_file)
+        with gzip.GzipFile(fileobj=f) as fh:
+            # Passing a binary file to csv.reader works in PY2
+            reader = csv.reader(fh)
+            for icd9_row in reader:
+                pheCode = icd9_row['PheCode']
+                try:
 
-            if self.icd9.get(pheCode):
-                self.icd9[pheCode].append(icd9_code)
-            else:
-                self.icd9[pheCode] = list()
-                self.icd9[pheCode].append(icd9_code)
+                    icd9_code = float(icd9_row['ICD9'])
+                except ValueError:
+                    icd9_code = icd9_row['ICD9']
+
+                if self.icd9.get(pheCode):
+                    self.icd9[pheCode].append(icd9_code)
+                else:
+                    self.icd9[pheCode] = list()
+                    self.icd9[pheCode].append(icd9_code)
 
 
     def convert_phewas_catalog_evidence_json(self):

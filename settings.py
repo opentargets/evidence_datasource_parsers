@@ -56,6 +56,8 @@ class Config:
     INTOGEN_EVIDENCE_FILENAME = HOME_DIR + '/otar001_intogen-18-12-2017.json'
 
     # Phewas
+    PHEWAS_CATALOG_URL = 'https://phewascatalog.org/files/phewas-catalog.csv.zip'
+    PHEWAS_PHECODE_MAP_URL = 'https://phewascatalog.org/files/phecode_icd9_map_unrolled.csv.zip'
     PHEWAS_CATALOG_LOCN = 'https://storage.googleapis.com/phewas-catalog'
     PHEWAS_CATALOG_JSON = HOME_DIR + '/otar001_phewas_catalog-19-12-2017.json'
 
