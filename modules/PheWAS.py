@@ -41,8 +41,8 @@ class PhewasProcessor(object):
 
     def find_efo(self,phewas_phenotype, phecode):
         logger.debug(self.efos[:5])
-        logger.info(phecode)
-        logger.info(phecode in self.icd9.keys())
+        logger.debug(phecode)
+        logger.debug(phecode in self.icd9.keys())
         matched_efos = [efo_dict for efo_dict in self.efos if phewas_phenotype.lower() in efo_dict['synonyms'] ]
         if not matched_efos:
 
@@ -113,7 +113,7 @@ class PhewasProcessor(object):
         logger.info('Start processing phewas catalog csv')
 
         missing_efo_fieldnames = ['phenotype', 'similar_efo']
-        fieldnames = ['phenotype', 'efo_id', 'gene_name','ensg_id','cases','p-value','odds-ratio','snp']
+        fieldnames = ['phenotype', 'efo_id', 'gene_name','ensg_id','cases','p-value','odds_ratio','snp']
         logger.info('Start the phewas catalog mapping')
         with open('output/missing_efo.csv', 'w') as out_missing_csv , open('output/phewas_efo_ensg.csv', 'w') as out_csv, open('output/phewas_catalog.json', 'w') as out_json:
             writer = csv.DictWriter(out_csv, fieldnames)
@@ -138,7 +138,7 @@ class PhewasProcessor(object):
                             inner_dict = dict(zip(missing_efo_fieldnames, [phewas_row['phewas_string'], '']))
                             missing_efo_writer.writerow(inner_dict)
 
-        logger.info('Completed')
+        logger.info('Completed processing phewas catalog csv')
 
     def generate_evidence(self,phewas_dict, disease_id, target_id):
         phewas_evidence = dict()
@@ -146,9 +146,10 @@ class PhewasProcessor(object):
         if disease_id in self.obsolete_efos:
             new_efo = self.obsolete_efos[disease_id]
             if new_efo:
-                print ('Obsolete efo- %s New EFO - %s'%(disease_id, new_efo))
+                logger.warning('Mapping obsolete: %s => New term: - %s'%(disease_id, new_efo))
                 disease_id = new_efo
             else:
+                logger.warning('No match found for {}'.format(disease_id))
                 return None
 
         if disease_id.startswith('EFO'):
@@ -169,7 +170,7 @@ class PhewasProcessor(object):
             phewas_evidence["sourceID"] = "phewas_catalog"
             phewas_evidence['type'] = 'genetic_association'
             phewas_evidence["variant"]= {"type": "snp single", "id": "http://identifiers.org/dbsnp/{}".format(phewas_dict['snp'])}
-            phewas_evidence['unique_association_fields'] = {'odds_ratio':phewas_dict['odds-ratio'], 'cases' : phewas_dict['cases'], 'phenotype' : phewas_dict['phewas phenotype']}
+            phewas_evidence['unique_association_fields'] = {'odds_ratio':phewas_dict['odds_ratio'], 'cases' : phewas_dict['cases'], 'phenotype' : phewas_dict['phewas_string']}
 
             #phewas_evidence['resource_score'] = {'type': 'pvalue', 'method': {"description":"pvalue for the phenotype to snp association."},"value":phewas_dict['p-value']}
             i = datetime.now()
@@ -181,7 +182,7 @@ class PhewasProcessor(object):
                                                                "database":{"version":"2017-07-01T09:53:37+00:00","id":"PHEWAS Catalog",
                                                                            "dbxref":{"version":"2017-07-01T09:53:37+00:00","id":"http://identifiers.org/phewascatalog"}}},
                                            'is_associated': True,
-                                           'resource_score':{'type': 'pvalue', 'method': {"description":"pvalue for the phenotype to snp association."},"value":float(phewas_dict['p-value'])},
+                                           'resource_score':{'type': 'pvalue', 'method': {"description":"pvalue for the phenotype to snp association."},"value":float(phewas_dict['p'])},
                                            'date_asserted': i.strftime('%Y-%m-%dT%H:%M:%S+00:00'),
                                            'evidence_codes': ['http://identifiers.org/eco/GWAS','http://purl.obolibrary.org/obo/ECO_0000205'],
                                            }
