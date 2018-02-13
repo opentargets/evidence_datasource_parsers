@@ -30,6 +30,8 @@ class Config:
     GOOGLE_BUCKET_EVIDENCE_INPUT = 'otar000-evidence_input'
 
 
+
+
     # HGNC
     GENES_HGNC =  'http://ftp.ebi.ac.uk/pub/databases/genenames/new/json/hgnc_complete_set.json'
 
@@ -43,7 +45,8 @@ class Config:
     G2P_EVIDENCE_FILENAME = 'gene2phenotype.json'
 
     # Genomics England
-    GE_EVIDENCE_STRING = HOME_DIR + '/otar001_genomics_england-18-12-2017.json'
+    GE_PANEL_MAPPING_FILENAME = 'GenomicsEnglandPanelApp/genomicsenglandpanelapp_panelmapping.txt'
+    GE_EVIDENCE_FILENAME = 'genomics_england-18-12-2017.json'
     GE_LINKOUT_URL = 'https://panelapp.genomicsengland.co.uk/panels/'
     GE_ZOOMA_DISEASE_MAPPING = '/tmp/zooma_disease_mapping.csv'
     GE_ZOOMA_DISEASE_MAPPING_NOT_HIGH_CONFIDENT = '/tmp/zooma_disease_mapping_low_confidence.csv'

@@ -1,9 +1,9 @@
 from settings import Config, file_or_resource
 from common.HGNCParser import GeneParser
 from common.RareDiseasesUtils import RareDiseaseMapper
+from common.GCSUtils import GCSBucketManager
 from tqdm import tqdm
-import google.cloud.storage as gcs
-import google.cloud.exceptions as gce
+import tempfile
 
 import opentargets.model.core as opentargets
 import opentargets.model.bioentity as bioentity
@@ -14,10 +14,10 @@ import opentargets.model.evidence.association_score as association_score
 import opentargets.model.evidence.mutation as evidence_mutation
 
 import sys
-import gzip
 import logging
 import urllib3
 import csv
+import gzip
 
 __copyright__  = "Copyright 2014-2017, Open Targets"
 __credits__    = ["Gautier Koscielny", "ChuangKee Ong"]
@@ -30,23 +30,17 @@ __status__     = "Production"
 G2P_FILENAME = Config.G2P_FILENAME
 G2P_EVIDENCE_FILENAME = Config.G2P_EVIDENCE_FILENAME
 
-class G2P(RareDiseaseMapper):
-    def __init__(self, es=None):
-
-        super().__init__()
+class G2P(RareDiseaseMapper, GCSBucketManager):
+    def __init__(self):
+        print ("Calling super constructors")
+        super(G2P, self).__init__()
+        #RareDiseaseMapper.__init__(self)
+        #GCSBucketManager.__init__(self)
         self.genes = None
         self.evidence_strings = list()
-        self.gcs_client = gcs.Client(Config.GOOGLE_DEFAULT_PROJECT)
-        self.bucket = None
+
         self._logger = logging.getLogger(__name__)
 
-        try:
-            for bucket in self.gcs_client.list_buckets():
-                print(bucket)
-            self.bucket = self.gcs_client.get_bucket(Config.GOOGLE_BUCKET_EVIDENCE_INPUT)
-        except gce.NotFound:
-            self._logger.error('Please set export GOOGLE_APPLICATION_CREDENTIALS=/path/to/key.json')
-            print('Sorry, that bucket does not exist!')
 
     def process_g2p(self):
 
@@ -60,12 +54,11 @@ class G2P(RareDiseaseMapper):
         self.write_evidence_strings(G2P_EVIDENCE_FILENAME)
 
     def generate_evidence_strings(self, filename):
-        total_efo = 0
-        blob = self.bucket.get_blob(filename)
-        with open('/tmp/%s'%(G2P_FILENAME), 'wb') as file_obj:
-            blob.download_to_file(file_obj)
 
-        with gzip.open('/tmp/%s'%(G2P_FILENAME), mode='rt') as zf:
+        total_efo = 0
+
+        with gzip.open(self.get_gcs_filename(filename), mode='rt') as zf:
+
             reader = csv.reader(zf, delimiter=',', quotechar='"')
             c = 0
             for row in reader:
@@ -140,7 +133,7 @@ class G2P(RareDiseaseMapper):
                     else:
                         self._logger.error("%s\t%s not mapped: please check manually"%(disease_name, disease_mim))
 
-            print("%i %i" % (total_efo, c))
+                print("%i %i" % (total_efo, c))
 
     def write_evidence_strings(self, filename):
         self._logger.info("Writing IntOGen evidence strings")

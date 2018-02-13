@@ -6,6 +6,7 @@ import opentargets.model.evidence.linkout as evidence_linkout
 import opentargets.model.evidence.association_score as association_score
 from ontologyutils.rdf_utils import OntologyClassReader
 from common.RareDiseasesUtils import RareDiseaseMapper
+from common.GCSUtils import GCSBucketManager
 import logging
 import datetime
 import csv
@@ -22,7 +23,7 @@ import ssl
 
 logger = logging.getLogger(__name__)
 
-TEST_SAMPLE=False
+TEST_SAMPLE=True
 
 class MyAdapter(requests.adapters.HTTPAdapter):
     def init_poolmanager(self, connections, maxsize, block=False):
@@ -34,11 +35,11 @@ class MyAdapter(requests.adapters.HTTPAdapter):
         )
         print("poolmanager set")
 
-class GE(RareDiseaseMapper):
+class GE(RareDiseaseMapper, GCSBucketManager):
 
     def __init__(self):
 
-        super().__init__()
+        super(GE, self).__init__()
         self.lookup_data = None
         self.hashkeys = OrderedDict()
         self.efo = OntologyClassReader()
@@ -84,7 +85,7 @@ class GE(RareDiseaseMapper):
         self.execute_ge_request(sample=TEST_SAMPLE)
         self.use_zooma()
         self.process_panel_app_file(sample=TEST_SAMPLE)
-        self.write_evidence_strings(Config.GE_EVIDENCE_STRING)
+        self.write_evidence_strings(Config.GE_EVIDENCE_FILENAME)
 
 
 
@@ -367,8 +368,11 @@ class GE(RareDiseaseMapper):
             # curl 'http://www.ebi.ac.uk/ols/api/search?q=Myofascial%20Pain%20Syndromes&queryFields=synonym&exact=true&ontology=efo,ordo' -i -H 'Accept: application/json'
             url = 'http://www.ebi.ac.uk/ols/api/search?q=%s&queryFields=synonym&exact=true&ontology=efo,ordo,hpo'%(query)
             self._logger.info("Requesting '%s' as synonym to OLS"%(query))
-            r = requests.get('http://www.ebi.ac.uk/ols/api/search',
-                             params={'q': query, 'queryFields': 'synonym', 'exact' : 'true', 'ontology': 'efo,ordo,hpo'})
+            print("Requesting '%s' as synonym to OLS" %(query))
+            r = requests.get(
+                'http://www.ebi.ac.uk/ols/api/search',
+                params={'q': query, 'queryFields': 'synonym', 'exact': 'true', 'ontology': 'efo,ordo,hpo'})
+            print(r.text)
             results = r.json()
             if results["response"]["numFound"] > 0:
                 in_ols = True
@@ -642,13 +646,16 @@ class GE(RareDiseaseMapper):
                     logger.error(evidence_string.to_JSON(indentation=4))
                 tp_file.write(evidence_string.to_JSON(indentation=None) + "\n")
 
+        blob = self.bucket.blob(filename)
+        with open(filename, 'rb') as my_file:
+            blob.upload_from_file(my_file)
 
 def main():
     ge_object = GE()
     ge_object.execute_ge_request()
     ge_object.use_zooma()
     ge_object.process_panel_app_file()
-    ge_object.write_evidence_strings(Config.GE_EVIDENCE_STRING)
+    ge_object.write_evidence_strings(Config.GE_EVIDENCE_FILENAME)
 
 
 if __name__ == "__main__":
