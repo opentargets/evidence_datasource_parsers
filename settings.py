@@ -2,21 +2,22 @@ import os
 import pkg_resources as res
 import configparser
 from pathlib import Path
-from envparse import env, ConfigurationError
 
-def read_option(option, cast=None,
-                **kwargs):
+# from envparse import env, ConfigurationError
 
-    try:
-        default_value = kwargs.pop('default')
-    except KeyError:
-        default_value = None
+# def read_option(option, cast=None,
+#                 **kwargs):
 
-    try:
-        # reading the environment variable with envparse
-        return env(option, cast=cast, **kwargs)
-    except ConfigurationError:
-       return default_value
+#     try:
+#         default_value = kwargs.pop('default')
+#     except KeyError:
+#         default_value = None
+
+#     try:
+#         # reading the environment variable with envparse
+#         return env(option, cast=cast, **kwargs)
+#     except ConfigurationError:
+#        return default_value
 
 
 def file_or_resource(fname=None):
