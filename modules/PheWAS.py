@@ -4,10 +4,9 @@ from common.HGNCParser import GeneParser
 import json
 import logging
 from datetime import datetime
+from settings import Config
 
-logging.basicConfig(filename='output_phewascatalog.log',
-                            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                            level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class Phewas(object):
@@ -38,7 +37,7 @@ class CSVParser(object):
 
 
 class PhewasProcessor(object):
-    def __init__(self,schema_version ):
+    def __init__(self,schema_version=Config.VALIDATED_AGAINST_SCHEMA_VERSION ):
         self.genes = dict()
         self.efos = list()
         self.icd9 = dict()
@@ -106,11 +105,11 @@ class PhewasProcessor(object):
 
     def convert_phewas_catalog_evidence_json(self):
 
-        logging.info('Start processing ')
+        logger..info('Start processing ')
 
         missing_efo_fieldnames = ['phenotype', 'similar_efo']
         fieldnames = ['phenotype', 'efo_id', 'gene_name','ensg_id','cases','p-value','odds-ratio','snp']
-        logging.info('Start the phewas catalog mapping')
+        logger..info('Start the phewas catalog mapping')
         with open('missing_efo.csv', 'w') as out_missing_csv , open('phewas_efo_ensg.csv', 'w') as out_csv, open('../output/phewas_catalog.json', 'w') as out_json:
             writer = csv.DictWriter(out_csv, fieldnames)
             writer.writeheader()
@@ -133,7 +132,7 @@ class PhewasProcessor(object):
                         inner_dict = dict(zip(missing_efo_fieldnames, [phewas_row['phewas phenotype'], '']))
                         missing_efo_writer.writerow(inner_dict)
 
-        logging.info('Completed')
+        logger..info('Completed')
 
     def generate_evidence(self,phewas_dict, disease_id, target_id):
         phewas_evidence = dict()
@@ -187,7 +186,7 @@ class PhewasProcessor(object):
                                         'functional_consequence':'http://purl.obolibrary.org/obo/SO_0001632'}
             phewas_evidence['evidence'] = evidence
         else:
-            logging.info('Missing disease/target evidence : {}'.format(phewas_evidence))
+            logger..info('Missing disease/target evidence : {}'.format(phewas_evidence))
             phewas_evidence = None
 
         return phewas_evidence
