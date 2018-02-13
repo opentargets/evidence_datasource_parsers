@@ -1,0 +1,29 @@
+version: 2
+jobs:
+  build:
+    working_directory: ~/circulate
+    docker:
+      - image: circleci/python:3.6.4
+        environment:
+          PIPENV_VENV_IN_PROJECT: true
+          DATABASE_URL: postgresql://root@localhost/circle_test?sslmode=disable
+    steps:
+      - checkout
+      - run: sudo pip install virtualenv
+      - run: virtualenv venv
+      - run: source venv/bin/activate
+      - restore_cache:
+          key: deps9-{{ .Branch }}-{{ checksum "requirements.txt" }}
+      - run:
+          command: |
+            source venv/bin/activate
+            pip install -r requirements.txt install
+      - save_cache:
+          key: deps9-{{ .Branch }}-{{ checksum "requirements.txt" }}
+          paths:
+            - "venv"
+      - run:
+          name: pytest
+          command: |
+            source venv/bin/activate
+            python -m pytest
