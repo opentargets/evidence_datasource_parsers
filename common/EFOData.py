@@ -1,5 +1,7 @@
 import requests
+import logging
 
+logger = logging.getLogger(__name__)
 
 class EFOManager(object):
 
@@ -149,5 +151,5 @@ class OBOParser():
                 if store:
                     single_node.append(line)
         obsolete_efos['other'] = None
-        print(len(obsolete_efos))
+        logger.info('Found {} obsolete EFO terms'.format(len(obsolete_efos)))
         return obsolete_efos
