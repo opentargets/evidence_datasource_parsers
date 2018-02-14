@@ -40,6 +40,8 @@ class OBOParser():
 
     def parse(self):
         single_node = []
+        return
+        '''
         store = False
         for line in file(self.filename):
 
@@ -52,7 +54,8 @@ class OBOParser():
                 store = True
             if store:
                 single_node.append(line)
-
+        '''
+        
     def _parse_single_node(self, single_node):
         data = dict()
         current_field = ''
