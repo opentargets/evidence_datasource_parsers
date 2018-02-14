@@ -24,13 +24,10 @@ class Config:
     HOME_DIR = str(Path.home())
 
     # schema version
-    VALIDATED_AGAINST_SCHEMA_VERSION = '1.2.7'
+    VALIDATED_AGAINST_SCHEMA_VERSION = '1.2.8'
 
     GOOGLE_DEFAULT_PROJECT = 'open-targets'
     GOOGLE_BUCKET_EVIDENCE_INPUT = 'otar000-evidence_input'
-
-
-
 
     # HGNC
     GENES_HGNC =  'http://ftp.ebi.ac.uk/pub/databases/genenames/new/json/hgnc_complete_set.json'

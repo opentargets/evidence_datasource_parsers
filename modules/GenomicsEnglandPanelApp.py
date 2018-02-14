@@ -23,7 +23,7 @@ import ssl
 
 logger = logging.getLogger(__name__)
 
-TEST_SAMPLE=True
+TEST_SAMPLE=False
 
 class MyAdapter(requests.adapters.HTTPAdapter):
     def init_poolmanager(self, connections, maxsize, block=False):
