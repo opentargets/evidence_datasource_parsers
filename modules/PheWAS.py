@@ -74,7 +74,7 @@ class PhewasProcessor(object):
 
 
     def setup(self):
-        obo_parser = OBOParser('../resources/efo.obo')
+        obo_parser = OBOParser(filename='../resources/efo.obo')
         obo_parser.parse()
         self.efos = obo_parser.efos
         self.obsolete_efos = obo_parser.get_obsolete_efos()
