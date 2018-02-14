@@ -6,6 +6,7 @@ import opentargets.model.evidence.linkout as evidence_linkout
 import opentargets.model.evidence.association_score as association_score
 from ontologyutils.rdf_utils import OntologyClassReader
 from common.RareDiseasesUtils import RareDiseaseMapper
+from common.GCSUtils import GCSBucketManager
 import logging
 import datetime
 import csv
@@ -34,11 +35,11 @@ class MyAdapter(requests.adapters.HTTPAdapter):
         )
         print("poolmanager set")
 
-class GE(RareDiseaseMapper):
+class GE(RareDiseaseMapper, GCSBucketManager):
 
     def __init__(self):
 
-        super().__init__()
+        super(GE, self).__init__()
         self.lookup_data = None
         self.hashkeys = OrderedDict()
         self.efo = OntologyClassReader()
@@ -48,6 +49,7 @@ class GE(RareDiseaseMapper):
         self.ols_synonyms = OrderedDict()
         self.not_ols_synonyms = set()
         self.panel_app_info = list()
+        self.panel_app_id_map = OrderedDict()
         self.high_confidence_mappings = OrderedDict()
         self.genes = None
         self.other_zooma_mappings = OrderedDict()
@@ -62,6 +64,8 @@ class GE(RareDiseaseMapper):
 
     def process_all(self):
         self._logger.warning("Process all")
+
+        self.get_panel_code_mapping()
 
         gene_parser = GeneParser()
         gene_parser._get_hgnc_data_from_json()
@@ -84,9 +88,25 @@ class GE(RareDiseaseMapper):
         self.execute_ge_request(sample=TEST_SAMPLE)
         self.use_zooma()
         self.process_panel_app_file(sample=TEST_SAMPLE)
-        self.write_evidence_strings(Config.GE_EVIDENCE_STRING)
+        self.write_evidence_strings(Config.GE_EVIDENCE_FILENAME)
 
 
+    def get_panel_code_mapping(self, filename=Config.GE_PANEL_MAPPING_FILENAME):
+
+        # read from bucket
+        with open(self.get_gcs_filename(filename), mode='rt') as fh:
+
+            reader = csv.reader(fh, delimiter=',', quotechar='"')
+            c = 0
+            for row in reader:
+                c += 1
+                if c > 1:
+                    '''
+                    old panel id, new panel id"
+                    '''
+                    (old_panel_id, new_panel_id) = row
+                    print ("%s => %s"%(old_panel_id, new_panel_id))
+                    self.panel_app_id_map[old_panel_id] = new_panel_id
 
     @staticmethod
     def request_to_panel_app():
@@ -101,7 +121,7 @@ class GE(RareDiseaseMapper):
         results = r.json()
 
         for item in results['result']:
-            yield (item['Name'], item['Panel_Id'])
+            yield (item['Name'], item['Panel_Id'], item["CurrentVersion"], item["DiseaseGroup"], item["DiseaseSubGroup"])
 
     def execute_ge_request(self, sample=TEST_SAMPLE):
         '''
@@ -111,9 +131,9 @@ class GE(RareDiseaseMapper):
         self._logger.warning("execute_ge_request...")
         phenotype_list = []
         nb_panels = 0
-        for panel_name, panel_id in self.request_to_panel_app():
+        for panel_name, panel_id, panel_version, panel_diseasegroup, panel_diseasesubgroup in self.request_to_panel_app():
             nb_panels +=1
-            self._logger.warning("reading panel %s %s" % (panel_name, panel_id))
+            self._logger.warning("reading panel %s %s %s %s %s" % (panel_name, panel_id, panel_version, panel_diseasegroup, panel_diseasesubgroup))
             url = 'https://panelapp.genomicsengland.co.uk/WebServices/search_genes/all/'
             r = requests.get(url, params={"panel_name": panel_name}, timeout=30)
             results = r.json()
@@ -153,6 +173,9 @@ class GE(RareDiseaseMapper):
                                         disease_uri = mapping['efo_uri']
                                         self.panel_app_info.append([panel_name,
                                                                     panel_id,
+                                                                    panel_version,
+                                                                    panel_diseasegroup,
+                                                                    panel_diseasesubgroup,
                                                                     item['GeneSymbol'],
                                                                     item['EnsembleGeneIds'][0],
                                                                     ensembl_iri,
@@ -266,6 +289,7 @@ class GE(RareDiseaseMapper):
 
                                     self.panel_app_info.append([panel_name,
                                                                 panel_id,
+                                                                panel_version, panel_diseasegroup, panel_diseasesubgroup,
                                                                 item['GeneSymbol'],
                                                                 item['EnsembleGeneIds'][0],
                                                                 ensembl_iri,
@@ -285,6 +309,8 @@ class GE(RareDiseaseMapper):
                                     if is_hpo or is_efo:
                                         self.panel_app_info.append([panel_name,
                                                                     panel_id,
+                                                                    panel_version, panel_diseasegroup,
+                                                                    panel_diseasesubgroup,
                                                                     item['GeneSymbol'],
                                                                     item['EnsembleGeneIds'][0],
                                                                     ensembl_iri,
@@ -307,6 +333,8 @@ class GE(RareDiseaseMapper):
 
                                                     self.panel_app_info.append([panel_name,
                                                                                 panel_id,
+                                                                                panel_version, panel_diseasegroup,
+                                                                                panel_diseasesubgroup,
                                                                                 item['GeneSymbol'],
                                                                                 item['EnsembleGeneIds'][0],
                                                                                 ensembl_iri,
@@ -328,6 +356,8 @@ class GE(RareDiseaseMapper):
 
                                             self.panel_app_info.append([panel_name,
                                                                         panel_id,
+                                                                        panel_version, panel_diseasegroup,
+                                                                        panel_diseasesubgroup,
                                                                         item['GeneSymbol'],
                                                                         item['EnsembleGeneIds'][0],
                                                                         ensembl_iri,
@@ -367,8 +397,11 @@ class GE(RareDiseaseMapper):
             # curl 'http://www.ebi.ac.uk/ols/api/search?q=Myofascial%20Pain%20Syndromes&queryFields=synonym&exact=true&ontology=efo,ordo' -i -H 'Accept: application/json'
             url = 'http://www.ebi.ac.uk/ols/api/search?q=%s&queryFields=synonym&exact=true&ontology=efo,ordo,hpo'%(query)
             self._logger.info("Requesting '%s' as synonym to OLS"%(query))
-            r = requests.get('http://www.ebi.ac.uk/ols/api/search',
-                             params={'q': query, 'queryFields': 'synonym', 'exact' : 'true', 'ontology': 'efo,ordo,hpo'})
+            print("Requesting '%s' as synonym to OLS" %(query))
+            r = requests.get(
+                'http://www.ebi.ac.uk/ols/api/search',
+                params={'q': query, 'queryFields': 'synonym', 'exact': 'true', 'ontology': 'efo,ordo,hpo'})
+            print(r.text)
             results = r.json()
             if results["response"]["numFound"] > 0:
                 in_ols = True
@@ -462,29 +495,29 @@ class GE(RareDiseaseMapper):
 
         for row in self.panel_app_info:
             # encode to UTF8
-            panel_name, panel_id, gene_symbol, ensemble_gene_ids, ensembl_iri, level_of_confidence, original_label, phenotype, publications, evidences, omim_ids, disease_uri, disease_label, mapping_method = row
+            panel_name, panel_id, panel_version, panel_diseasegroup, panel_diseasesubgroup, gene_symbol, ensembl_gene_ids, ensembl_iri, level_of_confidence, original_label, phenotype, publications, evidences, omim_ids, disease_uri, disease_label, mapping_method = row
             #panel_name = panel_name.encode("UTF-8")
             #panel_id = panel_id.encode("UTF-8")
             #original_label = original_label.encode("UTF-8")
 
             if len(omim_ids) > 0 and disease_uri:
-                self.generate_single_evidence(panel_name, panel_id, gene_symbol, ensemble_gene_ids, ensembl_iri, level_of_confidence,
+                self.generate_single_evidence(panel_name, panel_id, panel_version, panel_diseasegroup, panel_diseasesubgroup, gene_symbol, ensembl_gene_ids, ensembl_iri, level_of_confidence,
                                               original_label, phenotype, publications, evidences, omim_ids, disease_uri, disease_label, now)
                 mapping_tsv_writer.writerow([panel_name, panel_id, gene_symbol, phenotype, disease_uri, disease_label])
             elif phenotype in self.high_confidence_mappings:
                 disease_label = self.high_confidence_mappings[phenotype]['label']
                 disease_uri = self.high_confidence_mappings[phenotype]['uri']
-                self.generate_single_evidence(panel_name, panel_id, gene_symbol, ensemble_gene_ids, ensembl_iri, level_of_confidence, original_label, phenotype, publications, evidences, omim_ids, disease_uri , disease_label, now)
+                self.generate_single_evidence(panel_name, panel_id, panel_version, panel_diseasegroup, panel_diseasesubgroup, gene_symbol, ensembl_gene_ids, ensembl_iri, level_of_confidence, original_label, phenotype, publications, evidences, omim_ids, disease_uri, disease_label, now)
                 mapping_tsv_writer.writerow([panel_name, panel_id, gene_symbol, phenotype, disease_uri, disease_label])
             elif phenotype.lower() in self.zooma_to_efo_map:
                 for item in self.zooma_to_efo_map[phenotype.lower()]:
                     disease_uri = item['efo_uri']
                     disease_label = "N/A"
-                    self.generate_single_evidence(panel_name, panel_id, gene_symbol, ensemble_gene_ids, ensembl_iri, level_of_confidence, original_label, phenotype, publications, evidences, omim_ids, disease_uri , disease_label, now)
+                    self.generate_single_evidence(panel_name, panel_id, panel_version, panel_diseasegroup, panel_diseasesubgroup, gene_symbol, ensembl_gene_ids, ensembl_iri, level_of_confidence, original_label, phenotype, publications, evidences, omim_ids, disease_uri, disease_label, now)
                     mapping_tsv_writer.writerow(
                         [panel_name, panel_id, gene_symbol, phenotype, disease_uri, disease_label])
             elif disease_uri:
-                self.generate_single_evidence(panel_name, panel_id, gene_symbol, ensemble_gene_ids, ensembl_iri,
+                self.generate_single_evidence(panel_name, panel_id, panel_version, panel_diseasegroup, panel_diseasesubgroup, gene_symbol, ensembl_gene_ids, ensembl_iri,
                                               level_of_confidence, original_label, phenotype, publications, evidences, omim_ids,
                                               disease_uri, disease_label, now)
                 mapping_tsv_writer.writerow(
@@ -499,12 +532,15 @@ class GE(RareDiseaseMapper):
         mapping_fh.close()
         unmapped_fh.close()
 
-    def generate_single_evidence(self, panel_name, panel_id, gene_symbol, ensembl_gene_id, ensembl_iri, level_of_confidence, original_label, phenotype, publications, evidences, omim_ids, disease_uri, disease_label, now):
+    def generate_single_evidence(self, panel_name, panel_id, panel_version, panel_diseasegroup, panel_diseasesubgroup, gene_symbol, ensembl_gene_id, ensembl_iri, level_of_confidence, original_label, phenotype, publications, evidences, omim_ids, disease_uri, disease_label, now):
 
         '''
         Generate evidence string using the Literature Curated schema
         :param panel_name:
         :param panel_id:
+        :param panel_version:
+        :param panel_diseasegroup:
+        :param panel_diseasesubgroup:
         :param gene_symbol:
         :param ensembl_gene_id:
         :param ensembl_iri:
@@ -519,7 +555,6 @@ class GE(RareDiseaseMapper):
         :param now:
         :return:
         '''
-
         '''
         Create a list of publications
         '''
@@ -548,10 +583,10 @@ class GE(RareDiseaseMapper):
         provenance_type = evidence_core.BaseProvenance_Type(
             database=evidence_core.BaseDatabase(
                 id="Genomics England PanelApp",
-                version='v4.1',
+                version=Config.GE_PANEL_VERSION,
                 dbxref=evidence_core.BaseDbxref(
                     url="https://panelapp.genomicsengland.co.uk/",
-                    id="Genomics England PanelApp", version="v5.7")),
+                    id="Genomics England PanelApp", version=Config.GE_PANEL_VERSION)),
             literature=evidence_core.BaseLiterature(
                 references=single_lit_ref_list
             )
@@ -563,7 +598,11 @@ class GE(RareDiseaseMapper):
         obj.unique_association_fields = dict(
             panel_name=panel_name,
             original_disease_name=disease_label,
-            panel_id=panel_id,
+            previous_code=panel_id,
+            panel_id=self.panel_app_id_map[panel_id],
+            panel_version=panel_version,
+            panel_diseasegroup=panel_diseasegroup,
+            panel_diseasesubgroup=panel_diseasesubgroup,
             target_id=ensembl_iri,
             disease_iri=disease_uri)
 
@@ -622,9 +661,10 @@ class GE(RareDiseaseMapper):
             obj.evidence.provenance_type = provenance_type
             obj.evidence.resource_score = resource_score
             #specific
+            new_panel_id = self.panel_app_id_map[panel_id]
             linkout = evidence_linkout.Linkout(
-                url=urllib.parse.urljoin(Config.GE_LINKOUT_URL, panel_id, gene_symbol),
-                nice_name='Further details in the Genomics England PanelApp')
+                url=urllib.parse.urljoin(Config.GE_LINKOUT_URL, "%s/%s"%(new_panel_id, gene_symbol)),
+                nice_name='Further details in the Genomics England PanelApp for panel %s and gene %s '%(new_panel_id, gene_symbol))
             obj.evidence.urls = [linkout]
             linkout.to_JSON()
 
@@ -642,13 +682,16 @@ class GE(RareDiseaseMapper):
                     logger.error(evidence_string.to_JSON(indentation=4))
                 tp_file.write(evidence_string.to_JSON(indentation=None) + "\n")
 
+        blob = self.bucket.blob(filename)
+        with open(filename, 'rb') as my_file:
+            blob.upload_from_file(my_file)
 
 def main():
     ge_object = GE()
     ge_object.execute_ge_request()
     ge_object.use_zooma()
     ge_object.process_panel_app_file()
-    ge_object.write_evidence_strings(Config.GE_EVIDENCE_STRING)
+    ge_object.write_evidence_strings(Config.GE_EVIDENCE_FILENAME)
 
 
 if __name__ == "__main__":
