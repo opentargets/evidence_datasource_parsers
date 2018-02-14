@@ -7,21 +7,24 @@ from modules.GenomicsEnglandPanelApp import GE
 from modules.MouseModels import Phenodigm
 from modules.IntOGen import IntOGen
 from modules.SLAPEnrich import SLAPEnrich
-import logging
-
-
 from settings import Config
 
-def main():
+import logging
 
-    logger = logging.getLogger(__name__)
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
-    # create console handler and set level to debug
+# create console handler and set level
     ch = logging.StreamHandler()
     ch.setLevel(logging.INFO)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     ch.setFormatter(formatter)
     logger.addHandler(ch)
+logger.debug('logging set up')
+
+
+
+def main():
 
     parser = argparse.ArgumentParser(description='Open Targets evidence generator')
 
