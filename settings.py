@@ -46,10 +46,11 @@ class Config:
 
     # Genomics England
     GE_PANEL_MAPPING_FILENAME = 'GenomicsEnglandPanelApp/genomicsenglandpanelapp_panelmapping.txt'
-    GE_EVIDENCE_FILENAME = 'genomics_england-18-12-2017.json'
+    GE_EVIDENCE_FILENAME = 'genomics_england-14-02-2018.json'
     GE_LINKOUT_URL = 'https://panelapp.genomicsengland.co.uk/panels/'
     GE_ZOOMA_DISEASE_MAPPING = '/tmp/zooma_disease_mapping.csv'
     GE_ZOOMA_DISEASE_MAPPING_NOT_HIGH_CONFIDENT = '/tmp/zooma_disease_mapping_low_confidence.csv'
+    GE_PANEL_VERSION = 'v5.7'
 
     # IntoGEN
     INTOGEN_FILENAME = file_or_resource('intogen_opentargets.tsv')
