@@ -64,7 +64,7 @@ class Config:
     OMIM_TO_EFO_MAP_URL = 'https://raw.githubusercontent.com/opentargets/platform_semantic/master/resources/xref_mappings/omim_to_efo.txt'
     ZOOMA_TO_EFO_MAP_URL = 'https://raw.githubusercontent.com/opentargets/platform_semantic/master/resources/zooma/cttv_indications_3.txt'
 
-    # mouse models
+    # mouse models (Phenodigm)
     MOUSEMODELS_PHENODIGM_SOLR = 'http://localhost:8983' # 'solrclouddev.sanger.ac.uk'
-    # TODO remove refs to user directories
-    MOUSEMODELS_CACHE_DIRECTORY =  HOME_DIR + '/.phenodigmcache'
+    # write to the cloud direcly
+    MOUSEMODELS_CACHE_DIRECTORY = 'Phenodigm/phenodigmcache'

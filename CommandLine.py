@@ -52,7 +52,7 @@ def main():
     elif args.gene2phenotype:
         G2P().process_g2p()
     elif args.phenodigm:
-        Phenodigm().generate_evidence(update_cache=args.update_cache)
+        Phenodigm().process_all(update_cache=args.update_cache)
     elif args.slapenrich:
         SLAPEnrich().process_slapenrich()
 
