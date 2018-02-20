@@ -1,7 +1,9 @@
 import argparse
 import sys
 
-from  modules.PheWAS import PhewasProcessor
+from modules.PheWAS import PhewasProcessor
+from modules.PheWAScat import main as phe
+from modules import PheWAScat
 from modules.Gene2Phenotype import G2P
 from modules.GenomicsEnglandPanelApp import GE
 from modules.MouseModels import Phenodigm
@@ -12,14 +14,12 @@ from settings import Config
 import logging
 
 logger = logging.getLogger()
-logger.setLevel(logging.INFO)
 
 # create console handler and set level
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.INFO)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    ch.setFormatter(formatter)
-    logger.addHandler(ch)
+ch = logging.StreamHandler()
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+ch.setFormatter(formatter)
+logger.addHandler(ch)
 logger.debug('logging set up')
 
 
@@ -49,15 +49,24 @@ def main():
     parser.add_argument("--update-cache", dest='update_cache',
                         help="the cache for this datasource will be updated if True default: False",
                         action='store_true', default=False)
+    parser.add_argument("-v", dest='verbose',
+                        help="turn on DEBUG level",
+                        action='store_true', default=False)
     parser.add_argument("--schema-version", dest='schema_version',
                         help="set the schema version",
                         action='store', default=Config.VALIDATED_AGAINST_SCHEMA_VERSION)
     args = parser.parse_args()
 
+    if args.verbose:
+        logger.setLevel(logging.DEBUG)
+    else:
+        logger.setLevel(logging.INFO)
+
     if args.phewas:
-        phewas_processor = PhewasProcessor(schema_version = args.schema_version)
-        phewas_processor.setup()
-        phewas_processor.convert_phewas_catalog_evidence_json()
+        # phewas_processor = PhewasProcessor(schema_version = args.schema_version)
+        # phewas_processor.setup()
+        # phewas_processor.convert_phewas_catalog_evidence_json()
+        PheWAScat.main()
     elif args.genomicsengland:
         GE().process_all()
     elif args.intogen:
