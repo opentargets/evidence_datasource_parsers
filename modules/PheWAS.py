@@ -159,7 +159,9 @@ class PhewasProcessor(object):
         elif disease_id.startswith('Orphanet') :
             phewas_evidence['disease'] = {'id': 'http://www.orpha.net/ORDO/' + disease_id}
         elif disease_id.startswith('NCBITaxon') :
-            phewas_evidence['disease'] = {'id': 'http://purl.obolibrary.org/obo/' + disease_id}
+            logger.error(disease_id)
+            logger.error(phe)
+            raise Exception
 
         phewas_evidence['target'] = {"activity": "http://identifiers.org/cttv.activity/predicted_damaging",
                     "id": "http://identifiers.org/ensembl/{}".format(target_id),
