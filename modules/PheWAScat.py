@@ -27,7 +27,8 @@ def download_ic9_phecode_map(url=Config.PHEWAS_PHECODE_MAP_URL):
         return {row['phecode']:row['icd9'] for row in reader}
 
 
-def make_uri(ontology_code):
+def make_uri(ontology_id):
+    ontology_code = ontology_id.replace(':',"_")
     if ontology_code.startswith('EFO'):
         return {'id': 'http://www.ebi.ac.uk/efo/'+ontology_code}
     elif ontology_code.startswith('HP') or ontology_code.startswith('MP') :
@@ -61,10 +62,10 @@ def gene2variant_entity():
             }
 
 def make_variant2disease_entity(pval):
-    return {'unique_experiment_reference':'https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3969265/',
+    return {'unique_experiment_reference':'http://europepmc.org/articles/PMC3969265',
             'provenance_type': {
                         "literature": {
-                            "references":[{"lit_id":"https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3969265/"}]
+                            "references":[{"lit_id":"http://europepmc.org/articles/PMC3969265"}]
                             },
                         "database": {
                             "version":"2013-12-31T09:53:37+00:00",
@@ -122,14 +123,14 @@ class OTOntoMapper(object):
          # HTTP POST https://www.ebi.ac.uk/spot/oxo/api/search?size=1000
 
     def hp_lookup(self, name):
-        return self.name_to_hp[name].replace(':','_')
+        return self.name_to_hp[name]
     
     def efo_lookup(self, name):
         return self.name_to_efo[name]
 
     def oxo_lookup(self, other_ontology_id):
         '''should return an EFO code for any given xref'''
-        raise NotImplementedError
+        return None
 
 
 def main():
@@ -145,7 +146,7 @@ def main():
 
     '''prepare an object'''
 
-    schema = requests.get('https://raw.githubusercontent.com/opentargets/json_schema/master/src/genetics.json')
+    schema = requests.get('https://raw.githubusercontent.com/opentargets/json_schema/ep-fixrelative/src/genetics.json')
 
     logger.debug("Downloaded the following schema:")
     logger.debug(schema)
@@ -175,19 +176,18 @@ def main():
                            sourceID = "phewas_catalog",
                            validated_against_schema_version = Config.VALIDATED_AGAINST_SCHEMA_VERSION
                            )
-            try:
-                efoid = otmap.oxo_lookup(phecode_to_ic9[row['phewas_code']])
-            except NotImplementedError:
-                pass
+            
+            efoid = otmap.oxo_lookup(phecode_to_ic9[row['phewas_code']])
 
             if not efoid:
                 try:
                     efoid = otmap.efo_lookup(row['phewas_string'])
-                    pev['disease'] = {"id": efoid}
+                    pev['disease'] = make_uri(efoid)
                 except KeyError as e:
                     logger.warning('Could not find EFO ID for {}'.format(e))
                     continue
 
+            logger.debug(pev)
 
             try:
                 pev['target'] = make_target_entity(ensgid[row['gene'].strip('*')])
@@ -196,8 +196,8 @@ def main():
                 continue
 
             pev["variant"]= make_variant_entity(row['snp'])
-            pev["evidence"]["variant2disease"] = make_variant2disease_entity(row['p'])
-            pev["evidence"]["gene2variant"] = gene2variant_entity()
+            pev["evidence"] = { "variant2disease": make_variant2disease_entity(row['p']),
+                                "gene2variant": gene2variant_entity() }
             
             pev['unique_association_fields'] = {'odds_ratio':row['odds_ratio'], 
                                                 'cases' : row['cases'], 
