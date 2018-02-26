@@ -94,6 +94,16 @@ class OTOntoMapper(object):
     elif search in OLS
     elif search in Zooma High confidence set
 
+    Initialize the class (which will download EFO,OBO and others):
+    >>> t=OTOntoMapper()
+
+    We can now lookup "asthma" and get:
+    >>> t.efo_lookup('asthma')
+    'EFO:0000270'
+
+    We can now lookup "Phenotypic abnormality" on HP: 
+    >>> t.hp_lookup('Phenotypic abnormality')
+    'HP:0000118'
     '''
     def __init__(self):
 
@@ -104,19 +114,15 @@ class OTOntoMapper(object):
         self.hp = obonet.read_obo(Config.HP_URL)
         logger.info('HP parsed. Size: {} nodes'.format(len(self.hp)))
 
-        
         '''Create name mappings'''
 
         # id_to_name = {id_: data['name'] for id_, data in efo.nodes(data=True)}
         self.name_to_efo = {data['name']: id_ 
                             for id_, data in self.efo.nodes(data=True)}
         
-        logger.debug('We can now lookup "asthma" and get: {}'.format(self.name_to_efo['asthma']))
-
         self.name_to_hp = {data['name']: id_ 
                            for id_, data in self.hp.nodes(data=True)}
-        
-        logger.debug('We can now lookup "Phenotypic abnormality" and get: {}'.format(self.name_to_hp['Phenotypic abnormality']))
+               
 
         '''Download OXO xrefs'''
         payload={"ids":[],"inputSource":"ICD9CM","mappingTarget":["EFO"],"distance":"3"}
@@ -141,7 +147,6 @@ def main():
     logger.info('Parsing gene data from HGNC...')
     gene_parser._get_hgnc_data_from_json()
     ensgid = gene_parser.genes
-    logger.debug(ensgid['BRAF'])
 
 
     '''prepare an object'''
@@ -160,52 +165,60 @@ def main():
     '''Phecode <=> ICD9 mappings'''
 
     phecode_to_ic9 = download_ic9_phecode_map()
-    logger.debug('Checking that the ic9 code for the 588 phecode is: %s' % phecode_to_ic9['588'])
 
     otmap = OTOntoMapper()
-    logger.debug(otmap.efo_lookup('asthma'))
 
+    skipped = 0
+    built = 0
+    with open('output/phewas_test.json', 'w') as outfile:
 
-    with requests.get(Config.PHEWAS_CATALOG_URL, stream=True) as r:
-        for i, row in enumerate(csv.DictReader(r.iter_lines(decode_unicode=True))):
-            if i == 10:
-                break
-            logger.debug(row)
-            pev = PhewasEv(type = 'genetic_association',
-                           access_level = "public", 
-                           sourceID = "phewas_catalog",
-                           validated_against_schema_version = Config.VALIDATED_AGAINST_SCHEMA_VERSION
-                           )
-            
-            efoid = otmap.oxo_lookup(phecode_to_ic9[row['phewas_code']])
-
-            if not efoid:
+        with requests.get(Config.PHEWAS_CATALOG_URL, stream=True) as r:
+            for i, row in enumerate(csv.DictReader(r.iter_lines(decode_unicode=True))):
+                if i == 5000:
+                    break
+                logger.debug(row)
+                pev = PhewasEv(type = 'genetic_association',
+                            access_level = "public", 
+                            sourceID = "phewas_catalog",
+                            validated_against_schema_version = Config.VALIDATED_AGAINST_SCHEMA_VERSION
+                            )
                 try:
-                    efoid = otmap.efo_lookup(row['phewas_string'])
-                    pev['disease'] = make_uri(efoid)
+                    efoid = otmap.oxo_lookup(phecode_to_ic9[row['phewas_code']])
                 except KeyError as e:
-                    logger.warning('Could not find EFO ID for {}'.format(e))
+                    logger.error('No phecode map for {}'.format(e))
+                    efoid = None
+                    pass
+
+                if not efoid:
+                    try:
+                        efoid = otmap.efo_lookup(row['phewas_string'])
+                        pev['disease'] = make_uri(efoid)
+                    except KeyError as e:
+                        logger.warning('Could not find EFO ID for {}'.format(e))
+                        skipped.append(e)
+                        continue
+
+                try:
+                    pev['target'] = make_target_entity(ensgid[row['gene'].strip('*')])
+                except KeyError as e:
+                    logger.warning("Could not find gene: {}".format(row['gene']))
+                    skipped +=1
                     continue
 
-            logger.debug(pev)
+                pev["variant"]= make_variant_entity(row['snp'])
+                pev["evidence"] = { "variant2disease": make_variant2disease_entity(row['p']),
+                                    "gene2variant": gene2variant_entity() }
+                
+                pev['unique_association_fields'] = {'odds_ratio':row['odds_ratio'], 
+                                                    'cases' : row['cases'], 
+                                                    'phenotype' : row['phewas_string']}
 
-            try:
-                pev['target'] = make_target_entity(ensgid[row['gene'].strip('*')])
-            except KeyError as e:
-                logger.error(row['gene'])
-                continue
+                built +=1
+                outfile.write("%s\n" % pev.serialize())
 
-            pev["variant"]= make_variant_entity(row['snp'])
-            pev["evidence"] = { "variant2disease": make_variant2disease_entity(row['p']),
-                                "gene2variant": gene2variant_entity() }
-            
-            pev['unique_association_fields'] = {'odds_ratio':row['odds_ratio'], 
-                                                'cases' : row['cases'], 
-                                                'phenotype' : row['phewas_string']}
-
-    
-            logger.debug(pev)
-
+            logger.info("Completed. Parsed {} rows. Built {} evidences. Skipped {}".format(i,built,skipped))
+            with open('output/phewas_no_efo_codes.txt') as skipfile:
+                json.dump(skipped,skipfile)
 
     return
 

@@ -67,6 +67,14 @@ class Gene(object):
 
 
 class GeneParser(object):
+    ''' Parses the HGNC data and allows to lookup ENSGIDs from
+    standard gene symbol.
+
+    >>> gene_parser = GeneParser()
+    >>> gene_parser._get_hgnc_data_from_json()
+    >>> gene_parser.genes['BRAF']
+    'ENSG00000157764'
+    '''
     def __init__(self):
         self.genes = dict()
 
