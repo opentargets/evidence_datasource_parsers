@@ -74,6 +74,8 @@ class GeneParser(object):
     >>> gene_parser._get_hgnc_data_from_json()
     >>> gene_parser.genes['BRAF']
     'ENSG00000157764'
+    >>> gene_parser.genes['TOMM40']
+    'ENSG00000130204'
     '''
     def __init__(self):
         self.genes = dict()

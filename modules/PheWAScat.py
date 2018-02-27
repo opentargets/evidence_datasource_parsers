@@ -85,58 +85,7 @@ def make_variant2disease_entity(pval):
             }
 
 
-class OTOntoMapper(object):
-    '''Open Targets ontology mapping cascade
-
-    if you have an id, find a xref to EFO
-    elif search exact match to name in EFO (or synonyms)
-    elif search fuzzy match to name in EFO
-    elif search in OLS
-    elif search in Zooma High confidence set
-
-    Initialize the class (which will download EFO,OBO and others):
-    >>> t=OTOntoMapper()
-
-    We can now lookup "asthma" and get:
-    >>> t.efo_lookup('asthma')
-    'EFO:0000270'
-
-    We can now lookup "Phenotypic abnormality" on HP: 
-    >>> t.hp_lookup('Phenotypic abnormality')
-    'HP:0000118'
-    '''
-    def __init__(self):
-
-        '''Parse the ontology obo files for exact match lookup'''
-
-        self.efo = obonet.read_obo(Config.EFO_URL)
-        logger.info('EFO parsed. Size: {} nodes'.format(len(self.efo)))
-        self.hp = obonet.read_obo(Config.HP_URL)
-        logger.info('HP parsed. Size: {} nodes'.format(len(self.hp)))
-
-        '''Create name mappings'''
-
-        # id_to_name = {id_: data['name'] for id_, data in efo.nodes(data=True)}
-        self.name_to_efo = {data['name']: id_ 
-                            for id_, data in self.efo.nodes(data=True)}
-        
-        self.name_to_hp = {data['name']: id_ 
-                           for id_, data in self.hp.nodes(data=True)}
-               
-
-        '''Download OXO xrefs'''
-        payload={"ids":[],"inputSource":"ICD9CM","mappingTarget":["EFO"],"distance":"3"}
-         # HTTP POST https://www.ebi.ac.uk/spot/oxo/api/search?size=1000
-
-    def hp_lookup(self, name):
-        return self.name_to_hp[name]
-    
-    def efo_lookup(self, name):
-        return self.name_to_efo[name]
-
-    def oxo_lookup(self, other_ontology_id):
-        '''should return an EFO code for any given xref'''
-        return None
+from ontoma import OnToma
 
 
 def main():
@@ -166,9 +115,9 @@ def main():
 
     phecode_to_ic9 = download_ic9_phecode_map()
 
-    otmap = OTOntoMapper()
+    otmap = OnToma()
 
-    skipped = 0
+    skipped = []
     built = 0
     with open('output/phewas_test.json', 'w') as outfile:
 
