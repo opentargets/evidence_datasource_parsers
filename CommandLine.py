@@ -7,6 +7,7 @@ from modules.GenomicsEnglandPanelApp import GE
 from modules.MouseModels import Phenodigm
 from modules.IntOGen import IntOGen
 from modules.SLAPEnrich import SLAPEnrich
+from modules.PROGENY import PROGENY
 
 
 from settings import Config
@@ -33,6 +34,9 @@ def main():
     parser.add_argument("--slapenrich", dest='slapenrich',
                         help="process slapenrich data and generate evidences for open targets pipeline",
                         action="append_const", const=str)
+    parser.add_argument("--progeny", dest='progeny',
+                        help="process progeny data and generate evidences for open targets pipeline",
+                        action="append_const", const=str)
     parser.add_argument("--update-cache", dest='update_cache',
                         help="the cache for this datasource will be updated if True default: False",
                         action='store_true', default=False)
@@ -55,6 +59,8 @@ def main():
         Phenodigm().generate_evidence(update_cache=args.update_cache)
     elif args.slapenrich:
         SLAPEnrich().process_slapenrich()
+    elif args.progeny:
+        PROGENY().process_progeny()
 
 
 
