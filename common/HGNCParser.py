@@ -88,4 +88,4 @@ class GeneParser(object):
                 # to handle obsolete gene symbols like EFCAB4B
                 for prev_symbol in row['prev_symbol']:
                     self.genes[prev_symbol] = ensembl_gene_id
-        print('All HGNC genes parsed')
+        print('All HGNC genes parsed ! source : ' + Config.GENES_HGNC)
