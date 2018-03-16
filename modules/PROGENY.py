@@ -14,10 +14,10 @@ __credits__   = ["ChuangKee Ong"]
 __license__   = "Apache 2.0"
 __version__   = "1.2.7"
 __maintainer__= "ChuangKee Ong"
-__email__     = ["ckong@ebi.ac.uk"]
+__email__     = ["data@opentargets.org"]
 __status__    = "Production"
 
-''' TCGA cancer EFO mapping '''
+''' TCGA -> EFO mapping '''
 TUMOR_TYPE_EFO_MAP = {
     'BLCA': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000292', 'label': 'bladder carcinoma'},
     'BRCA': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000305', 'label': 'breast carcinoma'},
@@ -36,7 +36,7 @@ TUMOR_TYPE_EFO_MAP = {
     'COREAD': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000000', 'label': 'colorectoral adenoma'}
 }
 
-''' TCGA cancer acronyms '''
+''' TCGA acronyms '''
 TUMOR_TYPE_MAP = {
     'BLCA': 'bladder carcinoma',
     'BRCA': 'breast carcinoma',
@@ -54,49 +54,42 @@ TUMOR_TYPE_MAP = {
     'COREAD': ''
 }
 
-SYMBOL_MAPPING = {
-    # TODO These symbols does not has Ensembl ID mappings, need alternative mapping
-    '''
-    i.e 'C15orf55': 'NUTM1',
+''' Pathway -> Perturbed Targets
+    https://drive.google.com/drive/folders/1L5Y_umEZiccWJnXiiaYMNKUKYTjnp3ZU
+'''
+PATHWAY_TARGET_MAP = {
+    'Androgen' : ['AR'],
+    'EGFR'     : ['EGFR'],
+    'Estrogen' : ['ESR1'],
+    'Hypoxia'  : ['HIF1A'],
+    'JAK.STAT' : ['JAK1', 'JAK2', 'STAT1', 'STAT2'],
+    'MAPK'     : ['MAPK2K1', 'MAP2K2', 'RAF1'],
+    'NFkB'     : ['TLR4', 'NKFB1', 'RELA'],
+    'PI3K'     : ['PIK3CA', 'PI3K(Class1)'],
+    'TGFb'     : ['TGFBR1', 'TGFBR2'],
+    'TNFa'     : ['TNFRSF1A'],
+    'Trail'    : ['TNFSF10', 'BCL2', 'BCL-XL', 'BCL-W', 'MCL1'],
+    'VEGF'     : ['VEGFR'],
+    'WNT'      : ['WNT3A', 'GSK3A', 'GSK3B'],
+    'p53'      : ['TP53']
+}
 
-    ADRBK1
-    ADRBK2
-    BRE
-    C10orf2
-    CASC5
-    CECR1
-    CSRP2BP
-    DEFB131
-    ERBB2IP
-    FAM175A
-    FAM175B
-    FIGF
-    FYB
-    GYLTL1B
-    IKBKAP
-    INADL
-    KIAA0101
-    KIRREL
-    MINA
-    MRE11A
-    NGFRAP1
-    PARK2
-    PTRF
-    RQCD1
-    SEPP1
-    SHFM1
-    TCEB1
-    TCEB2
-    TCEB3
-    TCEB3B
-    TCEB3C
-    TCEB3CL
-    UFD1L
-    VPRBP
-    WBSCR17
-    WHSC1
-    WHSC1L1
-    '''
+''' Pathway -> Reactome Pathway ID '''
+PATHWAY_REACTOME_MAP = {
+    'Androgen' : '',
+    'EGFR'     : '',
+    'Estrogen' : '',
+    'Hypoxia'  : '',
+    'JAK.STAT' : '',
+    'MAPK'     : '',
+    'NFkB'     : '',
+    'PI3K'     : '',
+    'TGFb'     : '',
+    'TNFa'     : '',
+    'Trail'    : '',
+    'VEGF'     : '',
+    'WNT'      : '',
+    'p53'      : ''
 }
 
 class PROGENY():
