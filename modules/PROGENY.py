@@ -1,5 +1,6 @@
 from settings import Config
 from common.HGNCParser import GeneParser
+import json
 import sys
 import logging
 import datetime
@@ -92,6 +93,16 @@ PATHWAY_REACTOME_MAP = {
     'p53'      : ''
 }
 
+''' These symbols are secondary/generic/typo that needs update '''
+PROGENY_SYMBOL_MAPPING = {
+    'NKFB1'   : 'NFKB1',
+    'MAPK2K1' : 'PRKMK1',
+    'PI3K(Class1)' : 'PIK3CA',
+    'VEGFR'   : 'KDR',
+    'BCL-W'   : 'BCL2L2',
+    'BCL-XL'  : 'BCL2L1'
+}
+
 class PROGENY():
     def __init__(self, es=None, r_server=None):
         self.evidence_strings = list()
@@ -103,14 +114,12 @@ class PROGENY():
         gene_parser._get_hgnc_data_from_json()
 
         self.symbols = gene_parser.genes
-
         self.build_evidence()
         self.write_evidence()
 
     def build_evidence(self, filename=Config.PROGENY_FILENAME):
 
         now = datetime.datetime.now()
-
         '''
             build evidence.provenance_type object
         '''
@@ -141,22 +150,17 @@ class PROGENY():
                         Hypoxia KIRC    625.176272105012        317.864789440655        23.2893493089142        1.4197622817373e-50     1.98766719443222e-49    11.4589892248308        144
                         p53     BRCA    -167.884630928143       11.9146505664384        -19.2135398711684       4.89209545526163e-50    3.42446681868314e-49    16.9318129144987        235
                     '''
-                    '''
-                        pval    => pvalue of the SLAPenrichment of the pathway indicated in the cancer/tumor type
-                        fdr     => FDR percentage of the SLAPenrichment of the pathway in the cancer/tumor type
-                        logOdds => log10 odd ratio (number of patients with mutations in the pathway / number of expected patients with mutations in the pathway)
-                        exeeco  => exclusive coverage of the pathway = number patients with mutations in exactly 1 gene in the pathway / number of patients with mutations in at least one gene in the pathway.
-                    '''
-                    #(tumor_type, gene_symbol, mutFreq_dataset, pathway_id, mutFreq_pathway, pval, fdr, logodds, excco) = tuple(line.rstrip().split('\t'))
                     (pathway_id, tumor_type, logfc, aveexpr, t, pval, fdr, b, sample) = tuple(line.rstrip().split('\t'))
 
-                    #pathway = pathway_id.split(":")
-                    #pathway_id = pathway[0].rstrip()
-                    #pathway_desc = pathway[1].rstrip()
-                    #TODO this is to be replaced with the actual Reactome pathway description
-                    #TODO this is a temporary placeholder until gene_symbol is identify for each evidence
-                    gene_symbol = 'BRAF'
+                    # TODO pathway_id need to be mapped to Reactome pathway id:description via PATHWAY_REACTOME_MAP
+                    # pathway = pathway_id.split(":")
+                    # pathway_id = pathway[0].rstrip()
+                    # pathway_desc = pathway[1].rstrip()
                     pathway_desc = 'Reactome pathway descriptions'
+
+                    # TODO this is a temporary placeholder until gene_symbol is identify for each evidence
+                    # gene_symbol = 'BRAF'
+
                     '''
                         build evidence.resource_score object
                     '''
@@ -175,11 +179,12 @@ class PROGENY():
                     evidenceString.access_level = "public"
                     evidenceString.type = "affected_pathway"
                     evidenceString.sourceID = "progeny"
+
                     '''
                         build unique_association_field object
                     '''
                     evidenceString.unique_association_fields = {}
-                    evidenceString.unique_association_fields['symbol'] = gene_symbol
+                    evidenceString.unique_association_fields['symbol'] = 'TBC'
                     evidenceString.unique_association_fields['tumor_type_acronym'] = tumor_type
                     evidenceString.unique_association_fields['tumor_type'] = TUMOR_TYPE_MAP[tumor_type]
                     evidenceString.unique_association_fields['pathway_id'] = 'http://www.reactome.org/PathwayBrowser/#%s' % (pathway_id)
@@ -188,70 +193,81 @@ class PROGENY():
                     target_type = 'http://identifiers.org/cttv.target/gene_evidence'
                     ensembl_gene_id = None
 
-                    if gene_symbol in SYMBOL_MAPPING:
-                        gene_symbol = SYMBOL_MAPPING[gene_symbol]
-
                     '''
-                        build target object,
+                        loop through perturbed targets for each Pathway
                     '''
-                    if gene_symbol in self.symbols:
-                        ensembl_gene_id = self.symbols[gene_symbol]
+                    if pathway_id in PATHWAY_TARGET_MAP:
+                        for gene_symbol in PATHWAY_TARGET_MAP[pathway_id]:
 
-                        evidenceString.target = bioentity.Target(
-                            id="http://identifiers.org/ensembl/{0}".format(ensembl_gene_id),
-                            target_name=gene_symbol,
-                            #TODO activity is a required field in target object, currently set as unknown
-                            activity="http://identifiers.org/cttv.activity/unknown",
-                            target_type=target_type
-                        )
+                            if gene_symbol in PROGENY_SYMBOL_MAPPING:
+                                gene_symbol = PROGENY_SYMBOL_MAPPING[gene_symbol]
 
-                        '''
-                            build disease object
-                        '''
-                        evidenceString.disease = bioentity.Disease(
-                            id=TUMOR_TYPE_EFO_MAP[tumor_type]['uri'],
-                            name=TUMOR_TYPE_EFO_MAP[tumor_type]['label']
-                        )
+                            '''
+                                build target object,
+                            '''
+                            if gene_symbol in self.symbols:
 
-                        '''
-                            build evidence object
-                        '''
-                        evidenceString.evidence = evidence_core.Literature_Curated()
-                        evidenceString.evidence.date_asserted = now.isoformat()
-                        evidenceString.evidence.is_associated = True
-                        #TODO check is this the correct evidence code "computational combinatorial evidence"
-                        evidenceString.evidence.evidence_codes = ["http://purl.obolibrary.org/obo/ECO_0000053"]
-                        evidenceString.evidence.provenance_type = provenance_type
-                        evidenceString.evidence.resource_score = resource_score
+                                ensembl_gene_id = self.symbols[gene_symbol]
 
-                        '''
-                            build evidence.url object
-                        '''
-                        linkout = evidence_linkout.Linkout (
-                            url='http://www.reactome.org/PathwayBrowser/#%s'%(pathway_id),
-                            nice_name='%s'%(pathway_desc)
-                        )
+                                evidenceString.target = bioentity.Target(
+                                    id="http://identifiers.org/ensembl/{0}".format(ensembl_gene_id),
+                                    target_name=gene_symbol,
+                                    # TODO activity is a required field in target object, currently set as unknown
+                                    activity="http://identifiers.org/cttv.activity/unknown",
+                                    target_type=target_type
+                                )
 
-                        evidenceString.evidence.urls = [linkout]
+                                '''
+                                    build disease object
+                                '''
+                                evidenceString.disease = bioentity.Disease(
+                                    id=TUMOR_TYPE_EFO_MAP[tumor_type]['uri'],
+                                    name=TUMOR_TYPE_EFO_MAP[tumor_type]['label']
+                                )
 
-                        error = evidenceString.validate(logging)
+                                '''
+                                    build evidence object
+                                '''
+                                evidenceString.evidence = evidence_core.Literature_Curated()
+                                evidenceString.evidence.date_asserted = now.isoformat()
+                                evidenceString.evidence.is_associated = True
+                                # TODO check is this the correct evidence code "computational combinatorial evidence"
+                                evidenceString.evidence.evidence_codes = ["http://purl.obolibrary.org/obo/ECO_0000053"]
+                                evidenceString.evidence.provenance_type = provenance_type
+                                evidenceString.evidence.resource_score = resource_score
 
-                        if error > 0:
-                            self.logger.error(evidenceString.to_JSON())
-                            sys.exit(1)
+                                '''
+                                    build evidence.url object
+                                '''
+                                linkout = evidence_linkout.Linkout(
+                                    url='http://www.reactome.org/PathwayBrowser/#%s' % (pathway_id),
+                                    nice_name='%s' % (pathway_desc)
+                                )
 
-                        self.evidence_strings.append(evidenceString)
+                                evidenceString.evidence.urls = [linkout]
 
-                    else:
-                        self.logger.error("%s is not found in Ensembl" % gene_symbol)
+                                error = evidenceString.validate(logging)
 
-            self.logger.info("%s evidence parsed"%(n-1))
-            self.logger.info("%s evidence created"%len(self.evidence_strings))
+                                # if error > 0:
+                                #    self.logger.error(evidenceString.to_JSON())
+                                # sys.exit(1)
+                                print(evidenceString.to_JSON(indentation=None))
+
+                                ##TODO issue with append, take only last item of the gene
+                                self.evidence_strings.append(evidenceString)
+
+                            else:
+                                self.logger.error("%s is not found in Ensembl" % gene_symbol)
+
+
+            self.logger.error("%s evidence parsed"%(n-1))
+            self.logger.error("%s evidence created"%len(self.evidence_strings))
 
         progeny_input.close()
 
     def write_evidence(self, filename=Config.PROGENY_EVIDENCE_FILENAME):
         self.logger.info("Writing PROGENY evidence strings")
+
         with open(filename, 'w') as progeny_output:
             n = 0
             for evidence_string in self.evidence_strings:
