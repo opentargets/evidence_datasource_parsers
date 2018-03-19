@@ -1,6 +1,5 @@
 from settings import Config
 from common.HGNCParser import GeneParser
-import json
 import sys
 import logging
 import datetime
@@ -11,9 +10,9 @@ import opentargets.model.evidence.linkout as evidence_linkout
 import opentargets.model.evidence.association_score as association_score
 
 __copyright__ = "Copyright 2014-2018, Open Targets"
-__credits__   = ["ChuangKee Ong"]
+__credits__   = ["ChuangKee Ong", "Luz Garcia Alonso"]
 __license__   = "Apache 2.0"
-__version__   = "1.2.7"
+__version__   = "1.2.8"
 __maintainer__= "ChuangKee Ong"
 __email__     = ["data@opentargets.org"]
 __status__    = "Production"
@@ -31,7 +30,7 @@ TUMOR_TYPE_EFO_MAP = {
     'STAD': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000503', 'label': 'stomach adenocarcinoma'},
     'THCA': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0002892', 'label': 'thyroid carcinoma'},
     'UCEC': {'uri': 'http://www.ebi.ac.uk/efo/EFO_1000233', 'label': 'endometrial endometrioid adenocarcinoma'},
-    ##TODO uri & label needs update
+    ##TODO tumor uri & label need update
     'KICH': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000000', 'label': 'kidney chromophobe'},
     'KIRP': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000000', 'label': 'kidney renal papillary cell carcinoma'},
     'COREAD': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000000', 'label': 'colorectoral adenoma'}
@@ -52,6 +51,7 @@ TUMOR_TYPE_MAP = {
     'UCEC': 'endometrial endometrioid adenocarcinoma',
     'KICH': 'kidney chromophobe',
     'KIRP': 'kidney renal papillary cell carcinoma',
+    #TODO tumor description need update
     'COREAD': ''
 }
 
@@ -77,6 +77,7 @@ PATHWAY_TARGET_MAP = {
 
 ''' Pathway -> Reactome Pathway ID '''
 PATHWAY_REACTOME_MAP = {
+    #TODO Pathway Reactome ID needs update
     'Androgen' : '',
     'EGFR'     : '',
     'Estrogen' : '',
@@ -104,7 +105,7 @@ PROGENY_SYMBOL_MAPPING = {
 }
 
 class PROGENY():
-    def __init__(self, es=None, r_server=None):
+    def __init__(self):
         self.evidence_strings = list()
         self.symbols = {}
         self.logger = logging.getLogger(__name__)
@@ -167,7 +168,7 @@ class PROGENY():
                     resource_score = association_score.Pvalue(
                         type="pvalue",
                         method=association_score.Method(
-                            description="PROGENY Pathway association analysis of TCGA tumor types as described in XXX et al (20XX)",
+                            description="PROGENY Pathway association analysis of TCGA tumor types as described in Schubert et al (2018)",
                             reference  ="http://europepmc.org/abstract/MED/29295995",
                             url="https://saezlab.github.io/progeny/"
                         ),
@@ -184,7 +185,6 @@ class PROGENY():
                         build unique_association_field object
                     '''
                     evidenceString.unique_association_fields = {}
-                    evidenceString.unique_association_fields['symbol'] = 'TBC'
                     evidenceString.unique_association_fields['tumor_type_acronym'] = tumor_type
                     evidenceString.unique_association_fields['tumor_type'] = TUMOR_TYPE_MAP[tumor_type]
                     evidenceString.unique_association_fields['pathway_id'] = 'http://www.reactome.org/PathwayBrowser/#%s' % (pathway_id)
@@ -201,7 +201,6 @@ class PROGENY():
 
                             if gene_symbol in PROGENY_SYMBOL_MAPPING:
                                 gene_symbol = PROGENY_SYMBOL_MAPPING[gene_symbol]
-
                             '''
                                 build target object,
                             '''
@@ -216,7 +215,6 @@ class PROGENY():
                                     activity="http://identifiers.org/cttv.activity/unknown",
                                     target_type=target_type
                                 )
-
                                 '''
                                     build disease object
                                 '''
@@ -224,7 +222,6 @@ class PROGENY():
                                     id=TUMOR_TYPE_EFO_MAP[tumor_type]['uri'],
                                     name=TUMOR_TYPE_EFO_MAP[tumor_type]['label']
                                 )
-
                                 '''
                                     build evidence object
                                 '''
@@ -235,7 +232,6 @@ class PROGENY():
                                 evidenceString.evidence.evidence_codes = ["http://purl.obolibrary.org/obo/ECO_0000053"]
                                 evidenceString.evidence.provenance_type = provenance_type
                                 evidenceString.evidence.resource_score = resource_score
-
                                 '''
                                     build evidence.url object
                                 '''
@@ -251,14 +247,18 @@ class PROGENY():
                                 # if error > 0:
                                 #    self.logger.error(evidenceString.to_JSON())
                                 # sys.exit(1)
-                                print(evidenceString.to_JSON(indentation=None))
 
+                                '''
+                                    add gene_symbol in unique_association_field object
+                                '''
+                                evidenceString.unique_association_fields['symbol'] = gene_symbol
+
+                                print(evidenceString.to_JSON(indentation=None))
                                 ##TODO issue with append, take only last item of the gene
                                 self.evidence_strings.append(evidenceString)
 
                             else:
                                 self.logger.error("%s is not found in Ensembl" % gene_symbol)
-
 
             self.logger.error("%s evidence parsed"%(n-1))
             self.logger.error("%s evidence created"%len(self.evidence_strings))
