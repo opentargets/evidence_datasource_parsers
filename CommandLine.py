@@ -1,7 +1,6 @@
 import argparse
 import sys
 
-from modules.PheWAS import PhewasProcessor
 from modules.PheWAScat import main as phe
 from modules import PheWAScat
 from modules.Gene2Phenotype import G2P

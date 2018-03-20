@@ -2,7 +2,6 @@ import csv
 from zipfile import ZipFile
 from io import BytesIO, TextIOWrapper
 import requests
-from common.EFOData import OBOParser
 from common.HGNCParser import GeneParser
 import json
 import logging

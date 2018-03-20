@@ -19,7 +19,7 @@ def download_ic9_phecode_map(url=Config.PHEWAS_PHECODE_MAP_URL):
         phecode_zip = ZipFile(BytesIO(phecode_res.content))    
         # you can't just pass a ZipFile object as you would do a gZipfile
         # object. You actually have to extract it and to do that you need to
-        # pass the name of the file it contains..     
+        # pass the name of the file it contains.     
         phecode_file = phecode_zip.open(phecode_zip.namelist()[0])
 
     with TextIOWrapper(phecode_file) as phecode_map:
@@ -97,21 +97,18 @@ def main():
     gene_parser._get_hgnc_data_from_json()
     ensgid = gene_parser.genes
 
-
     '''prepare an object'''
 
     schema = requests.get('https://raw.githubusercontent.com/opentargets/json_schema/ep-fixrelative/src/genetics.json')
 
-    logger.debug("Downloaded the following schema:")
-    logger.debug(schema)
+    logger.debug("Downloaded the following schema: {}".format(schema))
 
     builder = pjs.ObjectBuilder(schema.json())
     ns = builder.build_classes()
-    logger.debug([str(x) for x in dir(ns)])
+    logger.debug('The schema contains {}'.format([str(x) for x in dir(ns)]))
     PhewasEv = ns['Genetics-basedEvidenceStrings']
-    logger.debug(PhewasEv(type='genetic_association'))
 
-    '''Phecode <=> ICD9 mappings'''
+    '''phewascatalog's Phecode <=> ICD9 mappings'''
 
     phecode_to_ic9 = download_ic9_phecode_map()
 
@@ -132,7 +129,8 @@ def main():
                             validated_against_schema_version = Config.VALIDATED_AGAINST_SCHEMA_VERSION
                             )
                 try:
-                    efoid = otmap.oxo_lookup(phecode_to_ic9[row['phewas_code']])
+                    efoid = otmap.find_efo(phecode_to_ic9[row['phewas_code']],
+                                            code="ICD9CM")
                 except KeyError as e:
                     logger.error('No phecode map for {}'.format(e))
                     efoid = None
@@ -140,7 +138,7 @@ def main():
 
                 if not efoid:
                     try:
-                        efoid = otmap.efo_lookup(row['phewas_string'])
+                        efoid = otmap.find_efo(row['phewas_string'])
                         pev['disease'] = make_uri(efoid)
                     except KeyError as e:
                         logger.warning('Could not find EFO ID for {}'.format(e))
