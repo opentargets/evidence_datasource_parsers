@@ -7,10 +7,33 @@ import obonet
 from settings import Config
 import python_jsonschema_objects as pjs 
 from common.HGNCParser import GeneParser
+from ontoma import OnToma
 
 
 import logging
 logger = logging.getLogger(__name__)
+
+'''import the json schema and create python objects with a built-in validator
+'''
+
+schema = requests.get('https://raw.githubusercontent.com/opentargets/json_schema/ep-fixrelative/src/genetics.json')
+logger.debug("Downloaded the following schema: {}".format(schema))
+
+builder = pjs.ObjectBuilder(schema.json())
+ot_objects = builder.build_classes()
+logger.debug('The schema contains {}'.format([str(x) for x in dir(ot_objects)]))
+
+target = ot_objects['Target']
+disease = ot_objects['Disease']
+variant = ot_objects['Variant<anonymous>']
+gene2variant = ot_objects['Gene2variant<anonymous>']
+variant2disease = ot_objects['Variant2disease<anonymous>']
+provenance = ot_objects['ProvenanceType']
+
+'''define once where evidence is coming from
+'''
+prov = provenance(literature={"references":[{"lit_id":"http://europepmc.org/articles/PMC3969265"}]}, 
+                    database={"version":"2013-12-31T09:53:37+00:00", "id":"PHEWAS Catalog"})
 
 
 def download_ic9_phecode_map(url=Config.PHEWAS_PHECODE_MAP_URL):
@@ -27,65 +50,42 @@ def download_ic9_phecode_map(url=Config.PHEWAS_PHECODE_MAP_URL):
         return {row['phecode']:row['icd9'] for row in reader}
 
 
-def make_uri(ontology_id):
-    ontology_code = ontology_id.replace(':',"_")
-    if ontology_code.startswith('EFO'):
-        return {'id': 'http://www.ebi.ac.uk/efo/'+ontology_code}
-    elif ontology_code.startswith('HP') or ontology_code.startswith('MP') :
-        return {'id': 'http://purl.obolibrary.org/obo/' + ontology_code}
-    elif ontology_code.startswith('Orphanet') :
-        return {'id': 'http://www.orpha.net/ORDO/' + ontology_code}
-    else:
-        logger.error(ontology_code)
-        raise Exception
+def make_disease(ontology_uri):
+    return disease(id=ontology_uri)
+
+def make_target(ensgid):
+    return target(target_type = "http://identifiers.org/cttv.target/gene_evidence", 
+                  id="http://identifiers.org/ensembl/{}".format(ensgid), 
+                  activity="http://identifiers.org/cttv.activity/unknown")
 
 
-def make_target_entity(ensgid):
-    return {"target_type": "http://identifiers.org/cttv.target/gene_evidence", 
-            "id": "http://identifiers.org/ensembl/{}".format(ensgid), 
-            "activity": "http://identifiers.org/cttv.activity/unknown"}
+def make_variant(rsid):
+    return variant(type="snp single", 
+                   id="http://identifiers.org/dbsnp/{}".format(rsid))
 
 
-def make_variant_entity(rsid):
-    return {"type": "snp single", 
-            "id": "http://identifiers.org/dbsnp/{}".format(rsid)}
+def make_gene2variant():
+    return gene2variant(provenance_type=prov,
+            is_associated=True, 
+            date_asserted="2017-12-31T09:53:37+00:00",
+            evidence_codes=["http://purl.obolibrary.org/obo/ECO_0000205"],
+            functional_consequence='http://purl.obolibrary.org/obo/SO_0001060'
+    )
 
-
-def gene2variant_entity():
-    return {'provenance_type': {
-                "database":{"version":"2017-12-31T09:53:37+00:00","id":"PHEWAS Catalog",}
-                },
-            'is_associated': True, 
-            'date_asserted' : "2017-12-31T09:53:37+00:00",
-            'evidence_codes':["http://purl.obolibrary.org/obo/ECO_0000205"],
-            'functional_consequence':'http://purl.obolibrary.org/obo/SO_0001060'
-            }
-
-def make_variant2disease_entity(pval):
-    return {'unique_experiment_reference':'http://europepmc.org/articles/PMC3969265',
-            'provenance_type': {
-                        "literature": {
-                            "references":[{"lit_id":"http://europepmc.org/articles/PMC3969265"}]
+def make_variant2disease(pval):
+    return variant2disease(unique_experiment_reference='http://europepmc.org/articles/PMC3969265',
+                           provenance_type=prov,
+                           is_associated=True,
+                           date_asserted="2013-12-31T09:53:37+00:00",
+                           evidence_codes=['http://identifiers.org/eco/PheWAS'],
+                           resource_score={'type': 'pvalue', 
+                                'method': {
+                                "description":"pvalue for the phenotype to snp association."
                             },
-                        "database": {
-                            "version":"2013-12-31T09:53:37+00:00",
-                            "id":"PHEWAS Catalog"
+                            "value":float(pval)
                             }
-                        },
-            'is_associated': True,
-            'resource_score':{
-                'type': 'pvalue', 
-                'method': {
-                    "description":"pvalue for the phenotype to snp association."
-                    },
-                "value":float(pval)
-                },
-            'date_asserted': "2013-12-31T09:53:37+00:00",
-            'evidence_codes': ['http://identifiers.org/eco/PheWAS'],
-            }
+    )
 
-
-from ontoma import OnToma
 
 
 def main():
@@ -99,14 +99,8 @@ def main():
 
     '''prepare an object'''
 
-    schema = requests.get('https://raw.githubusercontent.com/opentargets/json_schema/ep-fixrelative/src/genetics.json')
-
-    logger.debug("Downloaded the following schema: {}".format(schema))
-
-    builder = pjs.ObjectBuilder(schema.json())
-    ns = builder.build_classes()
-    logger.debug('The schema contains {}'.format([str(x) for x in dir(ns)]))
-    PhewasEv = ns['Genetics-basedEvidenceStrings']
+    
+    PhewasEv = ot_objects['Genetics-basedEvidenceStrings']
 
     '''phewascatalog's Phecode <=> ICD9 mappings'''
 
@@ -139,22 +133,22 @@ def main():
                 if not efoid:
                     try:
                         efoid = otmap.find_efo(row['phewas_string'])
-                        pev['disease'] = make_uri(efoid)
+                        pev['disease'] = make_disease(efoid)
                     except KeyError as e:
                         logger.warning('Could not find EFO ID for {}'.format(e))
                         skipped.append(e)
                         continue
 
                 try:
-                    pev['target'] = make_target_entity(ensgid[row['gene'].strip('*')])
+                    pev['target'] = make_target(ensgid[row['gene'].strip('*')])
                 except KeyError as e:
                     logger.warning("Could not find gene: {}".format(row['gene']))
                     skipped +=1
                     continue
 
-                pev["variant"]= make_variant_entity(row['snp'])
-                pev["evidence"] = { "variant2disease": make_variant2disease_entity(row['p']),
-                                    "gene2variant": gene2variant_entity() }
+                pev["variant"]= make_variant(row['snp'])
+                pev["evidence"] = { "variant2disease": make_variant2disease(row['p']),
+                                    "gene2variant": make_gene2variant() }
                 
                 pev['unique_association_fields'] = {'odds_ratio':row['odds_ratio'], 
                                                     'cases' : row['cases'], 

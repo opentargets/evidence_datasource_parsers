@@ -4,8 +4,8 @@ import sys
 from modules.PheWAScat import main as phe
 from modules import PheWAScat
 from modules.Gene2Phenotype import G2P
-from modules.GenomicsEnglandPanelApp import GE
-from modules.MouseModels import Phenodigm
+# from modules.GenomicsEnglandPanelApp import GE
+# from modules.MouseModels import Phenodigm
 from modules.IntOGen import IntOGen
 from modules.SLAPEnrich import SLAPEnrich
 from settings import Config
