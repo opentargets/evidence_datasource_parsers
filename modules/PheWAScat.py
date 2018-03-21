@@ -32,9 +32,11 @@ provenance = ot_objects['ProvenanceType']
 
 '''define once where evidence is coming from
 '''
-prov = provenance(literature={"references":[{"lit_id":"http://europepmc.org/articles/PMC3969265"}]}, 
-                    database={"version":"2013-12-31T09:53:37+00:00", "id":"PHEWAS Catalog"})
-
+prov = provenance(literature={"references":[
+                    {"lit_id":"http://europepmc.org/articles/PMC3969265"}]}, 
+                    database={"version":"2013-12-31T09:53:37+00:00", 
+                    "id":"PHEWAS Catalog"}
+                    )
 
 def download_ic9_phecode_map(url=Config.PHEWAS_PHECODE_MAP_URL):
     with requests.get(url) as phecode_res:
@@ -88,80 +90,84 @@ def make_variant2disease(pval):
 
 
 
-def main():
 
-    '''gene symbol <=> ENSGID mappings'''
+'''gene symbol <=> ENSGID mappings'''
 
-    gene_parser = GeneParser()
-    logger.info('Parsing gene data from HGNC...')
-    gene_parser._get_hgnc_data_from_json()
-    ensgid = gene_parser.genes
+gene_parser = GeneParser()
+logger.info('Parsing gene data from HGNC...')
+gene_parser._get_hgnc_data_from_json()
+ensgid = gene_parser.genes
 
-    '''prepare an object'''
+'''prepare an object'''
 
-    
-    PhewasEv = ot_objects['Genetics-basedEvidenceStrings']
 
-    '''phewascatalog's Phecode <=> ICD9 mappings'''
+PhewasEv = ot_objects['Genetics-basedEvidenceStrings']
 
-    phecode_to_ic9 = download_ic9_phecode_map()
+'''phewascatalog's Phecode <=> ICD9 mappings'''
 
-    otmap = OnToma()
+phecode_to_ic9 = download_ic9_phecode_map()
 
-    skipped = []
-    built = 0
-    with open('output/phewas_test.json', 'w') as outfile:
+otmap = OnToma()
 
-        with requests.get(Config.PHEWAS_CATALOG_URL, stream=True) as r:
-            for i, row in enumerate(csv.DictReader(r.iter_lines(decode_unicode=True))):
-                if i == 5000:
-                    break
-                logger.debug(row)
-                pev = PhewasEv(type = 'genetic_association',
-                            access_level = "public", 
-                            sourceID = "phewas_catalog",
-                            validated_against_schema_version = Config.VALIDATED_AGAINST_SCHEMA_VERSION
-                            )
-                try:
-                    efoid = otmap.find_efo(phecode_to_ic9[row['phewas_code']],
-                                            code="ICD9CM")
-                except KeyError as e:
-                    logger.error('No phecode map for {}'.format(e))
-                    efoid = None
-                    pass
+skipped = []
+built = 0
+with open('output/phewas_test.json', 'w') as outfile:
 
-                if not efoid:
-                    try:
-                        efoid = otmap.find_efo(row['phewas_string'])
-                        pev['disease'] = make_disease(efoid)
-                    except KeyError as e:
-                        logger.warning('Could not find EFO ID for {}'.format(e))
-                        skipped.append(e)
-                        continue
+    with requests.get(Config.PHEWAS_CATALOG_URL, stream=True) as r:
+        for i, row in enumerate(csv.DictReader(r.iter_lines(decode_unicode=True))):
+            if i == 5000:
+                break
+            logger.debug(row)
+            pev = PhewasEv(type = 'genetic_association',
+                        access_level = "public", 
+                        sourceID = "phewas_catalog",
+                        validated_against_schema_version = Config.VALIDATED_AGAINST_SCHEMA_VERSION
+                        )
+        
+            '''find EFO term'''
 
-                try:
-                    pev['target'] = make_target(ensgid[row['gene'].strip('*')])
-                except KeyError as e:
-                    logger.warning("Could not find gene: {}".format(row['gene']))
-                    skipped +=1
-                    continue
+            try:
+                #first try using the ICD9 code that we are given
+                efoid = otmap.find_efo(phecode_to_ic9[row['phewas_code']],
+                                        code="ICD9CM")
+            except KeyError as e:
+                logger.error('No phecode <=> ICD9CM map for {}'.format(e))
+                efoid = None
+                pass
 
-                pev["variant"]= make_variant(row['snp'])
-                pev["evidence"] = { "variant2disease": make_variant2disease(row['p']),
-                                    "gene2variant": make_gene2variant() }
-                
-                pev['unique_association_fields'] = {'odds_ratio':row['odds_ratio'], 
-                                                    'cases' : row['cases'], 
-                                                    'phenotype' : row['phewas_string']}
+            if not efoid:
+            # try:
+                #if the above failed, try to match the string
+                    efoid = otmap.find_efo(row['phewas_string'])
+            # except KeyError as e:
+            #     logger.warning('Could not find EFO ID for {}'.format(e))
+            #     skipped.append(e)
+            #     continue
 
-                built +=1
-                outfile.write("%s\n" % pev.serialize())
+            pev['disease'] = make_disease(efoid)
 
-            logger.info("Completed. Parsed {} rows. Built {} evidences. Skipped {}".format(i,built,skipped))
-            with open('output/phewas_no_efo_codes.txt') as skipfile:
-                json.dump(skipped,skipfile)
 
-    return
+            ''' find ENSGID '''
 
-if __name__ == '__main__':
-    main()
+            try:
+                pev['target'] = make_target(ensgid[row['gene'].strip('*')])
+            except KeyError as e:
+                logger.warning("Could not find gene: {}".format(row['gene']))
+                skipped +=1
+                continue
+
+            pev["variant"]= make_variant(row['snp'])
+            pev["evidence"] = { "variant2disease": make_variant2disease(row['p']),
+                                "gene2variant": make_gene2variant() }
+            
+            pev['unique_association_fields'] = {'odds_ratio':row['odds_ratio'], 
+                                                'cases' : row['cases'], 
+                                                'phenotype' : row['phewas_string']}
+
+            built +=1
+            outfile.write("%s\n" % pev.serialize())
+
+        logger.info("Completed. Parsed {} rows. Built {} evidences. Skipped {}".format(i,built,skipped))
+        with open('output/phewas_no_efo_codes.txt') as skipfile:
+            json.dump(skipped,skipfile)
+
