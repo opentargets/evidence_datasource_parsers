@@ -76,22 +76,22 @@ PATHWAY_TARGET_MAP = {
 }
 
 ''' Pathway -> Reactome Pathway ID '''
+#TODO Hypoxia, JAK.STAT, Trail to be updated
 PATHWAY_REACTOME_MAP = {
-    #TODO Pathway Reactome ID needs update
-    'Androgen' : '',
-    'EGFR'     : '',
-    'Estrogen' : '',
-    'Hypoxia'  : '',
-    'JAK.STAT' : '',
-    'MAPK'     : '',
-    'NFkB'     : '',
-    'PI3K'     : '',
-    'TGFb'     : '',
-    'TNFa'     : '',
-    'Trail'    : '',
-    'VEGF'     : '',
-    'WNT'      : '',
-    'p53'      : ''
+    'Androgen' : 'R-HSA-8940973:RUNX2 regulates osteoblast differentiation',
+    'EGFR'     : 'R-HSA-8856828:Clathrin-mediated endocytosis',
+    'Estrogen' : 'R-HSA-8939902:Regulation of RUNX2 expression and activity',
+    'Hypoxia'  : 'R-HSA-123456:Pathway desc to be updated',
+    'JAK.STAT' : 'R-HSA-123456:Pathway desc to be updated',
+    'MAPK'     : 'R-HSA-2559580:Oxidative Stress Induced Senescence',
+    'NFkB'     : 'R-HSA-9020702:Interleukin-1 signaling',
+    'PI3K'     : 'R-HSA-8853659:RET signaling',
+    'TGFb'     : 'R-HSA-2173788:Downregulation of TGF-beta receptor signaling',
+    'TNFa'     : 'R-HSA-5357956:TNFR1-induced NFkappaB signaling pathway',
+    'Trail'    : 'R-HSA-123456:Pathway desc to be updated',
+    'VEGF'     : 'R-HSA-1234158:Regulation of gene expression by Hypoxia-inducible Factor',
+    'WNT'      : 'R-HSA-381340:Transcriptional regulation of white adipocyte differentiation',
+    'p53'      : 'R-HSA-2559580:Oxidative Stress Induced Senescence'
 }
 
 ''' These symbols are secondary/generic/typo that needs update '''
@@ -153,14 +153,10 @@ class PROGENY():
                     '''
                     (pathway_id, tumor_type, logfc, aveexpr, t, pval, fdr, b, sample) = tuple(line.rstrip().split('\t'))
 
-                    # TODO pathway_id need to be mapped to Reactome pathway id:description via PATHWAY_REACTOME_MAP
-                    # pathway = pathway_id.split(":")
-                    # pathway_id = pathway[0].rstrip()
-                    # pathway_desc = pathway[1].rstrip()
-                    pathway_desc = 'Reactome pathway descriptions'
-
-                    # TODO this is a temporary placeholder until gene_symbol is identify for each evidence
-                    # gene_symbol = 'BRAF'
+                    reactome = PATHWAY_REACTOME_MAP[pathway_id.rstrip()]
+                    reactome_identifier = reactome.split(":")
+                    reactome_id = reactome_identifier[0].rstrip()
+                    reactome_desc = reactome_identifier[1].rstrip()
 
                     '''
                         build evidence.resource_score object
@@ -187,7 +183,7 @@ class PROGENY():
                     evidenceString.unique_association_fields = {}
                     evidenceString.unique_association_fields['tumor_type_acronym'] = tumor_type
                     evidenceString.unique_association_fields['tumor_type'] = TUMOR_TYPE_MAP[tumor_type]
-                    evidenceString.unique_association_fields['pathway_id'] = 'http://www.reactome.org/PathwayBrowser/#%s' % (pathway_id)
+                    evidenceString.unique_association_fields['pathway_id'] = 'http://www.reactome.org/PathwayBrowser/#%s' % (reactome_id)
                     evidenceString.unique_association_fields['efo_id'] = TUMOR_TYPE_EFO_MAP[tumor_type]['uri']
 
                     target_type = 'http://identifiers.org/cttv.target/gene_evidence'
@@ -236,8 +232,8 @@ class PROGENY():
                                     build evidence.url object
                                 '''
                                 linkout = evidence_linkout.Linkout(
-                                    url='http://www.reactome.org/PathwayBrowser/#%s' % (pathway_id),
-                                    nice_name='%s' % (pathway_desc)
+                                    url='http://www.reactome.org/PathwayBrowser/#%s' % (reactome_id),
+                                    nice_name='%s' % (reactome_desc)
                                 )
 
                                 evidenceString.evidence.urls = [linkout]
