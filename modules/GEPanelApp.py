@@ -10,6 +10,13 @@ from common.GCSUtils import GCSBucketManager
 import logging
 logger = logging.getLogger(__name__)
 
+__copyright__ = "Copyright 2014-2018, Open Targets"
+__credits__   = ["Gautier Koscielny", "ChuangKee Ong"]
+__license__   = "Apache 2.0"
+__version__   = "1.2.8"
+__maintainer__= "ChuangKee Ong"
+__email__     = ["data@opentargets.org"]
+__status__    = "Production"
 
 ##TODO: 1) implement logging
 
@@ -21,9 +28,11 @@ logger = logging.getLogger(__name__)
   OMIM_EFO_MAP => https://github.com/opentargets/OnToma/blob/master/ontoma/constants.py
   * If found EFO mapping create a 'self.map_strings' with 'panel_name, gene_symbol, levelOfConfidence, phenotypes, efo_id'
     i.e Neutropenia, severe congenital 3, autosomal recessive, 610738
+        OMIM  130650
+        #120330:Papillorenal syndrome
   * If NO EFO mapping found
     i.e Verheij syndrome, 615583
-
+* If NO OMIM id found .....
 
 '''
 
@@ -80,6 +89,9 @@ class GEPanelApp():
         url = 'https://panelapp.genomicsengland.co.uk/WebServices/search_genes/all/'
         phenotype_list = []
         c = 0
+        d = 0
+        e = 0
+        f = 0
 
         for panel_name, panel_id, panel_version, panel_diseasegroup, panel_diseasesubgroup in self.get_panel_list():
             #c += 1
@@ -103,18 +115,35 @@ class GEPanelApp():
                         and row['LevelOfConfidence'] == 'HighEvidence':
 
                     for item in row['Phenotypes']:
+                        e +=1
                         item = item.rstrip().lstrip().rstrip("?")
                         if len(item) > 0:
                             print("High confidence Gene %s : %s has phenotypes: %s" % (row['GeneSymbol'], ensembl_iri, item))
                             '''
-                             Neutropenia, severe congenital 3, autosomal recessive, 610738
-                             Leukemia, acute myeloid, 601626(1)
-                             OMIM  130650
+                             "search_omim"
+                                Neutropenia, severe congenital 3, autosomal recessive, 610738
+                                OMIM  130650
+                             "search_omim2"
+                                #120330:Papillorenal syndrome
+                             "search_omim3"
+                                Leukemia, acute myeloid, 601626(1)
+                                Heimler Syndrome 2, 616617 (includes amelogenesis imperfecta)
                             '''
-                            search_omim = re.search('(\d{6})\s*', item)
+                            #search_omim  = re.search('(\d{6})$', item)
+                            #search_omim2 = re.search('^#(\d{6})', item)
+                            #search_omim3 = re.search('(\d{6})', item)
+                            search_omim = re.search('^#(\d{6})|(\d{6})|(\d{6})$',item)
 
                             if search_omim:
                                 omim_id = search_omim.group(1)
+
+                            #if search_omim or search_omim2 or search_omim3:
+                            #    if search_omim:
+                            #        omim_id = search_omim.group(1)
+                            #    elif search_omim2:
+                            #        omim_id = search_omim2.group(1)
+                            #    elif search_omim3:
+                            #        omim_id = search_omim3.group(1)
 
                                 #if self.ontoma.find_efo(omim_id, code='OMIM'):
                                 if omim_id in self.omim_to_efo_map:
@@ -139,21 +168,25 @@ class GEPanelApp():
                                         print("\tOMIM id found: " + omim_id + " mapped to EFO id: " + efo_id)
                                         self.map_strings = "%s\t%s\t%s\t%s\t%s" % (panel_name, row['GeneSymbol'], row['LevelOfConfidence'], item, efo_id)
                                 else:
-                                    # Verheij syndrome, 615583
-                                    # Sifrim-Hitz-Weiss syndrome  617159
-
+                                    '''
+                                     Verheij syndrome, 615583
+                                     Sifrim-Hitz-Weiss syndrome  617159
+                                    '''
+                                    f += 1
                                     print("\tOMIM id found: %s with NO EFO mapping" % omim_id)
 
-                                    ##
+                            else:
+                                d += 1
+                                print ("NO OMIM id found %s" % item)##
 
 
+#        for item in self.panel_app_info:
+#            print(item)
 
-                                        ##
-
-        for item in self.panel_app_info:
-            print(item)
-
-        print("total " + str(c))
+        print("total OMIM_id found with EFO mapping " + str(c))
+        print("total OMIM_id found withOUT EFO mapping " + str(f))
+        print("total phenotypes without OMIM_id " + str(d))
+        print("total phenotypes " + str(e))
 
         return
 
