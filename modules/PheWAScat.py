@@ -1,21 +1,37 @@
+import logging
 import requests
 import csv
 import json
 from zipfile import ZipFile
 from io import BytesIO, TextIOWrapper
 import obonet
-from settings import Config
 import python_jsonschema_objects as pjs 
 from common.HGNCParser import GeneParser
 from ontoma import OnToma
+import click
 
+#ontoma's logger is useful to find out mapping issues
+from ontoma import logger as ontomalogger
+ontomalogger.setLevel(logging.DEBUG)
 
-import logging
+#this module's logger
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+ch = logging.StreamHandler()
+formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
+ch.setFormatter(formatter)
+logger.addHandler(ch)
+
+
+PHEWAS_CATALOG_URL = 'https://storage.googleapis.com/otar000-evidence_input/PheWAScatalog/phewas-catalog.csv'
+PHEWAS_PHECODE_MAP_URL = 'https://phewascatalog.org/files/phecode_icd9_map_unrolled.csv.zip'
+
+
+
 
 '''import the json schema and create python objects with a built-in validator
 '''
-
+click.echo('downloading schema')
 schema = requests.get('https://raw.githubusercontent.com/opentargets/json_schema/ep-fixrelative/src/genetics.json')
 logger.debug("Downloaded the following schema: {}".format(schema))
 
@@ -29,6 +45,7 @@ variant = ot_objects['Variant<anonymous>']
 gene2variant = ot_objects['Gene2variant<anonymous>']
 variant2disease = ot_objects['Variant2disease<anonymous>']
 provenance = ot_objects['ProvenanceType']
+click.echo('python objects created from schema')
 
 '''define once where evidence is coming from
 '''
@@ -38,7 +55,7 @@ prov = provenance(literature={"references":[
                     "id":"PHEWAS Catalog"}
                     )
 
-def download_ic9_phecode_map(url=Config.PHEWAS_PHECODE_MAP_URL):
+def download_ic9_phecode_map(url=PHEWAS_PHECODE_MAP_URL):
     with requests.get(url) as phecode_res:
         # let us state clearly that I hate zip files. use gzip people!
         phecode_zip = ZipFile(BytesIO(phecode_res.content))    
@@ -103,25 +120,28 @@ ensgid = gene_parser.genes
 
 PhewasEv = ot_objects['Genetics-basedEvidenceStrings']
 
+click.echo('donwloading phecode mapping')
 '''phewascatalog's Phecode <=> ICD9 mappings'''
 
 phecode_to_ic9 = download_ic9_phecode_map()
 
+click.echo('initializing ontoma')
 otmap = OnToma()
 
 skipped = []
 built = 0
+click.echo('begin processing phewascatalog evidences')
 with open('output/phewas_test.json', 'w') as outfile:
 
-    with requests.get(Config.PHEWAS_CATALOG_URL, stream=True) as r:
+    with requests.get(PHEWAS_CATALOG_URL, stream=True) as r:
         for i, row in enumerate(csv.DictReader(r.iter_lines(decode_unicode=True))):
-            if i == 5000:
+            if i == 2:
                 break
             logger.debug(row)
             pev = PhewasEv(type = 'genetic_association',
                         access_level = "public", 
                         sourceID = "phewas_catalog",
-                        validated_against_schema_version = Config.VALIDATED_AGAINST_SCHEMA_VERSION
+                        validated_against_schema_version = '1.2.8'
                         )
         
             '''find EFO term'''
@@ -133,18 +153,20 @@ with open('output/phewas_test.json', 'w') as outfile:
             except KeyError as e:
                 logger.error('No phecode <=> ICD9CM map for {}'.format(e))
                 efoid = None
-                pass
 
             if not efoid:
-            # try:
-                #if the above failed, try to match the string
-                    efoid = otmap.find_efo(row['phewas_string'])
-            # except KeyError as e:
-            #     logger.warning('Could not find EFO ID for {}'.format(e))
-            #     skipped.append(e)
-            #     continue
+                logger.warning('Could not find a match '
+                             'for {} in {} mappings. '.format(phecode_to_ic9[row['phewas_code']],"ICD9CM"))
+                efoid = otmap.find_efo(row['phewas_string'])
+            
 
-            pev['disease'] = make_disease(efoid)
+            if efoid:
+                logger.warning('Found {} for {}'.format(efoid,row['phewas_string']))
+                pev['disease'] = make_disease(efoid)
+            else: 
+                logger.warning("Could not find disease: {}".format(row['phewas_string']))
+                skipped.append((row['phewas_string'],phecode_to_ic9[row['phewas_code']]))
+                continue
 
 
             ''' find ENSGID '''
@@ -152,8 +174,7 @@ with open('output/phewas_test.json', 'w') as outfile:
             try:
                 pev['target'] = make_target(ensgid[row['gene'].strip('*')])
             except KeyError as e:
-                logger.warning("Could not find gene: {}".format(row['gene']))
-                skipped +=1
+                logger.error("Could not find gene: {}".format(row['gene']))
                 continue
 
             pev["variant"]= make_variant(row['snp'])
@@ -167,7 +188,13 @@ with open('output/phewas_test.json', 'w') as outfile:
             built +=1
             outfile.write("%s\n" % pev.serialize())
 
-        logger.info("Completed. Parsed {} rows. Built {} evidences. Skipped {}".format(i,built,skipped))
-        with open('output/phewas_no_efo_codes.txt') as skipfile:
-            json.dump(skipped,skipfile)
+        skipped_uniq = set(skipped)
+        logger.warning("Completed. Parsed {} rows. "
+                       "Built {} evidences. " 
+                       "Skipped {} ".format(i,built,len(skipped_uniq))
+                       )
+
+        with open('output/phewas_no_efo_codes.txt','wt',encoding='utf-8') as skipfile:
+            for item in skipped_uniq:
+                skipfile.write("\n".join(lines))
 
