@@ -288,11 +288,11 @@ class SLAPEnrich():
                     self.logger.error(evidence_string.to_JSON(indentation=4))
             slapenrich_output.close()
 
-'''
+
 def main():
-    import logging
-    logger = logging.getLogger(__name__)
+    slap = SLAPEnrich()
+    slap.process_slapenrich()
 
 if __name__ == "__main__":
     main()
-'''
+

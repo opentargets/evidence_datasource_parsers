@@ -1,10 +1,8 @@
-import click
-from evidence_parsers.cli import pass_context
+from common.HGNCParser import GeneParser
+from settings import Config
 
+def main():
+    print('parse some data into JSONs')
 
-@click.command('bigtest', short_help='Shows bigtest changes.')
-@pass_context
-def main(ctx):
-    """Shows bigtes changes in the current working directory."""
-    ctx.log('phewas stuff: none')
-    ctx.vlog('bla bla bla, debug info')
+if __name__ == '__main__':
+    main()

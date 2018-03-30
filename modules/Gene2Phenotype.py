@@ -158,6 +158,7 @@ class G2P(RareDiseaseMapper, GCSBucketManager):
 
 def main():
     g2p = G2P()
+    g2p.process_g2p()
 
 if __name__ == "__main__":
     main()
