@@ -81,9 +81,6 @@ class Config:
     PHEWAS_CATALOG_LOCN = 'https://storage.googleapis.com/phewas-catalog'
 
 
-    ONTOLOGY_CONFIG = configparser.ConfigParser()
-    ONTOLOGY_CONFIG.read(file_or_resource('ontology_config.ini'))
-
     # mapping that we maintain in Zooma
     OMIM_TO_EFO_MAP_URL = 'https://raw.githubusercontent.com/opentargets/platform_semantic/master/resources/xref_mappings/omim_to_efo.txt'
     ZOOMA_TO_EFO_MAP_URL = 'https://raw.githubusercontent.com/opentargets/platform_semantic/master/resources/zooma/cttv_indications_3.txt'
