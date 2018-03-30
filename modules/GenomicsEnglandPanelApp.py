@@ -4,7 +4,7 @@ import opentargets.model.bioentity as bioentity
 import opentargets.model.evidence.core as evidence_core
 import opentargets.model.evidence.linkout as evidence_linkout
 import opentargets.model.evidence.association_score as association_score
-from ontologyutils.rdf_utils import OntologyClassReader
+#from ontologyutils.rdf_utils import OntologyClassReader
 from common.RareDiseasesUtils import RareDiseaseMapper
 from common.GCSUtils import GCSBucketManager
 import logging
