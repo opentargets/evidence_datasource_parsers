@@ -417,8 +417,10 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                                         If the score >= 0.5 or in_locus for the same disease
                                         and mouse_model2disease['model_to_disease_score'] >= 50
                                         '''
-                                        if disease_terms is not None and (('model_to_disease_score' in mouse_model2disease ) or
-                                            (disease_id in self.disease_gene_locus and hgnc_gene_id in self.disease_gene_locus[disease_id] and marker_symbol in self.disease_gene_locus[disease_id][hgnc_gene_id])):
+                                        if disease_terms is not None and (('disease_model_max_norm' in mouse_model2disease ) or
+                                            (disease_id in self.disease_gene_locus and
+                                             hgnc_gene_id in self.disease_gene_locus[disease_id] and
+                                             marker_symbol in self.disease_gene_locus[disease_id][hgnc_gene_id])):
 
                                             for disease_term in disease_terms:
 
@@ -468,9 +470,8 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                                                 '''
                                                 Evidence Codes
                                                 '''
-                                                if 'lit_model' in mouse_model2disease and mouse_model2disease['lit_model'] == True:
+                                                if mouse_model2disease['model_source'] == 'MGI':
                                                     #evidenceString.evidence.evidence_codes.append("http://identifiers.org/eco/ECO:0000057")
-
                                                     evidenceString.unique_association_fields['predictionModel'] = 'mgi_predicted'
                                                 else:
                                                     #evidenceString.evidence.evidence_codes.append("http://identifiers.org/eco/ECO:0000057")
@@ -504,17 +505,12 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                                                 'allelic_composition':'Pmp22<Tr-1H>/Pmp22<+>',
                                                 'genetic_background':'involves: BALB/cAnNCrl * C3H/HeN',
                                                 '''
-                                                zygosity = None
-                                                allelic_composition = None
+                                                zygosity = 'oth'
+                                                allelic_composition = mouse_model['model_description']
                                                 print(mouse_model['model_description'])
-                                                if mouse_model['model_description'].endswith("hom") or mouse_model['model_description'].endswith("het"):
-                                                    zygosity = mouse_model['model_description'][-3]
-                                                    l = len(mouse_model['model_description'])
-                                                    allelic_composition = mouse_model['model_description'][:l-3]
-                                                elif mouse_model['model_description'].endswith("hemi"):
-                                                    zygosity = mouse_model['model_description'][-4]
-                                                    l = len(mouse_model['model_description'])
-                                                    allelic_composition = mouse_model['model_description'][:l - 4]
+                                                if mouse_model['model_description'].endswith("hom") or mouse_model['model_description'].endswith("het") or mouse_model['model_description'].endswith("hem"):
+                                                    zygosity = mouse_model['model_description'][-3:]
+                                                    allelic_composition = mouse_model['model_description'][:-4]
                                                 evidenceString.evidence.biological_model = evidence_phenotype.Biological_Model(
                                                     evidence_codes = ["http://identifiers.org/eco/ECO:0000179"],
                                                     resource_score= association_score.Probability(
@@ -634,39 +630,38 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                                                 if not hashkey in self.hashkeys:
                                                     self.hashkeys[hashkey] = evidenceString
                                                 else:
-                                                    self._logger.warn("Doc {0} - Duplicated mouse model {1} to disease {2} URI: {3}".format(mouse_model2disease['id'],model_id, disease_id, disease_term))
+                                                    self._logger.warn("Duplicated mouse model {0} to disease {1} URI: {2}".format(model_id, disease_id, disease_term))
                                                     if self.hashkeys[hashkey].unique_association_fields['score'] > evidenceString.unique_association_fields['score']:
                                                         self.hashkeys[hashkey] = evidenceString
                                         else:
 
                                             self._logger.error("Unable to incorporate this strain for this disease: {0}".format(disease_id))
-                                            #self._logger.error("No disease id {0}".format(disease_term_uris == None))
-                                            self._logger.error("model_to_disease_score in mouse_model2disease: {0}".format( 'model_to_disease_score' in mouse_model2disease) )    
+                                            self._logger.error("No disease terms {0}".format(disease_terms == None))
+                                            self._logger.error("disease_model_max_norm in mouse_model2disease: {0}".format('disease_model_max_norm' in mouse_model2disease))
                                             self._logger.error("disease_id in disease_gene_locus: {0}".format(disease_id in self.disease_gene_locus))
                                             #self._logger.error("hs_symbol in disease_gene_locus[disease_id]: {0}".format(not disease_term_uris == None and disease_id in self.disease_gene_locus and hgnc_gene_id in self.disease_gene_locus[disease_id]))
                                             #self._logger.error("marker_symbol in disease_gene_locus[disease_id][hgnc_gene_id]): {0}".format(disease_term_uris is not None and disease_id in self.disease_gene_locus and marker_symbol in self.disease_gene_locus[disease_id][hgnc_gene_id]))
 
-    def write_phenodigm_evidence_strings(self, path):
-        opentargets_file = open(os.path.join(path, "phenodigm.json"), "w")
-        #cttvFile.write("[\n")
-        countExported = 0
-        self._logger.info("Processing %i records" % (len(self.hashkeys)))
-        for hashkey in self.hashkeys:
-            self._logger.info("Processing key %s"%(hashkey))
-            evidenceString = self.hashkeys[hashkey]
-            
-            error = evidenceString.validate(self._logger)
-            
-            if error == 0:
-    #        and (evidenceString.evidence.association_score.probability.value >= 0.5 || evidenceString.evidence.in_locus):
-                #print(evidenceString.to_JSON())
-                if countExported > 0:
-                    opentargets_file.write("\n")
-                opentargets_file.write(evidenceString.to_JSON(indentation=None))
-                #cttvFile.write(evidenceString.to_JSON(indentation=2))
-                countExported+=1
+    def write_evidence_strings(self, filename):
 
-        opentargets_file.close()
+        countExported = 0
+        logger.info("Writing Phenodigm evidence strings")
+        with open(filename, 'w') as tp_file:
+            self._logger.info("Processing %i records" % (len(self.hashkeys)))
+            for hashkey in self.hashkeys:
+                self._logger.info("Processing key %s"%(hashkey))
+                evidenceString = self.hashkeys[hashkey]
+                error = evidenceString.validate(self._logger)
+                score = evidenceString.evidence.disease_model_association.resource_score.value
+                if error == 0 and score >= 0.5:
+                    tp_file.write(evidenceString.to_JSON(indentation=None) + "\n")
+                    countExported+=1
+
+        blob = self.bucket.blob(filename)
+        with open(filename, 'rb') as my_file:
+            blob.upload_from_file(my_file)
+
+        logger.info("Exported %i evidence"%(countExported))
 
     def process_all(self, update_cache=False):
 
@@ -709,7 +704,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
         self.generate_phenodigm_evidence_strings()
         bar.update()
         self._logger.info("write evidence strings")
-        self.write_phenodigm_evidence_strings(Config.MOUSEMODELS_CACHE_DIRECTORY)
+        self.write_evidence_strings(Config.MOUSEMODELS_EVIDENCE_FILENAME)
         bar.update()
         return
 

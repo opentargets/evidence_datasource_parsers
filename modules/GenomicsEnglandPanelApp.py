@@ -11,6 +11,7 @@ import logging
 import datetime
 import csv
 import re
+import sys
 import requests
 from requests.packages.urllib3.poolmanager import PoolManager
 import urllib.request
@@ -65,7 +66,7 @@ class GE(RareDiseaseMapper, GCSBucketManager):
     def process_all(self):
         self._logger.warning("Process all")
 
-        self.get_panel_code_mapping()
+        self.load_panel_code_mapping()
 
         gene_parser = GeneParser()
         gene_parser._get_hgnc_data_from_json()
@@ -91,7 +92,7 @@ class GE(RareDiseaseMapper, GCSBucketManager):
         self.write_evidence_strings(Config.GE_EVIDENCE_FILENAME)
 
 
-    def get_panel_code_mapping(self, filename=Config.GE_PANEL_MAPPING_FILENAME):
+    def load_panel_code_mapping(self, filename=Config.GE_PANEL_MAPPING_FILENAME):
 
         # read from bucket
         with open(self.get_gcs_filename(filename), mode='rt') as fh:
@@ -107,6 +108,14 @@ class GE(RareDiseaseMapper, GCSBucketManager):
                     (old_panel_id, new_panel_id) = row
                     print ("%s => %s"%(old_panel_id, new_panel_id))
                     self.panel_app_id_map[old_panel_id] = new_panel_id
+
+
+    def get_new_panel_code(self, old_panel_id):
+
+        new_panel_id = old_panel_id
+        if old_panel_id in self.panel_app_id_map:
+            new_panel_id = self.panel_app_id_map[old_panel_id]
+        return new_panel_id
 
     @staticmethod
     def request_to_panel_app():
@@ -430,9 +439,14 @@ class GE(RareDiseaseMapper, GCSBucketManager):
         see docs: http://www.ebi.ac.uk/spot/zooma/docs/api.html
         '''
         #requests_cache.install_cache('zooma_results_cache_jan', backend='sqlite', expire_after=3000000)
-        self._logger.info("Requesting")
+        self._logger.info("Requesting Zooma for %s" %(property_value))
+        print("Requesting Zooma for %s" %(property_value))
         r = requests.get('http://www.ebi.ac.uk/spot/zooma/v2/api/services/annotate',
                              params={'propertyValue': property_value, 'propertyType': 'phenotype'})
+        print("Zooma:\n %s" %r.text)
+        if 'Please try again later' in r.text:
+            return self.high_confidence_mappings
+
         results = r.json()
         for item in results:
             if item['confidence'] == "HIGH":
@@ -599,7 +613,7 @@ class GE(RareDiseaseMapper, GCSBucketManager):
             panel_name=panel_name,
             original_disease_name=disease_label,
             previous_code=panel_id,
-            panel_id=self.panel_app_id_map[panel_id],
+            panel_id=self.get_new_panel_code(panel_id),
             panel_version=panel_version,
             panel_diseasegroup=panel_diseasegroup,
             panel_diseasesubgroup=panel_diseasesubgroup,
@@ -661,7 +675,7 @@ class GE(RareDiseaseMapper, GCSBucketManager):
             obj.evidence.provenance_type = provenance_type
             obj.evidence.resource_score = resource_score
             #specific
-            new_panel_id = self.panel_app_id_map[panel_id]
+            new_panel_id = self.get_new_panel_code(panel_id)
             linkout = evidence_linkout.Linkout(
                 url=urllib.parse.urljoin(Config.GE_LINKOUT_URL, "%s/%s"%(new_panel_id, gene_symbol)),
                 nice_name='Further details in the Genomics England PanelApp for panel %s and gene %s '%(new_panel_id, gene_symbol))

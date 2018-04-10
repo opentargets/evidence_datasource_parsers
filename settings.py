@@ -68,3 +68,4 @@ class Config:
     MOUSEMODELS_PHENODIGM_SOLR = 'http://localhost:8983' # 'solrclouddev.sanger.ac.uk'
     # write to the cloud direcly
     MOUSEMODELS_CACHE_DIRECTORY = 'Phenodigm/phenodigmcache'
+    MOUSEMODELS_EVIDENCE_FILENAME = 'phenodigm-26-02-2018.json'
