@@ -10,7 +10,7 @@ from modules.IntOGen import IntOGen
 from modules.SLAPEnrich import SLAPEnrich
 from modules.PROGENY import PROGENY
 from modules.GEPanelApp import GEPanelApp
-
+from modules.UKBiobank import UKBiobank
 
 from settings import Config
 
@@ -40,6 +40,9 @@ def main():
     parser.add_argument("--progeny", dest='progeny',
                         help="process progeny data and generate evidences for open targets pipeline",
                         action="append_const", const=str)
+    parser.add_argument("--ukbiobank", dest='ukbiobank',
+                        help="process ukbiobank data and generate evidences for open targets pipeline",
+                        action="append_const", const=str)
     parser.add_argument("--update-cache", dest='update_cache',
                         help="the cache for this datasource will be updated if True default: False",
                         action='store_true', default=False)
@@ -65,8 +68,8 @@ def main():
         SLAPEnrich().process_slapenrich()
     elif args.progeny:
         PROGENY().process_progeny()
-
-
+    elif args.ukbiobank:
+        UKBiobank().process_ukbiobank()
 
 if __name__ == '__main__':
     sys.exit(main())
