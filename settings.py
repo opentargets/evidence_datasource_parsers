@@ -77,13 +77,6 @@ class Config:
     INTOGEN_FILENAME = file_or_resource('intogen_opentargets.tsv')
     INTOGEN_EVIDENCE_FILENAME = HOME_DIR + '/otar001_intogen-18-12-2017.json'
 
-    # Phewas
-    # PHEWAS_CATALOG_URL = 'https://phewascatalog.org/files/phewas-catalog.csv.zip'
-    PHEWAS_CATALOG_URL = 'https://storage.googleapis.com/otar000-evidence_input/PheWAScatalog/phewas-catalog.csv'
-    PHEWAS_PHECODE_MAP_URL = 'https://phewascatalog.org/files/phecode_icd9_map_unrolled.csv.zip'
-    PHEWAS_CATALOG_LOCN = 'https://storage.googleapis.com/phewas-catalog'
-
-
     # mapping that we maintain in Zooma
     OMIM_TO_EFO_MAP_URL = 'https://raw.githubusercontent.com/opentargets/platform_semantic/master/resources/xref_mappings/omim_to_efo.txt'
     ZOOMA_TO_EFO_MAP_URL = 'https://raw.githubusercontent.com/opentargets/platform_semantic/master/resources/zooma/cttv_indications_3.txt'

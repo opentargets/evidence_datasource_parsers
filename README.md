@@ -20,3 +20,10 @@ interpreter:
 ```sh
 (venv)$ python modules/<parser you want>.py
 ```
+
+### Phewascatalog.org
+
+```sh
+(venv)$ python modules/phewascat/run.py
+```
+
