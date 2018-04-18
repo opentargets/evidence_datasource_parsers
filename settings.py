@@ -1,7 +1,9 @@
+'''general settings that all parsers can share
+'''
+
 import os
-import pkg_resources as res
-import configparser
 from pathlib import Path
+import pkg_resources as res
 
 # from envparse import env, ConfigurationError
 
@@ -37,7 +39,8 @@ def file_or_resource(fname=None):
             else res.resource_filename(resource_package, resource_path)
 
 class Config:
-
+    '''shared settings
+    '''
     HOME_DIR = str(Path.home())
 
     # schema version
@@ -51,7 +54,7 @@ class Config:
     HP_URL = 'http://purl.obolibrary.org/obo/hp.obo'
 
     # HGNC
-    GENES_HGNC =  'http://ftp.ebi.ac.uk/pub/databases/genenames/new/json/hgnc_complete_set.json'
+    GENES_HGNC = 'http://ftp.ebi.ac.uk/pub/databases/genenames/new/json/hgnc_complete_set.json'
 
     # SLAPEnrich
     SLAPENRICH_FILENAME = file_or_resource('slapenrich_opentargets.tsv')
@@ -88,10 +91,4 @@ class Config:
     # mouse models
     MOUSEMODELS_PHENODIGM_SOLR = 'http://localhost:8983' # 'solrclouddev.sanger.ac.uk'
     # TODO remove refs to user directories
-    MOUSEMODELS_CACHE_DIRECTORY =  HOME_DIR + '/.phenodigmcache'
-
-    # MONGO_URL = read_option('MONGO_URL', cast=str, default='')
-    # MONGO_DB = read_option('MONGO_DB', cast=str, default='')
-    # MONGO_TABLE = read_option('MONGO_TABLE', cast=str, default='')
-    # MONGO_USER = read_option('MONGO_USER', cast=str, default='')
-    # MONGO_PWD = read_option('MONGO_PWD', cast=str, default='')
+    MOUSEMODELS_CACHE_DIRECTORY = HOME_DIR + '/.phenodigmcache'
