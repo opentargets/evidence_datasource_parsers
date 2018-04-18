@@ -8,6 +8,8 @@ import sys
 import json
 from zipfile import ZipFile
 from io import BytesIO, TextIOWrapper
+from pathlib import Path
+
 
 import requests
 import obonet
@@ -26,16 +28,15 @@ formatter = logging.Formatter('%(levelname)s - %(message)s')
 ch.setFormatter(formatter)
 logger.addHandler(ch)
 
-
 '''import the json schema and create python objects with a built-in validator
 '''
 logger.info('downloading schema')
 schema = requests.get(PHEWAS_SCHEMA)
-logger.debug("Downloaded the following schema: {}".format(schema))
+logger.debug("Downloaded the following schema: %s", schema)
 
 builder = pjs.ObjectBuilder(schema.json())
 ot_objects = builder.build_classes()
-logger.debug('The schema contains {}'.format([str(x) for x in dir(ot_objects)]))
+logger.debug('The schema contains %s', [str(x) for x in dir(ot_objects)])
 
 target = ot_objects['Target']
 disease = ot_objects['Disease']
@@ -43,8 +44,6 @@ variant = ot_objects['Variant<anonymous>']
 gene2variant = ot_objects['Gene2variant<anonymous>']
 variant2disease = ot_objects['Variant2disease<anonymous>']
 logger.info('python objects created from schema')
-
-
 
 
 def download_ic9_phecode_map(url=PHEWAS_PHECODE_MAP_URL):
@@ -65,7 +64,7 @@ def make_disease(ontology_uri):
     return disease(id=ontology_uri)
 
 def make_target(ensgid):
-    return target(target_type = "http://identifiers.org/cttv.target/gene_evidence",
+    return target(target_type="http://identifiers.org/cttv.target/gene_evidence",
                   id="http://identifiers.org/ensembl/{}".format(ensgid),
                   activity="http://identifiers.org/cttv.activity/unknown")
 
@@ -81,7 +80,7 @@ def make_gene2variant():
             'date_asserted':"2017-12-31T09:53:37+00:00",
             'evidence_codes':["http://purl.obolibrary.org/obo/ECO_0000205"],
             'functional_consequence':'http://purl.obolibrary.org/obo/SO_0001060'
-    }
+            }
 
 def make_variant2disease(pval):
     return variant2disease(unique_experiment_reference='http://europepmc.org/articles/PMC3969265',
@@ -90,12 +89,12 @@ def make_variant2disease(pval):
                            date_asserted="2013-12-31T09:53:37+00:00",
                            evidence_codes=['http://identifiers.org/eco/PheWAS'],
                            resource_score={'type': 'pvalue',
-                                'method': {
-                                "description":"pvalue for the phenotype to snp association."
-                            },
+                                           'method': {
+                                           "description":"pvalue for the phenotype to snp association."
+                                          },
                             "value":float(pval)
                             }
-    )
+                           )
 
 
 
@@ -105,7 +104,7 @@ def main(outputdir):
     mappings = {}
     try:
         moddir = os.path.dirname(os.path.realpath(__file__))
-        with open(os.path.join(moddir, 'terms.tsv')) as mapf:
+        with open(os.path.join(moddir, 'phewascat-diseaseterms.tsv')) as mapf:
             reader = csv.DictReader(mapf,delimiter='\t')
             mappings = {row['query']:row['term'] for row in reader}
     except FileNotFoundError:
@@ -126,7 +125,7 @@ def main(outputdir):
 
     built = 0
     logger.info('Begin processing phewascatalog evidences..')
-    with open(os.path.join(outputdir, 'phewas_catalog.json'), 'w') as outfile:
+    with open(os.path.join(str(outputdir),'phewas_catalog.json'), 'w') as outfile:
 
         with requests.get(PHEWAS_CATALOG_URL, stream=True) as r:
             for i, row in enumerate(tqdm(csv.DictReader(r.iter_lines(decode_unicode=True)),total=215107)):
@@ -137,25 +136,25 @@ def main(outputdir):
                                validated_against_schema_version = '1.2.8'
                               )
 
-                '''find EFO term'''
+                ## find EFO term ##
 
                 try:
                     pev['disease'] = make_disease(mappings[row['phewas_string']])
                 except KeyError as e:
-                    logger.error('No mapping for {}. Skipping evidence'.format(e))
+                    logger.error('No mapping for %s. Skipping evidence',e)
                     continue
                 except ValidationError:
-                    logger.error('Empty mapping for {}. '
-                                 'Skipping evidence'.format(row['phewas_string']))
+                    logger.error('Empty mapping for %s. '
+                                 'Skipping evidence',row['phewas_string'])
                     continue
 
 
-                ''' find ENSGID '''
+                ## find ENSGID ##
 
                 try:
                     pev['target'] = make_target(ensgid[row['gene'].strip('*')])
                 except KeyError as e:
-                    logger.error("Could not find gene: {}".format(row['gene']))
+                    logger.error("Could not find gene: %s",row['gene'])
                     continue
 
                 pev["variant"]= make_variant(row['snp'])
@@ -169,11 +168,12 @@ def main(outputdir):
                 built +=1
                 outfile.write("%s\n" % pev.serialize())
 
-        logger.info("Completed. Parsed {} rows. "
-                    "Built {} evidences. "
-                    "Skipped {} ".format(i,built,i-built)
+        logger.info("Completed. Parsed %s rows. "
+                    "Built %s evidences. "
+                    "Skipped %s ",i,built,i-built
                     )
 
 
 if __name__ == '__main__':
-    main(outputdir=os.path.dirname(os.path.realpath(__file__)))
+    p = Path(__file__).parents
+    main(outputdir=p[2] / 'output')
