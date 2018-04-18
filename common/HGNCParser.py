@@ -1,8 +1,9 @@
-import ujson as json
+import logging
+
 import requests
 from tqdm import tqdm
+
 from settings import Config
-import logging
 
 logger = logging.getLogger(__name__)
 

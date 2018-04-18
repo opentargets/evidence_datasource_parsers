@@ -13,6 +13,10 @@ import click
 import requests
 from ontoma import OnToma
 
+# #ontoma's logger is useful to find out mapping issues
+# from ontoma import logger as ontomalogger
+# ontomalogger.setLevel(logging.INFO)
+
 logger = logging.getLogger(__name__)
 
 PHEWAS_CATALOG_URL = 'https://storage.googleapis.com/otar000-evidence_input/PheWAScatalog/phewas-catalog.csv'
