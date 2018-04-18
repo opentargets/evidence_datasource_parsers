@@ -32,13 +32,15 @@ jobs:
       - checkout
       - restore_cache:
         key: deps9-{{ .Branch }}-{{ checksum "requirements.txt" }}
-      - run: 
+      - run:
           command: |
             sudo pip install virtualenv
             virtualenv venv
             source venv/bin/activate
             pip install -r requirements.txt
-            python -m CommandLine --gene2phenotype
+      - run:
+          command: |
+            python modules/phewascat/run.py
 
 workflows:
   version: 2
