@@ -1,11 +1,13 @@
-'''recreates mapping table
+'''
+recreates mapping table
 
-TODO: should check if one already exists and prompt recreation
+use --overwrite to force rewriting existing mappings
 '''
 
 import csv
 import os
 import logging
+import argparse
 from zipfile import ZipFile
 from io import BytesIO, TextIOWrapper
 
@@ -40,13 +42,31 @@ def download_ic9_phecode_map(url=PHEWAS_PHECODE_MAP_URL):
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--overwrite', action='store_true',
+                        help='force rewrite of existing mapping file')
+    args = parser.parse_args()
+
+
     phecode_to_ic9 = download_ic9_phecode_map()
     otmap = OnToma()
     moduledir = os.path.dirname(os.path.realpath(__file__))
-    efofile = open(os.path.join(moduledir, 'phewascat-diseaseterms.tsv'), 'w', newline='')
+    efo_fn = os.path.join(moduledir, 'phewascat-diseaseterms.tsv')
     fieldnames = ['query', 'term', 'label', 'source', 'quality', 'action']
-    efowriter = csv.DictWriter(efofile, fieldnames, delimiter='\t')
-    efowriter.writeheader()
+
+    if (not args.overwrite) and os.path.exists(efo_fn):
+        logger.info('Reading existing mappings...')
+        with open(efo_fn, 'r', newline='') as efo_f:
+            eforeader = csv.DictReader(efo_f, fieldnames, delimiter='\t')
+            #create a set of those terms that have been mapped succesfully before
+            done = {row['query'] for row in eforeader if row['term']}
+
+    efo_file = open(efo_fn, 'w', newline='') if args.overwrite else open(efo_fn, 'a', newline='')
+
+    efowriter = csv.DictWriter(efo_file, fieldnames, delimiter='\t')
+    if args.overwrite:
+        logger.warning('Writing over existing files if any')
+        efowriter.writeheader()
 
     #find EFO term
     mapped = 0
@@ -55,12 +75,14 @@ def main():
         for processed, row in enumerate(csv.DictReader(req.iter_lines(decode_unicode=True))):
             logger.debug(row)
 
+            if done and (row['phewas_string'] in done): continue
+
             #first try using the ICD9 code that we are given
             try:
                 efoid = otmap.find_term(phecode_to_ic9[row['phewas_code']],
                                         code="ICD9CM", verbose=True)
             except KeyError as e:
-                logger.warning('Could not find %s in the phecode map', e)
+                logger.warning('Could not find %s in the phewascatalog phecode map', e)
                 efoid = None
 
             if efoid:
@@ -76,10 +98,11 @@ def main():
                     efomatch['query'] = row['phewas_string']
                     efowriter.writerow(efomatch)
                 else:
+                    # no match gives you only the query and a blank line
                     efowriter.writerow({'query': row['phewas_string']})
 
 
-    efofile.close()
+    efo_file.close()
     click.echo("Completed. Parsed {} rows. "
                "Found {} EFOids. "
                "Skipped {} ".format(processed+1,
