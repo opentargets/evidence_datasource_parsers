@@ -128,7 +128,9 @@ def main(outputdir):
     with open(os.path.join(str(outputdir),'phewas_catalog.json'), 'w') as outfile:
 
         with requests.get(PHEWAS_CATALOG_URL, stream=True) as r:
-            for i, row in enumerate(tqdm(csv.DictReader(r.iter_lines(decode_unicode=True)),total=215107)):
+            catalog = tqdm(csv.DictReader(r.iter_lines(decode_unicode=True)),
+                           total=TOTAL_NUM_PHEWAS)
+            for i, row in enumerate(catalog):
                 logger.debug(row)
                 pev = PhewasEv(type = 'genetic_association',
                                access_level = "public",

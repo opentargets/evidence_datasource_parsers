@@ -14,3 +14,5 @@ PROVENANCE = {'literature': {
                 "id":"PHEWAS Catalog"
                 }
 }
+
+TOTAL_NUM_PHEWAS = 215107

@@ -13,7 +13,10 @@ from io import BytesIO, TextIOWrapper
 
 import click
 import requests
+from tqdm import tqdm
 from ontoma import OnToma
+
+from constants import *
 
 # #ontoma's logger is useful to find out mapping issues
 # from ontoma import logger as ontomalogger
@@ -72,10 +75,13 @@ def main():
     mapped = 0
     processed = 0
     with requests.get(PHEWAS_CATALOG_URL, stream=True) as req:
-        for processed, row in enumerate(csv.DictReader(req.iter_lines(decode_unicode=True))):
+        catalog = tqdm(csv.DictReader(req.iter_lines(decode_unicode=True)),
+                        total=TOTAL_NUM_PHEWAS)
+        for processed, row in enumerate(catalog):
             logger.debug(row)
 
-            if done and (row['phewas_string'] in done): continue
+            if done and (row['phewas_string'] in done):
+                continue
 
             #first try using the ICD9 code that we are given
             try:
