@@ -15,4 +15,4 @@ PROVENANCE = {'literature': {
                 }
 }
 
-TOTAL_NUM_PHEWAS = 215107
+TOTAL_NUM_PHEWAS = 4269549

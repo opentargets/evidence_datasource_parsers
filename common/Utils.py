@@ -16,11 +16,15 @@ class TqdmLoggingHandler (logging.Handler):
         except:
             self.handleError(record)
 
+def ghmappings(modulename):
+    return ('https://raw.githubusercontent.com/opentargets'
+           '/mappings/master/{}.mappings.tsv'.format(modulename))
+
 def mapping_on_github(modulename):
     '''
     send a HEAD request to github's mapping repo to see if we have a mapping
     file
     '''
-    base = 'https://raw.githubusercontent.com/opentargets/mappings/master/{}.mappings.tsv'
-    r = requests.head(base.format(modulename))
+    r = requests.head(ghmappings(modulename))
     return r.status_code == 200
+

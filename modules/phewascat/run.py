@@ -6,6 +6,7 @@ import csv
 import os
 import sys
 import json
+import argparse
 from zipfile import ZipFile
 from io import BytesIO, TextIOWrapper
 from pathlib import Path
@@ -18,32 +19,39 @@ import python_jsonschema_objects as pjs
 from python_jsonschema_objects.validators import ValidationError
 
 from common.HGNCParser import GeneParser
+from common.Utils import mapping_on_github, ghmappings
 from constants import *
 
-#this module's logger
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+
+__log__ = logging.getLogger(__name__)
+__moduledir__ = Path(__file__).resolve().parent
+__modulename__ = Path(__file__).parent.name
+
+#configure this module's logger
+__log__.setLevel(logging.INFO)
 ch = logging.StreamHandler()
 formatter = logging.Formatter('%(levelname)s - %(message)s')
 ch.setFormatter(formatter)
-logger.addHandler(ch)
+__log__.addHandler(ch)
+
+
 
 '''import the json schema and create python objects with a built-in validator
 '''
-logger.info('downloading schema')
+__log__.info('downloading schema')
 schema = requests.get(PHEWAS_SCHEMA)
-logger.debug("Downloaded the following schema: %s", schema)
+__log__.debug("Downloaded the following schema: %s", schema)
 
 builder = pjs.ObjectBuilder(schema.json())
 ot_objects = builder.build_classes()
-logger.debug('The schema contains %s', [str(x) for x in dir(ot_objects)])
+__log__.debug('The schema contains %s', [str(x) for x in dir(ot_objects)])
 
 target = ot_objects['Target']
 disease = ot_objects['Disease']
 variant = ot_objects['Variant<anonymous>']
 gene2variant = ot_objects['Gene2variant<anonymous>']
 variant2disease = ot_objects['Variant2disease<anonymous>']
-logger.info('python objects created from schema')
+__log__.info('python objects created from schema')
 
 
 def download_ic9_phecode_map(url=PHEWAS_PHECODE_MAP_URL):
@@ -99,9 +107,20 @@ def make_variant2disease(pval):
 
 
 def main(outputdir):
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--local', action='store_true',
+                        help='force using local mapping instead of the github version')
+    args = parser.parse_args()
 
     ## load prepared mappings
     mappings = {}
+    if (not args.local) and mapping_on_github(__modulename__):
+        __log__.info('Downloading prepared mappings from github')
+        with requests.get(ghmappings(__modulename__), stream=True) as rmap:
+            for row in csv.DictReader(rmap.iter_lines(decode_unicode=True),delimiter='\t'):
+                mappings[row['query']] = row['term']
+        __log__.info('Parsed %s mappings', len(mappings))
+
     try:
         moddir = os.path.dirname(os.path.realpath(__file__))
         with open(os.path.join(moddir, 'phewascat-diseaseterms.tsv')) as mapf:
@@ -112,7 +131,7 @@ def main(outputdir):
 
     ## gene symbol <=> ENSGID mappings ##
     gene_parser = GeneParser()
-    logger.info('Parsing gene data from HGNC...')
+    __log__.info('Parsing gene data from HGNC...')
     gene_parser._get_hgnc_data_from_json()
     ensgid = gene_parser.genes
 
@@ -124,14 +143,14 @@ def main(outputdir):
     PhewasEv = ot_objects['Genetics-basedEvidenceStrings']
 
     built = 0
-    logger.info('Begin processing phewascatalog evidences..')
-    with open(os.path.join(str(outputdir),'phewas_catalog.json'), 'w') as outfile:
+    __log__.info('Begin processing phewascatalog evidences..')
+    with open(os.path.join(str(outputdir),'phewas-catalog.evidenceobjs.json'), 'w') as outfile:
 
         with requests.get(PHEWAS_CATALOG_URL, stream=True) as r:
             catalog = tqdm(csv.DictReader(r.iter_lines(decode_unicode=True)),
                            total=TOTAL_NUM_PHEWAS)
             for i, row in enumerate(catalog):
-                logger.debug(row)
+                __log__.debug(row)
                 pev = PhewasEv(type = 'genetic_association',
                                access_level = "public",
                                sourceID = "phewas_catalog",
@@ -143,10 +162,10 @@ def main(outputdir):
                 try:
                     pev['disease'] = make_disease(mappings[row['phewas_string']])
                 except KeyError as e:
-                    logger.error('No mapping for %s. Skipping evidence',e)
+                    __log__.error('No mapping for %s. Skipping evidence',e)
                     continue
                 except ValidationError:
-                    logger.error('Empty mapping for %s. '
+                    __log__.error('Empty mapping for %s. '
                                  'Skipping evidence',row['phewas_string'])
                     continue
 
@@ -156,7 +175,7 @@ def main(outputdir):
                 try:
                     pev['target'] = make_target(ensgid[row['gene'].strip('*')])
                 except KeyError as e:
-                    logger.error("Could not find gene: %s",row['gene'])
+                    __log__.error("Could not find gene: %s",row['gene'])
                     continue
 
                 pev["variant"]= make_variant(row['snp'])
@@ -170,7 +189,7 @@ def main(outputdir):
                 built +=1
                 outfile.write("%s\n" % pev.serialize())
 
-        logger.info("Completed. Parsed %s rows. "
+        __log__.info("Completed. Parsed %s rows. "
                     "Built %s evidences. "
                     "Skipped %s ",i,built,i-built
                     )
