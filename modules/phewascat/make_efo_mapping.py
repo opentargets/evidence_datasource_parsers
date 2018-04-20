@@ -6,6 +6,7 @@ use --overwrite to force rewriting existing mappings
 
 import csv
 import os
+import sys
 import logging
 import argparse
 from zipfile import ZipFile
@@ -16,6 +17,7 @@ import click
 import requests
 from tqdm import tqdm
 from constants import *
+from common.Utils import mapping_on_github
 
 from ontoma import OnToma
 #ontoma's logger is useful to find out mapping issues, but it's a bit loud
@@ -61,6 +63,15 @@ def main():
     #TODO: check for mappings on github, rather then here.
 
     ## check if we have mappings and if we should re-use them
+    if (not args.overwrite) and mapping_on_github(__modulename__):
+        sys.exit("There are already mappings available on our github repo! \n\n"
+                 "If you think you can add some mappings by running this script \n"
+                 "you can download those mappings to the module directory. \n"
+                 "Matches would not be processed but the script will re-run on\n"
+                 "'fuzzy' quality mappings\n\n"
+
+                 "Pass the --overwrite flag to ignore this and run anyways.")
+
     if (not args.overwrite) and os.path.exists(efo_fn):
         __log__.info('Caching existing mappings...')
         with open(efo_fn, 'r', newline='') as efo_f:
@@ -112,11 +123,17 @@ def main():
                 mappings[row['phewas_string']] = {'query': row['phewas_string']}
 
     ## write or append mappings to a file
-    efo_file = open(efo_fn, 'w', newline='') if args.overwrite else open(efo_fn, 'a', newline='')
-    efowriter = csv.DictWriter(efo_file, fieldnames, delimiter='\t')
     if args.overwrite:
         __log__.warning('Writing over existing files if any')
+        efo_file = open(efo_fn, 'w', newline='')
+    else:
+        efo_file = open(efo_fn, 'a', newline='')
+    efowriter = csv.DictWriter(efo_file, fieldnames, delimiter='\t')
+
+    ## write header line if we don't have one yet
+    if os.path.getsize(efo_file) == 0:
         efowriter.writeheader()
+
     efowriter.writerows(mappings.values())
     efo_file.close()
 
