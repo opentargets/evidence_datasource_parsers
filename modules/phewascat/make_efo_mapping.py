@@ -20,6 +20,7 @@ from constants import *
 from common.Utils import mapping_on_github
 
 from ontoma import OnToma
+from ontoma.constants import FIELDS
 #ontoma's logger is useful to find out mapping issues, but it's a bit loud
 from ontoma import logger as ontomalogger
 ontomalogger.setLevel(logging.WARNING)
@@ -57,10 +58,6 @@ def main():
     mappings = {}
 
     efo_fn = str(__moduledir__ / 'phewascat-diseaseterms.tsv')
-    ## TODO this should be a constant I import from ontoma
-    fieldnames = ['query', 'term', 'label', 'source', 'quality', 'action']
-
-    #TODO: check for mappings on github, rather then here.
 
     ## check if we have mappings and if we should re-use them
     if (not args.overwrite) and mapping_on_github(__modulename__):
@@ -75,7 +72,7 @@ def main():
     if (not args.overwrite) and os.path.exists(efo_fn):
         __log__.info('Caching existing mappings...')
         with open(efo_fn, 'r', newline='') as efo_f:
-            eforeader = csv.DictReader(efo_f, fieldnames, delimiter='\t')
+            eforeader = csv.DictReader(efo_f, FIELDS, delimiter='\t')
             #create a dict for those terms that have been already mapped
             # succesfully (or have been manually curated)
             mappings = {row['query']:row for row in eforeader if row['quality'] == 'match'}
@@ -128,7 +125,7 @@ def main():
         efo_file = open(efo_fn, 'w', newline='')
     else:
         efo_file = open(efo_fn, 'a', newline='')
-    efowriter = csv.DictWriter(efo_file, fieldnames, delimiter='\t')
+    efowriter = csv.DictWriter(efo_file, FIELDS, delimiter='\t')
 
     ## write header line if we don't have one yet
     if os.path.getsize(efo_file) == 0:
