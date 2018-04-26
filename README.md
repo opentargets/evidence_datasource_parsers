@@ -6,8 +6,8 @@ In each folder we have one or more standalone python scripts.
 
 Generally these scripts:
 1. map the disease terms (if any) to our ontology, sometimes using [OnToma](https://ontoma.readthedocs.io)
-2. save the mappings
-3. generate evidence objects (JSON strings) according to our JSON schema
+2. save the mappings in https://github.com/opentargets/mappings
+3. Read the **github mappings** to generate evidence objects (JSON strings) according to our JSON schema
 
 Code used by more than one script (that does not live in a python package)
 is stored in the `common` folder and imported as follows:
@@ -41,5 +41,10 @@ interpreter:
 
 ```sh
 (venv)$ python modules/phewascat/run.py
+```
+or to force using a local mapping file instead of the reference mappings
+stored in github:
+```sh
+(venv)$ python modules/phewascat/run.py --local
 ```
 
