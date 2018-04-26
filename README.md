@@ -1,36 +1,45 @@
-# phewascatalog_parser
-script to convert phewascatalog database to JSONs, with ENSGIDs and EFO ids.
+# OT evidence generators
 
-* Download the full phewas catalog using url - https://phewascatalog.org/phewas
-* Clone this repo :  `git clone https://github.com/opentargets/phewascatalog_parser.git`
+Each folder in module corresponds corresponds to a datasource.
 
-```sh
-cd phewascatalog_parser
+In each folder we have one or more standalone python scripts.
+
+Generally these scripts:
+1. map the disease terms (if any) to our ontology, sometimes using [OnToma](https://ontoma.readthedocs.io)
+2. save the mappings
+3. generate evidence objects (JSON strings) according to our JSON schema
+
+Code used by more than one script (that does not live in a python package)
+is stored in the `common` folder and imported as follows:
+
+```python
+from common.<module> import <function>
 ```
 
-* Copy phewas-catalog.csv downloaded in first step to phewascatalog_parser/resources
-* Create a virtual environment and activate it
+
+
+### Install
+Install (requires python 3):
+
 ```sh
-virtualenv venv
+virtualenv -p python3 venv
 source venv/bin/activate
-```
-
-* Install packages
-```sh
 pip install -r requirements.txt
 ```
+### Usage
 
-* Run the phewas parser - with default schema-version - 1.2.6
+Each script is a standalone python script.
+Common dependencies are stored in the `common` folder.
 
+Hence to run each parser, simply run the standalone script with your python
+interpreter:
 ```sh
-python setup.py install
-phewascatalog_parser -h
-phewascatalog_parser --phewas
+(venv)$ python modules/<parser you want>.py
 ```
 
-* Run the phewas parser - with updated schema-version
+### Phewascatalog.org
+
 ```sh
-phewascatalog_parser --phewas --schema-version=1.2.7
+(venv)$ python modules/phewascat/run.py
 ```
 
-* Output file - phewascatalog.json

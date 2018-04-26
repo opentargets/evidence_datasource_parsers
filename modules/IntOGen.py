@@ -274,9 +274,8 @@ class IntOGen():
         tp_file.close()
 
 def main():
-    import logging
-    logger = logging.getLogger(__name__)
-    logger.info("Load IntOGen data")
+    into = IntOGen()
+    into.process_intogen()
 
 if __name__ == "__main__":
     main()
