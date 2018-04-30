@@ -116,16 +116,19 @@ def main(outputdir):
     mappings = {}
     if (not args.local) and mapping_on_github(__modulename__):
         __log__.info('Downloading prepared mappings from github')
+        __log__.info('Using only mappings marked as `match`')
         with requests.get(ghmappings(__modulename__), stream=True) as rmap:
             for row in csv.DictReader(rmap.iter_lines(decode_unicode=True),delimiter='\t'):
-                mappings[row['query']] = row['term']
+                if row['quality'] and row['quality'].strip() == 'match':
+                    mappings[row['query'].strip()] = row['term'].strip()
         __log__.info('Parsed %s mappings', len(mappings))
 
     try:
         moddir = os.path.dirname(os.path.realpath(__file__))
         with open(os.path.join(moddir, 'phewascat-diseaseterms.tsv')) as mapf:
             reader = csv.DictReader(mapf,delimiter='\t')
-            mappings = {row['query']:row['term'] for row in reader}
+            mappings = {row['query']:row['term'] for row in reader
+                        if (row['quality'] and row['quality'] == 'match')}
     except FileNotFoundError:
         sys.exit('ABORTING. No existing mappings found. Please run make_efo_mapping.py first.')
 
@@ -174,8 +177,15 @@ def main(outputdir):
 
                 try:
                     pev['target'] = make_target(ensgid[row['gene'].strip('*')])
+                except ValidationError:
+                    __log__.error("Invalid gene: "
+                                  "http://identifiers.org/ensembl/%s",
+                                  ensgid[row['gene'].strip('*')])
+                    continue
                 except KeyError as e:
                     __log__.error("Could not find gene: %s",row['gene'])
+                    #TODO: deal with the `intergenic` case by looking up the
+                    # postgap table or the snp2gene table in Open Targets
                     continue
 
                 pev["variant"]= make_variant(row['snp'])
