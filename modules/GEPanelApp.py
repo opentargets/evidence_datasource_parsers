@@ -70,7 +70,7 @@ class GEPanelApp():
 
     def process_ge(self):
 
-        self.ontoma = OnToma()
+        self.ontoma = OnToma(exclude=['zooma'])
         gene_parser = GeneParser()
         gene_parser._get_hgnc_data_from_json()
 
@@ -188,9 +188,10 @@ class GEPanelApp():
                                     #print("\tRESULTS: %s OMIM id found: %s => NO EFO id " % (item, omim_id))
 
                                     if self.ontoma.find_term(item):
-                                        phenotype_label = self.ontoma.find_term(item)
+                                        phenotype_label = self.ontoma.find_term(item, suggest=True, verbose=True)
                                         mapping_type = "OMIM automatic mapping via Ontoma"
-                                        print("\tRESULTS: OMIM id found: %s => Ontoma: %s, No Curated EFO id" %(item, phenotype_label))
+                                        print("\tRESULTS: OMIM id found: %s => Ontoma: %s, No Curated EFO id, Action %s" %(item, phenotype_label['term'], phenotype_label['action']))
+
                                     else:
                                         print("%s => ZOOMA" %(item))
                             else:
