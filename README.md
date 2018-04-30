@@ -47,4 +47,7 @@ stored in github:
 ```sh
 (venv)$ python modules/phewascat/run.py --local
 ```
+**TODO**
+- [ ] map `intergenic` rsIDs to genes (~900k evidences)
+- [ ] improve mappings with manual curation
 
