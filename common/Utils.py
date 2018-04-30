@@ -28,3 +28,14 @@ def mapping_on_github(modulename):
     r = requests.head(ghmappings(modulename))
     return r.status_code == 200
 
+
+class DuplicateFilter(object):
+    '''suppress repeated log messages'''
+    def __init__(self):
+        self.msgs = set()
+
+    def filter(self, record):
+        rv = record.msg % record.args not in self.msgs
+        self.msgs.add(record.msg % record.args)
+        return rv
+

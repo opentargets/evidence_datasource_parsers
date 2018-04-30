@@ -19,7 +19,7 @@ import python_jsonschema_objects as pjs
 from python_jsonschema_objects.validators import ValidationError
 
 from common.HGNCParser import GeneParser
-from common.Utils import mapping_on_github, ghmappings
+from common.Utils import mapping_on_github, ghmappings, DuplicateFilter
 from constants import *
 
 
@@ -33,6 +33,8 @@ ch = logging.StreamHandler()
 formatter = logging.Formatter('%(levelname)s - %(message)s')
 ch.setFormatter(formatter)
 __log__.addHandler(ch)
+dup_filter = DuplicateFilter()
+__log__.addFilter(dup_filter)
 
 
 
@@ -122,15 +124,15 @@ def main(outputdir):
                 if row['quality'] and row['quality'].strip() == 'match':
                     mappings[row['query'].strip()] = row['term'].strip()
         __log__.info('Parsed %s mappings', len(mappings))
-
-    try:
-        moddir = os.path.dirname(os.path.realpath(__file__))
-        with open(os.path.join(moddir, 'phewascat-diseaseterms.tsv')) as mapf:
-            reader = csv.DictReader(mapf,delimiter='\t')
-            mappings = {row['query']:row['term'] for row in reader
-                        if (row['quality'] and row['quality'] == 'match')}
-    except FileNotFoundError:
-        sys.exit('ABORTING. No existing mappings found. Please run make_efo_mapping.py first.')
+    else:
+        try:
+            moddir = os.path.dirname(os.path.realpath(__file__))
+            with open(os.path.join(moddir, 'phewascat-diseaseterms.tsv')) as mapf:
+                reader = csv.DictReader(mapf,delimiter='\t')
+                mappings = {row['query']:row['term'] for row in reader
+                            if (row['quality'] and row['quality'] == 'match')}
+        except FileNotFoundError:
+            sys.exit('ABORTING. No existing mappings found. Please run make_efo_mapping.py first.')
 
     ## gene symbol <=> ENSGID mappings ##
     gene_parser = GeneParser()
