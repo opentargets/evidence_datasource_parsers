@@ -234,7 +234,7 @@ class GEPanelApp():
          :return: tuple of list of panel name and panel id's
         '''
         try:
-            r = requests.get(Config.GE_PANEL_LIST, params={})
+            r = requests.get('https://panelapp.genomicsengland.co.uk/WebServices/list_panels', params={})
             results = r.json()
 
             for row in results['result']:
