@@ -176,6 +176,7 @@ class SLAPEnrich():
                     '''
                     (tumor_type, gene_symbol, mutFreq_dataset, pathway_id, mutFreq_pathway, pval, fdr, logodds, excco) = tuple(line.rstrip().split('\t'))
 
+                    datasource = 'slapenrich'
                     pathway = pathway_id.split(":")
                     pathway_id = pathway[0].rstrip()
                     pathway_desc = pathway[1].rstrip()
@@ -196,11 +197,12 @@ class SLAPEnrich():
                     evidenceString.validated_against_schema_version = Config.VALIDATED_AGAINST_SCHEMA_VERSION
                     evidenceString.access_level = "public"
                     evidenceString.type = "affected_pathway"
-                    evidenceString.sourceID = "slapenrich"
+                    evidenceString.sourceID = datasource
                     '''
                         build unique_association_field object
                     '''
                     evidenceString.unique_association_fields = {}
+                    evidenceString.unique_association_fields['datasource'] = datasource
                     evidenceString.unique_association_fields['symbol'] = gene_symbol
                     evidenceString.unique_association_fields['tumor_type_acronym'] = tumor_type
                     evidenceString.unique_association_fields['tumor_type'] = TUMOR_TYPE_MAP[tumor_type]
