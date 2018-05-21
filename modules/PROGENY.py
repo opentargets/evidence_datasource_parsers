@@ -153,6 +153,7 @@ class PROGENY():
                     '''
                     (pathway_id, tumor_type, logfc, aveexpr, t, pval, fdr, b, sample) = tuple(line.rstrip().split('\t'))
 
+                    datasource = 'progeny'
                     reactome = PATHWAY_REACTOME_MAP[pathway_id.rstrip()]
                     reactome_identifier = reactome.split(":")
                     reactome_id = reactome_identifier[0].rstrip()
@@ -175,12 +176,13 @@ class PROGENY():
                     evidenceString.validated_against_schema_version = Config.VALIDATED_AGAINST_SCHEMA_VERSION
                     evidenceString.access_level = "public"
                     evidenceString.type = "affected_pathway"
-                    evidenceString.sourceID = "progeny"
+                    evidenceString.sourceID = datasource
 
                     '''
                         build unique_association_field object
                     '''
                     evidenceString.unique_association_fields = {}
+                    evidenceString.unique_association_fields['datasource'] = datasource
                     evidenceString.unique_association_fields['tumor_type_acronym'] = tumor_type
                     evidenceString.unique_association_fields['tumor_type'] = TUMOR_TYPE_MAP[tumor_type]
                     evidenceString.unique_association_fields['pathway_id'] = 'http://www.reactome.org/PathwayBrowser/#%s' % (reactome_id)
