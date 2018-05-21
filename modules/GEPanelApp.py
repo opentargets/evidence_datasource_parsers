@@ -406,7 +406,7 @@ class GEPanelApp():
         '''
             Create a list of publications
         '''
-        datasource = 'genomics_england'
+
         single_lit_ref_list = list()
 
         if publications is not None and len(str(publications).strip()) > 0:
@@ -441,7 +441,7 @@ class GEPanelApp():
             )
         )
         obj.access_level = "public"
-        obj.sourceID = datasource
+        obj.sourceID = "genomics_england"
         obj.validated_against_schema_version = Config.VALIDATED_AGAINST_SCHEMA_VERSION
 
         if panel_id in self.panel_app_id_map:
@@ -450,7 +450,6 @@ class GEPanelApp():
             new_panel_id = panel_id
 
         obj.unique_association_fields = dict(
-            datasource=datasource,
             panel_name=panel_name,
             panel_id=new_panel_id,
             panel_version=panel_version,
