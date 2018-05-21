@@ -157,6 +157,8 @@ class IntOGen():
 
                     (Symbol,Ensg,Tumor_Type,Evidence,Role) = tuple(line.rstrip().split('\t'))
 
+                    datasource = 'intogen'
+
                     resource_score = association_score.Probability(
                         type="probability",
                         method= association_score.Method(
@@ -169,8 +171,9 @@ class IntOGen():
                     evidenceString.validated_against_schema_version = Config.VALIDATED_AGAINST_SCHEMA_VERSION
                     evidenceString.access_level = "public"
                     evidenceString.type = "somatic_mutation"
-                    evidenceString.sourceID = "intogen"
+                    evidenceString.sourceID = datasource
                     evidenceString.unique_association_fields = {}
+                    evidenceString.unique_association_fields['datasource'] = datasource
                     evidenceString.unique_association_fields['projectName'] = 'IntOGen Cancer Drivers Database'
                     evidenceString.unique_association_fields['symbol'] = Symbol
                     evidenceString.unique_association_fields['tumor_type_acronym'] = Tumor_Type
