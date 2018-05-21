@@ -93,9 +93,6 @@ class GEPanelApp():
         for panel_name, panel_id, panel_version, panel_diseasegroup, panel_diseasesubgroup in self.get_panel_list():
             panel_c += 1
 
-            #if panel_c < 3:
-            print("Reading panel : %s %s %s %s %s"
-                             % (panel_name, panel_id, panel_version, panel_diseasegroup, panel_diseasesubgroup))
             self.logger.info("Reading panel : %s %s %s %s %s"
                              % (panel_name, panel_id, panel_version, panel_diseasegroup, panel_diseasesubgroup))
             r = requests.get(url, params={"panel_name": panel_name}, timeout=30)
@@ -302,13 +299,11 @@ class GEPanelApp():
             tsv_writer = csv.writer(outfile, delimiter='\t')
             for phenotype, value in self.confidence_zooma_mappings.items():
                 tsv_writer.writerow([phenotype, value['uri'], value['label']])
-                #tsv_writer.writerow([phenotype, value['uri'], value['label'], value['omim_id']])
 
         with open(Config.GE_ZOOMA_DISEASE_MAPPING_NOT_HIGH_CONFIDENT, 'w') as map_file:
             csv_writer = csv.writer(map_file, delimiter='\t')
             for phenotype, value in self.other_zooma_mappings.items():
                 csv_writer.writerow([phenotype, value['uri'], value['label']])
-                # csv_writer.writerow([phenotype, value['uri'], value['label'], value['omim_id']])
 
     def request_to_zooma(self, property_value=None):
         '''
@@ -328,13 +323,11 @@ class GEPanelApp():
                 self.confidence_zooma_mappings[property_value] = {
                   'uri': item['_links']['olslinks'][0]['semanticTag'],
                   'label': item['derivedFrom']['annotatedProperty']['propertyValue'],
-                   #'omim_id': self.map_omim[property_value]
                 }
             else:
                 self.other_zooma_mappings[property_value] = {
                     'uri': item['_links']['olslinks'][0]['semanticTag'],
                     'label': item['derivedFrom']['annotatedProperty']['propertyValue'],
-                    #'omim_id': self.map_omim[property_value]
                 }
 
         return self.confidence_zooma_mappings
@@ -359,11 +352,6 @@ class GEPanelApp():
         '''
         now = datetime.datetime.now()
 
-        #mapping_fh = open("=/tmp/genomics_england_mapped.txt", 'w')
-        #mapping_tsv_writer = csv.writer(mapping_fh, delimiter='\t')
-        #unmapped_fh = open("/tmp/genomics_england_unmapped.txt", 'w')
-        #unmapped_tsv_writer = csv.writer(unmapped_fh, delimiter='\t')
-
         for row in self.panel_app_info:
             panel_name, panel_id, panel_version, panel_diseasegroup, panel_diseasesubgroup, gene_symbol, ensembl_gene_ids, ensembl_iri, level_of_confidence, original_label, phenotype, publications, evidences, omim_ids, disease_uri, disease_label, mapping_method = row
             # encode to UTF8 panel_name = panel_name.encode("UTF-8")
@@ -372,11 +360,6 @@ class GEPanelApp():
                                           gene_symbol, ensembl_gene_ids, ensembl_iri, level_of_confidence,
                                           original_label, phenotype, publications, evidences, omim_ids,
                                           disease_uri, disease_label, now)
-
-            #mapping_tsv_writer.writerow([panel_name, panel_id, gene_symbol, phenotype, disease_uri, disease_label])
-        #mapping_fh.close()
-        #unmapped_fh.close()
-
 
     def generate_single_evidence(self, panel_name, panel_id, panel_version, panel_diseasegroup, panel_diseasesubgroup,
                                  gene_symbol, ensembl_gene_id, ensembl_iri, level_of_confidence,
@@ -531,11 +514,11 @@ class GEPanelApp():
 
                 ge_output.write(evidence_string.to_JSON(indentation=None) + "\n")
 
-                #error = evidence_string.validate(logger)
-                #if error== 0:
-#                    ge_output.write(evidence_string.to_JSON(indentation=None) + "\n")
-#                else:
-#                    self.logger.error("Reporting validation error in line %s" % c)
-#                    self.logger.error(evidence_string.to_JSON(indentation=4))
+                error = evidence_string.validate(logger)
 
+                if error== 0:
+                    ge_output.write(evidence_string.to_JSON(indentation=None) + "\n")
+                else:
+                    self.logger.error("Reporting validation error in line %s" % c)
+                    self.logger.error(evidence_string.to_JSON(indentation=4))
         ge_output.close()
