@@ -26,7 +26,7 @@ __email__     = ["data@opentargets.org"]
 __status__    = "Production"
 
 '''
-* Get 'Phenotypes' list for each 'HighEvidence' gene from all GE Panel.
+* Get 'Phenotypes' list for each 'HighEvidence' gene for all GE Panel.
 * For each phenotype check that if it has an OMIM id.
 
 * If omim_id - Y , try map to EFO using mapping file (https://github.com/opentargets/OnToma/blob/master/ontoma/constants.py)
@@ -42,7 +42,6 @@ notes:
 * ZOOMA API is then used for both category below to get high and low confidence mapping
     ** omim_id - Y, curated EFO - N, ontoma - N
     ** omim_id - N , ontoma - N
-
 '''
 class GEPanelApp():
     def __init__(self):
@@ -60,10 +59,10 @@ class GEPanelApp():
         self.symbol_to_gene = gene_parser.genes
         self.ontoma = OnToma(exclude=['zooma'])
 
-        #print("Parsed %s OMIM to EFO mapping " % len(self.ontoma._omim_to_efo))
-        #print("Parsed %s ZOOMA to EFO mapping " % len(self.ontoma._zooma_to_efo_map))
-        #print("Parsed %s Name to EFO mapping " % len(self.ontoma.name_to_efo))
-        #print("Parsed %s Name to HP mapping " % len(self.ontoma.name_to_hp))
+        self.logger.info("Parsed %s OMIM to EFO mapping " % len(self.ontoma._omim_to_efo))
+        self.logger.info("Parsed %s ZOOMA to EFO mapping " % len(self.ontoma._zooma_to_efo_map))
+        self.logger.info("Parsed %s Name to EFO mapping " % len(self.ontoma.name_to_efo))
+        self.logger.info("Parsed %s Name to HP mapping " % len(self.ontoma.name_to_hp))
 
         self.process_ge_panel()
         self.map_with_zooma()
@@ -74,12 +73,11 @@ class GEPanelApp():
     def process_ge_panel(self):
         '''
          Create panel app info list and phenotype set
-         :return: Unique phenotype list
+         :return: Unique phenotype list with no mappings
         '''
         self.logger.info("Retrieving GE PanelApp data")
         url = 'https://panelapp.genomicsengland.co.uk/WebServices/search_genes/all/'
 
-        ''' store list of phenotypes with no mappings at all'''
         phenotype_list = []
 
         c = 0
@@ -88,11 +86,7 @@ class GEPanelApp():
         f = 0
         g = 0
 
-        panel_c = 0
-
         for panel_name, panel_id, panel_version, panel_diseasegroup, panel_diseasesubgroup in self.get_panel_list():
-            panel_c += 1
-
             self.logger.info("Reading panel : %s %s %s %s %s"
                              % (panel_name, panel_id, panel_version, panel_diseasegroup, panel_diseasesubgroup))
             r = requests.get(url, params={"panel_name": panel_name}, timeout=30)
@@ -122,7 +116,7 @@ class GEPanelApp():
                                 Nephrotic syndrome 14	617575
                                 [Hair morphology 1, hair thickness], 612630 -3
 
-                                note: They need to be strictly 6 digits & without "Orpha|ORPHA|HP|PMID" within
+                                note: need to be strictly 6 digits & without "Orpha|ORPHA|HP|PMID" within
                             '''
                             # MAY 20
                             # omim - Y curated EFO - Y => 8035
@@ -161,7 +155,6 @@ class GEPanelApp():
                                                                     mapping_type])
 
                                         self.logger.info("[%s] => [%s], omim_id - Y, curated EFO - Y" % (item, efo_id))
-                                        print("[%s] => [%s], omim_id - Y, curated EFO - Y" % (item, efo_id))
                                 else:
                                     if self.ontoma.find_term(omim_id, suggest=True, verbose=True):
                                         d += 1
@@ -197,8 +190,6 @@ class GEPanelApp():
 
                                         self.logger.info("[%s] => [%s], omim_id - Y, curated EFO - N, ontoma - Y action [%s]"
                                             % (item, phenotype_label['term'], phenotype_label['action']))
-                                        print("[%s] => [%s], omim_id - Y, curated EFO - N, ontoma - Y action [%s] "
-                                            % (item, phenotype_label['term'], phenotype_label['action']))
                                     else:
                                         '''
                                          omim_id - Y, curated EFO - N, ontoma - N
@@ -209,7 +200,7 @@ class GEPanelApp():
                                         '''
                                         e += 1
                                         phenotype_list.append(item)
-                                        print("[%s] => [None], omim_id - Y, curated EFO - N, ontoma - N " % (item))
+                                        self.logger.info("[%s] => [None], omim_id - Y, curated EFO - N, ontoma - N " % (item))
                             else:
                                 if self.ontoma.find_term(item, suggest=True, verbose=True):
                                     f += 1
@@ -244,7 +235,6 @@ class GEPanelApp():
                                                                 mapping_type])
 
                                     self.logger.info("[%s] => [%s], omim_id - N, curated EFO - N, ontoma - Y action [%s] " % (item, phenotype_label['term'], phenotype_label['action']))
-                                    print("[%s] => [%s], omim_id - N, curated EFO - N, ontoma - Y action [%s] " % (item, phenotype_label['term'], phenotype_label['action']))
                                 else:
                                     '''
                                      omim_id - N, curated EFO - N, ontoma - N
@@ -255,15 +245,15 @@ class GEPanelApp():
                                     '''
                                     g += 1
                                     phenotype_list.append(item)
-                                    print("[%s] => [None], omim_id - N, curated EFO - N, ontoma - N " % (item))
+                                    self.logger.info("[%s] => [None], omim_id - N, curated EFO - N, ontoma - N " % (item))
 
             self.phenotype_set = set(phenotype_list)
 
-        print("total OMIM_id found with EFO mapping " + str(c))
-        print("total OMIM_id found with NO EFO mapping but map via Ontoma " + str(d))
-        print("total OMIM_id found with NO EFO mapping & Ontoma " + str(e))
-        print("NO OMIM_id found, with NO EFO mapping but map via Ontoma " + str(f))
-        print("NO OMIM_id found, with NO EFO mapping & Ontoma " + str(g))
+        self.logger.info("total OMIM_id found with EFO mapping " + str(c))
+        self.logger.info("total OMIM_id found with NO EFO mapping but map via Ontoma " + str(d))
+        self.logger.info("total OMIM_id found with NO EFO mapping & Ontoma " + str(e))
+        self.logger.info("NO OMIM_id found, with NO EFO mapping but map via Ontoma " + str(f))
+        self.logger.info("NO OMIM_id found, with NO EFO mapping & Ontoma " + str(g))
 
         return self.phenotype_set
 
@@ -311,7 +301,6 @@ class GEPanelApp():
 
          :param property_value: Phenotype name from Genomics England
          :return: High confidence mappings .
-         Writes the output in the input file
          see docs: http://www.ebi.ac.uk/spot/zooma/docs/api.html
         '''
         r = requests.get('http://www.ebi.ac.uk/spot/zooma/v2/api/services/annotate',
@@ -386,10 +375,6 @@ class GEPanelApp():
             :param now:
         :return:
         '''
-        '''
-            Create a list of publications
-        '''
-
         single_lit_ref_list = list()
 
         if publications is not None and len(str(publications).strip()) > 0:
@@ -462,6 +447,7 @@ class GEPanelApp():
                                           target_type='http://identifiers.org/cttv.target/gene_evidence',
                                           target_name=gene_symbol)
 
+            #TODO : should we have only High confidence genes from #L105
             if level_of_confidence == 'LowEvidence':
                 resource_score = association_score.Probability(
                     type="probability",
@@ -514,7 +500,7 @@ class GEPanelApp():
 
                 ge_output.write(evidence_string.to_JSON(indentation=None) + "\n")
 
-                error = evidence_string.validate(logger)
+                error = evidence_string.validate(self.logger)
 
                 if error== 0:
                     ge_output.write(evidence_string.to_JSON(indentation=None) + "\n")
