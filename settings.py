@@ -34,20 +34,19 @@ class Config:
 
     # PROGENY
     PROGENY_FILENAME = file_or_resource('progeny_normalVStumor_opentargets.txt')
-    PROGENY_EVIDENCE_FILENAME = HOME_DIR + '/otar001_progeny-20-05-2018.json'
+    PROGENY_EVIDENCE_FILENAME = HOME_DIR + '/progeny-20-05-2018.json'
 
     # UKBIOBANK
     UKBIOBANK_FILENAME = file_or_resource('ukbiobank.txt')
-    UKBIOBANK_EVIDENCE_FILENAME = HOME_DIR + '/otar001_ukbiobank-30-04-2018.json'
+    UKBIOBANK_EVIDENCE_FILENAME = HOME_DIR + '/ukbiobank-30-04-2018.json'
 
     # SLAPEnrich
     SLAPENRICH_FILENAME = file_or_resource('slapenrich_opentargets.tsv')
-    SLAPENRICH_EVIDENCE_FILENAME = HOME_DIR + '/otar001_slapenrich-20-05-2018.json'
+    SLAPENRICH_EVIDENCE_FILENAME = HOME_DIR + '/slapenrich-20-05-2018.json'
 
     # Gene2Phenotype
-    #G2P_FILENAME = file_or_resource('DDG2P_14_5_2017.csv.gz')
-    G2P_FILENAME = 'DDG2P_14_5_2017.csv.gz'
-    G2P_EVIDENCE_FILENAME = 'gene2phenotype.json'
+    G2P_FILENAME = file_or_resource('DDG2P_14_5_2017.csv')
+    G2P_EVIDENCE_FILENAME = HOME_DIR + '/gene2phenotype-29-05-2018.json'
 
     # Genomics England
     GE_PANEL_MAPPING_FILENAME = file_or_resource('genomicsenglandpanelapp_panelmapping.txt')
@@ -59,11 +58,11 @@ class Config:
 
     # IntoGEN
     INTOGEN_FILENAME = file_or_resource('intogen_opentargets.tsv')
-    INTOGEN_EVIDENCE_FILENAME = HOME_DIR + '/otar001_intogen-20-05-2018.json'
+    INTOGEN_EVIDENCE_FILENAME = HOME_DIR + '/intogen-20-05-2018.json'
 
     # Phewas
     PHEWAS_CATALOG_LOCN = 'https://storage.googleapis.com/phewas-catalog'
-    PHEWAS_CATALOG_JSON = HOME_DIR + '/otar001_phewas_catalog-19-12-2017.json'
+    PHEWAS_CATALOG_JSON = HOME_DIR + '/phewas_catalog-19-12-2017.json'
 
     ONTOLOGY_CONFIG = configparser.ConfigParser()
     ONTOLOGY_CONFIG.read(file_or_resource('ontology_config.ini'))
