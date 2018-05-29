@@ -23,7 +23,7 @@ __maintainer__ = "ChuangKee Ong"
 __email__     = ["data@opentargets.org"]
 __status__     = "Production"
 
-class G2P (RareDiseaseMapper):
+class G2P ():
     def __init__(self):
 
         self.evidence_strings = list()
