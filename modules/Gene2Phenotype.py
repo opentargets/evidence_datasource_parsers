@@ -1,9 +1,6 @@
-from settings import Config, file_or_resource
+from settings import Config
 from common.HGNCParser import GeneParser
 from common.RareDiseasesUtils import RareDiseaseMapper
-from common.GCSUtils import GCSBucketManager
-from tqdm import tqdm
-import tempfile
 
 import opentargets.model.core as opentargets
 import opentargets.model.bioentity as bioentity
@@ -13,57 +10,55 @@ import opentargets.model.evidence.linkout as evidence_linkout
 import opentargets.model.evidence.association_score as association_score
 import opentargets.model.evidence.mutation as evidence_mutation
 
+import csv
 import sys
 import logging
-import urllib3
-import csv
-import gzip
+from ontoma import OnToma
 
 __copyright__  = "Copyright 2014-2017, Open Targets"
 __credits__    = ["Gautier Koscielny", "ChuangKee Ong"]
 __license__    = "Apache 2.0"
-__version__    = "1.2.7"
+__version__    = "1.2.8"
 __maintainer__ = "ChuangKee Ong"
-__email__      = ["gautierk@targetvalidation.org", "ckong@ebi.ac.uk"]
+__email__     = ["data@opentargets.org"]
 __status__     = "Production"
 
-G2P_FILENAME = Config.G2P_FILENAME
-G2P_EVIDENCE_FILENAME = Config.G2P_EVIDENCE_FILENAME
-
-class G2P(RareDiseaseMapper, GCSBucketManager):
+class G2P (RareDiseaseMapper):
     def __init__(self):
-        print ("Calling super constructors")
-        super(G2P, self).__init__()
-        #RareDiseaseMapper.__init__(self)
-        #GCSBucketManager.__init__(self)
-        self.genes = None
+
         self.evidence_strings = list()
-
-        self._logger = logging.getLogger(__name__)
-
+        self.logger = logging.getLogger(__name__)
 
     def process_g2p(self):
-
-        self.get_omim_to_efo_mappings()
-
         gene_parser = GeneParser()
         gene_parser._get_hgnc_data_from_json()
-        self.genes = gene_parser.genes
 
-        self.generate_evidence_strings(G2P_FILENAME)
-        self.write_evidence_strings(G2P_EVIDENCE_FILENAME)
+        self.symbol_to_gene = gene_parser.genes
+        self.ontoma = OnToma(exclude=['zooma'])
+
+        self.logger.info("Parsed %s OMIM to EFO mapping " % len(self.ontoma._omim_to_efo))
+        '''
+        [dict of array of dicts]
+
+        '239710': [{'iri': 'http://www.orpha.net/ORDO/Orphanet_2211',
+            'label': 'Hypertelorism - hypospadias - polysyndactyly syndrome'}],
+        '607855': [{'iri': 'http://www.orpha.net/ORDO/Orphanet_258',
+            'label': 'Congenital muscular dystrophy type 1A'}],
+
+        '''
+        self.generate_evidence_strings(Config.G2P_FILENAME)
+        self.write_evidence_strings(Config.G2P_EVIDENCE_FILENAME)
 
     def generate_evidence_strings(self, filename):
-
         total_efo = 0
 
-        with gzip.open(self.get_gcs_filename(filename), mode='rt') as zf:
+        with open(filename) as fh:
+            reader = csv.reader(fh, delimiter=',', quotechar='"')
 
-            reader = csv.reader(zf, delimiter=',', quotechar='"')
             c = 0
             for row in reader:
-
                 c += 1
+
                 if c > 1:
                     '''
                     "gene symbol","gene mim","disease name","disease mim","DDD category","allelic requirement","mutation consequence",phenotypes,"organ specificity list",pmids,panel,"prev symbols","hgnc id"
@@ -71,18 +66,17 @@ class G2P(RareDiseaseMapper, GCSBucketManager):
                     (gene_symbol, gene_mim, disease_name, disease_mim, DDD_category, allelic_requirement, mutation_consequence, phenotypes, organ_specificity_list,pmids,panel, prev_symbols, hgnc_id) = row
                     gene_symbol.rstrip()
 
-                    if gene_symbol in self.genes:
-                        ''' map gene symbol to ensembl '''
-                        target = self.genes[gene_symbol]
+                    if gene_symbol in self.symbol_to_gene:
+                        target = self.symbol_to_gene[gene_symbol]
                         ensembl_iri = "http://identifiers.org/ensembl/" + target
 
-                        ''' Map disease to EFO or Orphanet '''
-                        if disease_mim in self.omim_to_efo_map:
-                            total_efo +=1
-                            diseases = self.omim_to_efo_map[disease_mim]
+                        if disease_mim in self.ontoma._omim_to_efo:
+                            for efo_id in self.ontoma._omim_to_efo[disease_mim]:
+                                total_efo += 1
+                                disease_uri = efo_id['iri']
+                                disease_label = efo_id['label']
 
-                            for disease in diseases:
-                                self._logger.info("%s %s %s %s"%(gene_symbol, target, disease_name, disease['efo_uri']))
+                                self.logger.info("%s %s %s %s %s"%(gene_symbol, target, disease_name, disease_uri, disease_label))
 
                                 obj = opentargets.Literature_Curated(type='genetic_literature')
                                 provenance_type = evidence_core.BaseProvenance_Type(
@@ -99,8 +93,8 @@ class G2P(RareDiseaseMapper, GCSBucketManager):
 
                             obj.access_level = "public"
                             obj.sourceID = "gene2phenotype"
-                            obj.validated_against_schema_version = "1.2.7"
-                            obj.unique_association_fields = {"target": ensembl_iri, "original_disease_label" : disease_name, "disease_uri": disease['efo_uri'], "source_id": "gene2phenotype"}
+                            obj.validated_against_schema_version = "1.2.8"
+                            obj.unique_association_fields = {"target": ensembl_iri, "original_disease_label" : disease_name, "disease_uri": disease_uri, "source_id": "gene2phenotype"}
                             obj.target = bioentity.Target(id=ensembl_iri,
                                                           activity="http://identifiers.org/cttv.activity/unknown",
                                                           target_type='http://identifiers.org/cttv.target/gene_evidence',
@@ -110,7 +104,7 @@ class G2P(RareDiseaseMapper, GCSBucketManager):
                                 type="probability",
                                 value=1)
 
-                            obj.disease = bioentity.Disease(id=disease['efo_uri'], name=disease['efo_label'], source_name=disease_name)
+                            obj.disease = bioentity.Disease(id=disease_uri, name=disease_label, source_name=disease_name)
                             obj.evidence = evidence_core.Literature_Curated()
                             obj.evidence.is_associated = True
                             obj.evidence.evidence_codes = ["http://purl.obolibrary.org/obo/ECO_0000204"]
@@ -131,33 +125,23 @@ class G2P(RareDiseaseMapper, GCSBucketManager):
                             else:
                                 self.evidence_strings.append(obj)
                     else:
-                        self._logger.error("%s\t%s not mapped: please check manually"%(disease_name, disease_mim))
+                        self.logger.error("%s\t%s not mapped: please check manually"%(disease_name, disease_mim))
 
-                print("%i %i" % (total_efo, c))
+            self.logger.info("Total EFO terms: %i Total line parsed:%i" % (total_efo, c))
 
     def write_evidence_strings(self, filename):
-        self._logger.info("Writing IntOGen evidence strings")
-        with open('/tmp/' + filename, 'w') as tp_file:
+        self.logger.info("Writing Gene2Phenotypes evidence strings")
+
+        with open(filename, 'w') as tp_file:
             n = 0
             for evidence_string in self.evidence_strings:
                 n += 1
-                self._logger.info(evidence_string.disease.id[0])
+                self.logger.info(evidence_string.disease.id[0])
                 # get max_phase_for_all_diseases
                 error = evidence_string.validate(logging)
                 if error == 0:
                     tp_file.write(evidence_string.to_JSON(indentation=None) + "\n")
                 else:
-                    self._logger.error("REPORTING ERROR %i" % n)
-                    self._logger.error(evidence_string.to_JSON(indentation=4))
+                    self.logger.error("REPORTING ERROR %i" % n)
+                    self.logger.error(evidence_string.to_JSON(indentation=4))
                     # sys.exit(1)
-
-
-        blob = self.bucket.blob(filename)
-        with open('/tmp/' + filename, 'rb') as my_file:
-            blob.upload_from_file(my_file)
-
-def main():
-    g2p = G2P()
-
-if __name__ == "__main__":
-    main()
