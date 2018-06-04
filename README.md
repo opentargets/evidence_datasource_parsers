@@ -24,7 +24,8 @@ Install (requires python 3):
 ```sh
 virtualenv -p python3 venv
 source venv/bin/activate
-pip install -r requirements.txt
+pip3 install -r requirements.txt
+export PYTHONPATH=.
 ```
 ### Usage
 
@@ -34,18 +35,18 @@ Common dependencies are stored in the `common` folder.
 Hence to run each parser, simply run the standalone script with your python
 interpreter:
 ```sh
-(venv)$ python modules/<parser you want>.py
+(venv)$ python3 modules/<parser you want>.py
 ```
 
 ### Phewascatalog.org
 
 ```sh
-(venv)$ python modules/phewascat/run.py
+(venv)$ python3 modules/phewascat/run.py
 ```
 or to force using a local mapping file instead of the reference mappings
 stored in github:
 ```sh
-(venv)$ python modules/phewascat/run.py --local
+(venv)$ python3 modules/phewascat/run.py --local
 ```
 **TODO**
 - [ ] map `intergenic` rsIDs to genes (~900k evidences)
