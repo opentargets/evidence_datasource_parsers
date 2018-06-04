@@ -15,3 +15,4 @@ google-cloud-storage
 google-auth-oauthlib
 google-api-python-client
 pytest
+python_jsonschema_objects
