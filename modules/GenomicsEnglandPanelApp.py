@@ -4,9 +4,8 @@ import opentargets.model.bioentity as bioentity
 import opentargets.model.evidence.core as evidence_core
 import opentargets.model.evidence.linkout as evidence_linkout
 import opentargets.model.evidence.association_score as association_score
-#from ontologyutils.rdf_utils import OntologyClassReader
+from ontologyutils.rdf_utils import OntologyClassReader
 from common.RareDiseasesUtils import RareDiseaseMapper
-from common.GCSUtils import GCSBucketManager
 import logging
 import datetime
 import csv
@@ -35,7 +34,7 @@ class MyAdapter(requests.adapters.HTTPAdapter):
         )
         print("poolmanager set")
 
-class GE(RareDiseaseMapper, GCSBucketManager):
+class GE(RareDiseaseMapper):
 
     def __init__(self):
 
@@ -91,10 +90,21 @@ class GE(RareDiseaseMapper, GCSBucketManager):
         self.write_evidence_strings(Config.GE_EVIDENCE_FILENAME)
 
 
+    """
+    Originally GEL used hexademial panel identifiers. More recently,
+    they have integer panel identifiers, and the hex ones have been mapped
+    to the integer ones. 
+
+    However, in some cases, the hex still lingers when we want the ints. So
+    we have an external file that manually maps between them.
+
+    For new panels, the int code is used everywhere. So this file should never
+    need further updates.
+    """
     def get_panel_code_mapping(self, filename=Config.GE_PANEL_MAPPING_FILENAME):
 
-        # read from bucket
-        with open(self.get_gcs_filename(filename), mode='rt') as fh:
+        # read from file
+        with open(filename, mode='rt') as fh:
 
             reader = csv.reader(fh, delimiter=',', quotechar='"')
             c = 0
@@ -107,6 +117,9 @@ class GE(RareDiseaseMapper, GCSBucketManager):
                     (old_panel_id, new_panel_id) = row
                     print ("%s => %s"%(old_panel_id, new_panel_id))
                     self.panel_app_id_map[old_panel_id] = new_panel_id
+
+        if not len(self.panel_app_id_map):
+            raise ValueError("Unable to find legacy panel id mappings in "+filename)
 
     @staticmethod
     def request_to_panel_app():
@@ -595,11 +608,12 @@ class GE(RareDiseaseMapper, GCSBucketManager):
         obj.sourceID = "genomics_england"
         obj.validated_against_schema_version = Config.VALIDATED_AGAINST_SCHEMA_VERSION
 
+
         obj.unique_association_fields = dict(
             panel_name=panel_name,
             original_disease_name=disease_label,
             previous_code=panel_id,
-            panel_id=self.panel_app_id_map[panel_id],
+            panel_id=self.panel_app_id_map.get(panel_id,panel_id),
             panel_version=panel_version,
             panel_diseasegroup=panel_diseasegroup,
             panel_diseasesubgroup=panel_diseasesubgroup,
@@ -660,8 +674,7 @@ class GE(RareDiseaseMapper, GCSBucketManager):
             obj.evidence.date_asserted = now.isoformat()
             obj.evidence.provenance_type = provenance_type
             obj.evidence.resource_score = resource_score
-            #specific
-            new_panel_id = self.panel_app_id_map[panel_id]
+            new_panel_id = self.panel_app_id_map.get(panel_id,panel_id)
             linkout = evidence_linkout.Linkout(
                 url=urllib.parse.urljoin(Config.GE_LINKOUT_URL, "%s/%s"%(new_panel_id, gene_symbol)),
                 nice_name='Further details in the Genomics England PanelApp for panel %s and gene %s '%(new_panel_id, gene_symbol))
@@ -682,12 +695,18 @@ class GE(RareDiseaseMapper, GCSBucketManager):
                     logger.error(evidence_string.to_JSON(indentation=4))
                 tp_file.write(evidence_string.to_JSON(indentation=None) + "\n")
 
-        blob = self.bucket.blob(filename)
-        with open(filename, 'rb') as my_file:
-            blob.upload_from_file(my_file)
 
 def main():
     ge_object = GE()
+
+    #have to preload genes
+    gene_parser = GeneParser()
+    gene_parser._get_hgnc_data_from_json()
+    ge_object.genes = gene_parser.genes
+
+    #have to pre-load legacy panel id mappings
+    ge_object.get_panel_code_mapping()
+    
     ge_object.execute_ge_request()
     ge_object.use_zooma()
     ge_object.process_panel_app_file()
