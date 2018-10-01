@@ -1,9 +1,10 @@
 ujson==1.35
 tqdm==4.8.1
-#v1.2.7
-git+https://github.com/opentargets/data_model.git@1.2.7#egg=data-model
-git+https://github.com/opentargets/ontology-utils.git@master#egg=ontologyutils
-#git+https://github.com/opentargets/data_pipeline.git@master#egg=data_pipeline
+git+https://github.com/opentargets/data_model.git@1.2.8#egg=data-model
+
+#when installing from GitHub, a specific commit must be used for consistency
+#and to ensure dependency caching works as intended
+git+https://github.com/opentargets/ontology-utils.git@ee6c03f80cd107e2195b0e9dd2b0b2e04f475a77#egg=ontologyutils
 ontoma
 requests
 urllib3
