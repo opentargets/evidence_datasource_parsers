@@ -1,22 +1,20 @@
 version: 2
 jobs:
   test:
-    working_directory: ~/circulate
+    # the primary container, where your job's commands are run
     docker:
-      - image: circleci/python:3.6.4
+      - image: circleci/python:3.6.6
     steps:
       - checkout
-      - run: sudo pip install virtualenv
       - run: virtualenv venv
-      - run: source venv/bin/activate
       - restore_cache:
-          key: deps9-{{ .Branch }}-{{ checksum "requirements.txt" }}
+          key: deps-{{ .Branch }}-{{ checksum "requirements.txt" }}
       - run:
           command: |
             source venv/bin/activate
             pip install -r requirements.txt
       - save_cache:
-          key: deps9-{{ .Branch }}-{{ checksum "requirements.txt" }}
+          key: deps-{{ .Branch }}-{{ checksum "requirements.txt" }}
           paths:
             - "venv"
       - run:
@@ -24,33 +22,3 @@ jobs:
           command: |
             source venv/bin/activate
             python -m pytest
-
-  generate:
-    docker:
-      - image: circleci/python:3.6.4
-    steps:
-      - checkout
-      - restore_cache:
-        key: deps9-{{ .Branch }}-{{ checksum "requirements.txt" }}
-      - run:
-          command: |
-            sudo pip install virtualenv
-            virtualenv venv
-            source venv/bin/activate
-            pip install -r requirements.txt
-      - run:
-          command: |
-            python modules/phewascat/run.py
-
-workflows:
-  version: 2
-  test_and_generate:
-    jobs:
-      - test
-      - hold:
-          type: approval
-          requires:
-            - test
-      - generate:
-          requires:
-            - hold
