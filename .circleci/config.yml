@@ -1,6 +1,6 @@
 version: 2
 jobs:
-  test:
+  build:
     # the primary container, where your job's commands are run
     docker:
       - image: circleci/python:3.6.6
