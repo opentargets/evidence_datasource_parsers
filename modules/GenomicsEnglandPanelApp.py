@@ -4,15 +4,13 @@ import opentargets.model.bioentity as bioentity
 import opentargets.model.evidence.core as evidence_core
 import opentargets.model.evidence.linkout as evidence_linkout
 import opentargets.model.evidence.association_score as association_score
-#from ontologyutils.rdf_utils import OntologyClassReader
+from ontologyutils.rdf_utils import OntologyClassReader
 from common.RareDiseasesUtils import RareDiseaseMapper
-from common.GCSUtils import GCSBucketManager
 import logging
 import datetime
 import csv
 import re
 import requests
-from requests.packages.urllib3.poolmanager import PoolManager
 import urllib.request
 import json
 import hashlib
@@ -21,25 +19,17 @@ import urllib.parse
 from settings import Config
 import ssl
 
-logger = logging.getLogger(__name__)
-
 TEST_SAMPLE=False
 
-class MyAdapter(requests.adapters.HTTPAdapter):
-    def init_poolmanager(self, connections, maxsize, block=False):
-        self.poolmanager = PoolManager(
-            num_pools=connections,
-            maxsize=maxsize,
-            block=block,
-            ssl_version=ssl.PROTOCOL_TLSv1_1,
-        )
-        print("poolmanager set")
-
-class GE(RareDiseaseMapper, GCSBucketManager):
+class GE(RareDiseaseMapper):
 
     def __init__(self):
 
         super(GE, self).__init__()
+        #setup logging
+        self._logger = logging.getLogger(__name__+".GE")
+        self._logger.debug("GE init")
+
         self.lookup_data = None
         self.hashkeys = OrderedDict()
         self.efo = OntologyClassReader()
@@ -58,8 +48,6 @@ class GE(RareDiseaseMapper, GCSBucketManager):
         self.map_omim = OrderedDict()
         self.fh_zooma_high = None
         self.fh_zooma_low = None
-        self._logger = logging.getLogger(__name__)
-        self._logger.warning("GE init")
         self.map_strings = OrderedDict()
 
     def process_all(self):
@@ -91,13 +79,26 @@ class GE(RareDiseaseMapper, GCSBucketManager):
         self.write_evidence_strings(Config.GE_EVIDENCE_FILENAME)
 
 
+    """
+    Originally GEL used hexademial panel identifiers. More recently,
+    they have integer panel identifiers, and the hex ones have been mapped
+    to the integer ones. 
+
+    However, in some cases, the hex still lingers when we want the ints. So
+    we have an external file that manually maps between them.
+
+    For new panels, the int code is used everywhere. So this file should never
+    need further updates.
+    """
     def get_panel_code_mapping(self, filename=Config.GE_PANEL_MAPPING_FILENAME):
 
-        # read from bucket
-        with open(self.get_gcs_filename(filename), mode='rt') as fh:
+        # read from file
+        with open(filename, mode='rt') as fh:
 
             reader = csv.reader(fh, delimiter=',', quotechar='"')
             c = 0
+            #use ordered dict for consistency
+            self.panel_app_id_map = OrderedDict()
             for row in reader:
                 c += 1
                 if c > 1:
@@ -105,8 +106,12 @@ class GE(RareDiseaseMapper, GCSBucketManager):
                     old panel id, new panel id"
                     '''
                     (old_panel_id, new_panel_id) = row
-                    print ("%s => %s"%(old_panel_id, new_panel_id))
+                    self._logger.debug("%s => %s", old_panel_id, new_panel_id)
                     self.panel_app_id_map[old_panel_id] = new_panel_id
+
+        if not len(self.panel_app_id_map):
+            raise ValueError("Unable to find legacy panel id mappings in "+filename)
+        return self.panel_app_id_map
 
     @staticmethod
     def request_to_panel_app():
@@ -114,9 +119,6 @@ class GE(RareDiseaseMapper, GCSBucketManager):
         Makes a request to panel app to get the list of all panels
         :return: tuple of list of panel name and panel id's
         '''
-        #requests_cache.install_cache('GE_results_cache_Feb', backend='sqlite', expire_after=3000000)
-        #s = requests.session()
-        #s.get('https://panelapp.genomicsengland.co.uk/', MyAdapter())
         r = requests.get('https://panelapp.genomicsengland.co.uk/WebServices/list_panels', params={})
         results = r.json()
 
@@ -204,12 +206,13 @@ class GE(RareDiseaseMapper, GCSBucketManager):
                                 phenotype_label = None
                                 mapping_type = "EFO MAPPING"
 
-                                match_hpo_id = re.match('^(.+)\s+(HP:\d+)$', element)
-                                match_curly_brackets_omim = re.match('^{([^\}]+)},\s+(\d+)', element)
-                                match_no_curly_brackets_omim = re.match('^(.+),\s+(\d{6,})$', element)
+                                #/s  matches any whitespace character
+                                match_hpo_id                           = re.match('^(.+)\s+(HP:\d+)$',       element)
+                                match_curly_brackets_omim              = re.match('^{([^\}]+)},\s+(\d+)',    element)
+                                match_no_curly_brackets_omim           = re.match('^(.+),\s+(\d{6,})$',      element)
                                 match_no_curly_brackets_omim_continued = re.match('^(.+),\s+(\d{6,})\s+.*$', element)
                                 # Myopathy, early-onset, with fatal cardiomyopathy 611705
-                                match_no_curly_brackets_no_comma_omim = re.match('^(.+)\s+(\d{6,})\s*$', element)
+                                match_no_curly_brackets_no_comma_omim  = re.match('^(.+)\s+(\d{6,})\s*$', element)
                                 if element.lower() in self.efo_labels:
                                     disease_uri = self.efo_labels[element.lower()]
                                     disease_label = element
@@ -380,9 +383,6 @@ class GE(RareDiseaseMapper, GCSBucketManager):
 
             self.phenotype_set = set(phenotype_list)
 
-            if sample == True:
-                print(json.dumps(self.panel_app_info, indent=2))
-                break
 
         return self.phenotype_set
 
@@ -394,14 +394,10 @@ class GE(RareDiseaseMapper, GCSBucketManager):
         elif query in self.not_ols_synonyms:
             return False
         else:
-            # curl 'http://www.ebi.ac.uk/ols/api/search?q=Myofascial%20Pain%20Syndromes&queryFields=synonym&exact=true&ontology=efo,ordo' -i -H 'Accept: application/json'
-            url = 'http://www.ebi.ac.uk/ols/api/search?q=%s&queryFields=synonym&exact=true&ontology=efo,ordo,hpo'%(query)
-            self._logger.info("Requesting '%s' as synonym to OLS"%(query))
-            print("Requesting '%s' as synonym to OLS" %(query))
+            self._logger.debug("Requesting '%s' as synonym to OLS", query)
             r = requests.get(
                 'http://www.ebi.ac.uk/ols/api/search',
                 params={'q': query, 'queryFields': 'synonym', 'exact': 'true', 'ontology': 'efo,ordo,hpo'})
-            print(r.text)
             results = r.json()
             if results["response"]["numFound"] > 0:
                 in_ols = True
@@ -429,9 +425,8 @@ class GE(RareDiseaseMapper, GCSBucketManager):
         :return: High confidence mappings .  Writes the output in the input file
         see docs: http://www.ebi.ac.uk/spot/zooma/docs/api.html
         '''
-        #requests_cache.install_cache('zooma_results_cache_jan', backend='sqlite', expire_after=3000000)
-        self._logger.info("Requesting")
-        r = requests.get('http://www.ebi.ac.uk/spot/zooma/v2/api/services/annotate',
+        self._logger.debug("Requesting '%s' to ZOOMA", property_value)
+        r = requests.get('https://www.ebi.ac.uk/spot/zooma/v2/api/services/annotate',
                              params={'propertyValue': property_value, 'propertyType': 'phenotype'})
         results = r.json()
         for item in results:
@@ -458,7 +453,7 @@ class GE(RareDiseaseMapper, GCSBucketManager):
         '''
 
 
-        logger.info("use Zooma")
+        self._logger.info("use Zooma")
         for phenotype in self.phenotype_set:
             if phenotype:
                 self._logger.info("Mapping '%s' with zooma..."%(phenotype))
@@ -479,7 +474,7 @@ class GE(RareDiseaseMapper, GCSBucketManager):
         Core method to create Evidence strings
         :return: None
         '''
-        logger.info("Process panel app file")
+        self._logger.info("Process panel app file")
         now = datetime.datetime.now()
 
 
@@ -564,22 +559,19 @@ class GE(RareDiseaseMapper, GCSBucketManager):
             if len(publications) > 0:
                 pset = set()
                 for paper_set in publications:
-                    print(paper_set)
                     paper_set = re.findall(r"\d{7,12}", paper_set)
                     for paper in paper_set:
-                        print(paper)
                         if paper not in pset:
                             pset.add(paper)
                             lit_url = "http://europepmc.org/abstract/MED/" + paper
                             single_lit_ref_list.append(evidence_core.Single_Lit_Reference(lit_id=lit_url))
 
         if len(single_lit_ref_list) == 0:
-            print("no publication found for %s %s %s" % (panel_name, panel_id, publications))
+            self._logger.warning("no publication found for %s %s %s %s",panel_name, gene_symbol, original_label, publications)
             lit_url = "NA"
             single_lit_ref_list.append(evidence_core.Single_Lit_Reference(lit_id=lit_url))
 
         obj = opentargets.Literature_Curated(type='genetic_literature')
-        target = "http://identifiers.org/ensembl/" + ensembl_gene_id
         provenance_type = evidence_core.BaseProvenance_Type(
             database=evidence_core.BaseDatabase(
                 id="Genomics England PanelApp",
@@ -595,30 +587,27 @@ class GE(RareDiseaseMapper, GCSBucketManager):
         obj.sourceID = "genomics_england"
         obj.validated_against_schema_version = Config.VALIDATED_AGAINST_SCHEMA_VERSION
 
+
         obj.unique_association_fields = dict(
             panel_name=panel_name,
             original_disease_name=disease_label,
             previous_code=panel_id,
-            panel_id=self.panel_app_id_map[panel_id],
+            panel_id=self.panel_app_id_map.get(panel_id,panel_id),
             panel_version=panel_version,
             panel_diseasegroup=panel_diseasegroup,
             panel_diseasesubgroup=panel_diseasesubgroup,
             target_id=ensembl_iri,
             disease_iri=disease_uri)
 
-        json.dumps(obj.unique_association_fields)
-        provenance_type.to_JSON()
+        #json.dumps(obj.unique_association_fields)
+        #provenance_type.to_JSON()
 
         # it's unicode
         as_str = json.dumps(obj.unique_association_fields)
         md5 = hashlib.md5(as_str.encode("UTF-8"))
         hashkey = md5.hexdigest()
         if hashkey in self.hashkeys:
-
-            self._logger.warning(
-                "Doc {0} - Duplicated evidence string for {1} to disease {2} URI: {3}".format(panel_name,
-                                                                                              panel_id, disease_label,
-                                                                                              disease_uri))
+            self._logger.warning("Non-unique evidence string for %s",as_str)
         else:
 
             self.hashkeys[hashkey] = obj
@@ -660,8 +649,7 @@ class GE(RareDiseaseMapper, GCSBucketManager):
             obj.evidence.date_asserted = now.isoformat()
             obj.evidence.provenance_type = provenance_type
             obj.evidence.resource_score = resource_score
-            #specific
-            new_panel_id = self.panel_app_id_map[panel_id]
+            new_panel_id = self.panel_app_id_map.get(panel_id,panel_id)
             linkout = evidence_linkout.Linkout(
                 url=urllib.parse.urljoin(Config.GE_LINKOUT_URL, "%s/%s"%(new_panel_id, gene_symbol)),
                 nice_name='Further details in the Genomics England PanelApp for panel %s and gene %s '%(new_panel_id, gene_symbol))
@@ -674,25 +662,24 @@ class GE(RareDiseaseMapper, GCSBucketManager):
         :param filename: name of the empty input file
         :return: None .  Writes the output in the input file
         '''
-        logger.info("Writing Genomics England evidence strings")
+        self._logger.info("Writing Genomics England evidence strings")
         with open(filename, 'w') as tp_file:
             for hashkey, evidence_string in self.hashkeys.items():
-                error = evidence_string.validate(logger)
+                error = evidence_string.validate(self._logger)
                 if error > 1:
-                    logger.error(evidence_string.to_JSON(indentation=4))
+                    self._logger.error(evidence_string.to_JSON(indentation=4))
                 tp_file.write(evidence_string.to_JSON(indentation=None) + "\n")
 
-        blob = self.bucket.blob(filename)
-        with open(filename, 'rb') as my_file:
-            blob.upload_from_file(my_file)
 
 def main():
-    ge_object = GE()
-    ge_object.execute_ge_request()
-    ge_object.use_zooma()
-    ge_object.process_panel_app_file()
-    ge_object.write_evidence_strings(Config.GE_EVIDENCE_FILENAME)
 
+
+    #set root logging to debug to ensure everything is output
+    #TODO make this a command line argument
+    logging.getLogger().setLevel(logging.DEBUG)
+
+    ge_object = GE()
+    ge_object.process_all()
 
 if __name__ == "__main__":
     main()

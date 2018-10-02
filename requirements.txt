@@ -4,7 +4,7 @@ git+https://github.com/opentargets/data_model.git@1.2.8#egg=data-model
 
 #when installing from GitHub, a specific commit must be used for consistency
 #and to ensure dependency caching works as intended
-git+https://github.com/opentargets/ontology-utils.git@ee6c03f80cd107e2195b0e9dd2b0b2e04f475a77#egg=ontologyutils
+git+https://github.com/opentargets/ontology-utils.git@febf619222f49e83468516a4a822a7778b0aca59#egg=ontologyutils
 ontoma
 requests
 urllib3
