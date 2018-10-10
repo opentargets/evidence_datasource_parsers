@@ -61,8 +61,7 @@ class Config:
     SLAPENRICH_EVIDENCE_FILENAME = HOME_DIR + '/otar001_slapenrich-19-12-2017.json'
 
     # Gene2Phenotype
-    #G2P_FILENAME = file_or_resource('DDG2P_14_5_2017.csv.gz')
-    G2P_FILENAME = 'DDG2P_14_5_2017.csv.gz'
+    G2P_FILENAME = 'DDG2P.csv.gz'
     G2P_EVIDENCE_FILENAME = 'gene2phenotype.json'
 
     # Genomics England
