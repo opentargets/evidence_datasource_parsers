@@ -11,7 +11,7 @@ import collections
 from settings import Config
 from common.Utils import TqdmLoggingHandler
 from common.RareDiseasesUtils import RareDiseaseMapper
-from ontologyutils.rdf_utils import OntologyClassReader
+#from ontologyutils.rdf_utils import OntologyClassReader
 import opentargets.model.core as cttv
 import opentargets.model.bioentity as bioentity
 import opentargets.model.evidence.phenotype as evidence_phenotype
@@ -270,11 +270,11 @@ class Phenodigm(RareDiseaseMapper):
                     #else:
                     #    self._logger.error("Never heard of this '%s' type of documents in PhenoDigm. Exiting..."%(doc['type']))
                     #    sys.exit(1)
-            myfile.close()    
+            myfile.close()
 
     def generate_phenodigm_evidence_strings(self, upper_limit=0):
         '''
-         Once you have retrieved all the genes,and mouse models   
+         Once you have retrieved all the genes,and mouse models
          Create an evidence string for every gene to disease relationship
         '''
         now = datetime.datetime.now()
@@ -299,12 +299,12 @@ class Phenodigm(RareDiseaseMapper):
                  Retrieve mouse models
                 '''
                 for marker_symbol in self.hgnc2mgis[hgnc_gene_id]:
-                
+
                     #if not marker_symbol == "Il13":
                     #    continue;
                     print(marker_symbol)
                     self._logger.info("\tProcessing mouse gene symbol %s" % (marker_symbol))
-                    
+
                     '''
                     Some mouse symbol are not mapped in Ensembl
                     '''
@@ -329,7 +329,7 @@ class Phenodigm(RareDiseaseMapper):
                                 allelic_composition = mouse_model['allelic_composition']
                                 self._logger.info("\t\tMouse model {0} for {1}".format(model_id, marker_accession))
                                 '''
-                                 Check the model_id is in the dictionary containing all the models 
+                                 Check the model_id is in the dictionary containing all the models
                                 '''
                                 if model_id in self.mouse_model2diseases:
 
@@ -349,7 +349,7 @@ class Phenodigm(RareDiseaseMapper):
                                         '''
                                          Check if there are any MP terms
                                          There is a bug in the current PhenoDigm.
-                                        
+
                                         '''
                                         mp_matched_ids = None
                                         if 'mp_matched_ids' in mouse_model2disease:
@@ -363,7 +363,7 @@ class Phenodigm(RareDiseaseMapper):
                                             self._logger.info("\t\t\tdisease: %s %s"%(disease_id, disease['disease_term']))
                                         else:
                                             self._logger.info("\t\t\tdisease: %s"%(disease_id))
-                                        
+
                                         '''
                                         Map the disease ID to EFO
                                         Can be a one to many mapping
@@ -387,7 +387,7 @@ class Phenodigm(RareDiseaseMapper):
                                                     #    else:
                                                     #        self._logger.info("{0} => {1} (no EFO mapping)".format(disease_id, disease_term['efo_uri']))
                                                     disease_terms = efoMapping[disease_id]
-                                                        
+
                                             elif matchORPHANET:
                                                     suffix = matchORPHANET.groups()[0]
                                                     orphanetId = "Orphanet:{0}".format(suffix)
@@ -397,7 +397,7 @@ class Phenodigm(RareDiseaseMapper):
                                                         disease_terms = efoMapping[disease_id]
                                         else:
                                             disease_terms = efoMapping[disease_id]
-                                            
+
                                         '''
                                         OK, we have a disease mapped to EFO
                                         we can proceed to the next stage
@@ -414,9 +414,9 @@ class Phenodigm(RareDiseaseMapper):
                                                 '''
                                                 Create a new evidence string
                                                 '''
-                                            
 
-                                            
+
+
                                                 # 1.2.6 create an Animal_Models class
                                                 evidenceString = cttv.Animal_Models()
                                                 evidenceString.validated_against_schema_version = Config.VALIDATED_AGAINST_SCHEMA_VERSION
@@ -548,9 +548,9 @@ class Phenodigm(RareDiseaseMapper):
                                                                 species="human"
                                                                 )
                                                             )
-                                                ''' 
+                                                '''
                                                 get all matched mouse phenotypes
-                                                Format is: 
+                                                Format is:
                                                 '''
                                                 mouse_phenotypes = []
                                                 if mp_matched_ids:
@@ -622,7 +622,7 @@ class Phenodigm(RareDiseaseMapper):
 
                                             self._logger.error("Unable to incorpate this strain for this disease: {0}".format(disease_id))
                                             self._logger.error("No disease id {0}".format(disease_term_uris == None))
-                                            self._logger.error("model_to_disease_score in mouse_model2disease: {0}".format( 'model_to_disease_score' in mouse_model2disease) )    
+                                            self._logger.error("model_to_disease_score in mouse_model2disease: {0}".format( 'model_to_disease_score' in mouse_model2disease) )
                                             self._logger.error("disease_id in disease_gene_locus: {0}".format(disease_id in self.disease_gene_locus))
                                             self._logger.error("hs_symbol in disease_gene_locus[disease_id]: {0}".format(not disease_term_uris == None and disease_id in self.disease_gene_locus and hgnc_gene_id in self.disease_gene_locus[disease_id]))
                                             self._logger.error("marker_symbol in disease_gene_locus[disease_id][hgnc_gene_id]): {0}".format(disease_term_uris is not None and disease_id in self.disease_gene_locus and marker_symbol in self.disease_gene_locus[disease_id][hgnc_gene_id]))
@@ -635,9 +635,9 @@ class Phenodigm(RareDiseaseMapper):
         for hashkey in self.hashkeys:
             self._logger.info("Processing key %s"%(hashkey))
             evidenceString = self.hashkeys[hashkey]
-            
+
             error = evidenceString.validate(self._logger)
-            
+
             if error == 0:
     #        and (evidenceString.evidence.association_score.probability.value >= 0.5 || evidenceString.evidence.in_locus):
                 #print(evidenceString.to_JSON())

@@ -145,3 +145,10 @@ class G2P ():
                     self.logger.error("REPORTING ERROR %i" % n)
                     self.logger.error(evidence_string.to_JSON(indentation=4))
                     # sys.exit(1)
+
+def main():
+    g2p = G2P()
+    g2p.process_g2p()
+
+if __name__ == "__main__":
+    main()

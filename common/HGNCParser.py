@@ -1,7 +1,11 @@
-import ujson as json
+import logging
+
 import requests
 from tqdm import tqdm
+
 from settings import Config
+
+logger = logging.getLogger(__name__)
 
 class Gene(object):
     def __init__(self, id=None):
@@ -64,6 +68,16 @@ class Gene(object):
 
 
 class GeneParser(object):
+    ''' Parses the HGNC data and allows to lookup ENSGIDs from
+    standard gene symbol.
+
+    >>> gene_parser = GeneParser()
+    >>> gene_parser._get_hgnc_data_from_json()
+    >>> gene_parser.genes['BRAF']
+    'ENSG00000157764'
+    >>> gene_parser.genes['TOMM40']
+    'ENSG00000130204'
+    '''
     def __init__(self):
         self.genes = dict()
 
@@ -88,4 +102,4 @@ class GeneParser(object):
                 # to handle obsolete gene symbols like EFCAB4B
                 for prev_symbol in row['prev_symbol']:
                     self.genes[prev_symbol] = ensembl_gene_id
-        print('Parsed all HGNC genes - source: ' + Config.GENES_HGNC)
+        logger.info('All HGNC genes parsed')
