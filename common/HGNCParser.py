@@ -87,7 +87,7 @@ class GeneParser(object):
         data = r.json()
 
         for row in tqdm(data['response']['docs'],
-                desc='Downloading HGNC genes from json response',
+                desc='Downloading HGNC genes',
                 unit='genes'):
 
             ensembl_gene_id = ''

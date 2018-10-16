@@ -3,6 +3,7 @@
 
 import os
 from pathlib import Path
+import configparser
 import pkg_resources as res
 
 # from envparse import env, ConfigurationError
@@ -56,14 +57,21 @@ class Config:
     # HGNC
     GENES_HGNC = 'http://ftp.ebi.ac.uk/pub/databases/genenames/new/json/hgnc_complete_set.json'
 
+    # PROGENY
+    PROGENY_FILENAME = file_or_resource('progeny_normalVStumor_opentargets.txt')
+    PROGENY_EVIDENCE_FILENAME = HOME_DIR + '/progeny-20-05-2018.json'
+
+    # UKBIOBANK
+    UKBIOBANK_FILENAME = file_or_resource('ukbiobank.txt')
+    UKBIOBANK_EVIDENCE_FILENAME = HOME_DIR + '/ukbiobank-30-04-2018.json'
+
     # SLAPEnrich
     SLAPENRICH_FILENAME = file_or_resource('slapenrich_opentargets.tsv')
-    SLAPENRICH_EVIDENCE_FILENAME = HOME_DIR + '/otar001_slapenrich-19-12-2017.json'
+    SLAPENRICH_EVIDENCE_FILENAME = HOME_DIR + '/slapenrich-20-05-2018.json'
 
     # Gene2Phenotype
-    #G2P_FILENAME = file_or_resource('DDG2P_14_5_2017.csv.gz')
-    G2P_FILENAME = 'DDG2P_14_5_2017.csv.gz'
-    G2P_EVIDENCE_FILENAME = 'gene2phenotype.json'
+    G2P_FILENAME = file_or_resource('DDG2P_14_5_2017.csv')
+    G2P_EVIDENCE_FILENAME = HOME_DIR + '/gene2phenotype-29-05-2018.json'
 
     # Genomics England
     GE_PANEL_MAPPING_FILENAME = file_or_resource('genomicsenglandpanelapp_panelmapping.csv')
@@ -75,8 +83,14 @@ class Config:
 
     # IntoGEN
     INTOGEN_FILENAME = file_or_resource('intogen_opentargets.tsv')
-    INTOGEN_EVIDENCE_FILENAME = HOME_DIR + '/otar001_intogen-18-12-2017.json'
+    INTOGEN_EVIDENCE_FILENAME = HOME_DIR + '/intogen-20-05-2018.json'
 
+    # Phewas
+    PHEWAS_CATALOG_LOCN = 'https://storage.googleapis.com/phewas-catalog'
+    PHEWAS_CATALOG_JSON = HOME_DIR + '/phewas_catalog-19-12-2017.json'
+
+    ONTOLOGY_CONFIG = configparser.ConfigParser()
+    ONTOLOGY_CONFIG.read(file_or_resource('ontology_config.ini'))
     # mapping that we maintain in Zooma
     OMIM_TO_EFO_MAP_URL = 'https://raw.githubusercontent.com/opentargets/platform_semantic/master/resources/xref_mappings/omim_to_efo.txt'
     ZOOMA_TO_EFO_MAP_URL = 'https://raw.githubusercontent.com/opentargets/platform_semantic/master/resources/zooma/cttv_indications_3.txt'
