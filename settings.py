@@ -3,6 +3,7 @@
 
 import os
 from pathlib import Path
+import configparser
 import pkg_resources as res
 
 # from envparse import env, ConfigurationError
