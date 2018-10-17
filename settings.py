@@ -56,6 +56,14 @@ class Config:
     # HGNC
     GENES_HGNC = 'http://ftp.ebi.ac.uk/pub/databases/genenames/new/json/hgnc_complete_set.json'
 
+    # PROGENY
+    PROGENY_FILENAME = file_or_resource('progeny_normalVStumor_opentargets.txt')
+    PROGENY_EVIDENCE_FILENAME = HOME_DIR + '/progeny-20-05-2018.json'
+
+    # UKBIOBANK
+    UKBIOBANK_FILENAME = file_or_resource('ukbiobank.txt')
+    UKBIOBANK_EVIDENCE_FILENAME = HOME_DIR + '/ukbiobank-30-04-2018.json'
+
     # SLAPEnrich
     SLAPENRICH_FILENAME = file_or_resource('slapenrich_opentargets.tsv')
     SLAPENRICH_EVIDENCE_FILENAME = HOME_DIR + '/otar001_slapenrich-19-12-2017.json'
