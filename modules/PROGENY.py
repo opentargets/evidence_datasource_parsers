@@ -108,7 +108,7 @@ PROGENY_DATABASE_ID='PROGENY'
 PROGENY_VERSION='2018.04'
 PROGENY_PUBLICATION="http://europepmc.org/abstract/MED/29295995"
 
-class PROGENY():
+class PROGENY:
     def __init__(self):
         self.evidence_strings = list()
         self.symbols = {}
