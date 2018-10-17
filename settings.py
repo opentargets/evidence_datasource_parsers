@@ -46,9 +46,6 @@ class Config:
     # schema version
     VALIDATED_AGAINST_SCHEMA_VERSION = '1.2.8'
 
-    GOOGLE_DEFAULT_PROJECT = 'open-targets'
-    GOOGLE_BUCKET_EVIDENCE_INPUT = 'otar000-evidence_input'
-
     #Ontologies
     EFO_URL = 'https://github.com/EBISPOT/efo/raw/v2018-01-15/efo.obo'
     HP_URL = 'http://purl.obolibrary.org/obo/hp.obo'
@@ -69,8 +66,7 @@ class Config:
     SLAPENRICH_EVIDENCE_FILENAME = HOME_DIR + '/otar001_slapenrich-19-12-2017.json'
 
     # Gene2Phenotype
-    #G2P_FILENAME = file_or_resource('DDG2P_14_5_2017.csv.gz')
-    G2P_FILENAME = 'DDG2P_14_5_2017.csv.gz'
+    G2P_FILENAME = 'DDG2P.csv.gz'
     G2P_EVIDENCE_FILENAME = 'gene2phenotype.json'
 
     # Genomics England
