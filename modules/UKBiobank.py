@@ -18,7 +18,11 @@ __maintainer__= "ChuangKee Ong"
 __email__     = ["data@opentargets.org"]
 __status__    = "Production"
 
-class UKBiobank():
+UKBIOBANK_DATABASE_ID='UKBiobank'
+UKBIOBANK_VERSION='2018.04'
+UKBIOBANK_PUBLICATION="http://europepmc.org/abstract/MED/29518141"
+
+class UKBiobank:
     def __init__(self):
         self.evidence_strings = list()
         self.symbols = {}
@@ -41,11 +45,11 @@ class UKBiobank():
         '''
         provenance_type = evidence_core.BaseProvenance_Type(
             database=evidence_core.BaseDatabase(
-                id="UKBiobank",
-                version='2018.04',
-                dbxref=evidence_core.BaseDbxref(url="http://www.ukbiobank.ac.uk/", id="UKBiobank", version="2018.04")),
+                id=UKBIOBANK_DATABASE_ID,
+                version=UKBIOBANK_VERSION,
+                dbxref=evidence_core.BaseDbxref(url="http://www.ukbiobank.ac.uk/", id=UKBIOBANK_DATABASE_ID, version=UKBIOBANK_VERSION)),
             literature = evidence_core.BaseLiterature(
-                references = [evidence_core.Single_Lit_Reference(lit_id="http://europepmc.org/abstract/MED/29518141")]
+                references = [evidence_core.Single_Lit_Reference(lit_id=UKBIOBANK_PUBLICATION)]
             )
         )
         error = provenance_type.validate(logging)
@@ -81,7 +85,7 @@ class UKBiobank():
                         type="pvalue",
                         method=association_score.Method(
                             description="UKBiobank",
-                            reference  ="http://europepmc.org/abstract/MED/29518141",
+                            reference  =UKBIOBANK_PUBLICATION,
                             url="http://www.ukbiobank.ac.uk/"
                         ),
                         value=float(pval)
@@ -186,7 +190,6 @@ class UKBiobank():
                 error = evidence_string.validate(logging)
 
                 if error == 0:
-                    print(evidence_string.to_JSON(indentation=None))
                     ukbiobank_output.write(evidence_string.to_JSON(indentation=None)+"\n")
                 else:
                     self.logger.error("REPORTING ERROR %i" %n)

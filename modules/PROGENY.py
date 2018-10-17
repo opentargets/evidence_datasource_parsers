@@ -104,6 +104,10 @@ PROGENY_SYMBOL_MAPPING = {
     'BCL-XL'  : 'BCL2L1'
 }
 
+PROGENY_DATABASE_ID='PROGENY'
+PROGENY_VERSION='2018.04'
+PROGENY_PUBLICATION="http://europepmc.org/abstract/MED/29295995"
+
 class PROGENY():
     def __init__(self):
         self.evidence_strings = list()
@@ -126,11 +130,11 @@ class PROGENY():
         '''
         provenance_type = evidence_core.BaseProvenance_Type(
             database=evidence_core.BaseDatabase(
-                id="PROGENY",
-                version='2018.04',
-                dbxref=evidence_core.BaseDbxref(url="https://saezlab.github.io/progeny/", id="PROGENY Pathway association analysis of TCGA tumor types", version="2018.04")),
+                id=PROGENY_DATABASE_ID,
+                version=PROGENY_VERSION,
+                dbxref=evidence_core.BaseDbxref(url="https://saezlab.github.io/progeny/", id="PROGENY Pathway association analysis of TCGA tumor types", version=PROGENY_VERSION)),
             literature=evidence_core.BaseLiterature(
-                references=[evidence_core.Single_Lit_Reference(lit_id="http://europepmc.org/abstract/MED/29295995")]
+                references=[evidence_core.Single_Lit_Reference(lit_id=PROGENY_PUBLICATION)]
             )
         )
         error = provenance_type.validate(logging)
@@ -165,7 +169,7 @@ class PROGENY():
                         type="pvalue",
                         method=association_score.Method(
                             description="PROGENY Pathway association analysis of TCGA tumor types as described in Schubert et al (2018)",
-                            reference  ="http://europepmc.org/abstract/MED/29295995",
+                            reference  =PROGENY_PUBLICATION,
                             url="https://saezlab.github.io/progeny/"
                         ),
                         value=float(pval)
