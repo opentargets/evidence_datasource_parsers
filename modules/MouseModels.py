@@ -45,6 +45,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
         self.mm_buffer = []
         self.hs_buffer = []
         self.hgnc2mgis = collections.OrderedDict()
+        self.mgi2symbols = collections.OrderedDict()
         self.symbol2hgncids = collections.OrderedDict()
         self.mgi2mouse_models = collections.OrderedDict()
         self.mouse_model2diseases = collections.OrderedDict()
@@ -68,6 +69,20 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                 files.append(os.path.join(path, name))
         return files
 
+    def load_mouse_marker_genes(self):
+
+        #http://www.informatics.jax.org/downloads/reports/MRK_List2.rpt
+        uri = 'http://www.informatics.jax.org/downloads/reports/MRK_List2.rpt'
+        r = requests.get(url, timeout=30)
+        self._logger.info("REQUEST %s" % (r.url))
+        rsp = r.text
+        c = 0
+        for line in rsp:
+            c+=1
+            if c>1:
+                a = line.rstrip().split("\t")
+
+
     def load_mouse_genes(self):
 
         raw = self.download_blob_as_string(filename=Config.MOUSEMODELS_CACHE_DIRECTORY + "/mmGenes.json")
@@ -85,14 +100,15 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
         if docs:
             
             for doc in docs:
-                if doc['type'] == 'gene' and 'hgnc_gene_id' in doc:
-                    hgnc_gene_symbol = doc['hgnc_gene_symbol']
-                    if hgnc_gene_symbol and not hgnc_gene_symbol in self.hsGenes and hgnc_gene_symbol not in self.hs_buffer:
-                        self.hs_buffer.append(hgnc_gene_symbol)
-                        if len(self.hs_buffer) == 100:
-                            self.request_genes(buffer=self.hs_buffer, default_species='homo_sapiens')
-                            self.hs_buffer = []
-                    if 'gene_symbol' in doc:
+                if doc['type'] == 'gene':
+                    if 'hgnc_gene_id' in doc:
+                        hgnc_gene_symbol = doc['hgnc_gene_symbol']
+                        if hgnc_gene_symbol and not hgnc_gene_symbol in self.hsGenes and hgnc_gene_symbol not in self.hs_buffer:
+                            self.hs_buffer.append(hgnc_gene_symbol)
+                            if len(self.hs_buffer) == 100:
+                                self.request_genes(buffer=self.hs_buffer, default_species='homo_sapiens')
+                                self.hs_buffer = []
+                    elif 'gene_symbol' in doc:
                         marker_symbol = doc['gene_symbol']
                         if marker_symbol not in self.mmGenes and marker_symbol not in self.mm_buffer:
                             self.mm_buffer.append(marker_symbol)
@@ -121,7 +137,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
         url = Config.MOUSEMODELS_PHENODIGM_SOLR + '/solr/phenodigm/select'
 
         start = 0
-        rows = 10000
+        rows = 20000
         nbItems = rows
         counter = 0
         total = 0
@@ -184,6 +200,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
             print(body)
             print(r.status_code)
             print(r.text)
+            sys.exit(1)
 
     def parse_phenodigm(self, docs=None):
         
@@ -194,85 +211,107 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                 2. Load all mouse models of diseases.
                 . Load all ontology mapping
                 '''
-                if doc['type'] == 'gene' and 'hgnc_gene_id' in doc:
-                    hgnc_gene_id = doc['hgnc_gene_id']
-                    hgnc_gene_symbol = doc['hgnc_gene_symbol']
-                    self.symbol2hgncids[hgnc_gene_symbol] = hgnc_gene_id
-                    marker_symbol = doc['gene_symbol']
-                    if hgnc_gene_id and not hgnc_gene_id in self.hgnc2mgis:
-                        self.hgnc2mgis[hgnc_gene_id] = []
-                    self.hgnc2mgis[hgnc_gene_id].append(marker_symbol)
-                elif doc['type'] == 'mouse_model':
-                    marker_symbol = doc['marker_symbol']
-                    model_id = doc['model_id']
-                    if not marker_symbol in self.mgi2mouse_models:
-                        self.mgi2mouse_models[marker_symbol] = []
-                    self.mgi2mouse_models[marker_symbol].append(model_id)
+                try:
+                    if doc['type'] == 'gene':
+                        # this is a human gene
+                        if 'hgnc_gene_id' in doc:
+                            hgnc_gene_id = doc['hgnc_gene_id']
+                            hgnc_gene_symbol = doc['hgnc_gene_symbol']
+                            self.symbol2hgncids[hgnc_gene_symbol] = hgnc_gene_id
+                        elif 'gene_id' in doc:
+                            gene_id = doc['gene_id']
+                            gene_symbol = doc['gene_symbol']
+                            self.mgi2symbols[gene_id] = gene_symbol
+                            # this is a mouse gene
+                    elif doc['type'] == 'gene_gene':
+                        # gene_id # hgnc_gene_id
+                        hgnc_gene_id = doc['hgnc_gene_id']
+                        gene_id = doc['gene_id']
+                        if hgnc_gene_id and not hgnc_gene_id in self.hgnc2mgis:
+                            self.hgnc2mgis[hgnc_gene_id] = []
+                        self.hgnc2mgis[hgnc_gene_id].append(gene_id)
 
-                    if not model_id in self.mouse_models:
-                        self.mouse_models[model_id] = doc
+                    elif doc['type'] == 'mouse_model':
+                        marker_symbol = doc['marker_symbol']
+                        marker_id = doc['marker_id']
+                        model_id = doc['model_id']
 
-                        model_phenotypes = []
-                        for raw_mp in doc['model_phenotypes']:
-                            mt = re.match("^(MP\:\d+)\s+", raw_mp)
-                            mp_id = mt.groups()[0]
-                            model_phenotypes.append(mp_id)
-                        self.mouse_models[model_id]['model_phenotypes'] = model_phenotypes
+                        # if there is a mouse model then add the marker id
+                        if marker_id not in self.mgi2symbols:
+                            self.mgi2symbols[marker_id] = marker_symbol
 
-                elif doc['type'] == 'disease_model_summary':
-                    model_id = doc['model_id']
-                    if not model_id in self.mouse_model2diseases:
-                        self.mouse_model2diseases[model_id] = []
-                    self.mouse_model2diseases[model_id].append(doc)
-                elif doc['type'] == 'disease_gene_summary' and 'marker_symbol' in doc and 'hgnc_gene_locus' in doc and 'disease_id' in doc:
-                    hgnc_gene_id = doc['hgnc_gene_id']
-                    hgnc_gene_symbol = doc['hgnc_gene_symbol']
-                    marker_symbol = doc['marker_symbol']
-                    try:
+                        if not marker_symbol in self.mgi2mouse_models:
+                            self.mgi2mouse_models[marker_symbol] = []
+                        self.mgi2mouse_models[marker_symbol].append(model_id)
+
+                        if not model_id in self.mouse_models:
+                            self.mouse_models[model_id] = doc
+
+                            model_phenotypes = []
+                            for raw_mp in doc['model_phenotypes']:
+                                mt = re.match("^(MP\:\d+)\s+", raw_mp)
+                                mp_id = mt.groups()[0]
+                                model_phenotypes.append(mp_id)
+                            self.mouse_models[model_id]['model_phenotypes'] = model_phenotypes
+
+                    elif doc['type'] == 'disease_model_summary':
+                        model_id = doc['model_id']
+                        if not model_id in self.mouse_model2diseases:
+                            self.mouse_model2diseases[model_id] = []
+                        self.mouse_model2diseases[model_id].append(doc)
+                    elif doc['type'] == 'disease_gene_summary' and 'marker_symbol' in doc and 'hgnc_gene_locus' in doc and 'disease_id' in doc:
+                        hgnc_gene_id = doc['hgnc_gene_id']
+                        hgnc_gene_symbol = doc['hgnc_gene_symbol']
+                        marker_symbol = doc['marker_symbol']
+                        try:
+                            disease_id = doc['disease_id']
+                            #if 'disease_id' in doc:
+                            #    raise KeyError()
+                        except Exception as error:
+
+                            if isinstance(error, KeyError):
+                                self._logger.error("Error checking disease in document: %s" % (str(error)))
+                                self._logger.error(json.dumps(doc, indent=4))
+                                raise Exception()
+                        if not disease_id in self.disease_gene_locus:
+                            self.disease_gene_locus[disease_id] = { hgnc_gene_id: [ marker_symbol ] }
+                        elif not hgnc_gene_id in self.disease_gene_locus[disease_id]:
+                            self.disease_gene_locus[disease_id][hgnc_gene_id] = [ marker_symbol ]
+                        else:
+                            self.disease_gene_locus[disease_id][hgnc_gene_id].append(marker_symbol)
+                    elif doc['type'] == 'disease' or (doc['type'] == 'disease_gene_summary' and 'disease_id' in doc and not doc['disease_id'] in self.diseases):
+                        '''and doc['disease_id'].startswith('ORPHANET')):'''
+                        disease_phenotypes = []
+                        if 'disease_phenotypes' in doc:
+                            raw_disease_phenotypes = doc['disease_phenotypes']
+                            for raw_phenotype in raw_disease_phenotypes:
+                                mt = re.match("^(HP\:\d+)\s+", raw_phenotype)
+                                hp_id = mt.groups()[0]
+                                disease_phenotypes.append(hp_id)
                         disease_id = doc['disease_id']
-                        #if 'disease_id' in doc:
-                        #    raise KeyError()
-                    except Exception as error:
+                        self.diseases[disease_id] = doc
+                        self.diseases[disease_id]['disease_phenotypes'] = disease_phenotypes
 
-                        if isinstance(error, KeyError):
-                            self._logger.error("Error checking disease in document: %s" % (str(error)))
-                            self._logger.error(json.dumps(doc, indent=4))
-                            raise Exception()
-                    if not disease_id in self.disease_gene_locus:
-                        self.disease_gene_locus[disease_id] = { hgnc_gene_id: [ marker_symbol ] }
-                    elif not hgnc_gene_id in self.disease_gene_locus[disease_id]:
-                        self.disease_gene_locus[disease_id][hgnc_gene_id] = [ marker_symbol ]
-                    else:
-                        self.disease_gene_locus[disease_id][hgnc_gene_id].append(marker_symbol)
-                elif doc['type'] == 'disease' or (doc['type'] == 'disease_gene_summary' and 'disease_id' in doc and not doc['disease_id'] in self.diseases):
-                    '''and doc['disease_id'].startswith('ORPHANET')):'''
-                    disease_phenotypes = []
-                    if 'disease_phenotypes' in doc:
-                        raw_disease_phenotypes = doc['disease_phenotypes']
-                        for raw_phenotype in raw_disease_phenotypes:
-                            mt = re.match("^(HP\:\d+)\s+", raw_phenotype)
-                            hp_id = mt.groups()[0]
-                            disease_phenotypes.append(hp_id)
-                    disease_id = doc['disease_id']
-                    self.diseases[disease_id] = doc
-                    self.diseases[disease_id]['disease_phenotypes'] = disease_phenotypes
-
-                    #matchOMIM = re.match("^OMIM:(.+)$", disease_id)
-                    #if matchOMIM:
-                    #    terms = efo.getTermsByDbXref(disease_id)
-                    #    if terms == None:
-                    #        terms = OMIMmap[disease_id]
-                    #    if terms == None:
-                    #        self._logger.error("{0} '{1}' not in EFO".format(disease_id, doc['disease_term']))
-                #else:
-                #    self._logger.error("Never heard of this '%s' type of documents in PhenoDigm. Exiting..."%(doc['type']))
-                #    sys.exit(1)
-                elif doc['type'] == 'ontology_ontology':
-                    if doc['mp_id'] not in self.ontology_ontology:
-                        self.ontology_ontology[doc['mp_id']] = []
-                    self.ontology_ontology[doc['mp_id']].append(doc)
-                elif doc['type'] == 'ontology':
-                    self.ontology[doc['phenotype_id']] = doc
+                        #matchOMIM = re.match("^OMIM:(.+)$", disease_id)
+                        #if matchOMIM:
+                        #    terms = efo.getTermsByDbXref(disease_id)
+                        #    if terms == None:
+                        #        terms = OMIMmap[disease_id]
+                        #    if terms == None:
+                        #        self._logger.error("{0} '{1}' not in EFO".format(disease_id, doc['disease_term']))
+                    #else:
+                    #    self._logger.error("Never heard of this '%s' type of documents in PhenoDigm. Exiting..."%(doc['type']))
+                    #    sys.exit(1)
+                    elif doc['type'] == 'ontology_ontology':
+                        if doc['mp_id'] not in self.ontology_ontology:
+                            self.ontology_ontology[doc['mp_id']] = []
+                        self.ontology_ontology[doc['mp_id']].append(doc)
+                    elif doc['type'] == 'ontology':
+                        self.ontology[doc['phenotype_id']] = doc
+                except KeyError as ke:
+                    print ("KeyError \n", ke)
+                    print(json.dumps(doc))
+                    break
 
     def generate_phenodigm_evidence_strings(self, upper_limit=0):
         '''
@@ -284,7 +323,8 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
         index_g = 0
         for hs_symbol in self.hsGenes:
             index_g +=1
-            print(hs_symbol)
+            count_nb_evidence_string_generated = 0
+            print('Now processing human gene: ', hs_symbol)
             hgnc_gene_id = self.symbol2hgncids[hs_symbol]
             hs_ensembl_gene_id = self.hsGenes[hs_symbol]
 
@@ -296,21 +336,28 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
 
             if hgnc_gene_id and hs_ensembl_gene_id and re.match('^ENSG.*', hs_ensembl_gene_id) and hgnc_gene_id in self.hgnc2mgis:
 
-                self._logger.info("processing human gene {0} {1} {2} {3}".format(index_g, hs_symbol, hs_ensembl_gene_id, hgnc_gene_id ))
+                self._logger.info("processing human gene {0} {1} {2} {3}".format(index_g, hs_symbol, hs_ensembl_gene_id, hgnc_gene_id))
+                print("processing human gene {0} {1} {2} {3}".format(index_g, hs_symbol, hs_ensembl_gene_id, hgnc_gene_id ))
 
                 '''
                  Retrieve mouse models
                 '''
-                for marker_symbol in self.hgnc2mgis[hgnc_gene_id]:
+                for mouse_gene_id in self.hgnc2mgis[hgnc_gene_id]:
                 
                     #if not marker_symbol == "Il13":
                     #    continue;
+                    if mouse_gene_id not in self.mgi2symbols:
+                        continue
+
+                    marker_symbol = self.mgi2symbols[mouse_gene_id]
                     print(marker_symbol)
                     self._logger.info("\tProcessing mouse gene symbol %s" % (marker_symbol))
                     
                     '''
                     Some mouse symbol are not mapped in Ensembl
+                    We will check that once we get the symbol
                     '''
+
                     if marker_symbol in self.mmGenes:
                         mmEnsemblId = self.mmGenes[marker_symbol]
                         '''
@@ -386,8 +433,12 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                                             # find corresponding EFO disease term
                                             matchOMIM = re.match("^OMIM:(.+)$", disease_id)
                                             matchORPHANET = re.match("^ORPHANET:(.+)$", disease_id)
+                                            print('disease is: ', disease_id)
                                             if matchOMIM:
-                                                (source, omim_id) = disease_id.split(':')
+                                                if ';PMID' in disease_id:
+                                                    (source, omim_id) = disease_id.split(';')[0].split(':')
+                                                else:
+                                                    (source, omim_id) = disease_id.split(':')
                                                 self._logger.info("\t\t\tCheck OMIM id = %s is in efo"%omim_id)
                                                 if omim_id in self.omim_to_efo_map:
                                                     efoMapping[disease_id] = self.omim_to_efo_map[omim_id]
@@ -417,7 +468,9 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                                         If the score >= 0.5 or in_locus for the same disease
                                         and mouse_model2disease['model_to_disease_score'] >= 50
                                         '''
-                                        if disease_terms is not None and (('disease_model_max_norm' in mouse_model2disease ) or
+                                        if disease_terms is not None and (
+                                                ('disease_model_max_norm' in mouse_model2disease and
+                                                 mouse_model2disease['disease_model_max_norm']>=50) or
                                             (disease_id in self.disease_gene_locus and
                                              hgnc_gene_id in self.disease_gene_locus[disease_id] and
                                              marker_symbol in self.disease_gene_locus[disease_id][hgnc_gene_id])):
@@ -599,7 +652,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                                                 '''
                                                 Disease model association
                                                 '''
-                                                score = 1
+                                                score = 1.0
                                                 method = 'Unknown method'
                                                 if 'disease_model_max_norm' in mouse_model2disease:
                                                     score = (mouse_model2disease['disease_model_max_norm'])/100

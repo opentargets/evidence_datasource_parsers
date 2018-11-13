@@ -65,7 +65,8 @@ class Config:
     ZOOMA_TO_EFO_MAP_URL = 'https://raw.githubusercontent.com/opentargets/platform_semantic/master/resources/zooma/cttv_indications_3.txt'
 
     # mouse models (Phenodigm)
-    MOUSEMODELS_PHENODIGM_SOLR = 'http://localhost:8983' # 'solrclouddev.sanger.ac.uk'
+    #MOUSEMODELS_PHENODIGM_SOLR = 'http://localhost:8983' # 'solrclouddev.sanger.ac.uk'
+    MOUSEMODELS_PHENODIGM_SOLR = 'http://www.ebi.ac.uk/mi/impc'
     # write to the cloud direcly
     MOUSEMODELS_CACHE_DIRECTORY = 'Phenodigm/phenodigmcache'
-    MOUSEMODELS_EVIDENCE_FILENAME = 'phenodigm-26-02-2018.json'
+    MOUSEMODELS_EVIDENCE_FILENAME = 'phenodigm-12-10-2018.json'
