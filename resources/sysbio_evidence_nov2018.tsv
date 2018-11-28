@@ -1,0 +1,412 @@
+pmid	gene_set_name	target_id	disease_id	disease_name	score
+28892060	Intestine Key Driver Genes	CD53	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.083369979
+28892060	Intestine Key Driver Genes	RHOH	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.11673251
+28892060	Intestine Key Driver Genes	DOCK2	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.122212311
+28892060	Intestine Key Driver Genes	FGR	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.13290268
+28892060	Intestine Key Driver Genes	NCKAP1L	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.130996506
+28892060	Intestine Key Driver Genes	CXCL10	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.154320661
+28892060	Intestine Key Driver Genes	FCER1G	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.152652759
+28892060	Intestine Key Driver Genes	SLAMF8	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.179813942
+28892060	Intestine Key Driver Genes	NFAM1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.17663878
+28892060	Intestine Key Driver Genes	PIK3CD	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.176109288
+28892060	Intestine Key Driver Genes	DOK3	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.184104628
+28892060	Intestine Key Driver Genes	GBP5	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.184819443
+28892060	Intestine Key Driver Genes	AIF1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.215079954
+28892060	Intestine Key Driver Genes	GPSM3	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.235253627
+28892060	Intestine Key Driver Genes	CXCL9	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.217753892
+28892060	Intestine Key Driver Genes	ARHGDIB	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.234420798
+28892060	Intestine Key Driver Genes	CD28	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.231653077
+28892060	Intestine Key Driver Genes	FMNL1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.244806933
+28892060	Intestine Key Driver Genes	TFEC	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.254810756
+28892060	Intestine Key Driver Genes	ARHGAP25	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.273804738
+28892060	Intestine Key Driver Genes	DAPP1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.271100286
+28892060	Intestine Key Driver Genes	IDO1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.283331569
+28892060	Intestine Key Driver Genes	KCNAB2	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.281445139
+28892060	Intestine Key Driver Genes	SASH3	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.273748647
+28892060	Intestine Key Driver Genes	CORO1A	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.291171202
+28892060	Intestine Key Driver Genes	FAM26F	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.301835097
+28892060	Intestine Key Driver Genes	GBP4	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.320528434
+28892060	Intestine Key Driver Genes	CD38	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.307506054
+28892060	Intestine Key Driver Genes	JAK3	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.331144764
+28892060	Intestine Key Driver Genes	LCP1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.311765329
+28892060	Intestine Key Driver Genes	CD300A	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.343005401
+28892060	Intestine Key Driver Genes	SEMA4D	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.345293887
+28892060	Intestine Key Driver Genes	APOL3	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.320660807
+28892060	Intestine Key Driver Genes	CXCL11	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.351000741
+28892060	Intestine Key Driver Genes	FCGR3A	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.349041619
+28892060	Intestine Key Driver Genes	ARHGAP30	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.32632638
+28892060	Intestine Key Driver Genes	IL15RA	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.350471249
+28892060	Intestine Key Driver Genes	ITGB2	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.339987293
+28892060	Intestine Key Driver Genes	MNDA	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.336704437
+28892060	Intestine Key Driver Genes	RAC2	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.351424336
+28892060	Intestine Key Driver Genes	SPI1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.354543407
+28892060	Intestine Key Driver Genes	APOL2	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.352377422
+28892060	Intestine Key Driver Genes	CSF3R	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.362877533
+28892060	Intestine Key Driver Genes	FCGR3B	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.348459176
+28892060	Intestine Key Driver Genes	NCF2	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.373994189
+28892060	Intestine Key Driver Genes	GBP1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.38472943
+28892060	Intestine Key Driver Genes	LILRB2	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.358484538
+28892060	Intestine Key Driver Genes	CD52	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.362664839
+28892060	Intestine Key Driver Genes	CYTIP	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.390447951
+28892060	Intestine Key Driver Genes	IFI30	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.390765647
+28892060	Intestine Key Driver Genes	CTLA4	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.415228212
+28892060	Intestine Key Driver Genes	HAVCR2	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.403275137
+28892060	Intestine Key Driver Genes	ITGAX	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.372815843
+28892060	Intestine Key Driver Genes	CD27	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.424111125
+28892060	Intestine Key Driver Genes	CD3D	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.411297401
+28892060	Intestine Key Driver Genes	VNN2	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.44016732
+28892060	Intestine Key Driver Genes	BASP1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.424785556
+28892060	Intestine Key Driver Genes	SMAP2	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.469351344
+28892060	Intestine Key Driver Genes	APOL1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.442809399
+28892060	Intestine Key Driver Genes	CD8A	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.474002804
+28892060	Intestine Key Driver Genes	MYO1F	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.473948957
+28892060	Intestine Key Driver Genes	AQP9	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.4635709
+28892060	Intestine Key Driver Genes	CLEC7A	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.486236778
+28892060	Intestine Key Driver Genes	GAB3	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.497451255
+28892060	Intestine Key Driver Genes	RASGRP4	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.491015675
+28892060	Intestine Key Driver Genes	S100A9	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.470853668
+28892060	Intestine Key Driver Genes	SELL	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.490257334
+28892060	Intestine Key Driver Genes	LILRB4	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.531822514
+28892060	Intestine Key Driver Genes	ADAM19	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.502065022
+28892060	Intestine Key Driver Genes	FYB	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.514772848
+28892060	Intestine Key Driver Genes	HCLS1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.515547343
+28892060	Intestine Key Driver Genes	PPP1R18	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.516679022
+28892060	Intestine Key Driver Genes	FCGR2A	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.549254492
+28892060	Intestine Key Driver Genes	CHST11	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.530723593
+28892060	Intestine Key Driver Genes	CXCL6	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.544900985
+28892060	Intestine Key Driver Genes	HAPLN3	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.527851319
+28892060	Intestine Key Driver Genes	TAGAP	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.550195913
+28892060	Intestine Key Driver Genes	RASSF5	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.565180557
+28892060	Intestine Key Driver Genes	SNX10	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.547071905
+28892060	Intestine Key Driver Genes	FPR1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.550778355
+28892060	Intestine Key Driver Genes	CSF2RB	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.559064916
+28892060	Intestine Key Driver Genes	LCP2	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.557331949
+28892060	Intestine Key Driver Genes	FAM49A	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.577782484
+28892060	Intestine Key Driver Genes	PTAFR	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.596632426
+28892060	Intestine Key Driver Genes	UBE2L6	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.575001302
+28892060	Intestine Key Driver Genes	C3AR1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.579648274
+28892060	Intestine Key Driver Genes	RASSF2	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.596182358
+28892060	Intestine Key Driver Genes	STAT5A	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.623901303
+28892060	Intestine Key Driver Genes	PLEK	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.593905539
+28892060	Intestine Key Driver Genes	FCGR2C	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.610187441
+28892060	Intestine Key Driver Genes	ARRB2	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.607748184
+28892060	Intestine Key Driver Genes	HCK	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.621957436
+28892060	Intestine Key Driver Genes	STX11	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.624827915
+28892060	Intestine Key Driver Genes	BCL2A1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.634544107
+28892060	Intestine Key Driver Genes	PTPRC	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.631155354
+28892060	Intestine Key Driver Genes	SNX20	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.675526845
+28892060	Intestine Key Driver Genes	INPP5D	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.664075443
+28892060	Intestine Key Driver Genes	PROK2	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.69998941
+28892060	Intestine Key Driver Genes	FCGR1A	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.673091179
+28892060	Intestine Key Driver Genes	IL18R1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.677265197
+28892060	Intestine Key Driver Genes	EMILIN2	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.686699142
+28892060	Intestine Key Driver Genes	LAIR1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.697017969
+28892060	Intestine Key Driver Genes	RHBDF2	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.709785026
+28892060	Intestine Key Driver Genes	MS4A6A	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.732764114
+28892060	Intestine Key Driver Genes	BIN2	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.736895055
+28892060	Intestine Key Driver Genes	IFITM3	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.737901091
+28892060	Intestine Key Driver Genes	LYN	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.73652441
+28892060	Intestine Key Driver Genes	ST3GAL5	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.739383671
+28892060	Intestine Key Driver Genes	TAP1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.744096156
+28892060	Intestine Key Driver Genes	CYBB	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.759927989
+28892060	Intestine Key Driver Genes	MYO1G	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.761947241
+28892060	Intestine Key Driver Genes	LAPTM5	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.781584242
+28892060	Intestine Key Driver Genes	LY96	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.782060786
+28892060	Intestine Key Driver Genes	DRAM1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.788573547
+28892060	Intestine Key Driver Genes	TNFAIP8L2	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.790585619
+28892060	Intestine Key Driver Genes	GBP2	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.8062954
+28892060	Intestine Key Driver Genes	SLA2	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.822161336
+28892060	Intestine Key Driver Genes	S100A8	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.833262734
+28892060	Intestine Key Driver Genes	EMR2	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.836598539
+28892060	Intestine Key Driver Genes	IL10RA	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.842997324
+28892060	Intestine Key Driver Genes	SAMSN1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.858148894
+28892060	Intestine Key Driver Genes	STAT4	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.849432904
+28892060	Intestine Key Driver Genes	STAT1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.862861379
+28892060	Intestine Key Driver Genes	KYNU	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.872656995
+28892060	Intestine Key Driver Genes	ST3GAL1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.88052759
+28892060	Intestine Key Driver Genes	PLXNC1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.895689929
+28892060	Intestine Key Driver Genes	TLR2	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.923792532
+28892060	Intestine Key Driver Genes	RAB31	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.932622048
+28892060	Intestine Key Driver Genes	TNFAIP2	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.941755798
+28892060	Intestine Key Driver Genes	LPCAT1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.943661972
+28892060	Intestine Key Driver Genes	IFIT3	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.961029334
+28892060	Intestine Key Driver Genes	GPR65	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.970877899
+28892060	Intestine Key Driver Genes	GNB4	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	0.981203008
+28892060	Macrophage-specific Key Driver Genes	RAC2	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	4.60E-64
+28892060	Macrophage-specific Key Driver Genes	ITGB2	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	9.42E-46
+28892060	Macrophage-specific Key Driver Genes	SASH3	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	7.26E-42
+28892060	Macrophage-specific Key Driver Genes	LILRB1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	3.17E-39
+28892060	Macrophage-specific Key Driver Genes	GMFG	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	9.43E-38
+28892060	Macrophage-specific Key Driver Genes	SLA	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	4.23E-35
+28892060	Macrophage-specific Key Driver Genes	NCF1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	6.21E-35
+28892060	Macrophage-specific Key Driver Genes	P2RX5	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	6.64E-34
+28892060	Macrophage-specific Key Driver Genes	GPSM3	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	7.84E-34
+28892060	Macrophage-specific Key Driver Genes	CORO1A	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	9.00E-34
+28892060	Macrophage-specific Key Driver Genes	CTLA4	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	1.25E-33
+28892060	Macrophage-specific Key Driver Genes	LILRA6	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	1.40E-33
+28892060	Macrophage-specific Key Driver Genes	AIF1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	3.46E-33
+28892060	Macrophage-specific Key Driver Genes	RGS19	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	2.51E-32
+28892060	Macrophage-specific Key Driver Genes	NCKAP1L	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	1.03E-31
+28892060	Macrophage-specific Key Driver Genes	FMNL1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	1.14E-31
+28892060	Macrophage-specific Key Driver Genes	ITGAL	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	1.28E-31
+28892060	Macrophage-specific Key Driver Genes	ARHGDIB	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	1.61E-31
+28892060	Macrophage-specific Key Driver Genes	DOK3	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	1.07E-30
+28892060	Macrophage-specific Key Driver Genes	LILRB4	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	4.56E-30
+28892060	Macrophage-specific Key Driver Genes	SLC15A3	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	4.75E-30
+28892060	Macrophage-specific Key Driver Genes	SNX20	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	1.12E-29
+28892060	Macrophage-specific Key Driver Genes	TBC1D10C	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	1.15E-29
+28892060	Macrophage-specific Key Driver Genes	NFAM1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	1.25E-29
+28892060	Macrophage-specific Key Driver Genes	CD4	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	2.16E-29
+28892060	Macrophage-specific Key Driver Genes	ARHGAP30	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	2.81E-29
+28892060	Macrophage-specific Key Driver Genes	MS4A4A	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	3.46E-29
+28892060	Macrophage-specific Key Driver Genes	PPP1R16B	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	6.49E-29
+28892060	Macrophage-specific Key Driver Genes	CD163	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	6.57E-29
+28892060	Macrophage-specific Key Driver Genes	SELPLG	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	7.14E-29
+28892060	Macrophage-specific Key Driver Genes	NCF1C	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	1.51E-28
+28892060	Macrophage-specific Key Driver Genes	RASSF5	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	1.89E-28
+28892060	Macrophage-specific Key Driver Genes	LCP2	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	2.65E-28
+28892060	Macrophage-specific Key Driver Genes	APOBEC3G	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	4.14E-28
+28892060	Macrophage-specific Key Driver Genes	PIK3CD	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	5.81E-28
+28892060	Macrophage-specific Key Driver Genes	SLAMF1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	7.36E-28
+28892060	Macrophage-specific Key Driver Genes	PTPN7	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	9.15E-28
+28892060	Macrophage-specific Key Driver Genes	SLAMF8	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	1.99E-27
+28892060	Macrophage-specific Key Driver Genes	CD37	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	2.51E-27
+28892060	Macrophage-specific Key Driver Genes	IPCEF1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	5.00E-27
+28892060	Macrophage-specific Key Driver Genes	LST1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	5.39E-27
+28892060	Macrophage-specific Key Driver Genes	TNFAIP8L2	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	7.14E-27
+28892060	Macrophage-specific Key Driver Genes	SELL	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	7.51E-27
+28892060	Macrophage-specific Key Driver Genes	ADA	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	1.02E-26
+28892060	Macrophage-specific Key Driver Genes	HCK	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	1.37E-26
+28892060	Macrophage-specific Key Driver Genes	RHOH	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	1.45E-26
+28892060	Macrophage-specific Key Driver Genes	ITGAX	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	1.73E-26
+28892060	Macrophage-specific Key Driver Genes	CYTIP	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	2.62E-26
+28892060	Macrophage-specific Key Driver Genes	CCR5	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	6.03E-26
+28892060	Macrophage-specific Key Driver Genes	PCED1B	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	6.43E-26
+28892060	Macrophage-specific Key Driver Genes	CD40	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	7.38E-26
+28892060	Macrophage-specific Key Driver Genes	ARHGAP25	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	4.51E-25
+28892060	Macrophage-specific Key Driver Genes	SP140	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	1.32E-24
+28892060	Macrophage-specific Key Driver Genes	PLEKHO2	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	1.72E-24
+28892060	Macrophage-specific Key Driver Genes	FGR	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	2.76E-24
+28892060	Macrophage-specific Key Driver Genes	CYTH4	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	2.78E-24
+28892060	Macrophage-specific Key Driver Genes	JAK3	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	3.51E-23
+28892060	Macrophage-specific Key Driver Genes	BCL2A1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	5.80E-23
+28892060	Macrophage-specific Key Driver Genes	ARHGAP9	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	8.05E-23
+28892060	Macrophage-specific Key Driver Genes	PARVG	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	1.24E-22
+28892060	Macrophage-specific Key Driver Genes	CD53	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	1.35E-21
+28892060	Macrophage-specific Key Driver Genes	APBB1IP	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	2.22E-21
+28892060	Macrophage-specific Key Driver Genes	LAMP3	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	2.44E-21
+28892060	Macrophage-specific Key Driver Genes	FCER1G	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	3.13E-21
+28892060	Macrophage-specific Key Driver Genes	RASGRP2	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	5.45E-21
+28892060	Macrophage-specific Key Driver Genes	KCNAB2	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	9.56E-21
+28892060	Macrophage-specific Key Driver Genes	GBP5	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	4.11E-19
+28892060	Macrophage-specific Key Driver Genes	NCF2	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	7.26E-19
+28892060	Macrophage-specific Key Driver Genes	APOL3	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	1.31E-18
+28892060	Macrophage-specific Key Driver Genes	LEF1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	1.34E-16
+28892060	Macrophage-specific Key Driver Genes	ODF3B	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	2.07E-16
+28892060	Macrophage-specific Key Driver Genes	ADAM19	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	3.09E-16
+28892060	Macrophage-specific Key Driver Genes	ANXA6	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	5.12E-16
+28892060	Macrophage-specific Key Driver Genes	DOCK11	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	1.19E-15
+28892060	Macrophage-specific Key Driver Genes	GLYR1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	1.67E-15
+28892060	Macrophage-specific Key Driver Genes	TRBC1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	3.12E-15
+28892060	Macrophage-specific Key Driver Genes	MNDA	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	9.48E-15
+28892060	Macrophage-specific Key Driver Genes	DEF6	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	1.44E-14
+28892060	Macrophage-specific Key Driver Genes	WARS	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	1.52E-14
+28892060	Macrophage-specific Key Driver Genes	FYB	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	2.15E-14
+28892060	Macrophage-specific Key Driver Genes	CD28	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	2.86E-14
+28892060	Macrophage-specific Key Driver Genes	PTPRC	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	3.31E-14
+28892060	Macrophage-specific Key Driver Genes	PLEK	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	3.77E-14
+28892060	Macrophage-specific Key Driver Genes	EVI2A	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	4.21E-14
+28892060	Macrophage-specific Key Driver Genes	WAS	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	4.54E-14
+28892060	Macrophage-specific Key Driver Genes	SP110	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	7.81E-14
+28892060	Macrophage-specific Key Driver Genes	SAMSN1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	3.87E-13
+28892060	Macrophage-specific Key Driver Genes	SPOCK2	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	4.30E-13
+28892060	Macrophage-specific Key Driver Genes	SEMA4D	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	2.78E-12
+28892060	Macrophage-specific Key Driver Genes	RASSF2	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	3.70E-12
+28892060	Macrophage-specific Key Driver Genes	PRKCH	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	4.54E-12
+28892060	Macrophage-specific Key Driver Genes	HLA-DRA	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	5.87E-12
+28892060	Macrophage-specific Key Driver Genes	IL26	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	7.23E-12
+28892060	Macrophage-specific Key Driver Genes	DENND1C	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	1.33E-11
+28892060	Macrophage-specific Key Driver Genes	HHEX	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	1.33E-11
+28892060	Macrophage-specific Key Driver Genes	LCP1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	3.71E-11
+28892060	Macrophage-specific Key Driver Genes	IDO1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	7.68E-11
+28892060	Macrophage-specific Key Driver Genes	KYNU	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	4.53E-10
+28892060	Macrophage-specific Key Driver Genes	RASGRP1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	4.73E-10
+28892060	Macrophage-specific Key Driver Genes	CTSK	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	5.86E-10
+28892060	Macrophage-specific Key Driver Genes	CSF2RB	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	7.32E-10
+28892060	Macrophage-specific Key Driver Genes	LY96	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	1.35E-09
+28892060	Macrophage-specific Key Driver Genes	CLEC2B	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	1.53E-09
+28892060	Macrophage-specific Key Driver Genes	YME1L1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	2.18E-09
+28892060	Macrophage-specific Key Driver Genes	ELK3	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	2.51E-09
+28892060	Macrophage-specific Key Driver Genes	C3	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	3.06E-09
+28892060	Macrophage-specific Key Driver Genes	LYN	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	3.27E-09
+28892060	Macrophage-specific Key Driver Genes	TRIM22	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	3.92E-09
+28892060	Macrophage-specific Key Driver Genes	MAFB	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	9.10E-09
+28892060	Macrophage-specific Key Driver Genes	C1S	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	1.71E-08
+28892060	Macrophage-specific Key Driver Genes	ANKRD44	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	1.84E-08
+28892060	Macrophage-specific Key Driver Genes	FYN	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	2.02E-08
+28892060	Macrophage-specific Key Driver Genes	TNFAIP3	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	2.02E-08
+28892060	Macrophage-specific Key Driver Genes	TNFAIP8	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	4.23E-08
+28892060	Macrophage-specific Key Driver Genes	ALOX5AP	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	7.46E-08
+28892060	Macrophage-specific Key Driver Genes	FPR1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	1.07E-07
+28892060	Macrophage-specific Key Driver Genes	ICAM1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	1.08E-07
+28892060	Macrophage-specific Key Driver Genes	GBP4	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	1.96E-07
+28892060	Macrophage-specific Key Driver Genes	TCF4	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	2.54E-07
+28892060	Macrophage-specific Key Driver Genes	GPR65	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	2.68E-07
+28892060	Macrophage-specific Key Driver Genes	ATOX1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	2.74E-07
+28892060	Macrophage-specific Key Driver Genes	C17ORF62	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	2.86E-07
+28892060	Macrophage-specific Key Driver Genes	LGALS1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	3.94E-07
+28892060	Macrophage-specific Key Driver Genes	CHST2	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	6.46E-07
+28892060	Macrophage-specific Key Driver Genes	CD3D	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	9.71E-07
+28892060	Macrophage-specific Key Driver Genes	MSN	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	1.30E-06
+28892060	Macrophage-specific Key Driver Genes	RFX5	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	1.39E-06
+28892060	Macrophage-specific Key Driver Genes	LPCAT1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	1.43E-06
+28892060	Macrophage-specific Key Driver Genes	CHI3L1	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	1.53E-06
+28892060	Macrophage-specific Key Driver Genes	LRRK2	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	1.82E-06
+28892060	Macrophage-specific Key Driver Genes	SLFN11	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	3.59E-06
+28892060	Macrophage-specific Key Driver Genes	VIM	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	3.93E-06
+28892060	Macrophage-specific Key Driver Genes	CYTOR	http://www.ebi.ac.uk/efo/EFO_0003767	Inflammatory bowel disease	4.59E-06
+23622250	Key causal regulators of LOAD-related microglia modules in all brain regions	TYROBP	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	0.0008
+23622250	Key causal regulators of LOAD-related microglia modules in all brain regions	DOCK2	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	0.0006
+23622250	Key causal regulators of LOAD-related microglia modules in all brain regions	HCK	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	0.0005
+23622250	Key causal regulators of LOAD-related microglia modules in all brain regions	FCER1G	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	0.0002
+23622250	Key causal regulators of LOAD-related microglia modules in all brain regions	SERPINA1	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	0.000054
+23622250	Key causal regulators of LOAD-related microglia modules in all brain regions	S100A11	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	0.000047
+23622250	Key causal regulators of LOAD-related microglia modules in all brain regions	CTSC	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	0.000023
+23622250	Key causal regulators of LOAD-related microglia modules in all brain regions	LY86	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	0.000019
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	GSTA4	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	ABCC2	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	TIMELESS	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	ACBD5	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	LMAN1	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	MLL3S	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	KIFAP3	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	PCTK2	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	SNCA	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	RPS27	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	RPS18	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	PCBP2	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	STIP1	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	HSPA1A	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	DOPEY1	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	ENPP2	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	PSEN1	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	GAB2	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	TUBB4	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	ACTL9	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	ACTG1	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	SLC22A2	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	AGTR1	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	ZIC2	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	TEKT1	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	FANK1	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	HYDIN	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	MED6	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	STATIP1	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	SFRS3	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	PPP2R5A	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	C1ORF143	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	RNASE11	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	LAMP2	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	P2RX7	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	MID1IP1	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	GJA1	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	STON2	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	CST3	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	CREBBP	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	ABCC11	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	MDGA1	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	SNAP91	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	BSN	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	GLS	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	DTL	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	UBE2C	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	BUB1	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	RFX4	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	DGCR6	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	AQP4	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	MT1M	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	MT1JP	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	MT1P3	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	AMPD1	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	EGR2	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23622250	Key causal regulators of top 20 LOAD-related modules in the prefrontal cortex	PDGFB	http://www.ebi.ac.uk/efo/EFO_1001870	Late-onset Alzheimers disease	N/A
+23539213	Key Drivers of CHD Causal Module	RALGPS2	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	1.77E-16
+23539213	Key Drivers of CHD Causal Module	EBF1	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	3.21E-18
+23539213	Key Drivers of CHD Causal Module	COBLL1	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	1.22E-28
+23539213	Key Drivers of CHD Causal Module	FAM3C	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	2.33E-16
+23539213	Key Drivers of CHD Causal Module	CD79B	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	1.64E-28
+23539213	Key Drivers of CHD Causal Module	PPAPDC1B	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	2.10E-30
+23539213	Key Drivers of CHD Causal Module	SAV1	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	8.84E-22
+23539213	Key Drivers of CHD Causal Module	PKIG	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	2.66E-31
+23539213	Key Drivers of CHD Causal Module	SNX22	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	1.85E-21
+23539213	Key Drivers of CHD Causal Module	CTGF	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	3.02E-29
+23539213	Key Drivers of CHD Causal Module	HLA-DOA	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	4.17E-24
+23539213	Key Drivers of CHD Causal Module	RASGRP3	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	1.72E-22
+23539213	Key Drivers of CHD Causal Module	TNFRSF17	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	5.81E-22
+23539213	Key Drivers of CHD Causal Module	POU2AF1	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	6.67E-24
+23539213	Key Drivers of CHD Causal Module	STAG3	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	1.42E-28
+23539213	Key Drivers of CHD Causal Module	LARGE	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	9.32E-32
+23539213	Key Drivers of CHD Causal Module	MICAL3	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	2.08E-25
+23539213	Key Drivers of CHD Causal Module	KLHL14	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	3.66E-27
+23539213	Key Drivers of CHD Causal Module	CD200	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	3.21E-22
+23539213	Key Drivers of CHD Causal Module	MOBKL2B	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	9.82E-27
+23539213	Key Drivers of CHD Causal Module	VPREB3	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	4.61E-24
+23539213	Key Drivers of CHD Causal Module	TSPAN13	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	2.89E-30
+23539213	Key Drivers of CHD Causal Module	BANK1	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	4.17E-29
+23539213	Key Drivers of CHD Causal Module	KCNG1	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	1.39E-23
+23539213	Key Drivers of CHD Causal Module	CD72	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	4.61E-25
+23539213	Key Drivers of CHD Causal Module	CELSR1	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	4.33E-30
+23539213	Key Drivers of CHD Causal Module	BACH2	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	1.02E-04
+23539213	Key Drivers of CHD Causal Module	FAM30A	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	1.58E-33
+23539213	Key Drivers of CHD Causal Module	C20orf133	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	7.68E-30
+23539213	Key Drivers of CHD Causal Module	CD79A	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	9.40E-30
+23539213	Key Drivers of CHD Causal Module	KMO	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	1.22E-28
+23539213	Key Drivers of CHD Causal Module	TMEPAI	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	3.66E-27
+23539213	Key Drivers of CHD Causal Module	ELL3	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	4.10E-27
+23539213	Key Drivers of CHD Causal Module	CD19	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	3.90E-26
+23539213	Key Drivers of CHD Causal Module	FCRL2	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	1.42E-25
+23539213	Key Drivers of CHD Causal Module	SPIB	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	1.77E-25
+23539213	Key Drivers of CHD Causal Module	MAGED4	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	2.21E-25
+23539213	Key Drivers of CHD Causal Module	PTPRK	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	4.12E-25
+23539213	Key Drivers of CHD Causal Module	BLNK	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	6.46E-25
+23539213	Key Drivers of CHD Causal Module	FAM30A	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	6.79E-25
+23539213	Key Drivers of CHD Causal Module	MS4A1	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	9.10E-25
+23539213	Key Drivers of CHD Causal Module	KCNH8	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	9.86E-25
+23539213	Key Drivers of CHD Causal Module	FCRLA	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	1.92E-24
+23539213	Key Drivers of CHD Causal Module	TNFRSF13C	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	1.95E-24
+23539213	Key Drivers of CHD Causal Module	FCRL1	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	6.48E-24
+23539213	Key Drivers of CHD Causal Module	KLF8	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	1.15E-23
+23539213	Key Drivers of CHD Causal Module	PLEKHG1	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	1.28E-23
+23539213	Key Drivers of CHD Causal Module	LAMA5	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	4.82E-23
+23539213	Key Drivers of CHD Causal Module	BTLA	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	1.21E-22
+23539213	Key Drivers of CHD Causal Module	BLR1	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	2.00E-22
+23539213	Key Drivers of CHD Causal Module	SCN3A	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	2.08E-22
+23539213	Key Drivers of CHD Causal Module	CD180	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	8.94E-22
+23539213	Key Drivers of CHD Causal Module	P2RX5	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	1.03E-21
+23539213	Key Drivers of CHD Causal Module	ZNF711	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	2.56E-19
+23539213	Key Drivers of CHD Causal Module	OSBPL10	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	4.44E-19
+23539213	Key Drivers of CHD Causal Module	AK025613	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	3.79E-18
+23539213	Key Drivers of CHD Causal Module	EPB41L5	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	3.48E-06
+23539213	Key Drivers of CHD Causal Module	TRAF5	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	8.35E-06
+23539213	Key Drivers of CHD Causal Module	ZNF285	http://www.ebi.ac.uk/efo/EFO_0001645	Coronary heart disease	6.41E-03
+29802388	Genes prioritised from module m109	ACIN1	http://purl.obolibrary.org/obo/HP_0001268	Cognitive decline	N/A
+29802388	Genes prioritised from module m109	AK4	http://purl.obolibrary.org/obo/HP_0001268	Cognitive decline	N/A
+29802388	Genes prioritised from module m109	ARHGEF40	http://purl.obolibrary.org/obo/HP_0001268	Cognitive decline	N/A
+29802388	Genes prioritised from module m109	BCL2L1	http://purl.obolibrary.org/obo/HP_0001268	Cognitive decline	N/A
+29802388	Genes prioritised from module m109	FBXO2	http://purl.obolibrary.org/obo/HP_0001268	Cognitive decline	N/A
+29802388	Genes prioritised from module m109	FOXO4	http://purl.obolibrary.org/obo/HP_0001268	Cognitive decline	N/A
+29802388	Genes prioritised from module m109	GIPR	http://purl.obolibrary.org/obo/HP_0001268	Cognitive decline	N/A
+29802388	Genes prioritised from module m109	INPPL1	http://purl.obolibrary.org/obo/HP_0001268	Cognitive decline	N/A
+29802388	Genes prioritised from module m109	ITPK1	http://purl.obolibrary.org/obo/HP_0001268	Cognitive decline	N/A
+29802388	Genes prioritised from module m109	KANSL1	http://purl.obolibrary.org/obo/HP_0001268	Cognitive decline	N/A
+29802388	Genes prioritised from module m109	KIF5B	http://purl.obolibrary.org/obo/HP_0001268	Cognitive decline	N/A
+29802388	Genes prioritised from module m109	MDGA1	http://purl.obolibrary.org/obo/HP_0001268	Cognitive decline	N/A
+29802388	Genes prioritised from module m109	PHLPP1	http://purl.obolibrary.org/obo/HP_0001268	Cognitive decline	N/A
+29802388	Genes prioritised from module m109	PHRF1	http://purl.obolibrary.org/obo/HP_0001268	Cognitive decline	N/A
+29802388	Genes prioritised from module m109	PLXNB1	http://purl.obolibrary.org/obo/HP_0001268	Cognitive decline	N/A
+29802388	Genes prioritised from module m109	SASH1	http://purl.obolibrary.org/obo/HP_0001268	Cognitive decline	N/A
+29802388	Genes prioritised from module m109	SKI	http://purl.obolibrary.org/obo/HP_0001268	Cognitive decline	N/A
+29802388	Genes prioritised from module m109	SMAD7	http://purl.obolibrary.org/obo/HP_0001268	Cognitive decline	N/A
+29802388	Genes prioritised from module m109	TCF7L1	http://purl.obolibrary.org/obo/HP_0001268	Cognitive decline	N/A
+29802388	Genes prioritised from module m109	TMEM184B	http://purl.obolibrary.org/obo/HP_0001268	Cognitive decline	N/A
+29802388	Genes prioritised from module m109	ZBTB7B	http://purl.obolibrary.org/obo/HP_0001268	Cognitive decline	N/A
