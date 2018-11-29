@@ -18,7 +18,6 @@ __status__    = "Production"
 
 SYSBIO_DATABASE_ID='SYSBIO'
 SYSBIO_VERSION='2018.11'
-SYSBIO_PUBLICATION="http://europepmc.org/abstract/MED/29295995"
 
 class SYSBIO:
     def __init__(self):
@@ -37,9 +36,8 @@ class SYSBIO:
     def build_evidence(self, filename1=Config.SYSBIO_FILENAME1, filename2=Config.SYSBIO_FILENAME2):
 
         now = datetime.datetime.now()
-        '''
-            build evidence.provenance_type object
-        '''
+
+        # *** Build evidence.provenance_type object ***
         provenance_type = evidence_core.BaseProvenance_Type(
             database=evidence_core.BaseDatabase(
                 id=SYSBIO_DATABASE_ID,
@@ -52,6 +50,8 @@ class SYSBIO:
             self.logger.error(provenance_type.to_JSON(indentation=4))
             sys.exit(1)
 
+        # Build dictionary with publication info (pmid, method description, score type)
+        # TODO: Change to (pmid, gene set name, method description, score type) so that scores can be categorised per gene set
         SYSBIO_PMID_MAP = {}
         with open(filename2, 'r') as sysbio_publications:
 
@@ -82,7 +82,7 @@ class SYSBIO:
                             description = SYSBIO_PMID_MAP[pmid]['method'],
                             reference = "http://europepmc.org/abstract/MED/{0}".format(pmid)
                         ),
-                        # TODO work out the score scaling for each paper
+                        # TODO: add scores as p-value or a rank-based score (to be decided)
                         # Default score is 0.5 if no scores are provided
                         value=0.5
                     )
