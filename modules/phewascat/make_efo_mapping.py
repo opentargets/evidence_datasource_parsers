@@ -128,7 +128,7 @@ def main():
     efowriter = csv.DictWriter(efo_file, FIELDS, delimiter='\t')
 
     ## write header line if we don't have one yet
-    if os.path.getsize(efo_file) == 0:
+    if os.path.getsize(efo_fn) == 0:
         efowriter.writeheader()
 
     efowriter.writerows(mappings.values())
