@@ -65,6 +65,11 @@ class Config:
     SLAPENRICH_FILENAME = file_or_resource('slapenrich_opentargets.tsv')
     SLAPENRICH_EVIDENCE_FILENAME = HOME_DIR + '/otar001_slapenrich-19-12-2017.json'
 
+    # SYSBIO
+    SYSBIO_FILENAME1 = file_or_resource('sysbio_evidence_nov2018.tsv')
+    SYSBIO_FILENAME2 = file_or_resource('sysbio_publication_info_nov2018.tsv')
+    SYSBIO_EVIDENCE_FILENAME = 'sysbio-28-11-2018.json'
+
     # Gene2Phenotype
     G2P_FILENAME = 'DDG2P.csv.gz'
     G2P_EVIDENCE_FILENAME = 'gene2phenotype.json'
