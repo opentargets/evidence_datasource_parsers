@@ -4,6 +4,7 @@ python:
   - '3.6'
 sudo: required
 install:
+  - pip install pathlib # this is a requirement of ontoma setup so must be installed separately
   - pip install -r requirements.txt
   - pipdeptree
   - export PYTHONPATH=.
