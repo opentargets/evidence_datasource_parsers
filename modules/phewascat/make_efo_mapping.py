@@ -26,6 +26,8 @@ ontomalogger.setLevel(logging.WARNING)
 
 PHEWAS_CATALOG_URL = 'https://storage.googleapis.com/otar000-evidence_input/PheWAScatalog/phewas-catalog.csv'
 
+PHEWAS_PHECODE_MAP_URL = 'https://phewascatalog.org/files/phecode_icd9_map_unrolled.csv.zip'
+
 __log__ = logging.getLogger(__name__)
 
 def download_ic9_phecode_map(url=PHEWAS_PHECODE_MAP_URL):
