@@ -12,8 +12,6 @@ git+https://github.com/opentargets/ontology-utils.git@febf619222f49e83468516a4a8
 #undocumented transitive requirement of ontoma
 pathlib
 ontoma
-
-
 requests
 urllib3
 iso8601
@@ -21,3 +19,5 @@ rdflib
 pysftp
 SPARQLWrapper>=1.7.6
 pytest
+python_jsonschema_objects
+pipdeptree
