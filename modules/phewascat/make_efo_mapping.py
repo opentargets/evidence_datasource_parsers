@@ -16,7 +16,6 @@ from pathlib import Path
 import click
 import requests
 from tqdm import tqdm
-from constants import *
 from common.Utils import mapping_on_github
 
 from ontoma import OnToma
@@ -25,10 +24,11 @@ from ontoma.constants import FIELDS
 from ontoma import logger as ontomalogger
 ontomalogger.setLevel(logging.WARNING)
 
-__log__ = logging.getLogger(__name__)
-__moduledir__ = Path(__file__).resolve().parent
-__modulename__ = Path(__file__).parent.name
+PHEWAS_CATALOG_URL = 'https://storage.googleapis.com/otar000-evidence_input/PheWAScatalog/phewas-catalog.csv'
 
+PHEWAS_PHECODE_MAP_URL = 'https://phewascatalog.org/files/phecode_icd9_map_unrolled.csv.zip'
+
+__log__ = logging.getLogger(__name__)
 
 def download_ic9_phecode_map(url=PHEWAS_PHECODE_MAP_URL):
     '''phewascatalog maps ICD9 to a strange PheCode, but they provide mappings
