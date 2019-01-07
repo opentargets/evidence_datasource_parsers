@@ -41,7 +41,6 @@ def file_or_resource(fname=None):
 class Config:
     '''shared settings
     '''
-    HOME_DIR = str(Path.home())
 
     # schema version
     VALIDATED_AGAINST_SCHEMA_VERSION = '1.2.8'
@@ -55,15 +54,15 @@ class Config:
 
     # PROGENY
     PROGENY_FILENAME = file_or_resource('progeny_normalVStumor_opentargets.txt')
-    PROGENY_EVIDENCE_FILENAME = HOME_DIR + '/progeny-20-05-2018.json'
+    PROGENY_EVIDENCE_FILENAME = 'progeny-20-05-2018.json'
 
     # UKBIOBANK
     UKBIOBANK_FILENAME = file_or_resource('ukbiobank.txt')
-    UKBIOBANK_EVIDENCE_FILENAME = HOME_DIR + '/ukbiobank-30-04-2018.json'
+    UKBIOBANK_EVIDENCE_FILENAME = 'ukbiobank-30-04-2018.json'
 
     # SLAPEnrich
     SLAPENRICH_FILENAME = file_or_resource('slapenrich_opentargets.tsv')
-    SLAPENRICH_EVIDENCE_FILENAME = HOME_DIR + '/otar001_slapenrich-19-12-2017.json'
+    SLAPENRICH_EVIDENCE_FILENAME = 'otar001_slapenrich-19-12-2017.json'
 
     # SYSBIO
     SYSBIO_FILENAME1 = file_or_resource('sysbio_evidence_nov2018.tsv')
@@ -84,7 +83,7 @@ class Config:
 
     # IntoGEN
     INTOGEN_FILENAME = file_or_resource('intogen_opentargets.tsv')
-    INTOGEN_EVIDENCE_FILENAME = HOME_DIR + '/otar001_intogen-18-12-2017.json'
+    INTOGEN_EVIDENCE_FILENAME = 'otar001_intogen-18-12-2017.json'
 
     # mapping that we maintain in Zooma
     OMIM_TO_EFO_MAP_URL = 'https://raw.githubusercontent.com/opentargets/platform_semantic/master/resources/xref_mappings/omim_to_efo.txt'
@@ -93,4 +92,4 @@ class Config:
     # mouse models
     MOUSEMODELS_PHENODIGM_SOLR = 'http://localhost:8983' # 'solrclouddev.sanger.ac.uk'
     # TODO remove refs to user directories
-    MOUSEMODELS_CACHE_DIRECTORY = HOME_DIR + '/.phenodigmcache'
+    MOUSEMODELS_CACHE_DIRECTORY = '.phenodigmcache'
