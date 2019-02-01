@@ -65,7 +65,7 @@ class Config:
     SLAPENRICH_EVIDENCE_FILENAME = 'otar001_slapenrich-19-12-2017.json'
 
     # SYSBIO
-    SYSBIO_FILENAME1 = file_or_resource('SysBioEvidence_Jan2019.tsv')
+    SYSBIO_FILENAME1 = file_or_resource('sysbio_evidence-31-01-2019.tsv')
     SYSBIO_FILENAME2 = file_or_resource('sysbio_publication_info_nov2018.tsv')
     SYSBIO_EVIDENCE_FILENAME = 'sysbio-29-01-2019.json'
 
