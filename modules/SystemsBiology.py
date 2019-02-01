@@ -152,7 +152,6 @@ class SysBio:
 
             self.logger.error("%s evidence parsed"%(n-1))
             self.logger.error("%s evidence created"%len(self.evidence_strings))
-        sysbio_input.close()
 
     def write_evidence(self, filename=Config.SYSBIO_EVIDENCE_FILENAME):
         self.logger.info("Writing SysBio evidence strings")
@@ -168,7 +167,6 @@ class SysBio:
                 else:
                     self.logger.error("REPORTING ERROR %i" %n)
                     self.logger.error(evidence_string.to_JSON(indentation=4))
-            sysbio_output.close()
 
     @staticmethod
     def renormalize(n, start_range, new_range):
