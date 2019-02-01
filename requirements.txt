@@ -1,10 +1,16 @@
 ujson==1.35
 tqdm==4.8.1
+
+#when installing from GitHub, a specific commit must be used for consistency
+#and to ensure dependency caching works as intended
 git+https://github.com/opentargets/data_model.git@1.2.8#egg=data-model
 
 #when installing from GitHub, a specific commit must be used for consistency
 #and to ensure dependency caching works as intended
 git+https://github.com/opentargets/ontology-utils.git@febf619222f49e83468516a4a822a7778b0aca59#egg=ontologyutils
+
+#undocumented transitive requirement of ontoma
+pathlib
 ontoma
 requests
 urllib3
@@ -14,3 +20,4 @@ pysftp
 SPARQLWrapper>=1.7.6
 pytest
 python_jsonschema_objects
+pipdeptree
