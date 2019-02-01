@@ -65,17 +65,18 @@ class Config:
     SLAPENRICH_EVIDENCE_FILENAME = 'otar001_slapenrich-19-12-2017.json'
 
     # SYSBIO
-    SYSBIO_FILENAME1 = file_or_resource('sysbio_evidence_nov2018.tsv')
+    SYSBIO_FILENAME1 = file_or_resource('SysBioEvidence_Jan2019.tsv')
     SYSBIO_FILENAME2 = file_or_resource('sysbio_publication_info_nov2018.tsv')
-    SYSBIO_EVIDENCE_FILENAME = 'sysbio-28-11-2018.json'
+    SYSBIO_EVIDENCE_FILENAME = 'sysbio-29-01-2019.json'
 
     # Gene2Phenotype
-    G2P_FILENAME = 'DDG2P.csv.gz'
+    #G2P_FILENAME = 'DDG2P.csv.gz'
+    G2P_FILENAME = file_or_resource('DDG2P_30_1_2019.csv.gz')
     G2P_EVIDENCE_FILENAME = 'gene2phenotype.json'
 
     # Genomics England
     GE_PANEL_MAPPING_FILENAME = file_or_resource('genomicsenglandpanelapp_panelmapping.csv')
-    GE_EVIDENCE_FILENAME = 'genomics_england.json'
+    GE_EVIDENCE_FILENAME = 'genomics_england-30-01-2019.json'
     GE_LINKOUT_URL = 'https://panelapp.genomicsengland.co.uk/panels/'
     GE_ZOOMA_DISEASE_MAPPING = '/tmp/zooma_disease_mapping.csv'
     GE_ZOOMA_DISEASE_MAPPING_NOT_HIGH_CONFIDENT = '/tmp/zooma_disease_mapping_low_confidence.csv'
