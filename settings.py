@@ -41,7 +41,6 @@ def file_or_resource(fname=None):
 class Config:
     '''shared settings
     '''
-    HOME_DIR = str(Path.home())
 
     # schema version
     VALIDATED_AGAINST_SCHEMA_VERSION = '1.2.8'
@@ -55,23 +54,29 @@ class Config:
 
     # PROGENY
     PROGENY_FILENAME = file_or_resource('progeny_normalVStumor_opentargets.txt')
-    PROGENY_EVIDENCE_FILENAME = HOME_DIR + '/progeny-20-05-2018.json'
+    PROGENY_EVIDENCE_FILENAME = 'progeny-20-05-2018.json'
 
     # UKBIOBANK
     UKBIOBANK_FILENAME = file_or_resource('ukbiobank.txt')
-    UKBIOBANK_EVIDENCE_FILENAME = HOME_DIR + '/ukbiobank-30-04-2018.json'
+    UKBIOBANK_EVIDENCE_FILENAME = 'ukbiobank-30-04-2018.json'
 
     # SLAPEnrich
     SLAPENRICH_FILENAME = file_or_resource('slapenrich_opentargets.tsv')
-    SLAPENRICH_EVIDENCE_FILENAME = HOME_DIR + '/otar001_slapenrich-19-12-2017.json'
+    SLAPENRICH_EVIDENCE_FILENAME = 'otar001_slapenrich-19-12-2017.json'
+
+    # SYSBIO
+    SYSBIO_FILENAME1 = file_or_resource('sysbio_evidence-31-01-2019.tsv')
+    SYSBIO_FILENAME2 = file_or_resource('sysbio_publication_info_nov2018.tsv')
+    SYSBIO_EVIDENCE_FILENAME = 'sysbio-29-01-2019.json'
 
     # Gene2Phenotype
-    G2P_FILENAME = 'DDG2P.csv.gz'
+    #G2P_FILENAME = 'DDG2P.csv.gz'
+    G2P_FILENAME = file_or_resource('DDG2P_30_1_2019.csv.gz')
     G2P_EVIDENCE_FILENAME = 'gene2phenotype.json'
 
     # Genomics England
     GE_PANEL_MAPPING_FILENAME = file_or_resource('genomicsenglandpanelapp_panelmapping.csv')
-    GE_EVIDENCE_FILENAME = 'genomics_england.json'
+    GE_EVIDENCE_FILENAME = 'genomics_england-30-01-2019.json'
     GE_LINKOUT_URL = 'https://panelapp.genomicsengland.co.uk/panels/'
     GE_ZOOMA_DISEASE_MAPPING = '/tmp/zooma_disease_mapping.csv'
     GE_ZOOMA_DISEASE_MAPPING_NOT_HIGH_CONFIDENT = '/tmp/zooma_disease_mapping_low_confidence.csv'
@@ -79,22 +84,15 @@ class Config:
 
     # IntoGEN
     INTOGEN_FILENAME = file_or_resource('intogen_opentargets.tsv')
-    INTOGEN_EVIDENCE_FILENAME = HOME_DIR + '/otar001_intogen-18-12-2017.json'
+    INTOGEN_EVIDENCE_FILENAME = 'otar001_intogen-18-12-2017.json'
 
     # mapping that we maintain in Zooma
     OMIM_TO_EFO_MAP_URL = 'https://raw.githubusercontent.com/opentargets/platform_semantic/master/resources/xref_mappings/omim_to_efo.txt'
     ZOOMA_TO_EFO_MAP_URL = 'https://raw.githubusercontent.com/opentargets/platform_semantic/master/resources/zooma/cttv_indications_3.txt'
 
-<<<<<<< HEAD
     # mouse models (Phenodigm)
-    #MOUSEMODELS_PHENODIGM_SOLR = 'http://localhost:8983' # 'solrclouddev.sanger.ac.uk'
+    # used to be 'http://localhost:8983' # 'solrclouddev.sanger.ac.uk'
     MOUSEMODELS_PHENODIGM_SOLR = 'http://www.ebi.ac.uk/mi/impc'
     # write to the cloud direcly
     MOUSEMODELS_CACHE_DIRECTORY = 'Phenodigm/phenodigmcache'
-    MOUSEMODELS_EVIDENCE_FILENAME = 'phenodigm-12-10-2018.json'
-=======
-    # mouse models
-    MOUSEMODELS_PHENODIGM_SOLR = 'http://localhost:8983' # 'solrclouddev.sanger.ac.uk'
-    # TODO remove refs to user directories
-    MOUSEMODELS_CACHE_DIRECTORY = HOME_DIR + '/.phenodigmcache'
->>>>>>> c24d58009581c131d6b58d29642f3d8f78c2e620
+    MOUSEMODELS_EVIDENCE_FILENAME = 'phenodigm-13-02-2019.json'

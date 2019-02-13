@@ -82,7 +82,7 @@ TUMOR_TYPE_MAP = {
 }
 
 SYMBOL_MAPPING = {
-    # TODO These symbols does not has Ensembl ID mappings, need alternative mapping
+    # TODO These symbols do not have Ensembl ID mappings, need alternative mapping
     '''
     i.e 'C15orf55': 'NUTM1',
 
@@ -144,9 +144,7 @@ class SLAPEnrich():
 
         now = datetime.datetime.now()
 
-        '''
-            build evidence.provenance_type object
-        '''
+        # *** Build evidence.provenance_type object ***
         provenance_type = evidence_core.BaseProvenance_Type(
             database=evidence_core.BaseDatabase(
                 id="SLAPEnrich",
@@ -168,104 +166,103 @@ class SLAPEnrich():
             for line in slapenrich_input:
                 n +=1
                 if n>1:
-                    '''
-                        pval    => pvalue of the SLAPenrichment of the pathway indicated in the cancer/tumor type
-                        fdr     => FDR percentage of the SLAPenrichment of the pathway in the cancer/tumor type
-                        logOdds => log10 odd ratio (number of patients with mutations in the pathway / number of expected patients with mutations in the pathway)
-                        exeeco  => exclusive coverage of the pathway = number patients with mutations in exactly 1 gene in the pathway / number of patients with mutations in at least one gene in the pathway.
-                    '''
+                        # pval    => pvalue of the SLAPenrichment of the pathway indicated in the cancer/tumor type
+                        # fdr     => FDR percentage of the SLAPenrichment of the pathway in the cancer/tumor type
+                        # logOdds => log10 odd ratio (number of patients with mutations in the pathway / number of expected patients with mutations in the pathway)
+                        # exeeco  => exclusive coverage of the pathway = number patients with mutations in exactly 1 gene
+                        #            in the pathway / number of patients with mutations in at least one gene in the pathway.
                     (tumor_type, gene_symbol, mutFreq_dataset, pathway_id, mutFreq_pathway, pval, fdr, logodds, excco) = tuple(line.rstrip().split('\t'))
 
-                    pathway = pathway_id.split(":")
-                    pathway_id = pathway[0].rstrip()
-                    pathway_desc = pathway[1].rstrip()
-                    '''
-                        build evidence.resource_score object
-                    '''
-                    resource_score = association_score.Pvalue(
-                        type="pvalue",
-                        method=association_score.Method(
-                            description="SLAPEnrich analysis of TCGA tumor types as described in Brammeld J et al (2017)",
-                            reference  ="http://europepmc.org/abstract/MED/28179366",
-                            url="https://saezlab.github.io/SLAPenrich"
-                        ),
-                        value=float(pval)
-                    )
+                    # Only process rows with p-value < 1e-4. p-values >= 1e-4 are scaled to '0' in the pipeline.
+                    if float(pval) < 1e-4:
 
-                    evidenceString = opentargets.Literature_Curated()
-                    evidenceString.validated_against_schema_version = Config.VALIDATED_AGAINST_SCHEMA_VERSION
-                    evidenceString.access_level = "public"
-                    evidenceString.type = "affected_pathway"
-                    evidenceString.sourceID = "slapenrich"
-                    '''
-                        build unique_association_field object
-                    '''
-                    evidenceString.unique_association_fields = {}
-                    evidenceString.unique_association_fields['symbol'] = gene_symbol
-                    evidenceString.unique_association_fields['tumor_type_acronym'] = tumor_type
-                    evidenceString.unique_association_fields['tumor_type'] = TUMOR_TYPE_MAP[tumor_type]
-                    evidenceString.unique_association_fields['pathway_id'] = 'http://www.reactome.org/PathwayBrowser/#%s' % (pathway_id)
-                    evidenceString.unique_association_fields['efo_id'] = TUMOR_TYPE_EFO_MAP[tumor_type]['uri']
+                        # p-value indicates a very small p-value. The smallest p-values are 8.51e-18, so these p-values
+                        # will be set to 1e-20. All p-values < 1e-14 are scaled to '1' in the pipeline.
+                        if float(pval) == 0.0:
+                            pval = 1e-20
 
-                    target_type = 'http://identifiers.org/cttv.target/gene_evidence'
-                    ensembl_gene_id = None
+                        pathway = pathway_id.split(":")
+                        pathway_id = pathway[0].rstrip()
+                        pathway_desc = pathway[1].rstrip()
 
-                    if gene_symbol in SYMBOL_MAPPING:
-                        gene_symbol = SYMBOL_MAPPING[gene_symbol]
-
-                    '''
-                        build target object,
-                    '''
-                    if gene_symbol in self.symbols:
-                        ensembl_gene_id = self.symbols[gene_symbol]
-
-                        evidenceString.target = bioentity.Target(
-                            id="http://identifiers.org/ensembl/{0}".format(ensembl_gene_id),
-                            target_name=gene_symbol,
-                            #TODO activity is a required field in target object, currently set as unknown
-                            activity="http://identifiers.org/cttv.activity/unknown",
-                            target_type=target_type
+                        # *** Build evidence.resource_score object ***
+                        resource_score = association_score.Pvalue(
+                            type="pvalue",
+                            method=association_score.Method(
+                                description="SLAPEnrich analysis of TCGA tumor types as described in Brammeld J et al (2017)",
+                                reference  ="http://europepmc.org/abstract/MED/28179366",
+                                url="https://saezlab.github.io/SLAPenrich"
+                            ),
+                            value=float(pval)
                         )
 
-                        '''
-                            build disease object
-                        '''
-                        evidenceString.disease = bioentity.Disease(
-                            id=TUMOR_TYPE_EFO_MAP[tumor_type]['uri'],
-                            name=TUMOR_TYPE_EFO_MAP[tumor_type]['label']
-                        )
+                        evidenceString = opentargets.Literature_Curated()
+                        evidenceString.validated_against_schema_version = Config.VALIDATED_AGAINST_SCHEMA_VERSION
+                        evidenceString.access_level = "public"
+                        evidenceString.type = "affected_pathway"
+                        evidenceString.sourceID = "slapenrich"
 
-                        '''
-                            build evidence object
-                        '''
-                        evidenceString.evidence = evidence_core.Literature_Curated()
-                        evidenceString.evidence.date_asserted = now.isoformat()
-                        evidenceString.evidence.is_associated = True
-                        #TODO check is this the correct evidence code "computational combinatorial evidence"
-                        evidenceString.evidence.evidence_codes = ["http://purl.obolibrary.org/obo/ECO_0000053"]
-                        evidenceString.evidence.provenance_type = provenance_type
-                        evidenceString.evidence.resource_score = resource_score
+                        # *** Build unique_association_field object ***
+                        evidenceString.unique_association_fields = {}
+                        evidenceString.unique_association_fields['symbol'] = gene_symbol
+                        evidenceString.unique_association_fields['tumor_type_acronym'] = tumor_type
+                        evidenceString.unique_association_fields['tumor_type'] = TUMOR_TYPE_MAP[tumor_type]
+                        evidenceString.unique_association_fields['pathway_id'] = 'http://www.reactome.org/PathwayBrowser/#%s' % (pathway_id)
+                        evidenceString.unique_association_fields['efo_id'] = TUMOR_TYPE_EFO_MAP[tumor_type]['uri']
 
-                        '''
-                            build evidence.url object
-                        '''
-                        linkout = evidence_linkout.Linkout (
-                            url='http://www.reactome.org/PathwayBrowser/#%s'%(pathway_id),
-                            nice_name='%s'%(pathway_desc)
-                        )
+                        target_type = 'http://identifiers.org/cttv.target/gene_evidence'
+                        ensembl_gene_id = None
 
-                        evidenceString.evidence.urls = [linkout]
+                        if gene_symbol in SYMBOL_MAPPING:
+                            gene_symbol = SYMBOL_MAPPING[gene_symbol]
 
-                        error = evidenceString.validate(logging)
+                        # *** Build target object ***
+                        # TODO: USP12 does not return an ensembl gene ID - 5 evidence strings are affected
+                        # The gene is present in the OT Platform & in HGNC etc.
+                        if gene_symbol in self.symbols:
+                            ensembl_gene_id = self.symbols[gene_symbol]
 
-                        if error > 0:
-                            self.logger.error(evidenceString.to_JSON())
-                            sys.exit(1)
+                            evidenceString.target = bioentity.Target(
+                                id="http://identifiers.org/ensembl/{0}".format(ensembl_gene_id),
+                                target_name=gene_symbol,
+                                #TODO activity is a required field in target object, currently set as unknown
+                                activity="http://identifiers.org/cttv.activity/unknown",
+                                target_type=target_type
+                            )
 
-                        self.evidence_strings.append(evidenceString)
+                            # *** Build disease object ***
+                            evidenceString.disease = bioentity.Disease(
+                                id=TUMOR_TYPE_EFO_MAP[tumor_type]['uri'],
+                                name=TUMOR_TYPE_EFO_MAP[tumor_type]['label']
+                            )
 
-                    else:
-                        self.logger.error("%s is not found in Ensembl" % gene_symbol)
+                            # *** Build evidence object ***
+                            evidenceString.evidence = evidence_core.Literature_Curated()
+                            evidenceString.evidence.date_asserted = now.isoformat()
+                            evidenceString.evidence.is_associated = True
+                            #TODO check is this the correct evidence code "computational combinatorial evidence"
+                            evidenceString.evidence.evidence_codes = ["http://purl.obolibrary.org/obo/ECO_0000053"]
+                            evidenceString.evidence.provenance_type = provenance_type
+                            evidenceString.evidence.resource_score = resource_score
+
+                            # *** Build evidence.url object ***
+                            linkout = evidence_linkout.Linkout (
+                                url='http://www.reactome.org/PathwayBrowser/#%s'%(pathway_id),
+                                nice_name='%s'%(pathway_desc)
+                            )
+
+                            evidenceString.evidence.urls = [linkout]
+
+                            error = evidenceString.validate(logging)
+
+                            if error > 0:
+                                self.logger.error(evidenceString.to_JSON())
+                                sys.exit(1)
+
+                            self.evidence_strings.append(evidenceString)
+
+                        else:
+                            self.logger.error("%s is not found in Ensembl" % gene_symbol)
 
             self.logger.info("%s evidence parsed"%(n-1))
             self.logger.info("%s evidence created"%len(self.evidence_strings))
