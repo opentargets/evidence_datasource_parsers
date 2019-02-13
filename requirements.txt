@@ -1,16 +1,16 @@
 ujson==1.35
 tqdm==4.8.1
-#v1.2.7
-git+https://github.com/opentargets/data_model.git@1.2.7#egg=data-model
-git+https://github.com/opentargets/ontology-utils.git@master#egg=ontologyutils
-#git+https://github.com/opentargets/data_pipeline.git@master#egg=data_pipeline
+git+https://github.com/opentargets/data_model.git@1.2.8#egg=data-model
+
+#when installing from GitHub, a specific commit must be used for consistency
+#and to ensure dependency caching works as intended
+git+https://github.com/opentargets/ontology-utils.git@febf619222f49e83468516a4a822a7778b0aca59#egg=ontologyutils
+ontoma
 requests
 urllib3
 iso8601
 rdflib
 pysftp
 SPARQLWrapper>=1.7.6
-google-cloud-storage
-google-auth-oauthlib
-google-api-python-client
 pytest
+python_jsonschema_objects

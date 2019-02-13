@@ -11,9 +11,13 @@ import collections
 from settings import Config
 from common.Utils import TqdmLoggingHandler
 from common.RareDiseasesUtils import RareDiseaseMapper
+<<<<<<< HEAD
 from common.GCSUtils import GCSBucketManager
 from ontologyutils.rdf_utils import OntologyClassReader
 
+=======
+#from ontologyutils.rdf_utils import OntologyClassReader
+>>>>>>> c24d58009581c131d6b58d29642f3d8f78c2e620
 import opentargets.model.core as cttv
 import opentargets.model.bioentity as bioentity
 import opentargets.model.evidence.phenotype as evidence_phenotype
@@ -302,6 +306,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                     #else:
                     #    self._logger.error("Never heard of this '%s' type of documents in PhenoDigm. Exiting..."%(doc['type']))
                     #    sys.exit(1)
+<<<<<<< HEAD
                     elif doc['type'] == 'ontology_ontology':
                         if doc['mp_id'] not in self.ontology_ontology:
                             self.ontology_ontology[doc['mp_id']] = []
@@ -312,10 +317,13 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                     print ("KeyError \n", ke)
                     print(json.dumps(doc))
                     break
+=======
+            myfile.close()
+>>>>>>> c24d58009581c131d6b58d29642f3d8f78c2e620
 
     def generate_phenodigm_evidence_strings(self, upper_limit=0):
         '''
-         Once you have retrieved all the genes,and mouse models   
+         Once you have retrieved all the genes,and mouse models
          Create an evidence string for every gene to disease relationship
         '''
         now = datetime.datetime.now()
@@ -342,8 +350,13 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                 '''
                  Retrieve mouse models
                 '''
+<<<<<<< HEAD
                 for mouse_gene_id in self.hgnc2mgis[hgnc_gene_id]:
                 
+=======
+                for marker_symbol in self.hgnc2mgis[hgnc_gene_id]:
+
+>>>>>>> c24d58009581c131d6b58d29642f3d8f78c2e620
                     #if not marker_symbol == "Il13":
                     #    continue;
                     if mouse_gene_id not in self.mgi2symbols:
@@ -352,7 +365,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                     marker_symbol = self.mgi2symbols[mouse_gene_id]
                     print(marker_symbol)
                     self._logger.info("\tProcessing mouse gene symbol %s" % (marker_symbol))
-                    
+
                     '''
                     Some mouse symbol are not mapped in Ensembl
                     We will check that once we get the symbol
@@ -391,7 +404,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                                 model_description = mouse_model['model_description']
                                 self._logger.info("\t\tMouse model {0} for {1}".format(model_id, marker_id))
                                 '''
-                                 Check the model_id is in the dictionary containing all the models 
+                                 Check the model_id is in the dictionary containing all the models
                                 '''
                                 if model_id in self.mouse_model2diseases:
 
@@ -403,7 +416,24 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                                          get the disease identifier
                                         '''
                                         disease_id = mouse_model2disease['disease_id']
+<<<<<<< HEAD
 
+=======
+                                        '''
+                                         Check if there are any HPO terms
+                                        '''
+                                        hp_matched_terms = None
+                                        if 'hp_matched_terms' in mouse_model2disease:
+                                            hp_matched_terms = mouse_model2disease['hp_matched_terms']
+                                        '''
+                                         Check if there are any MP terms
+                                         There is a bug in the current PhenoDigm.
+
+                                        '''
+                                        mp_matched_ids = None
+                                        if 'mp_matched_ids' in mouse_model2disease:
+                                            mp_matched_ids = mouse_model2disease['mp_matched_ids']
+>>>>>>> c24d58009581c131d6b58d29642f3d8f78c2e620
                                         '''
                                          Retrieve the disease document
                                         '''
@@ -414,6 +444,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                                         else:
                                             self._logger.info("\t\t\tdisease: %s"%(disease_id))
 
+<<<<<<< HEAD
                                         '''
                                             Get all phenotypes and check the ones that match the mouse ones 
                                             we don't want to show all the phenotypes
@@ -422,6 +453,8 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                                         model_disease_human_phenotypes = list(filter(lambda x: x in model_human_phenotypes, disease_phenotypes))
 
 
+=======
+>>>>>>> c24d58009581c131d6b58d29642f3d8f78c2e620
                                         '''
                                         Map the disease ID to EFO
                                         Can be a one to many mapping
@@ -449,7 +482,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                                                     #    else:
                                                     #        self._logger.info("{0} => {1} (no EFO mapping)".format(disease_id, disease_term['efo_uri']))
                                                     disease_terms = efoMapping[disease_id]
-                                                        
+
                                             elif matchORPHANET:
                                                     suffix = matchORPHANET.groups()[0]
                                                     orphanetId = "Orphanet:{0}".format(suffix)
@@ -459,7 +492,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                                                         disease_terms = efoMapping[disease_id]
                                         else:
                                             disease_terms = efoMapping[disease_id]
-                                            
+
                                         '''
                                         OK, we have a disease mapped to EFO
                                         we can proceed to the next stage
@@ -480,9 +513,9 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                                                 '''
                                                 Create a new evidence string
                                                 '''
-                                            
 
-                                            
+
+
                                                 # 1.2.6 create an Animal_Models class
                                                 evidenceString = cttv.Animal_Models()
                                                 evidenceString.validated_against_schema_version = Config.VALIDATED_AGAINST_SCHEMA_VERSION
@@ -613,9 +646,9 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                                                                 species="human"
                                                                 )
                                                             )
-                                                ''' 
+                                                '''
                                                 get all matched mouse phenotypes
-                                                Format is: 
+                                                Format is:
                                                 '''
                                                 '''
                                                 mouse_phenotypes = []
@@ -688,14 +721,44 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                                                         self.hashkeys[hashkey] = evidenceString
                                         else:
 
+<<<<<<< HEAD
                                             self._logger.error("Unable to incorporate this strain for this disease: {0}".format(disease_id))
                                             self._logger.error("No disease terms {0}".format(disease_terms == None))
                                             self._logger.error("disease_model_max_norm in mouse_model2disease: {0}".format('disease_model_max_norm' in mouse_model2disease))
+=======
+                                            self._logger.error("Unable to incorpate this strain for this disease: {0}".format(disease_id))
+                                            self._logger.error("No disease id {0}".format(disease_term_uris == None))
+                                            self._logger.error("model_to_disease_score in mouse_model2disease: {0}".format( 'model_to_disease_score' in mouse_model2disease) )
+>>>>>>> c24d58009581c131d6b58d29642f3d8f78c2e620
                                             self._logger.error("disease_id in disease_gene_locus: {0}".format(disease_id in self.disease_gene_locus))
                                             #self._logger.error("hs_symbol in disease_gene_locus[disease_id]: {0}".format(not disease_term_uris == None and disease_id in self.disease_gene_locus and hgnc_gene_id in self.disease_gene_locus[disease_id]))
                                             #self._logger.error("marker_symbol in disease_gene_locus[disease_id][hgnc_gene_id]): {0}".format(disease_term_uris is not None and disease_id in self.disease_gene_locus and marker_symbol in self.disease_gene_locus[disease_id][hgnc_gene_id]))
 
+<<<<<<< HEAD
     def write_evidence_strings(self, filename):
+=======
+    def write_phenodigm_evidence_strings(self, path):
+        cttvFile = open(os.path.join(path, "phenodigm.json"), "w")
+        #cttvFile.write("[\n")
+        countExported = 0
+        self._logger.info("Processing %i records" % (len(self.hashkeys)))
+        for hashkey in self.hashkeys:
+            self._logger.info("Processing key %s"%(hashkey))
+            evidenceString = self.hashkeys[hashkey]
+
+            error = evidenceString.validate(self._logger)
+
+            if error == 0:
+    #        and (evidenceString.evidence.association_score.probability.value >= 0.5 || evidenceString.evidence.in_locus):
+                #print(evidenceString.to_JSON())
+                if countExported > 0:
+                    cttvFile.write("\n")
+                cttvFile.write(evidenceString.to_JSON(indentation=None))
+                #cttvFile.write(evidenceString.to_JSON(indentation=2))
+                countExported+=1
+
+        cttvFile.close()
+>>>>>>> c24d58009581c131d6b58d29642f3d8f78c2e620
 
         countExported = 0
         logger.info("Writing Phenodigm evidence strings")

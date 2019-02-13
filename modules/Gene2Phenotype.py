@@ -1,7 +1,6 @@
-from settings import Config, file_or_resource
+from settings import Config
 from common.HGNCParser import GeneParser
 from common.RareDiseasesUtils import RareDiseaseMapper
-from common.GCSUtils import GCSBucketManager
 from tqdm import tqdm
 import tempfile
 
@@ -27,15 +26,9 @@ __maintainer__ = "ChuangKee Ong"
 __email__      = ["gautierk@targetvalidation.org", "ckong@ebi.ac.uk"]
 __status__     = "Production"
 
-G2P_FILENAME = Config.G2P_FILENAME
-G2P_EVIDENCE_FILENAME = Config.G2P_EVIDENCE_FILENAME
-
-class G2P(RareDiseaseMapper, GCSBucketManager):
+class G2P(RareDiseaseMapper):
     def __init__(self):
-        print ("Calling super constructors")
         super(G2P, self).__init__()
-        #RareDiseaseMapper.__init__(self)
-        #GCSBucketManager.__init__(self)
         self.genes = None
         self.evidence_strings = list()
 
@@ -50,16 +43,16 @@ class G2P(RareDiseaseMapper, GCSBucketManager):
         gene_parser._get_hgnc_data_from_json()
         self.genes = gene_parser.genes
 
-        self.generate_evidence_strings(G2P_FILENAME)
-        self.write_evidence_strings(G2P_EVIDENCE_FILENAME)
+        self.generate_evidence_strings(Config.G2P_FILENAME)
+        self.write_evidence_strings(Config.G2P_EVIDENCE_FILENAME)
 
     def generate_evidence_strings(self, filename):
 
         total_efo = 0
 
-        with gzip.open(self.get_gcs_filename(filename), mode='rt') as zf:
+        with gzip.open(filename, mode='rt') as zf:
 
-            reader = csv.reader(zf, delimiter=',', quotechar='"')
+            reader = csv.DictReader(zf, delimiter=',', quotechar='"')
             c = 0
             for row in reader:
 
@@ -68,7 +61,10 @@ class G2P(RareDiseaseMapper, GCSBucketManager):
                     '''
                     "gene symbol","gene mim","disease name","disease mim","DDD category","allelic requirement","mutation consequence",phenotypes,"organ specificity list",pmids,panel,"prev symbols","hgnc id"
                     '''
-                    (gene_symbol, gene_mim, disease_name, disease_mim, DDD_category, allelic_requirement, mutation_consequence, phenotypes, organ_specificity_list,pmids,panel, prev_symbols, hgnc_id) = row
+                    gene_symbol = row["gene symbol"]
+                    disease_name = row["disease name"]
+                    disease_mim = row["disease mim"]
+
                     gene_symbol.rstrip()
 
                     if gene_symbol in self.genes:
@@ -136,8 +132,8 @@ class G2P(RareDiseaseMapper, GCSBucketManager):
                 print("%i %i" % (total_efo, c))
 
     def write_evidence_strings(self, filename):
-        self._logger.info("Writing IntOGen evidence strings")
-        with open('/tmp/' + filename, 'w') as tp_file:
+        self._logger.info("Writing IntOGen evidence strings to %s", filename)
+        with open(filename, 'w') as tp_file:
             n = 0
             for evidence_string in self.evidence_strings:
                 n += 1
@@ -152,12 +148,9 @@ class G2P(RareDiseaseMapper, GCSBucketManager):
                     # sys.exit(1)
 
 
-        blob = self.bucket.blob(filename)
-        with open('/tmp/' + filename, 'rb') as my_file:
-            blob.upload_from_file(my_file)
-
 def main():
     g2p = G2P()
+    g2p.process_g2p()
 
 if __name__ == "__main__":
     main()
