@@ -27,8 +27,8 @@ class RareDiseaseMapper(object):
             omim	efo_uri	efo_label	source	status
             '''
             line_count += 1
-            if len(line.decode('utf8').strip()) > 0:
-                (omim, efo_uri, efo_label, source, status) = line.decode('utf8').strip().split("\t")
+            if len(line.strip()) > 0:
+                (omim, efo_uri, efo_label, source, status) = line.strip().split("\t")
                 if omim not in self.omim_to_efo_map:
                     self.omim_to_efo_map[omim] = []
                 self.omim_to_efo_map[omim].append({'efo_uri': efo_uri, 'efo_label': efo_label})
