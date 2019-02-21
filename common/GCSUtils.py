@@ -9,7 +9,7 @@ import os
 class GCSBucketManager(object):
 
     def __init__(self):
-        print("init GCSBucketManager")
+        #print("init GCSBucketManager")
         super(GCSBucketManager, self).__init__()
         self._logger = logging.getLogger(__name__)
         self.gcs_client = gcs.Client(Config.GOOGLE_DEFAULT_PROJECT)

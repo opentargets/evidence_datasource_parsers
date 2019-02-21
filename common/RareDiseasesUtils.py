@@ -6,7 +6,7 @@ from settings import Config
 class RareDiseaseMapper(object):
 
     def __init__(self):
-        print("init RareDiseaseMapper")
+
         super(RareDiseaseMapper, self).__init__()
         self._logger = logging.getLogger(__name__+".RareDiseaseMapper")
         self.omim_to_efo_map = OrderedDict()
