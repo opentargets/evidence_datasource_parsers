@@ -722,15 +722,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
             print("have opened " + filename)
             blob.upload_from_file(my_file)
 
-    def process_all(self, update_cache=False):
-
-        if update_cache == True:
-            bar = tqdm(desc='Generate PhenoDigm evidence strings',
-                       total=1,
-                       unit='steps')
-            self.access_solr(mode='update_cache')
-            bar.update()
-            return
+    def process_ontologies(self):
 
         bar = tqdm(desc='Load ontologies',
                    total=3,
@@ -746,6 +738,8 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
         self.efo.load_efo_classes()
         bar.update()
 
+    def get_ontology_mappings(self):
+
         bar = tqdm(desc='Get ontology mappings',
                    total=2,
                    unit='steps')
@@ -754,13 +748,26 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
         self.get_omim_to_efo_mappings()
         self._logger.info("Get all Zooma mapping for Open Targets")
         self.get_opentargets_zooma_to_efo_mappings()
-
         #self.omim_to_efo_map["OMIM:191390"] = ["http://www.ebi.ac.uk/efo/EFO_0003767"]
         #self.omim_to_efo_map["OMIM:266600"] = ["http://www.ebi.ac.uk/efo/EFO_0003767"]
         #self.omim_to_efo_map["OM:612278"] = ["http://www.ebi.ac.uk/efo/EFO_0003767"]
         #self.omim_to_efo_map["OMIM:608049"] = ["http://www.ebi.ac.uk/efo/EFO_0003756"]
         #self.omim_to_efo_map["OMIM:300494"] = ["http://www.ebi.ac.uk/efo/EFO_0003757"]
         bar.update()
+
+
+    def process_all(self, update_cache=False):
+
+        if update_cache == True:
+            bar = tqdm(desc='Generate PhenoDigm evidence strings',
+                       total=1,
+                       unit='steps')
+            self.access_solr(mode='update_cache')
+            bar.update()
+            return
+
+        self.process_ontologies()
+        self.get_ontology_mappings()
 
         bar = tqdm(desc='Load mouse and human genes',
                    total=2,
@@ -795,6 +802,7 @@ def main():
     options, args = parser.parse_args()
 
     ph = Phenodigm()
+    #ph.process_ontologies()
     ph.process_all(update_cache=options.update_cache)
 
 if __name__ == "__main__":
