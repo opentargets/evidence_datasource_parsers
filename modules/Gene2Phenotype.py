@@ -1,27 +1,22 @@
 from settings import Config
 from common.HGNCParser import GeneParser
 from common.RareDiseasesUtils import RareDiseaseMapper
-from tqdm import tqdm
-import tempfile
 
 import opentargets.model.core as opentargets
 import opentargets.model.bioentity as bioentity
-import opentargets.model.evidence.phenotype as evidence_phenotype
 import opentargets.model.evidence.core as evidence_core
 import opentargets.model.evidence.linkout as evidence_linkout
 import opentargets.model.evidence.association_score as association_score
-import opentargets.model.evidence.mutation as evidence_mutation
 
 import sys
 import logging
-import urllib3
 import csv
 import gzip
 
 __copyright__  = "Copyright 2014-2017, Open Targets"
 __credits__    = ["Gautier Koscielny", "ChuangKee Ong"]
 __license__    = "Apache 2.0"
-__version__    = "1.2.7"
+__version__    = "1.2.8"
 __maintainer__ = "ChuangKee Ong"
 __email__      = ["gautierk@targetvalidation.org", "ckong@ebi.ac.uk"]
 __status__     = "Production"
@@ -55,12 +50,9 @@ class G2P(RareDiseaseMapper):
             reader = csv.DictReader(zf, delimiter=',', quotechar='"')
             c = 0
             for row in reader:
-
                 c += 1
                 if c > 1:
-                    '''
-                    "gene symbol","gene mim","disease name","disease mim","DDD category","allelic requirement","mutation consequence",phenotypes,"organ specificity list",pmids,panel,"prev symbols","hgnc id"
-                    '''
+                    # "gene symbol","gene mim","disease name","disease mim","DDD category","allelic requirement","mutation consequence",phenotypes,"organ specificity list",pmids,panel,"prev symbols","hgnc id"
                     gene_symbol = row["gene symbol"]
                     disease_name = row["disease name"]
                     disease_mim = row["disease mim"]
@@ -68,11 +60,11 @@ class G2P(RareDiseaseMapper):
                     gene_symbol.rstrip()
 
                     if gene_symbol in self.genes:
-                        ''' map gene symbol to ensembl '''
+                        # Map gene symbol to ensembl
                         target = self.genes[gene_symbol]
                         ensembl_iri = "http://identifiers.org/ensembl/" + target
 
-                        ''' Map disease to EFO or Orphanet '''
+                        # Map disease to EFO or Orphanet
                         if disease_mim in self.omim_to_efo_map:
                             total_efo +=1
                             diseases = self.omim_to_efo_map[disease_mim]
@@ -95,7 +87,7 @@ class G2P(RareDiseaseMapper):
 
                             obj.access_level = "public"
                             obj.sourceID = "gene2phenotype"
-                            obj.validated_against_schema_version = "1.2.7"
+                            obj.validated_against_schema_version = "1.2.8"
                             obj.unique_association_fields = {"target": ensembl_iri, "original_disease_label" : disease_name, "disease_uri": disease['efo_uri'], "source_id": "gene2phenotype"}
                             obj.target = bioentity.Target(id=ensembl_iri,
                                                           activity="http://identifiers.org/cttv.activity/unknown",

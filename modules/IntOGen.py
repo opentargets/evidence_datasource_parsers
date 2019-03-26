@@ -63,7 +63,7 @@ INTOGEN_TUMOR_TYPE_EFO_MAP = {
     'UCEC' : { 'uri' : 'http://www.ebi.ac.uk/efo/EFO_0000466', 'label' : 'endometrioid carcinoma' }
 }
 
-''' cancer acronyms '''
+# Cancer acronyms
 INTOGEN_TUMOR_TYPE_MAP = {
     'ALL' : 'acute lymphocytic leukemia',
     'AML' : 'acute myeloid leukemia',
@@ -181,13 +181,8 @@ class IntOGen():
                     evidenceString.unique_association_fields['method'] = 'OncodriveROLE'
                     evidenceString.unique_association_fields['method_description'] = 'Classifying cancer driver genes into Loss of Function and Activating roles'
 
-                    target_type = 'http://identifiers.org/cttv.target/gene_evidence'
-
-                    '''
-                        target information (root.target.target_type is required)
-                        get the ensembl gene id from the symbol (mapping from 2014 won't work)
-                    '''
-                    ensembl_gene_id = None
+                    # target information (root.target.target_type is required)
+                    # get the ensembl gene id from the symbol (mapping from 2014 won't work)
                     if Symbol in INTOGEN_SYMBOL_MAPPING:
                         Symbol = INTOGEN_SYMBOL_MAPPING[Symbol]
 
@@ -207,13 +202,13 @@ class IntOGen():
 
 #                    id = [INTOGEN_TUMOR_TYPE_EFO_MAP[Tumor_Type]['uri']],
 #                    name = [INTOGEN_TUMOR_TYPE_EFO_MAP[Tumor_Type]['label']]
-                    ''' disease information '''
+                    # Disease information
                     evidenceString.disease = bioentity.Disease(
                                             id = INTOGEN_TUMOR_TYPE_EFO_MAP[Tumor_Type]['uri'],
                                             name=INTOGEN_TUMOR_TYPE_EFO_MAP[Tumor_Type]['label']
                                             )
 
-                    ''' evidence '''
+                    # Evidence
                     evidenceString.evidence = evidence_core.Literature_Curated()
                     evidenceString.evidence.date_asserted = now.isoformat()
                     evidenceString.evidence.is_associated = True
@@ -235,7 +230,7 @@ class IntOGen():
                     elif Role == 'LoF':
                         inheritance_pattern = 'recessive'
 
-                    ''' gene_variant '''
+                    # Gene_variant
                     mutation = evidence_mutation.Mutation(
                         functional_consequence = 'http://purl.obolibrary.org/obo/SO_0001564',
                         preferred_name = 'gene_variant',
@@ -263,7 +258,6 @@ class IntOGen():
             for evidence_string in self.evidence_strings:
                 n+=1
                 self.logger.info(evidence_string.disease.id[0])
-                # get max_phase_for_all_diseases
                 error = evidence_string.validate(logging)
                 if error == 0:
                     tp_file.write(evidence_string.to_JSON(indentation=None)+"\n")

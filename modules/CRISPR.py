@@ -3,7 +3,6 @@ from common.HGNCParser import GeneParser
 import sys
 import logging
 import datetime
-import math
 import opentargets.model.core as opentargets
 import opentargets.model.bioentity as bioentity
 import opentargets.model.evidence.core as evidence_core

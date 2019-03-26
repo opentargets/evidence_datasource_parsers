@@ -17,7 +17,7 @@ __maintainer__= "ChuangKee Ong"
 __email__     = ["data@opentargets.org"]
 __status__    = "Production"
 
-''' TCGA -> EFO mapping '''
+# TCGA -> EFO mapping
 TUMOR_TYPE_EFO_MAP = {
     'BLCA': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000292', 'label': 'bladder carcinoma'},
     'BRCA': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000305', 'label': 'breast carcinoma'},
@@ -36,7 +36,7 @@ TUMOR_TYPE_EFO_MAP = {
     'COREAD': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000000', 'label': 'colorectoral adenoma'}
 }
 
-''' TCGA acronyms '''
+# TCGA acronyms
 TUMOR_TYPE_MAP = {
     'BLCA': 'bladder carcinoma',
     'BRCA': 'breast carcinoma',
@@ -55,9 +55,8 @@ TUMOR_TYPE_MAP = {
     'COREAD': ''
 }
 
-''' Pathway -> Perturbed Targets
-    https://drive.google.com/drive/folders/1L5Y_umEZiccWJnXiiaYMNKUKYTjnp3ZU
-'''
+# Pathway -> Perturbed Targets
+# https://drive.google.com/drive/folders/1L5Y_umEZiccWJnXiiaYMNKUKYTjnp3ZU
 PATHWAY_TARGET_MAP = {
     'Androgen' : ['AR'],
     'EGFR'     : ['EGFR'],
@@ -75,7 +74,7 @@ PATHWAY_TARGET_MAP = {
     'p53'      : ['TP53']
 }
 
-''' Pathway -> Reactome Pathway ID '''
+# Pathway -> Reactome Pathway ID
 #TODO Hypoxia, JAK.STAT, Trail to be updated
 PATHWAY_REACTOME_MAP = {
     'Androgen' : 'R-HSA-8940973:RUNX2 regulates osteoblast differentiation',
@@ -94,7 +93,7 @@ PATHWAY_REACTOME_MAP = {
     'p53'      : 'R-HSA-2559580:Oxidative Stress Induced Senescence'
 }
 
-''' These symbols are secondary/generic/typo that needs update '''
+# These symbols are secondary/generic/typo that need updating
 PROGENY_SYMBOL_MAPPING = {
     'NKFB1'   : 'NFKB1',
     'MAPK2K1' : 'PRKMK1',
@@ -125,9 +124,7 @@ class PROGENY:
     def build_evidence(self, filename=Config.PROGENY_FILENAME):
 
         now = datetime.datetime.now()
-        '''
-            build evidence.provenance_type object
-        '''
+        # Build evidence.provenance_type object
         provenance_type = evidence_core.BaseProvenance_Type(
             database=evidence_core.BaseDatabase(
                 id=PROGENY_DATABASE_ID,
@@ -149,12 +146,10 @@ class PROGENY:
             for line in progeny_input:
                 n +=1
                 if n>1:
-                    '''
-                        Pathway Cancer_type     logFC   AveExpr t       P.Value adj.P.Val       B       Sample_size
-                        VEGF    BRCA    82.5722740654623        -33.5309221366032       20.8841002773029        2.09462188741988e-55    2.93247064238783e-54    18.4517211174995        235
-                        Hypoxia KIRC    625.176272105012        317.864789440655        23.2893493089142        1.4197622817373e-50     1.98766719443222e-49    11.4589892248308        144
-                        p53     BRCA    -167.884630928143       11.9146505664384        -19.2135398711684       4.89209545526163e-50    3.42446681868314e-49    16.9318129144987        235
-                    '''
+                    # Pathway Cancer_type     logFC   AveExpr t       P.Value adj.P.Val       B       Sample_size
+                    # VEGF    BRCA    82.5722740654623        -33.5309221366032       20.8841002773029        2.09462188741988e-55    2.93247064238783e-54    18.4517211174995        235
+                    # Hypoxia KIRC    625.176272105012        317.864789440655        23.2893493089142        1.4197622817373e-50     1.98766719443222e-49    11.4589892248308        144
+                    # p53     BRCA    -167.884630928143       11.9146505664384        -19.2135398711684       4.89209545526163e-50    3.42446681868314e-49    16.9318129144987        235
                     (pathway_id, tumor_type, logfc, aveexpr, t, pval, fdr, b, sample) = tuple(line.rstrip().split('\t'))
 
                     reactome = PATHWAY_REACTOME_MAP[pathway_id.rstrip()]
@@ -162,9 +157,7 @@ class PROGENY:
                     reactome_id = reactome_identifier[0].rstrip()
                     reactome_desc = reactome_identifier[1].rstrip()
 
-                    '''
-                        build evidence.resource_score object
-                    '''
+                    # Build evidence.resource_score object
                     resource_score = association_score.Pvalue(
                         type="pvalue",
                         method=association_score.Method(
@@ -181,9 +174,7 @@ class PROGENY:
                     evidenceString.type = "affected_pathway"
                     evidenceString.sourceID = "progeny"
 
-                    '''
-                        build unique_association_field object
-                    '''
+                    # Build unique_association_field object
                     evidenceString.unique_association_fields = {}
                     evidenceString.unique_association_fields['tumor_type_acronym'] = tumor_type
                     evidenceString.unique_association_fields['tumor_type'] = TUMOR_TYPE_MAP[tumor_type]
@@ -193,17 +184,13 @@ class PROGENY:
                     target_type = 'http://identifiers.org/cttv.target/gene_evidence'
                     ensembl_gene_id = None
 
-                    '''
-                        loop through perturbed targets for each Pathway
-                    '''
+                    # Loop through perturbed targets for each Pathway
                     if pathway_id in PATHWAY_TARGET_MAP:
                         for gene_symbol in PATHWAY_TARGET_MAP[pathway_id]:
 
                             if gene_symbol in PROGENY_SYMBOL_MAPPING:
                                 gene_symbol = PROGENY_SYMBOL_MAPPING[gene_symbol]
-                            '''
-                                build target object,
-                            '''
+                            # Build target object,
                             if gene_symbol in self.symbols:
 
                                 ensembl_gene_id = self.symbols[gene_symbol]
@@ -215,16 +202,12 @@ class PROGENY:
                                     activity="http://identifiers.org/cttv.activity/unknown",
                                     target_type=target_type
                                 )
-                                '''
-                                    build disease object
-                                '''
+                                # Build disease object
                                 evidenceString.disease = bioentity.Disease(
                                     id=TUMOR_TYPE_EFO_MAP[tumor_type]['uri'],
                                     name=TUMOR_TYPE_EFO_MAP[tumor_type]['label']
                                 )
-                                '''
-                                    build evidence object
-                                '''
+                                # Build evidence object
                                 evidenceString.evidence = evidence_core.Literature_Curated()
                                 evidenceString.evidence.date_asserted = now.isoformat()
                                 evidenceString.evidence.is_associated = True
@@ -232,9 +215,7 @@ class PROGENY:
                                 evidenceString.evidence.evidence_codes = ["http://purl.obolibrary.org/obo/ECO_0000053"]
                                 evidenceString.evidence.provenance_type = provenance_type
                                 evidenceString.evidence.resource_score = resource_score
-                                '''
-                                    build evidence.url object
-                                '''
+                                # Build evidence.url object
                                 linkout = evidence_linkout.Linkout(
                                     url='http://www.reactome.org/PathwayBrowser/#%s' % (reactome_id),
                                     nice_name='%s' % (reactome_desc)
@@ -242,15 +223,7 @@ class PROGENY:
 
                                 evidenceString.evidence.urls = [linkout]
 
-                                error = evidenceString.validate(logging)
-
-                                # if error > 0:
-                                #    self.logger.error(evidenceString.to_JSON())
-                                # sys.exit(1)
-
-                                '''
-                                    add gene_symbol in unique_association_field object
-                                '''
+                                # Add gene_symbol in unique_association_field object
                                 evidenceString.unique_association_fields['symbol'] = gene_symbol
 
                                 print(evidenceString.to_JSON(indentation=None))
@@ -281,7 +254,6 @@ class PROGENY:
                     self.logger.error("REPORTING ERROR %i" %n)
                     self.logger.error(evidence_string.to_JSON(indentation=4))
             progeny_output.close()
-
 
 def main():
     PROGENY().process_progeny()
