@@ -1,5 +1,4 @@
-'''general settings that all parsers can share
-'''
+# General settings that all parsers can share
 
 import os
 from pathlib import Path
@@ -23,9 +22,7 @@ import pkg_resources as res
 
 
 def file_or_resource(fname=None):
-    '''get filename and check if in getcwd then get from
-    the package resources folder
-    '''
+    # get filename and check if in getcwd then get from the package resources folder
     filename = os.path.expanduser(fname)
 
     resource_package = __name__
@@ -39,13 +36,12 @@ def file_or_resource(fname=None):
             else res.resource_filename(resource_package, resource_path)
 
 class Config:
-    '''shared settings
-    '''
+    # shared settings
 
     # schema version
     VALIDATED_AGAINST_SCHEMA_VERSION = '1.2.8'
 
-    #Ontologies
+    # Ontologies
     EFO_URL = 'https://github.com/EBISPOT/efo/raw/v2018-01-15/efo.obo'
     HP_URL = 'http://purl.obolibrary.org/obo/hp.obo'
 
@@ -68,6 +64,11 @@ class Config:
     SYSBIO_FILENAME1 = file_or_resource('sysbio_evidence-31-01-2019.tsv')
     SYSBIO_FILENAME2 = file_or_resource('sysbio_publication_info_nov2018.tsv')
     SYSBIO_EVIDENCE_FILENAME = 'sysbio-29-01-2019.json'
+
+    # CRISPR
+    CRISPR_FILENAME1 = file_or_resource('crispr_evidence-2019-03-26.tsv')
+    CRISPR_FILENAME2 = file_or_resource('crispr_descriptions-2019-03-26.tsv')
+    CRISPR_EVIDENCE_FILENAME = 'crispr-26-03-2019.json'
 
     # Gene2Phenotype
     #G2P_FILENAME = 'DDG2P.csv.gz'
