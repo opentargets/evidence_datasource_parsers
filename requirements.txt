@@ -7,7 +7,7 @@ git+https://github.com/opentargets/data_model.git@1.2.8#egg=data-model
 
 #when installing from GitHub, a specific commit must be used for consistency
 #and to ensure dependency caching works as intended
-git+https://github.com/opentargets/ontology-utils.git@bff0f189a4c6e8613e99a5d47e9ad4ceb6a375fc#egg=ontologyutils
+git+https://github.com/opentargets/ontology-utils.git@uberon#egg=ontologyutils
 
 #undocumented transitive requirement of ontoma
 pathlib
