@@ -93,6 +93,7 @@ class CRISPR:
                     evidenceString.unique_association_fields['pmid'] = pmid
                     evidenceString.unique_association_fields['gene_set'] = gene_set_name
                     evidenceString.unique_association_fields['gene_name'] = target_name
+                    evidenceString.unique_association_fields['disease_id'] = disease_id
 
                     # *** Build target object ***
                     if target_name in self.symbols.values():
