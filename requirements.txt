@@ -7,7 +7,8 @@ git+https://github.com/opentargets/data_model.git@1.2.8#egg=data-model
 
 #when installing from GitHub, a specific commit must be used for consistency
 #and to ensure dependency caching works as intended
-git+https://github.com/opentargets/ontology-utils.git@bff0f189a4c6e8613e99a5d47e9ad4ceb6a375fc#egg=ontologyutils
+#NOT WORKING!-> git+https://github.com/opentargets/ontology-utils.git@uberon#egg=ontologyutils
+#INSTEAD DOWLOAD ZIP FILE FROM https://github.com/opentargets/ontology-utils/tree/bff0f189a4c6e8613e99a5d47e9ad4ceb6a375fc AND pip install manually
 
 #undocumented transitive requirement of ontoma
 pathlib
@@ -21,3 +22,8 @@ SPARQLWrapper>=1.7.6
 pytest
 python_jsonschema_objects
 pipdeptree
+
+# Google cloud libraries required by phenoDigm parser
+google-cloud-storage
+google-auth-oauthlib
+google-api-python-client
