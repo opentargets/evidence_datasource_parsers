@@ -787,7 +787,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
         bar.update()
 
         bar = tqdm(desc='Extract and transform and load PhenoDigm data',
-                   total=4,
+                   total=3,
                    unit='steps')
 
         self.access_solr(mode='parse_phenodigm')
@@ -798,8 +798,8 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
         self._logger.info("write evidence strings")
         self.write_evidence_strings(Config.MOUSEMODELS_EVIDENCE_FILENAME)
         bar.update()
-        self.write_to_cloud(Config.MOUSEMODELS_EVIDENCE_FILENAME)
-        bar.update()
+        #self.write_to_cloud(Config.MOUSEMODELS_EVIDENCE_FILENAME)
+        #bar.update()
         return
 
 def main():
