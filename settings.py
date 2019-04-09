@@ -98,4 +98,4 @@ class Config:
     MOUSEMODELS_PHENODIGM_SOLR = 'http://www.ebi.ac.uk/mi/impc'
     # write to the cloud direcly
     MOUSEMODELS_CACHE_DIRECTORY = 'Phenodigm/phenodigmcache'
-    MOUSEMODELS_EVIDENCE_FILENAME = 'phenodigm-20-02-2019.json'
+    MOUSEMODELS_EVIDENCE_FILENAME = 'phenodigm-4-4-2019.json'
