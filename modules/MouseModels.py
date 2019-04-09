@@ -4,6 +4,7 @@ from tqdm import tqdm
 import optparse
 import logging
 import os
+import sys
 import json
 import re
 import hashlib
@@ -21,6 +22,7 @@ import opentargets.model.evidence.phenotype as evidence_phenotype
 import opentargets.model.evidence.core as evidence_core
 import opentargets.model.evidence.association_score as association_score
 
+logging.basicConfig(filename='phenodigm.log', filemode='w', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 __copyright__ = "Copyright 2014-2019, Open Targets"
@@ -148,13 +150,15 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
         while (total < numFound):
             counter+=1
             self._logger.info(start)
-            self._logger.info(start)
+            #self._logger.info(start)
 
-            uri = url + '?q=*:*&wt=json&indent=true&start=%i&rows=%i&fq=type:gene' %(start,rows)
-            self._logger.info("REQUEST {0}. {1}".format(counter, uri))
+            #uri = url + '?q=*:*&wt=json&indent=true&start=%i&rows=%i&fq=type:gene' %(start,rows)
+            uri = url + '?q=*:*&wt=json&indent=true&start=%i&rows=%i' %(start,rows)
             params = dict(q="*", wt="json", indent="true", start="%i"%start, rows="%i"%rows)
             if mode == 'update_cache':
+                uri = uri + '&fq=type:gene'
                 params['fq']="type:gene"
+            self._logger.info("REQUEST {0}. {1}".format(counter, uri))
             r = requests.get(url, params=params, timeout=30)
             self._logger.info("REQUEST %s"%(r.url))
             rsp = r.json()
@@ -163,6 +167,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
             self._logger.info("NumFound %i"%(numFound))
             nbItems = len(rsp['response']['docs'])
             total+=nbItems
+            self._logger.info("Number of items: %i" % (nbItems))
 
             if mode == 'update_cache':
                 self.update_genes(docs=rsp['response']['docs'])
@@ -182,7 +187,8 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
         hdr = {"Content-Type": "application/json", "Accept": "application/json",
                "User-Agent": "open_targets bot by /open/targets"}
 
-        self._logger.info('hs Request "%s"...' % '","'.join(buffer))
+        #self._logger.info('hs Request "%s"...' % '","'.join(buffer))
+        self._logger.info('%s Request "%s"...' %(default_species,'","'.join(buffer)))
 
         body = '{ "symbols": ["%s"] }' % '","'.join(buffer)
         r = requests.post('http://rest.ensembl.org/lookup/symbol/%s/'%(default_species), data=body, headers=hdr)
@@ -194,7 +200,8 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                 else:
                     g[symbol] = None
                 ensemblId = g[symbol]
-                self._logger.info("hs {0} {1}".format(symbol, ensemblId))
+                #self._logger.info("hs {0} {1}".format(symbol, ensemblId))
+                self._logger.info("{} {} {}".format(default_species, symbol, ensemblId))
             self._logger.info(json.dumps(self.hsGenes, indent=2))
         else:
             # should have exception here
@@ -326,7 +333,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
         for hs_symbol in self.hsGenes:
             index_g +=1
             count_nb_evidence_string_generated = 0
-            self._logger.info('Now processing human gene: ', hs_symbol)
+            self._logger.info('Now processing human gene: {}'.format(hs_symbol))
             hgnc_gene_id = self.symbol2hgncids[hs_symbol]
             hs_ensembl_gene_id = self.hsGenes[hs_symbol]
 
@@ -435,7 +442,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                                             # find corresponding EFO disease term
                                             matchOMIM = re.match("^OMIM:(.+)$", disease_id)
                                             matchORPHANET = re.match("^ORPHANET:(.+)$", disease_id)
-                                            self._logger.info('disease is: ', disease_id)
+                                            self._logger.info('disease is: {}'.format(disease_id))
                                             if matchOMIM:
                                                 if ';PMID' in disease_id:
                                                     (source, omim_id) = disease_id.split(';')[0].split(':')
@@ -708,7 +715,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                 evidenceString = self.hashkeys[hashkey]
                 error = evidenceString.validate(self._logger)
                 score = evidenceString.evidence.disease_model_association.resource_score.value
-                if error == 0 and score >= 0.5:
+                if error == 0 and score >= 0.9:
                     tp_file.write(evidenceString.to_JSON(indentation=None) + "\n")
                     countExported+=1
 
@@ -798,8 +805,9 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
 def main():
 
     parser = optparse.OptionParser()
-    parser.add_option("-u", '--updatecache', action="store_false", dest="update_cache")
+    parser.add_option("-u", '--update-cache', action="store_true", dest="update_cache", default=False)
     options, args = parser.parse_args()
+    print("update_cache value is %s"%(options.update_cache))
 
     ph = Phenodigm()
     #ph.process_ontologies()
