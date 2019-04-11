@@ -95,7 +95,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
     def load_human_genes(self):
 
         raw = self.download_blob_as_string(filename=Config.MOUSEMODELS_CACHE_DIRECTORY + "/hsGenes.json")
-        self.hsGenes = json.loads(raw)
+        self.hsGenes = json.loads(raw.decode("utf-8"))
         self._logger.info("Loaded {0} hs genes".format(len(self.hsGenes)))
 
     def update_genes(self, docs=None):
