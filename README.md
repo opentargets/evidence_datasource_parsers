@@ -1,22 +1,6 @@
-# OT evidence generators
+# PhenoDigm evidence generators
 
-Each folder in module corresponds corresponds to a datasource.
-
-In each folder we have one or more standalone python scripts.
-
-Generally these scripts:
-1. map the disease terms (if any) to our ontology, sometimes using [OnToma](https://ontoma.readthedocs.io)
-2. save the mappings in https://github.com/opentargets/mappings
-3. Read the **github mappings** to generate evidence objects (JSON strings) according to our JSON schema
-
-Code used by more than one script (that does not live in a python package)
-is stored in the `common` folder and imported as follows:
-
-```python
-from common.<module> import <function>
-```
-
-
+**NOTE:** This branch contains the working version of the MouseModels module. For all other parsers use master.
 
 ### Install
 Install (requires python 3):
@@ -29,26 +13,4 @@ export PYTHONPATH=.
 ```
 ### Usage
 
-Each script is a standalone python script.
-Common dependencies are stored in the `common` folder.
-
-Hence to run each parser, simply run the standalone script with your python
-interpreter:
-```sh
-(venv)$ python3 modules/<parser you want>.py
-```
-
-### Phewascatalog.org
-
-```sh
-(venv)$ python3 modules/phewascat/run.py
-```
-or to force using a local mapping file instead of the reference mappings
-stored in github:
-```sh
-(venv)$ python3 modules/phewascat/run.py --local
-```
-**TODO**
-- [ ] map `intergenic` rsIDs to genes (~900k evidences)
-- [ ] improve mappings with manual curation
-
+Read the [wiki page](https://github.com/opentargets/evidence_datasource_parsers/wiki/Running-PhenoDigm-evidence-parser) for a detailed explanation on how to run it on Google Cloud.
