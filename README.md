@@ -48,6 +48,14 @@ stored in github:
 ```sh
 (venv)$ python3 modules/phewascat/run.py --local
 ```
+
+### PhenoDigm - What version should I run?
+The PhenoDigm parser used to generate the 19.04 release data is the [solr_phenodigm_1904](https://github.com/opentargets/evidence_datasource_parsers/tree/solr_phenodigm_1904) branch.
+
+The version in _master_ is an older version (October 2018) that **DOES NOT** call the IMPC SOLR API and it is **unlikely to work** but it has not been tested.
+
+[solr_phenodigm](https://github.com/opentargets/evidence_datasource_parsers/tree/solr_phenodigm) is the version that Gautier handed over to the OT data team in February 2019. It *DOES* call the IMPC SOLR API but it has a number of bugs and **DOES NOT WORK**.
+
 **TODO**
 - [ ] map `intergenic` rsIDs to genes (~900k evidences)
 - [ ] improve mappings with manual curation
