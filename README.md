@@ -1,6 +1,6 @@
-# PhenoDigm evidence generators
+# PhenoDigm evidence generator
 
-**NOTE:** This branch contains the working version of the MouseModels module. For all other parsers use master.
+**NOTE:** This branch contains the working version of the `MouseModels` module. For all other parsers use master.
 
 ### Install
 Clone repository, create a virtual environment (requires python 3) and install dependencies.
