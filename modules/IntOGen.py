@@ -167,15 +167,6 @@ class IntOGen():
                     evidenceString.access_level="public"
                     evidenceString.type="somatic_mutation"
                     evidenceString.sourceID="intogen"
-                    evidenceString.unique_association_fields={}
-                    evidenceString.unique_association_fields['symbol']=Symbol
-                    evidenceString.unique_association_fields['tumor_type_acronym']=Tumor_Type
-                    evidenceString.unique_association_fields['tumor_type']=INTOGEN_TUMOR_TYPE_MAP[Tumor_Type]
-                    evidenceString.unique_association_fields['evidence_level']=Evidence
-                    evidenceString.unique_association_fields['role']=Role
-                    evidenceString.unique_association_fields['role_description']=INTOGEN_ROLE_MAP[Role]
-                    evidenceString.unique_association_fields['method']='OncodriveROLE'
-                    evidenceString.unique_association_fields['method_description']='Classifying cancer driver genes into Loss of Function and Activating roles'
 
                     # target information (root.target.target_type is required)
                     # get the ensembl gene id from the symbol (mapping from 2014 won't work)
@@ -228,6 +219,19 @@ class IntOGen():
                         inheritance_pattern=inheritance_pattern)
 
                     evidenceString.evidence.known_mutations=[mutation]
+
+                    evidenceString.unique_association_fields={}
+                    evidenceString.unique_association_fields['target_id']=evidenceString.disease.id
+                    evidenceString.unique_association_fields['disease_id']=evidenceString.target.id
+#                    evidenceString.unique_association_fields['symbol']=Symbol
+#                    evidenceString.unique_association_fields['tumor_type_acronym']=Tumor_Type
+#                    evidenceString.unique_association_fields['tumor_type']=INTOGEN_TUMOR_TYPE_MAP[Tumor_Type]
+#                    evidenceString.unique_association_fields['evidence_level']=Evidence
+#                    evidenceString.unique_association_fields['role']=Role
+#                    evidenceString.unique_association_fields['role_description']=INTOGEN_ROLE_MAP[Role]
+#                    evidenceString.unique_association_fields['method']='OncodriveROLE'
+#                    evidenceString.unique_association_fields['method_description']='Classifying cancer driver genes into Loss of Function and Activating roles'
+
 
                     error=evidenceString.validate(logging)
                     if error > 0:
