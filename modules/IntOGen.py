@@ -188,7 +188,8 @@ class IntOGen():
                     # Disease information
                     evidenceString.disease=bioentity.Disease(
                         id=INTOGEN_TUMOR_TYPE_EFO_MAP[Tumor_Type]['uri'],
-                        name=INTOGEN_TUMOR_TYPE_EFO_MAP[Tumor_Type]['label']
+                        name=INTOGEN_TUMOR_TYPE_EFO_MAP[Tumor_Type]['label'],
+                        source_name=INTOGEN_TUMOR_TYPE_MAP[Tumor_Type]
                     )
                     # Evidence
                     evidenceString.evidence=evidence_core.Literature_Curated()
@@ -205,7 +206,7 @@ class IntOGen():
 
                     evidenceString.evidence.urls=[linkout]
 
-                    # gain_of_function would become "Dominant", loss_of_function would be Recessive
+                    # 'gain_of_function' = 'Dominant', 'loss_of_function' = 'Recessive'
                     inheritance_pattern='unknown'
                     if Role == 'Act':
                         inheritance_pattern='dominant'
@@ -217,21 +218,12 @@ class IntOGen():
                         functional_consequence='http://purl.obolibrary.org/obo/SO_0001564',
                         preferred_name='gene_variant',
                         inheritance_pattern=inheritance_pattern)
-
                     evidenceString.evidence.known_mutations=[mutation]
 
+                    # unique_association_fields (target_id & disease_id are sufficient)
                     evidenceString.unique_association_fields={}
                     evidenceString.unique_association_fields['target_id']=evidenceString.disease.id
                     evidenceString.unique_association_fields['disease_id']=evidenceString.target.id
-#                    evidenceString.unique_association_fields['symbol']=Symbol
-#                    evidenceString.unique_association_fields['tumor_type_acronym']=Tumor_Type
-#                    evidenceString.unique_association_fields['tumor_type']=INTOGEN_TUMOR_TYPE_MAP[Tumor_Type]
-#                    evidenceString.unique_association_fields['evidence_level']=Evidence
-#                    evidenceString.unique_association_fields['role']=Role
-#                    evidenceString.unique_association_fields['role_description']=INTOGEN_ROLE_MAP[Role]
-#                    evidenceString.unique_association_fields['method']='OncodriveROLE'
-#                    evidenceString.unique_association_fields['method_description']='Classifying cancer driver genes into Loss of Function and Activating roles'
-
 
                     error=evidenceString.validate(logging)
                     if error > 0:
