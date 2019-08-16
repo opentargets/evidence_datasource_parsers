@@ -85,7 +85,7 @@ class Config:
 
     # IntoGEN
     INTOGEN_FILENAME = file_or_resource('intogen_opentargets.tsv')
-    INTOGEN_EVIDENCE_FILENAME = 'otar001_intogen-18-12-2017.json'
+    INTOGEN_EVIDENCE_FILENAME = 'otar001_intogen-16-08-2019.json'
 
     # mapping that we maintain in Zooma
     OMIM_TO_EFO_MAP_URL = 'https://raw.githubusercontent.com/opentargets/platform_semantic/master/resources/xref_mappings/omim_to_efo.txt'
