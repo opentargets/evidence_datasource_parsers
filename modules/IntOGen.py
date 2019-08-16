@@ -220,8 +220,8 @@ class IntOGen():
                     # *** unique_association_fields ***
                     # (target_id & disease_id are sufficient)
                     evidenceString.unique_association_fields = {
-                        'target_id': evidenceString.disease.id,
-                        'disease_id': evidenceString.target.id
+                        'target_id': evidenceString.target.id,
+                        'disease_id': evidenceString.disease.id
                     }
 
                     error=evidenceString.validate(logging)
