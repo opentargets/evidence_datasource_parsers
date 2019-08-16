@@ -19,94 +19,94 @@ __email__     =["data@opentargets.org"]
 __status__    ="Production"
 
 INTOGEN_RELEASE_DATE=''
-INTOGEN_SCORE_MAP={ 'A' : 0.75, 'B': 0.5, 'C': 0.25 }
-INTOGEN_SCORE_DOC={
-    'A' : 'the gene exhibits several signals of positive selection in the tumor type',
-    'B' : 'the gene is already described as a cancer gene and exhibits a signal of positive selection in the tumor type',
-    'C' : 'the gene exhibits a signal of positive selection and is functionally connected to the genes with evidence A or B in the tumor type'
+INTOGEN_SCORE_MAP={'A' : 0.75, 'B': 0.5, 'C': 0.25}
+INTOGEN_SCORE_DOC = {
+    'A': 'the gene exhibits several signals of positive selection in the tumor type',
+    'B': 'the gene is already described as a cancer gene and exhibits a signal of positive selection in the tumor type',
+    'C': 'the gene exhibits a signal of positive selection and is functionally connected to the genes with evidence A or B in the tumor type'
 }
 INTOGEN_ROLE_MAP={
-    'Act' : 'http://identifiers.org/cttv.activity/gain_of_function',
-    'LoF' : 'http://identifiers.org/cttv.activity/loss_of_function',
+    'Act': 'http://identifiers.org/cttv.activity/gain_of_function',
+    'LoF': 'http://identifiers.org/cttv.activity/loss_of_function',
     'Ambiguous': 'http://identifiers.org/cttv.activity/unknown',
     'ambiguous': 'http://identifiers.org/cttv.activity/unknown'
 }
 INTOGEN_TUMOR_TYPE_EFO_MAP={
-    'ALL' : { 'uri' :'http://www.ebi.ac.uk/efo/EFO_0000220', 'label': 'acute lymphoblastic leukemia' },
-    'AML' : { 'uri': 'http://www.ebi.ac.uk/efo/EFO_0000222', 'label' : 'acute myeloid leukemia' },
-    'BLCA' : { 'uri' : 'http://www.ebi.ac.uk/efo/EFO_0000292', 'label' : 'bladder carcinoma' },
-    'BRCA' : { 'uri' : 'http://www.ebi.ac.uk/efo/EFO_0000305', 'label' : 'breast carcinoma' },
-    'CLL' : { 'uri' : 'http://www.ebi.ac.uk/efo/EFO_0000095', 'label' : 'chronic lymphocytic leukemia'},
-    'CM' : { 'uri': 'http://www.ebi.ac.uk/efo/EFO_0000389', 'label' : 'cutaneous melanoma'},
-    'COREAD' : { 'uri': 'http://www.ebi.ac.uk/efo/EFO_0000365', 'label' : 'colorectal adenocarcinoma' },
-    'DLBCL': { 'uri' : 'http://www.ebi.ac.uk/efo/EFO_0000403', 'label' : 'diffuse large B-cell lymphoma' },
-    'ESCA' : { 'uri' : 'http://www.ebi.ac.uk/efo/EFO_0002916', 'label' : 'esophageal carcinoma' },
-    'GBM' : { 'uri' : 'http://www.ebi.ac.uk/efo/EFO_0000519', 'label' : 'glioblastoma multiforme' },
-    'HC' : { 'uri' : 'http://www.ebi.ac.uk/efo/EFO_0000182', 'label' : 'hepatocellular carcinoma' },
-    'HNSC' : { 'uri': 'http://www.ebi.ac.uk/efo/EFO_0000181', 'label' : 'head and neck squamous cell carcinoma' },
-    'LGG' : { 'uri' : 'http://www.ebi.ac.uk/efo/EFO_0005543', 'label' : 'brain glioma' },
-    'LUAD' : { 'uri' : 'http://www.ebi.ac.uk/efo/EFO_0000571', 'label' : 'lung adenocarcinoma' },
-    'LUSC' : { 'uri' : 'http://www.ebi.ac.uk/efo/EFO_0000708', 'label' : 'squamous cell lung carcinoma' },
-    'MB' : { 'uri' : 'http://www.ebi.ac.uk/efo/EFO_0002939', 'label' : 'medulloblastoma' },
-    'MEN' : { 'uri' : 'http://www.orpha.net/ORDO/Orphanet_2495', 'label' : 'Meningioma' },
-    'MM' : { 'uri' : 'http://www.ebi.ac.uk/efo/EFO_0001378', 'label' : 'multiple myeloma' },
-    'NB' : { 'uri' : 'http://www.ebi.ac.uk/efo/EFO_0000621', 'label' : 'neuroblastoma' },
-    'NSCLC' : { 'uri' : 'http://www.ebi.ac.uk/efo/EFO_0003060' , 'label' : 'non-small cell lung carcinoma' },
-    'OV' : { 'uri' : 'http://www.ebi.ac.uk/efo/EFO_0002917', 'label' : 'ovarian serous adenocarcinoma' },
-    'PIA' : { 'uri' : 'http://www.ebi.ac.uk/efo/EFO_0000272', 'label' : 'astrocytoma' },
-    'PAAD' : { 'uri' : 'http://www.ebi.ac.uk/efo/EFO_1000044', 'label' : 'pancreatic adenocarcinoma' },
-    'PRAD' : { 'uri' : 'http://www.ebi.ac.uk/efo/EFO_0000673', 'label' : 'prostate adenocarcinoma' },
-    'RCCC' : { 'uri' : 'http://www.ebi.ac.uk/efo/EFO_0000349', 'label' : 'clear cell renal carcinoma' },
-    'SCLC' : { 'uri' : 'http://www.ebi.ac.uk/efo/EFO_0000702', 'label' : 'small cell lung carcinoma' },
-    'STAD' : { 'uri' : 'http://www.ebi.ac.uk/efo/EFO_0000503', 'label' : 'stomach adenocarcinoma' },
-    'THCA' : { 'uri' : 'http://www.ebi.ac.uk/efo/EFO_0002892', 'label' : 'thyroid carcinoma' },
-    'UCEC' : { 'uri' : 'http://www.ebi.ac.uk/efo/EFO_0000466', 'label' : 'endometrioid carcinoma' }
+    'ALL': { 'uri':'http://www.ebi.ac.uk/efo/EFO_0000220', 'label': 'acute lymphoblastic leukemia' },
+    'AML': { 'uri': 'http://www.ebi.ac.uk/efo/EFO_0000222', 'label': 'acute myeloid leukemia' },
+    'BLCA': { 'uri': 'http://www.ebi.ac.uk/efo/EFO_0000292', 'label': 'bladder carcinoma' },
+    'BRCA': { 'uri': 'http://www.ebi.ac.uk/efo/EFO_0000305', 'label': 'breast carcinoma' },
+    'CLL': { 'uri': 'http://www.ebi.ac.uk/efo/EFO_0000095', 'label': 'chronic lymphocytic leukemia'},
+    'CM': { 'uri': 'http://www.ebi.ac.uk/efo/EFO_0000389', 'label': 'cutaneous melanoma'},
+    'COREAD': { 'uri': 'http://www.ebi.ac.uk/efo/EFO_0000365', 'label': 'colorectal adenocarcinoma' },
+    'DLBCL': { 'uri': 'http://www.ebi.ac.uk/efo/EFO_0000403', 'label': 'diffuse large B-cell lymphoma' },
+    'ESCA': { 'uri': 'http://www.ebi.ac.uk/efo/EFO_0002916', 'label': 'esophageal carcinoma' },
+    'GBM': { 'uri': 'http://www.ebi.ac.uk/efo/EFO_0000519', 'label': 'glioblastoma multiforme' },
+    'HC': { 'uri': 'http://www.ebi.ac.uk/efo/EFO_0000182', 'label': 'hepatocellular carcinoma' },
+    'HNSC': { 'uri': 'http://www.ebi.ac.uk/efo/EFO_0000181', 'label': 'head and neck squamous cell carcinoma' },
+    'LGG': { 'uri': 'http://www.ebi.ac.uk/efo/EFO_0005543', 'label': 'brain glioma' },
+    'LUAD': { 'uri': 'http://www.ebi.ac.uk/efo/EFO_0000571', 'label': 'lung adenocarcinoma' },
+    'LUSC': { 'uri': 'http://www.ebi.ac.uk/efo/EFO_0000708', 'label': 'squamous cell lung carcinoma' },
+    'MB': { 'uri': 'http://www.ebi.ac.uk/efo/EFO_0002939', 'label': 'medulloblastoma' },
+    'MEN': { 'uri': 'http://www.orpha.net/ORDO/Orphanet_2495', 'label': 'Meningioma' },
+    'MM': { 'uri': 'http://www.ebi.ac.uk/efo/EFO_0001378', 'label': 'multiple myeloma' },
+    'NB': { 'uri': 'http://www.ebi.ac.uk/efo/EFO_0000621', 'label': 'neuroblastoma' },
+    'NSCLC': { 'uri': 'http://www.ebi.ac.uk/efo/EFO_0003060' , 'label': 'non-small cell lung carcinoma' },
+    'OV': { 'uri': 'http://www.ebi.ac.uk/efo/EFO_0002917', 'label': 'ovarian serous adenocarcinoma' },
+    'PIA': { 'uri': 'http://www.ebi.ac.uk/efo/EFO_0000272', 'label': 'astrocytoma' },
+    'PAAD': { 'uri': 'http://www.ebi.ac.uk/efo/EFO_1000044', 'label': 'pancreatic adenocarcinoma' },
+    'PRAD': { 'uri': 'http://www.ebi.ac.uk/efo/EFO_0000673', 'label': 'prostate adenocarcinoma' },
+    'RCCC': { 'uri': 'http://www.ebi.ac.uk/efo/EFO_0000349', 'label': 'clear cell renal carcinoma' },
+    'SCLC': { 'uri': 'http://www.ebi.ac.uk/efo/EFO_0000702', 'label': 'small cell lung carcinoma' },
+    'STAD': { 'uri': 'http://www.ebi.ac.uk/efo/EFO_0000503', 'label': 'stomach adenocarcinoma' },
+    'THCA': { 'uri': 'http://www.ebi.ac.uk/efo/EFO_0002892', 'label': 'thyroid carcinoma' },
+    'UCEC': { 'uri': 'http://www.ebi.ac.uk/efo/EFO_0000466', 'label': 'endometrioid carcinoma' }
 }
 
 # Cancer acronyms
 INTOGEN_TUMOR_TYPE_MAP={
-    'ALL' : 'acute lymphocytic leukemia',
-    'AML' : 'acute myeloid leukemia',
-    'BLCA' : 'bladder carcinoma',
-    'BRCA' : 'breast carcinoma',
-    'CLL' : 'chronic lymphocytic leukemia',
-    'CM' : 'cutaneous melanoma',
-    'COREAD' : 'colorectal adenocarcinoma',
+    'ALL': 'acute lymphocytic leukemia',
+    'AML': 'acute myeloid leukemia',
+    'BLCA': 'bladder carcinoma',
+    'BRCA': 'breast carcinoma',
+    'CLL': 'chronic lymphocytic leukemia',
+    'CM': 'cutaneous melanoma',
+    'COREAD': 'colorectal adenocarcinoma',
     'DLBCL': 'diffuse large B cell lymphoma',
-    'ESCA' : 'esophageal carcinoma',
-    'GBM' : 'glioblastoma multiforme',
-    'HC' : 'hepatocarcinoma',
-    'HNSC' : 'head and neck squamous cell carcinoma',
-    'LGG' : 'lower grade glioma',
-    'LUAD' : 'lung adenocarcinoma',
-    'LUSC' : 'lung squamous cell carcinoma',
-    'MB' : 'medulloblastoma',
-    'MEN' : 'meningioma',
-    'MM' : 'multiple myeloma',
-    'NB' : 'neuroblastoma',
-    'NSCLC' : 'non small cell lung carcinoma',
-    'OV' : 'serous ovarian adenocarcinoma',
-    'PIA' : 'pylocytic astrocytoma',
-    'PAAD' : 'pancreas adenocarcinoma',
-    'PRAD' : 'prostate adenocarcinoma',
-    'RCCC' : 'renal clear cell carcinoma',
-    'SCLC' : 'small cell lung carcinoma',
-    'STAD' : 'stomach adenocarcinoma',
-    'THCA' : 'thyroid carcinoma',
-    'UCEC' : 'uterine corpus endometrioid carcinoma'
+    'ESCA': 'esophageal carcinoma',
+    'GBM': 'glioblastoma multiforme',
+    'HC': 'hepatocarcinoma',
+    'HNSC': 'head and neck squamous cell carcinoma',
+    'LGG': 'lower grade glioma',
+    'LUAD': 'lung adenocarcinoma',
+    'LUSC': 'lung squamous cell carcinoma',
+    'MB': 'medulloblastoma',
+    'MEN': 'meningioma',
+    'MM': 'multiple myeloma',
+    'NB': 'neuroblastoma',
+    'NSCLC': 'non small cell lung carcinoma',
+    'OV': 'serous ovarian adenocarcinoma',
+    'PIA': 'pylocytic astrocytoma',
+    'PAAD': 'pancreas adenocarcinoma',
+    'PRAD': 'prostate adenocarcinoma',
+    'RCCC': 'renal clear cell carcinoma',
+    'SCLC': 'small cell lung carcinoma',
+    'STAD': 'stomach adenocarcinoma',
+    'THCA': 'thyroid carcinoma',
+    'UCEC': 'uterine corpus endometrioid carcinoma'
 }
 
 INTOGEN_SYMBOL_MAPPING={
-    'C15orf55' : 'NUTM1',
-    'CSDA' : 'YBX3',
-    'EIF2C3' : 'AGO3',
-    'ERBB2IP' : 'ERBIN',
-    'FAM123B' : 'AMER1',
-    'HNRPDL' : 'HNRNPDL',
-    'MLL' : 'KMT2A',
-    'MLL2' : 'KMT2D',
-    'MLL3' : 'KMT2C',
-    'RQCD1' : 'CNOT9'
+    'C15orf55': 'NUTM1',
+    'CSDA': 'YBX3',
+    'EIF2C3': 'AGO3',
+    'ERBB2IP': 'ERBIN',
+    'FAM123B': 'AMER1',
+    'HNRPDL': 'HNRNPDL',
+    'MLL': 'KMT2A',
+    'MLL2': 'KMT2D',
+    'MLL3': 'KMT2C',
+    'RQCD1': 'CNOT9'
 }
 
 class IntOGen():
@@ -230,7 +230,6 @@ class IntOGen():
                         sys.exit(1)
 
                     self.evidence_strings.append(evidenceString)
-
 
             self.logger.info("%s evidence parsed"%(n-1))
             self.logger.info("%s evidence created"%len(self.evidence_strings))
