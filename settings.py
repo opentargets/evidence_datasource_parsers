@@ -73,14 +73,14 @@ class Config:
     # Gene2Phenotype
     #G2P_FILENAME = 'DDG2P.csv.gz'
     G2P_FILENAME = file_or_resource('DDG2P_30_1_2019.csv.gz')
-    G2P_EVIDENCE_FILENAME = 'gene2phenotype.json'
+    G2P_EVIDENCE_FILENAME = 'gene2phenotype-05-08-2019.json'
 
     # Genomics England
     GE_PANEL_MAPPING_FILENAME = file_or_resource('genomicsenglandpanelapp_panelmapping.csv')
-    GE_EVIDENCE_FILENAME = 'genomics_england-30-01-2019.json'
+    GE_EVIDENCE_FILENAME = 'genomics_england-17-06-2019.json'
     GE_LINKOUT_URL = 'https://panelapp.genomicsengland.co.uk/panels/'
-    GE_ZOOMA_DISEASE_MAPPING = '/tmp/zooma_disease_mapping.csv'
-    GE_ZOOMA_DISEASE_MAPPING_NOT_HIGH_CONFIDENT = '/tmp/zooma_disease_mapping_low_confidence.csv'
+    GE_ZOOMA_DISEASE_MAPPING = 'tmp/zooma_disease_mapping.csv'
+    GE_ZOOMA_DISEASE_MAPPING_NOT_HIGH_CONFIDENT = 'tmp/zooma_disease_mapping_low_confidence.csv'
     GE_PANEL_VERSION = 'v5.7'
 
     # IntoGEN
