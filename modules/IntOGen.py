@@ -18,8 +18,7 @@ __maintainer__="Open Targets Data Team"
 __email__     =["data@opentargets.org"]
 __status__    ="Production"
 
-INTOGEN_RELEASE_DATE=''
-INTOGEN_SCORE_MAP={'A' : 0.75, 'B': 0.5, 'C': 0.25}
+INTOGEN_SCORE_MAP={'A': 0.75, 'B': 0.5, 'C': 0.25}
 INTOGEN_SCORE_DOC = {
     'A': 'the gene exhibits several signals of positive selection in the tumor type',
     'B': 'the gene is already described as a cancer gene and exhibits a signal of positive selection in the tumor type',
