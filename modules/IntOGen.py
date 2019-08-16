@@ -48,7 +48,7 @@ INTOGEN_TUMOR_TYPE_EFO_MAP={
     'LUAD' : { 'uri' : 'http://www.ebi.ac.uk/efo/EFO_0000571', 'label' : 'lung adenocarcinoma' },
     'LUSC' : { 'uri' : 'http://www.ebi.ac.uk/efo/EFO_0000708', 'label' : 'squamous cell lung carcinoma' },
     'MB' : { 'uri' : 'http://www.ebi.ac.uk/efo/EFO_0002939', 'label' : 'medulloblastoma' },
-    'MEN' : { 'uri' : 'http://purl.obolibrary.org/obo/HP_0002858', 'label' : 'Meningioma' },
+    'MEN' : { 'uri' : 'http://www.orpha.net/ORDO/Orphanet_2495', 'label' : 'Meningioma' },
     'MM' : { 'uri' : 'http://www.ebi.ac.uk/efo/EFO_0001378', 'label' : 'multiple myeloma' },
     'NB' : { 'uri' : 'http://www.ebi.ac.uk/efo/EFO_0000621', 'label' : 'neuroblastoma' },
     'NSCLC' : { 'uri' : 'http://www.ebi.ac.uk/efo/EFO_0003060' , 'label' : 'non-small cell lung carcinoma' },
