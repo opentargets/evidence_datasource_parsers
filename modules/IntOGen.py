@@ -131,7 +131,7 @@ class IntOGen():
         # the database was created in 2014
         #now=datetime.datetime.now()
         now=datetime.datetime(2014, 12, 1, 8, 30)
-        provenance_type=evidence_core.BaseProvenance_Type(
+        provenance_type = evidence_core.BaseProvenance_Type(
             database=evidence_core.BaseDatabase(
                 id="IntOGen Cancer Drivers Database",
                 version='2014.12',
@@ -141,7 +141,6 @@ class IntOGen():
             )
         )
         error=provenance_type.validate(self.logger)
-        print(error)
         if error > 0:
             self.logger.error(provenance_type.to_JSON(indentation=4))
             print(provenance_type.to_JSON(indentation=4))
@@ -153,77 +152,77 @@ class IntOGen():
                 n += 1
                 if n > 1:
                     (Symbol, Ensg, Tumor_Type, Evidence, Role)=tuple(line.rstrip().split('\t'))
-
-                    resource_score=association_score.Probability(
-                        type="probability",
-                        method= association_score.Method(
-                            description="IntOGen Driver identification methods as described in Rubio-Perez, C., Tamborero, D., Schroeder, MP., Antolin, AA., Deu-Pons,J., Perez-Llamas, C., Mestres, J., Gonzalez-Perez, A., Lopez-Bigas, N. In silico prescription of anticancer drugs to cohorts of 28 tumor types reveals novel targeting opportunities. Cancer Cell 27 (2015), pp. 382-396",
-                            reference="http://europepmc.org/abstract/MED/25759023",
-                            url="https://www.intogen.org/about"),
-                        value=INTOGEN_SCORE_MAP[Evidence])
-
+                    # *** General properties ***
                     evidenceString=opentargets.Literature_Curated()
                     evidenceString.validated_against_schema_version=Config.VALIDATED_AGAINST_SCHEMA_VERSION
                     evidenceString.access_level="public"
                     evidenceString.type="somatic_mutation"
                     evidenceString.sourceID="intogen"
 
-                    # target information (root.target.target_type is required)
-                    # get the ensembl gene id from the symbol (mapping from 2014 won't work)
+                    # *** Target information ***
+                    # get the Ensembl gene id from the symbol (mapping from 2014 won't work)
                     if Symbol in INTOGEN_SYMBOL_MAPPING:
                         Symbol=INTOGEN_SYMBOL_MAPPING[Symbol]
 
-                    ensembl_gene_id=self.genes.get(Symbol)
+                    ensembl_gene_id = self.genes.get(Symbol)
                     if not ensembl_gene_id:
-
                         self.logger.error("%s is not found in Ensembl" % Symbol)
                         continue
 
-                    evidenceString.target=bioentity.Target(
+                    evidenceString.target = bioentity.Target(
                         id="http://identifiers.org/ensembl/{0}".format(ensembl_gene_id),
                         target_name=Symbol,
                         activity=INTOGEN_ROLE_MAP[Role],
                         target_type='http://identifiers.org/cttv.target/gene_evidence'
                     )
-                    # Disease information
-                    evidenceString.disease=bioentity.Disease(
+                    # *** Disease information ***
+                    evidenceString.disease = bioentity.Disease(
                         id=INTOGEN_TUMOR_TYPE_EFO_MAP[Tumor_Type]['uri'],
                         name=INTOGEN_TUMOR_TYPE_EFO_MAP[Tumor_Type]['label'],
                         source_name=INTOGEN_TUMOR_TYPE_MAP[Tumor_Type]
                     )
-                    # Evidence
-                    evidenceString.evidence=evidence_core.Literature_Curated()
-                    evidenceString.evidence.date_asserted=now.isoformat()
-                    evidenceString.evidence.is_associated=True
-                    evidenceString.evidence.evidence_codes=[ "http://purl.obolibrary.org/obo/ECO_0000053"]
-                    evidenceString.evidence.provenance_type=provenance_type
-                    evidenceString.evidence.resource_score=resource_score
-
-                    linkout=evidence_linkout.Linkout(
+                    # *** Evidence ***
+                    linkout = evidence_linkout.Linkout(
                         url='https://www.intogen.org/search?gene=%s&cancer=%s'%(Symbol, Tumor_Type),
                         nice_name='IntOGen -  %s gene cancer mutations in %s (%s)'%(Symbol, INTOGEN_TUMOR_TYPE_MAP[Tumor_Type], Tumor_Type)
                     )
-
-                    evidenceString.evidence.urls=[linkout]
-
-                    # 'gain_of_function' = 'Dominant', 'loss_of_function' = 'Recessive'
+                    # inheritance_pattern - 'gain_of_function' = 'Dominant', 'loss_of_function' = 'Recessive'
                     inheritance_pattern='unknown'
                     if Role == 'Act':
                         inheritance_pattern='dominant'
                     elif Role == 'LoF':
                         inheritance_pattern='recessive'
-
-                    # Gene_variant
-                    mutation=evidence_mutation.Mutation(
+                    # known_mutations
+                    mutation = evidence_mutation.Mutation(
                         functional_consequence='http://purl.obolibrary.org/obo/SO_0001564',
                         preferred_name='gene_variant',
                         inheritance_pattern=inheritance_pattern)
-                    evidenceString.evidence.known_mutations=[mutation]
+                    # resource_score
+                    resource_score = association_score.Probability(
+                        type="probability",
+                        method=association_score.Method(
+                            description="IntOGen Driver identification methods as described in Rubio-Perez, C., Tamborero, D., Schroeder, MP., Antolin, AA., Deu-Pons,J., Perez-Llamas, C., Mestres, J., Gonzalez-Perez, A., Lopez-Bigas, N. In silico prescription of anticancer drugs to cohorts of 28 tumor types reveals novel targeting opportunities. Cancer Cell 27 (2015), pp. 382-396",
+                            reference="http://europepmc.org/abstract/MED/25759023",
+                            url="https://www.intogen.org/about"),
+                        value=INTOGEN_SCORE_MAP[Evidence]
+                    )
 
-                    # unique_association_fields (target_id & disease_id are sufficient)
-                    evidenceString.unique_association_fields={}
-                    evidenceString.unique_association_fields['target_id']=evidenceString.disease.id
-                    evidenceString.unique_association_fields['disease_id']=evidenceString.target.id
+                    evidenceString.evidence = evidence_core.Literature_Curated(
+                        date_asserted=now.isoformat(),
+                        is_associated=True,
+                        evidence_codes=["http://purl.obolibrary.org/obo/ECO_0000053"],
+                        provenance_type=provenance_type,
+                        resource_score=resource_score,
+                        urls=[linkout],
+                        known_mutations=[mutation]
+                    )
+
+                    # *** unique_association_fields ***
+                    # (target_id & disease_id are sufficient)
+                    evidenceString.unique_association_fields = {
+                        'target_id': evidenceString.disease.id,
+                        'disease_id': evidenceString.target.id
+                    }
 
                     error=evidenceString.validate(logging)
                     if error > 0:
@@ -251,7 +250,6 @@ class IntOGen():
                 else:
                     self.logger.error("REPORTING ERROR %i" % n)
                     self.logger.error(evidence_string.to_JSON(indentation=4))
-                    #sys.exit(1)
         tp_file.close()
 
 def main():
