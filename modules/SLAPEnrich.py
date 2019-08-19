@@ -195,21 +195,19 @@ class SLAPEnrich():
                             ),
                             value=float(pval)
                         )
-
+                        # *** General properties ***
                         evidenceString = opentargets.Literature_Curated()
                         evidenceString.validated_against_schema_version = Config.VALIDATED_AGAINST_SCHEMA_VERSION
                         evidenceString.access_level = "public"
                         evidenceString.type = "affected_pathway"
                         evidenceString.sourceID = "slapenrich"
 
-                        target_type = 'http://identifiers.org/cttv.target/gene_evidence'
-                        ensembl_gene_id = None
-
                         if gene_symbol in SYMBOL_MAPPING:
                             gene_symbol = SYMBOL_MAPPING[gene_symbol]
 
                         # *** Build target object ***
                         # TODO: USP12 does not return an ensembl gene ID - 5 evidence strings are affected
+                        # TODO: Update August 2019 - many genes do not return an Ensembl Gene ID
                         # The gene is present in the OT Platform & in HGNC etc.
                         if gene_symbol in self.symbols:
                             ensembl_gene_id = self.symbols[gene_symbol]
@@ -219,7 +217,7 @@ class SLAPEnrich():
                                 target_name=gene_symbol,
                                 #TODO activity is a required field in target object, currently set as unknown
                                 activity="http://identifiers.org/cttv.activity/unknown",
-                                target_type=target_type
+                                target_type='http://identifiers.org/cttv.target/gene_evidence'
                             )
 
                             # *** Build disease object ***
@@ -229,21 +227,20 @@ class SLAPEnrich():
                             )
 
                             # *** Build evidence object ***
-                            evidenceString.evidence = evidence_core.Literature_Curated()
-                            evidenceString.evidence.date_asserted = now.isoformat()
-                            evidenceString.evidence.is_associated = True
-                            #TODO check is this the correct evidence code "computational combinatorial evidence"
-                            evidenceString.evidence.evidence_codes = ["http://purl.obolibrary.org/obo/ECO_0000053"]
-                            evidenceString.evidence.provenance_type = provenance_type
-                            evidenceString.evidence.resource_score = resource_score
-
-                            # *** Build evidence.url object ***
-                            linkout = evidence_linkout.Linkout (
-                                url='http://www.reactome.org/PathwayBrowser/#%s'%(pathway_id),
-                                nice_name='%s'%(pathway_desc)
+                            # Build evidence.url object
+                            linkout = evidence_linkout.Linkout(
+                                url='http://www.reactome.org/PathwayBrowser/#%s' % (pathway_id),
+                                nice_name='%s' % (pathway_desc)
                             )
-
-                            evidenceString.evidence.urls = [linkout]
+                            evidenceString.evidence = evidence_core.Literature_Curated(
+                                date_asserted=now.isoformat(),
+                                is_associated=True,
+                                #TODO check is this the correct evidence code "computational combinatorial evidence"
+                                evidence_codes=["http://purl.obolibrary.org/obo/ECO_0000053"],
+                                provenance_type=provenance_type,
+                                resource_score=resource_score,
+                                urls=[linkout]
+                            )
 
                             # *** Build unique_association_field object ***
                             evidenceString.unique_association_fields = {
