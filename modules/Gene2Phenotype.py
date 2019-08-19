@@ -13,12 +13,12 @@ import logging
 import csv
 import gzip
 
-__copyright__  = "Copyright 2014-2017, Open Targets"
-__credits__    = ["Gautier Koscielny", "ChuangKee Ong"]
+__copyright__  = "Copyright 2014-2019, Open Targets"
+__credits__    = ["Gautier Koscielny", "ChuangKee Ong", "Michaela Spitzer"]
 __license__    = "Apache 2.0"
 __version__    = "1.2.8"
-__maintainer__ = "ChuangKee Ong"
-__email__      = ["gautierk@targetvalidation.org", "ckong@ebi.ac.uk"]
+__maintainer__ = "Open Targets Data Team"
+__email__      = ["data@opentargets.org"]
 __status__     = "Production"
 
 class G2P(RareDiseaseMapper):
