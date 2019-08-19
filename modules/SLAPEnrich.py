@@ -202,14 +202,6 @@ class SLAPEnrich():
                         evidenceString.type = "affected_pathway"
                         evidenceString.sourceID = "slapenrich"
 
-                        # *** Build unique_association_field object ***
-                        evidenceString.unique_association_fields = {}
-                        evidenceString.unique_association_fields['symbol'] = gene_symbol
-                        evidenceString.unique_association_fields['tumor_type_acronym'] = tumor_type
-                        evidenceString.unique_association_fields['tumor_type'] = TUMOR_TYPE_MAP[tumor_type]
-                        evidenceString.unique_association_fields['pathway_id'] = 'http://www.reactome.org/PathwayBrowser/#%s' % (pathway_id)
-                        evidenceString.unique_association_fields['efo_id'] = TUMOR_TYPE_EFO_MAP[tumor_type]['uri']
-
                         target_type = 'http://identifiers.org/cttv.target/gene_evidence'
                         ensembl_gene_id = None
 
@@ -252,6 +244,15 @@ class SLAPEnrich():
                             )
 
                             evidenceString.evidence.urls = [linkout]
+
+                            # *** Build unique_association_field object ***
+                            evidenceString.unique_association_fields = {
+                                'gene_id': evidenceString.target.id,
+                                'tumor_type_acronym': tumor_type,
+                                'tumor_type': TUMOR_TYPE_MAP[tumor_type],
+                                'pathway_id': 'http://www.reactome.org/PathwayBrowser/#%s' % (pathway_id),
+                                'disease_id': evidenceString.disease.id
+                            }
 
                             error = evidenceString.validate(logging)
 
