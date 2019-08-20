@@ -188,7 +188,7 @@ class PROGENY:
 
                             if gene_symbol in PROGENY_SYMBOL_MAPPING:
                                 gene_symbol = PROGENY_SYMBOL_MAPPING[gene_symbol]
-                            # Build target object,
+                            # *** Build target object ***
                             if gene_symbol in self.symbols:
 
                                 ensembl_gene_id = self.symbols[gene_symbol]
@@ -200,26 +200,26 @@ class PROGENY:
                                     activity="http://identifiers.org/cttv.activity/unknown",
                                     target_type='http://identifiers.org/cttv.target/gene_evidence'
                                 )
-                                # Build disease object
+                                # *** Build disease object ***
                                 evidenceString.disease = bioentity.Disease(
                                     id=TUMOR_TYPE_EFO_MAP[tumor_type]['uri'],
                                     name=TUMOR_TYPE_EFO_MAP[tumor_type]['label']
                                 )
-                                # Build evidence object
-                                evidenceString.evidence = evidence_core.Literature_Curated()
-                                evidenceString.evidence.date_asserted = now.isoformat()
-                                evidenceString.evidence.is_associated = True
-                                # TODO check is this the correct evidence code "computational combinatorial evidence"
-                                evidenceString.evidence.evidence_codes = ["http://purl.obolibrary.org/obo/ECO_0000053"]
-                                evidenceString.evidence.provenance_type = provenance_type
-                                evidenceString.evidence.resource_score = resource_score
+                                # *** Build evidence object ***
                                 # Build evidence.url object
                                 linkout = evidence_linkout.Linkout(
                                     url='http://www.reactome.org/PathwayBrowser/#%s' % (reactome_id),
                                     nice_name='%s' % (reactome_desc)
                                 )
-
-                                evidenceString.evidence.urls = [linkout]
+                                evidenceString.evidence = evidence_core.Literature_Curated(
+                                    date_asserted = now.isoformat(),
+                                    is_associated = True,
+                                    # TODO check is this the correct evidence code "computational combinatorial evidence",
+                                    evidence_codes = ["http://purl.obolibrary.org/obo/ECO_0000053"],
+                                    provenance_type = provenance_type,
+                                    resource_score = resource_score,
+                                    urls=[linkout]
+                                )
 
                                 # Add gene_symbol in unique_association_field object
                                 evidenceString.unique_association_fields['symbol'] = gene_symbol
