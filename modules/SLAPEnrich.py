@@ -196,11 +196,12 @@ class SLAPEnrich():
                             value=float(pval)
                         )
                         # *** General properties ***
-                        evidenceString = opentargets.Literature_Curated()
-                        evidenceString.validated_against_schema_version = Config.VALIDATED_AGAINST_SCHEMA_VERSION
-                        evidenceString.access_level = "public"
-                        evidenceString.type = "affected_pathway"
-                        evidenceString.sourceID = "slapenrich"
+                        evidenceString = opentargets.Literature_Curated(
+                            validated_against_schema_version = Config.VALIDATED_AGAINST_SCHEMA_VERSION,
+                            access_level = "public",
+                            type = "affected_pathway",
+                            sourceID = "slapenrich"
+                        )
 
                         if gene_symbol in SYMBOL_MAPPING:
                             gene_symbol = SYMBOL_MAPPING[gene_symbol]
