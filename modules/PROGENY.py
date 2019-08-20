@@ -17,7 +17,7 @@ __maintainer__= "ChuangKee Ong"
 __email__     = ["data@opentargets.org"]
 __status__    = "Production"
 
-# TCGA -> EFO mapping
+# *** TCGA -> EFO mapping ***
 TUMOR_TYPE_EFO_MAP = {
     'BLCA': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000292', 'label': 'bladder carcinoma'},
     'BRCA': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000305', 'label': 'breast carcinoma'},
@@ -36,7 +36,7 @@ TUMOR_TYPE_EFO_MAP = {
     'COREAD': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000000', 'label': 'colorectoral adenoma'}
 }
 
-# TCGA acronyms
+# *** TCGA acronyms ***
 TUMOR_TYPE_MAP = {
     'BLCA': 'bladder carcinoma',
     'BRCA': 'breast carcinoma',
@@ -58,49 +58,49 @@ TUMOR_TYPE_MAP = {
 # Pathway -> Perturbed Targets
 # https://drive.google.com/drive/folders/1L5Y_umEZiccWJnXiiaYMNKUKYTjnp3ZU
 PATHWAY_TARGET_MAP = {
-    'Androgen' : ['AR'],
-    'EGFR'     : ['EGFR'],
-    'Estrogen' : ['ESR1'],
-    'Hypoxia'  : ['HIF1A'],
-    'JAK.STAT' : ['JAK1', 'JAK2', 'STAT1', 'STAT2'],
-    'MAPK'     : ['MAPK2K1', 'MAP2K2', 'RAF1'],
-    'NFkB'     : ['TLR4', 'NKFB1', 'RELA'],
-    'PI3K'     : ['PIK3CA', 'PI3K(Class1)'],
-    'TGFb'     : ['TGFBR1', 'TGFBR2'],
-    'TNFa'     : ['TNFRSF1A'],
-    'Trail'    : ['TNFSF10', 'BCL2', 'BCL-XL', 'BCL-W', 'MCL1'],
-    'VEGF'     : ['VEGFR'],
-    'WNT'      : ['WNT3A', 'GSK3A', 'GSK3B'],
-    'p53'      : ['TP53']
+    'Androgen': ['AR'],
+    'EGFR': ['EGFR'],
+    'Estrogen': ['ESR1'],
+    'Hypoxia': ['HIF1A'],
+    'JAK.STAT': ['JAK1', 'JAK2', 'STAT1', 'STAT2'],
+    'MAPK': ['MAPK2K1', 'MAP2K2', 'RAF1'],
+    'NFkB': ['TLR4', 'NKFB1', 'RELA'],
+    'PI3K': ['PIK3CA', 'PI3K(Class1)'],
+    'TGFb': ['TGFBR1', 'TGFBR2'],
+    'TNFa': ['TNFRSF1A'],
+    'Trail': ['TNFSF10', 'BCL2', 'BCL-XL', 'BCL-W', 'MCL1'],
+    'VEGF': ['VEGFR'],
+    'WNT': ['WNT3A', 'GSK3A', 'GSK3B'],
+    'p53': ['TP53']
 }
 
-# Pathway -> Reactome Pathway ID
+# *** Pathway -> Reactome Pathway ID ***
 #TODO Hypoxia, JAK.STAT, Trail to be updated
 PATHWAY_REACTOME_MAP = {
-    'Androgen' : 'R-HSA-8940973:RUNX2 regulates osteoblast differentiation',
-    'EGFR'     : 'R-HSA-8856828:Clathrin-mediated endocytosis',
-    'Estrogen' : 'R-HSA-8939902:Regulation of RUNX2 expression and activity',
-    'Hypoxia'  : 'R-HSA-123456: XXX Pathway desc to be updated',
-    'JAK.STAT' : 'R-HSA-6785807:Interleukin-4 and 13 signaling',
-    'MAPK'     : 'R-HSA-2559580:Oxidative Stress Induced Senescence',
-    'NFkB'     : 'R-HSA-9020702:Interleukin-1 signaling',
-    'PI3K'     : 'R-HSA-8853659:RET signaling',
-    'TGFb'     : 'R-HSA-2173788:Downregulation of TGF-beta receptor signaling',
-    'TNFa'     : 'R-HSA-5357956:TNFR1-induced NFkappaB signaling pathway',
-    'Trail'    : 'R-HSA-123456:XXX Pathway desc to be updated',
-    'VEGF'     : 'R-HSA-1234158:Regulation of gene expression by Hypoxia-inducible Factor',
-    'WNT'      : 'R-HSA-381340:Transcriptional regulation of white adipocyte differentiation',
-    'p53'      : 'R-HSA-2559580:Oxidative Stress Induced Senescence'
+    'Androgen': 'R-HSA-8940973:RUNX2 regulates osteoblast differentiation',
+    'EGFR': 'R-HSA-8856828:Clathrin-mediated endocytosis',
+    'Estrogen': 'R-HSA-8939902:Regulation of RUNX2 expression and activity',
+    'Hypoxia': 'R-HSA-123456: XXX Pathway desc to be updated',
+    'JAK.STAT': 'R-HSA-6785807:Interleukin-4 and 13 signaling',
+    'MAPK': 'R-HSA-2559580:Oxidative Stress Induced Senescence',
+    'NFkB': 'R-HSA-9020702:Interleukin-1 signaling',
+    'PI3K': 'R-HSA-8853659:RET signaling',
+    'TGFb': 'R-HSA-2173788:Downregulation of TGF-beta receptor signaling',
+    'TNFa': 'R-HSA-5357956:TNFR1-induced NFkappaB signaling pathway',
+    'Trail': 'R-HSA-123456:XXX Pathway desc to be updated',
+    'VEGF': 'R-HSA-1234158:Regulation of gene expression by Hypoxia-inducible Factor',
+    'WNT': 'R-HSA-381340:Transcriptional regulation of white adipocyte differentiation',
+    'p53': 'R-HSA-2559580:Oxidative Stress Induced Senescence'
 }
 
-# These symbols are secondary/generic/typo that need updating
+# *** These symbols are secondary/generic/typo that need updating ***
 PROGENY_SYMBOL_MAPPING = {
-    'NKFB1'   : 'NFKB1',
-    'MAPK2K1' : 'PRKMK1',
-    'PI3K(Class1)' : 'PIK3CA',
-    'VEGFR'   : 'KDR',
-    'BCL-W'   : 'BCL2L2',
-    'BCL-XL'  : 'BCL2L1'
+    'NKFB1': 'NFKB1',
+    'MAPK2K1': 'PRKMK1',
+    'PI3K(Class1)': 'PIK3CA',
+    'VEGFR': 'KDR',
+    'BCL-W': 'BCL2L2',
+    'BCL-XL': 'BCL2L1'
 }
 
 PROGENY_DATABASE_ID='PROGENY'
@@ -168,11 +168,12 @@ class PROGENY:
                         value=float(pval)
                     )
 
-                    evidenceString = opentargets.Literature_Curated()
-                    evidenceString.validated_against_schema_version = Config.VALIDATED_AGAINST_SCHEMA_VERSION
-                    evidenceString.access_level = "public"
-                    evidenceString.type = "affected_pathway"
-                    evidenceString.sourceID = "progeny"
+                    evidenceString = opentargets.Literature_Curated(
+                        validated_against_schema_version = Config.VALIDATED_AGAINST_SCHEMA_VERSION,
+                        access_level = "public",
+                        type = "affected_pathway",
+                        sourceID = "progeny"
+                    )
 
                     # Build unique_association_field object
                     evidenceString.unique_association_fields = {}
@@ -240,7 +241,6 @@ class PROGENY:
 
     def write_evidence(self, filename=Config.PROGENY_EVIDENCE_FILENAME):
         self.logger.info("Writing PROGENY evidence strings")
-
         with open(filename, 'w') as progeny_output:
             n = 0
             for evidence_string in self.evidence_strings:
