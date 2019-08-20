@@ -31,9 +31,9 @@ TUMOR_TYPE_EFO_MAP = {
     'THCA': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0002892', 'label': 'thyroid carcinoma'},
     'UCEC': {'uri': 'http://www.ebi.ac.uk/efo/EFO_1000233', 'label': 'endometrial endometrioid adenocarcinoma'},
     ##TODO tumor uri & label need update
-    'KICH': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000000', 'label': 'kidney chromophobe'},
-    'KIRP': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000000', 'label': 'kidney renal papillary cell carcinoma'},
-    'COREAD': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000000', 'label': 'colorectoral adenoma'}
+    'KICH': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000001', 'label': 'kidney chromophobe'},
+    'KIRP': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000002', 'label': 'kidney renal papillary cell carcinoma'},
+    'COREAD': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000003', 'label': 'colorectoral adenoma'}
 }
 
 # *** TCGA acronyms ***
@@ -178,7 +178,7 @@ class PROGENY:
                     # *** Build unique_association_fields object ***
                     evidenceString.unique_association_fields = {
                         'pathway_id': 'http://www.reactome.org/PathwayBrowser/#%s' % (reactome_id),
-                        'efo_id': TUMOR_TYPE_EFO_MAP[tumor_type]['uri']
+                        'disease_id': TUMOR_TYPE_EFO_MAP[tumor_type]['uri']
                     }
 
                     # Loop through perturbed targets for each Pathway
