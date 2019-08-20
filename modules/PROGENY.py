@@ -167,7 +167,7 @@ class PROGENY:
                         ),
                         value=float(pval)
                     )
-
+                    # *** General properties ***
                     evidenceString = opentargets.Literature_Curated(
                         validated_against_schema_version = Config.VALIDATED_AGAINST_SCHEMA_VERSION,
                         access_level = "public",
@@ -175,15 +175,12 @@ class PROGENY:
                         sourceID = "progeny"
                     )
 
-                    # Build unique_association_field object
+                    # *** Build unique_association_fields object ***
                     evidenceString.unique_association_fields = {}
                     evidenceString.unique_association_fields['tumor_type_acronym'] = tumor_type
                     evidenceString.unique_association_fields['tumor_type'] = TUMOR_TYPE_MAP[tumor_type]
                     evidenceString.unique_association_fields['pathway_id'] = 'http://www.reactome.org/PathwayBrowser/#%s' % (reactome_id)
                     evidenceString.unique_association_fields['efo_id'] = TUMOR_TYPE_EFO_MAP[tumor_type]['uri']
-
-                    target_type = 'http://identifiers.org/cttv.target/gene_evidence'
-                    ensembl_gene_id = None
 
                     # Loop through perturbed targets for each Pathway
                     if pathway_id in PATHWAY_TARGET_MAP:
@@ -201,7 +198,7 @@ class PROGENY:
                                     target_name=gene_symbol,
                                     # TODO activity is a required field in target object, currently set as unknown
                                     activity="http://identifiers.org/cttv.activity/unknown",
-                                    target_type=target_type
+                                    target_type='http://identifiers.org/cttv.target/gene_evidence'
                                 )
                                 # Build disease object
                                 evidenceString.disease = bioentity.Disease(
