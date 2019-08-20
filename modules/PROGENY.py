@@ -9,11 +9,11 @@ import opentargets.model.evidence.core as evidence_core
 import opentargets.model.evidence.linkout as evidence_linkout
 import opentargets.model.evidence.association_score as association_score
 
-__copyright__ = "Copyright 2014-2018, Open Targets"
-__credits__   = ["ChuangKee Ong", "Luz Garcia Alonso"]
+__copyright__ = "Copyright 2014-2019, Open Targets"
+__credits__   = ["ChuangKee Ong", "Luz Garcia Alonso", "Michaela Spitzer"]
 __license__   = "Apache 2.0"
 __version__   = "1.2.8"
-__maintainer__= "ChuangKee Ong"
+__maintainer__= "Open Targets Data Team"
 __email__     = ["data@opentargets.org"]
 __status__    = "Production"
 
@@ -124,7 +124,7 @@ class PROGENY:
     def build_evidence(self, filename=Config.PROGENY_FILENAME):
 
         now = datetime.datetime.now()
-        # Build evidence.provenance_type object
+        # *** Build evidence.provenance_type object ***
         provenance_type = evidence_core.BaseProvenance_Type(
             database=evidence_core.BaseDatabase(
                 id=PROGENY_DATABASE_ID,
@@ -157,7 +157,7 @@ class PROGENY:
                     reactome_id = reactome_identifier[0].rstrip()
                     reactome_desc = reactome_identifier[1].rstrip()
 
-                    # Build evidence.resource_score object
+                    # *** Build evidence.resource_score object ***
                     resource_score = association_score.Pvalue(
                         type="pvalue",
                         method=association_score.Method(
@@ -220,7 +220,7 @@ class PROGENY:
                                     urls=[linkout]
                                 )
 
-                                # Add gene_symbol in unique_association_field object
+                                # Add gene_symbol to unique_association_fields
                                 evidenceString.unique_association_fields['target_id'] = evidenceString.target.id
 
                                 #print(evidenceString.to_JSON(indentation=None))
