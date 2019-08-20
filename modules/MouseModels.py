@@ -499,7 +499,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                                                 evidenceString.type = "animal_model"
                                                 evidenceString.sourceID = "phenodigm"
                                                 evidenceString.unique_association_fields = collections.OrderedDict()
-                                                evidenceString.unique_association_fields['projectName'] = 'otar_external_mousemodels'
+                                                #evidenceString.unique_association_fields['projectName'] = 'otar_external_mousemodels'
                                                 evidenceString.evidence = cttv.Animal_ModelsEvidence()
                                                 evidenceString.evidence.date_asserted = now.isoformat()
                                                 evidenceString.evidence.is_associated = True
@@ -539,12 +539,12 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                                                     #evidenceString.evidence.evidence_codes.append("http://identifiers.org/eco/ECO:0000057")
                                                     evidenceString.unique_association_fields['predictionModel'] = 'impc_predicted'
 
-                                                evidenceString.unique_association_fields['disease_phenodigm_name'] = self.diseases[disease_id]['disease_term']
+                                                #evidenceString.unique_association_fields['disease_phenodigm_name'] = self.diseases[disease_id]['disease_term']
                                                 evidenceString.unique_association_fields['disease_phenodigm_id'] = disease_id
-                                                evidenceString.unique_association_fields['disease_iri'] = disease_term['efo_uri']
-                                                evidenceString.unique_association_fields['human_gene_id'] = human_gene_id
+                                                evidenceString.unique_association_fields['disease_id'] = disease_term['efo_uri']
+                                                evidenceString.unique_association_fields['target_id'] = human_gene_id
                                                 evidenceString.unique_association_fields['model_gene_id'] = model_gene_id
-                                                evidenceString.unique_association_fields['species'] = "Mus musculus"
+                                                #evidenceString.unique_association_fields['species'] = "Mus musculus"
                                                 evidenceString.unique_association_fields['model_genetic_background'] = mouse_model['model_genetic_background']
                                                 evidenceString.unique_association_fields['model_description'] = mouse_model['model_description']
                                                 '''
