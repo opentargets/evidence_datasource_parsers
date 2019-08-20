@@ -207,8 +207,7 @@ class SLAPEnrich():
                             gene_symbol = SYMBOL_MAPPING[gene_symbol]
 
                         # *** Build target object ***
-                        # TODO: USP12 does not return an ensembl gene ID - 5 evidence strings are affected
-                        # TODO: Update August 2019 - many genes do not return an Ensembl Gene ID
+                        # TODO: August 2019 - 27 genes do not return an Ensembl Gene ID - HGNC has been contacted
                         # The gene is present in the OT Platform & in HGNC etc.
                         if gene_symbol in self.symbols:
                             ensembl_gene_id = self.symbols[gene_symbol]
