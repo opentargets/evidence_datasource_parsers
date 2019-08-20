@@ -30,7 +30,6 @@ TUMOR_TYPE_EFO_MAP = {
     'STAD': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000503', 'label': 'stomach adenocarcinoma'},
     'THCA': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0002892', 'label': 'thyroid carcinoma'},
     'UCEC': {'uri': 'http://www.ebi.ac.uk/efo/EFO_1000233', 'label': 'endometrial endometrioid adenocarcinoma'},
-    ##TODO tumor uri & label need update
     'KICH': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000335', 'label': 'kidney chromophobe'},
     'KIRP': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000640', 'label': 'kidney renal papillary cell carcinoma'},
     'COREAD': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0005406', 'label': 'colorectoral adenoma'}
@@ -168,11 +167,11 @@ class PROGENY:
 
                             if gene_symbol in PROGENY_SYMBOL_MAPPING:
                                 gene_symbol = PROGENY_SYMBOL_MAPPING[gene_symbol]
-                            # *** Build target object ***
+
                             if gene_symbol in self.symbols:
 
                                 ensembl_gene_id = self.symbols[gene_symbol]
-
+                                # *** Build target object ***
                                 evidenceString.target = bioentity.Target(
                                     id="http://identifiers.org/ensembl/{0}".format(ensembl_gene_id),
                                     target_name=gene_symbol,
@@ -200,21 +199,18 @@ class PROGENY:
                                     resource_score = resource_score,
                                     urls=[linkout]
                                 )
-
                                 # Add gene_symbol to unique_association_fields
                                 evidenceString.unique_association_fields['target_id'] = evidenceString.target.id
 
-                                #print(evidenceString.to_JSON(indentation=None))
-                                ##TODO issue with append, take only last item of the gene
+                                ## TODO: At the moment, the output onto the screen is used to generate the JSON file
+                                ## TODO issue with append, repeats last item of each gene set for a pathway
+                                print(evidenceString.to_JSON(indentation=None))
                                 self.evidence_strings.append(evidenceString)
-
                             else:
                                 self.logger.error("%s is not found in Ensembl" % gene_symbol)
 
             self.logger.error("%s evidence parsed"%(n-1))
             self.logger.error("%s evidence created"%len(self.evidence_strings))
-
-        progeny_input.close()
 
     def write_evidence(self, filename=Config.PROGENY_EVIDENCE_FILENAME):
         self.logger.info("Writing PROGENY evidence strings")
@@ -230,11 +226,13 @@ class PROGENY:
                 else:
                     self.logger.error("REPORTING ERROR %i" %n)
                     self.logger.error(evidence_string.to_JSON(indentation=4))
-            progeny_output.close()
 
 def main():
     PROGENY().process_progeny()
 
 if __name__ == "__main__":
     main()
+
+
+
 
