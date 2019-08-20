@@ -17,32 +17,26 @@ __maintainer__= "ChuangKee Ong"
 __email__     = ["ckong@ebi.ac.uk"]
 __status__    = "Production"
 
-#INTOGEN_ROLE_MAP = {
-#    'Act' : 'http://identifiers.org/cttv.activity/gain_of_function',
-#    'LoF' : 'http://identifiers.org/cttv.activity/loss_of_function',
-#    'Ambiguous': 'http://identifiers.org/cttv.activity/unknown',
-#    'ambiguous': 'http://identifiers.org/cttv.activity/unknown'
-#}
-
+# *** Tumor acronym map ***
 TUMOR_TYPE_EFO_MAP = {
-    'ALL' : {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000220', 'label': 'acute lymphoblastic leukemia'},
+    'ALL': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000220', 'label': 'acute lymphoblastic leukemia'},
     'BLCA': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000292', 'label': 'bladder carcinoma'},
     'BRCA': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000305', 'label': 'breast carcinoma'},
-    'CLL' : {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000095', 'label': 'chronic lymphocytic leukemia'},
+    'CLL': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000095', 'label': 'chronic lymphocytic leukemia'},
     'DLBC': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000403', 'label': 'diffuse large B-cell lymphoma'},
     'ESCA': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0002916', 'label': 'esophageal carcinoma'},
-    'GBM' : {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000519', 'label': 'glioblastoma multiforme'},
+    'GBM': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000519', 'label': 'glioblastoma multiforme'},
     'HNSC': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000181', 'label': 'head and neck squamous cell carcinoma'},
     'KIRC': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000349', 'label': 'clear cell renal carcinoma'},
     'LAML': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000222', 'label': 'acute myeloid leukemia'},
-    'LGG' : {'uri': 'http://www.ebi.ac.uk/efo/EFO_0005543', 'label': 'brain glioma'},
+    'LGG': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0005543', 'label': 'brain glioma'},
     'LIHC': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000182', 'label': 'hepatocellular carcinoma'},
     'LUAD': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000571', 'label': 'lung adenocarcinoma'},
     'LUSC': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000708', 'label': 'squamous cell lung carcinoma'},
-    'MB'  : {'uri': 'http://www.ebi.ac.uk/efo/EFO_0002939', 'label': 'medulloblastoma'},
-    'MM'  : {'uri': 'http://www.ebi.ac.uk/efo/EFO_0001378', 'label': 'multiple myeloma'},
-    'NB'  : {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000621', 'label': 'neuroblastoma'},
-    'OV'  : {'uri': 'http://www.ebi.ac.uk/efo/EFO_0002917', 'label': 'ovarian serous adenocarcinoma'},
+    'MB': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0002939', 'label': 'medulloblastoma'},
+    'MM': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0001378', 'label': 'multiple myeloma'},
+    'NB': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000621', 'label': 'neuroblastoma'},
+    'OV': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0002917', 'label': 'ovarian serous adenocarcinoma'},
     'PAAD': {'uri': 'http://www.ebi.ac.uk/efo/EFO_1000044', 'label': 'pancreatic adenocarcinoma'},
     'PRAD': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000673', 'label': 'prostate adenocarcinoma'},
     'SCLC': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000702', 'label': 'small cell lung carcinoma'},
@@ -52,35 +46,36 @@ TUMOR_TYPE_EFO_MAP = {
     'UCEC': {'uri': 'http://www.ebi.ac.uk/efo/EFO_1000233', 'label': 'endometrial endometrioid adenocarcinoma'}
 }
 
-''' cancer acronyms '''
+# *** Cancer acronyms ***
 TUMOR_TYPE_MAP = {
-    'ALL' : 'acute lymphocytic leukemia',
+    'ALL': 'acute lymphocytic leukemia',
     'BLCA': 'bladder carcinoma',
     'BRCA': 'breast carcinoma',
-    'CLL' : 'chronic lymphocytic leukemia',
+    'CLL': 'chronic lymphocytic leukemia',
     'DLBC': 'diffuse large B cell lymphoma',
     'ESCA': 'esophageal carcinoma',
-    'GBM' : 'glioblastoma multiforme',
+    'GBM': 'glioblastoma multiforme',
     'HNSC': 'head and neck squamous cell carcinoma',
     'KIRC': 'clear cell renal carcinoma',
     'LAML': 'acute myeloid leukemia',
-    'LGG' : 'lower grade glioma',
+    'LGG': 'lower grade glioma',
     'LIHC': 'hepatocellular carcinoma',
     'LUAD': 'lung adenocarcinoma',
     'LUSC': 'lung squamous cell carcinoma',
-    'MB'  : 'medulloblastoma',
-    'MM'  : 'multiple myeloma',
-    'NB'  : 'neuroblastoma',
-    'OV'  : 'serous ovarian adenocarcinoma',
+    'MB': 'medulloblastoma',
+    'MM': 'multiple myeloma',
+    'NB': 'neuroblastoma',
+    'OV': 'serous ovarian adenocarcinoma',
     'PAAD': 'pancreas adenocarcinoma',
     'PRAD': 'prostate adenocarcinoma',
     'SCLC': 'small cell lung carcinoma',
-    'SKCM' : 'cutaneous melanoma',
+    'SKCM': 'cutaneous melanoma',
     'STAD': 'stomach adenocarcinoma',
     'THCA': 'thyroid carcinoma',
     'UCEC': 'endometrial endometrioid adenocarcinoma'
 }
 
+# *** TO DO: Symbol mapping for genes withouth Ensembl IDs ***
 SYMBOL_MAPPING = {
     # TODO These symbols do not have Ensembl ID mappings, need alternative mapping
     '''
@@ -208,6 +203,7 @@ class SLAPEnrich():
 
                         # *** Build target object ***
                         # TODO: August 2019 - 27 genes do not return an Ensembl Gene ID - HGNC has been contacted
+                        # Data for these genes does appear in the platform, but the ensembl ids are missing in the evidence strings
                         # The gene is present in the OT Platform & in HGNC etc.
                         if gene_symbol in self.symbols:
                             ensembl_gene_id = self.symbols[gene_symbol]

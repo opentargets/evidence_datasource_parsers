@@ -9,11 +9,11 @@ import opentargets.model.evidence.core as evidence_core
 import opentargets.model.evidence.linkout as evidence_linkout
 import opentargets.model.evidence.association_score as association_score
 
-__copyright__ = "Copyright 2014-2018, Open Targets"
-__credits__   = ["ChuangKee Ong", "Luz Garcia Alonso"]
+__copyright__ = "Copyright 2014-2019, Open Targets"
+__credits__   = ["ChuangKee Ong", "Luz Garcia Alonso", "Michaela Spitzer"]
 __license__   = "Apache 2.0"
 __version__   = "1.2.8"
-__maintainer__= "ChuangKee Ong"
+__maintainer__= "Open Targets Data Team"
 __email__     = ["data@opentargets.org"]
 __status__    = "Production"
 
