@@ -176,11 +176,10 @@ class PROGENY:
                     )
 
                     # *** Build unique_association_fields object ***
-                    evidenceString.unique_association_fields = {}
-                    evidenceString.unique_association_fields['tumor_type_acronym'] = tumor_type
-                    evidenceString.unique_association_fields['tumor_type'] = TUMOR_TYPE_MAP[tumor_type]
-                    evidenceString.unique_association_fields['pathway_id'] = 'http://www.reactome.org/PathwayBrowser/#%s' % (reactome_id)
-                    evidenceString.unique_association_fields['efo_id'] = TUMOR_TYPE_EFO_MAP[tumor_type]['uri']
+                    evidenceString.unique_association_fields = {
+                        'pathway_id': 'http://www.reactome.org/PathwayBrowser/#%s' % (reactome_id),
+                        'efo_id': TUMOR_TYPE_EFO_MAP[tumor_type]['uri']
+                    }
 
                     # Loop through perturbed targets for each Pathway
                     if pathway_id in PATHWAY_TARGET_MAP:
@@ -222,9 +221,9 @@ class PROGENY:
                                 )
 
                                 # Add gene_symbol in unique_association_field object
-                                evidenceString.unique_association_fields['symbol'] = gene_symbol
+                                evidenceString.unique_association_fields['target_id'] = evidenceString.target.id
 
-                                print(evidenceString.to_JSON(indentation=None))
+                                #print(evidenceString.to_JSON(indentation=None))
                                 ##TODO issue with append, take only last item of the gene
                                 self.evidence_strings.append(evidenceString)
 
