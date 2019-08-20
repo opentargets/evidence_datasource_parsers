@@ -72,8 +72,8 @@ class Config:
 
     # Gene2Phenotype
     #G2P_FILENAME = 'DDG2P.csv.gz'
-    G2P_FILENAME = file_or_resource('DDG2P_30_1_2019.csv.gz')
-    G2P_EVIDENCE_FILENAME = 'gene2phenotype-05-08-2019.json'
+    G2P_FILENAME = file_or_resource('DDG2P_19_8_2019.csv.gz')
+    G2P_EVIDENCE_FILENAME = 'gene2phenotype-19-08-2019.json'
 
     # Genomics England
     GE_PANEL_MAPPING_FILENAME = file_or_resource('genomicsenglandpanelapp_panelmapping.csv')

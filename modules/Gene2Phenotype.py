@@ -13,12 +13,12 @@ import logging
 import csv
 import gzip
 
-__copyright__  = "Copyright 2014-2017, Open Targets"
-__credits__    = ["Gautier Koscielny", "ChuangKee Ong"]
+__copyright__  = "Copyright 2014-2019, Open Targets"
+__credits__    = ["Gautier Koscielny", "ChuangKee Ong", "Michaela Spitzer"]
 __license__    = "Apache 2.0"
 __version__    = "1.2.8"
-__maintainer__ = "ChuangKee Ong"
-__email__      = ["gautierk@targetvalidation.org", "ckong@ebi.ac.uk"]
+__maintainer__ = "Open Targets Data Team"
+__email__      = ["data@opentargets.org"]
 __status__     = "Production"
 
 class G2P(RareDiseaseMapper):
@@ -28,7 +28,6 @@ class G2P(RareDiseaseMapper):
         self.evidence_strings = list()
 
         self._logger = logging.getLogger(__name__)
-
 
     def process_g2p(self):
 
@@ -52,7 +51,9 @@ class G2P(RareDiseaseMapper):
             for row in reader:
                 c += 1
                 if c > 1:
-                    # "gene symbol","gene mim","disease name","disease mim","DDD category","allelic requirement","mutation consequence",phenotypes,"organ specificity list",pmids,panel,"prev symbols","hgnc id"
+                    # Column names are:
+                    # "gene symbol","gene mim","disease name","disease mim","DDD category","allelic requirement",
+                    # "mutation consequence",phenotypes,"organ specificity list",pmids,panel,"prev symbols","hgnc id"
                     gene_symbol = row["gene symbol"]
                     disease_name = row["disease name"]
                     disease_mim = row["disease mim"]
@@ -85,32 +86,51 @@ class G2P(RareDiseaseMapper):
                                     )
                                 )
 
+                            # *** General properties ***
                             obj.access_level = "public"
                             obj.sourceID = "gene2phenotype"
                             obj.validated_against_schema_version = "1.2.8"
-                            obj.unique_association_fields = {"target": ensembl_iri, "original_disease_label" : disease_name, "disease_uri": disease['efo_uri'], "source_id": "gene2phenotype"}
+                            # *** Target info ***
                             obj.target = bioentity.Target(id=ensembl_iri,
                                                           activity="http://identifiers.org/cttv.activity/unknown",
                                                           target_type='http://identifiers.org/cttv.target/gene_evidence',
                                                           target_name=gene_symbol)
                             # http://www.ontobee.org/ontology/ECO?iri=http://purl.obolibrary.org/obo/ECO_0000204 -- An evidence type that is based on an assertion by the author of a paper, which is read by a curator.
+
+                            # *** Disease info ***
+                            obj.disease = bioentity.Disease(
+                                id=disease['efo_uri'],
+                                name=disease['efo_label'],
+                                source_name=disease_name
+                            )
+                            # *** Evidence info ***
+                            # Score
                             resource_score = association_score.Probability(
                                 type="probability",
-                                value=1)
-
-                            obj.disease = bioentity.Disease(id=disease['efo_uri'], name=disease['efo_label'], source_name=disease_name)
-                            obj.evidence = evidence_core.Literature_Curated()
-                            obj.evidence.is_associated = True
-                            obj.evidence.evidence_codes = ["http://purl.obolibrary.org/obo/ECO_0000204"]
-                            obj.evidence.provenance_type = provenance_type
-                            obj.evidence.date_asserted = '2017-06-14T00:00:00'
-                            obj.evidence.provenance_type = provenance_type
-                            obj.evidence.resource_score = resource_score
+                                value=1
+                            )
+                            # Linkout
                             linkout = evidence_linkout.Linkout(
                                 url='http://www.ebi.ac.uk/gene2phenotype/search?panel=ALL&search_term=%s' % (
-                                gene_symbol,),
+                                    gene_symbol,),
                                 nice_name='Gene2Phenotype%s' % (gene_symbol))
-                            obj.evidence.urls = [linkout]
+
+                            obj.evidence = evidence_core.Literature_Curated(
+                                is_associated = True,
+                                evidence_codes = ["http://purl.obolibrary.org/obo/ECO_0000204"],
+                                provenance_type = provenance_type,
+                                date_asserted = '2017-06-14T00:00:00',
+                                resource_score = resource_score,
+                                urls = [linkout]
+                            )
+                            # *** unique_association_fields ***
+                            obj.unique_association_fields = {
+                                "target_id": ensembl_iri,
+                                "original_disease_label" : disease_name,
+                                "disease_uri": disease['efo_uri']
+                            }
+
+
                             error = obj.validate(logging)
 
                             if error > 0:
@@ -130,7 +150,6 @@ class G2P(RareDiseaseMapper):
             for evidence_string in self.evidence_strings:
                 n += 1
                 self._logger.info(evidence_string.disease.id[0])
-                # get max_phase_for_all_diseases
                 error = evidence_string.validate(logging)
                 if error == 0:
                     tp_file.write(evidence_string.to_JSON(indentation=None) + "\n")
