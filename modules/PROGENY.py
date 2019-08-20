@@ -31,9 +31,9 @@ TUMOR_TYPE_EFO_MAP = {
     'THCA': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0002892', 'label': 'thyroid carcinoma'},
     'UCEC': {'uri': 'http://www.ebi.ac.uk/efo/EFO_1000233', 'label': 'endometrial endometrioid adenocarcinoma'},
     ##TODO tumor uri & label need update
-    'KICH': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000001', 'label': 'kidney chromophobe'},
-    'KIRP': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000002', 'label': 'kidney renal papillary cell carcinoma'},
-    'COREAD': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000003', 'label': 'colorectoral adenoma'}
+    'KICH': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000335', 'label': 'kidney chromophobe'},
+    'KIRP': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000640', 'label': 'kidney renal papillary cell carcinoma'},
+    'COREAD': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0005406', 'label': 'colorectoral adenoma'}
 }
 
 # Pathway -> Perturbed Targets
