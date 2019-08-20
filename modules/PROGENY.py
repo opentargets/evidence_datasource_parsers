@@ -36,25 +36,6 @@ TUMOR_TYPE_EFO_MAP = {
     'COREAD': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000003', 'label': 'colorectoral adenoma'}
 }
 
-# *** TCGA acronyms ***
-TUMOR_TYPE_MAP = {
-    'BLCA': 'bladder carcinoma',
-    'BRCA': 'breast carcinoma',
-    'HNSC': 'head and neck squamous cell carcinoma',
-    'KIRC': 'clear cell renal carcinoma',
-    'LIHC': 'hepatocellular carcinoma',
-    'LUAD': 'lung adenocarcinoma',
-    'LUSC': 'squamous cell lung carcinoma',
-    'PRAD': 'prostate adenocarcinoma',
-    'STAD': 'stomach adenocarcinoma',
-    'THCA': 'thyroid carcinoma',
-    'UCEC': 'endometrial endometrioid adenocarcinoma',
-    'KICH': 'kidney chromophobe',
-    'KIRP': 'kidney renal papillary cell carcinoma',
-    #TODO tumor description need update
-    'COREAD': ''
-}
-
 # Pathway -> Perturbed Targets
 # https://drive.google.com/drive/folders/1L5Y_umEZiccWJnXiiaYMNKUKYTjnp3ZU
 PATHWAY_TARGET_MAP = {
