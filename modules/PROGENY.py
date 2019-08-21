@@ -17,7 +17,7 @@ __maintainer__= "Open Targets Data Team"
 __email__     = ["data@opentargets.org"]
 __status__    = "Production"
 
-# *** TCGA -> EFO mapping ***
+# === TCGA -> EFO mapping ===
 TUMOR_TYPE_EFO_MAP = {
     'BLCA': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000292', 'label': 'bladder carcinoma'},
     'BRCA': {'uri': 'http://www.ebi.ac.uk/efo/EFO_0000305', 'label': 'breast carcinoma'},
@@ -54,7 +54,7 @@ PATHWAY_TARGET_MAP = {
     'p53': ['TP53']
 }
 
-# *** Pathway -> Reactome Pathway ID ***
+# === Pathway -> Reactome Pathway ID ===
 #TODO Hypoxia, JAK.STAT, Trail to be updated
 PATHWAY_REACTOME_MAP = {
     'Androgen': 'R-HSA-8940973:RUNX2 regulates osteoblast differentiation',
@@ -73,7 +73,7 @@ PATHWAY_REACTOME_MAP = {
     'p53': 'R-HSA-2559580:Oxidative Stress Induced Senescence'
 }
 
-# *** These symbols are secondary/generic/typo that need updating ***
+# === These symbols are secondary/generic/typo that need updating ===
 PROGENY_SYMBOL_MAPPING = {
     'NKFB1': 'NFKB1',
     'MAPK2K1': 'PRKMK1',
@@ -131,7 +131,7 @@ class PROGENY:
                     # Hypoxia KIRC    625.176272105012        317.864789440655        23.2893493089142        1.4197622817373e-50     1.98766719443222e-49    11.4589892248308        144
                     # p53     BRCA    -167.884630928143       11.9146505664384        -19.2135398711684       4.89209545526163e-50    3.42446681868314e-49    16.9318129144987        235
                     (pathway_id, tumor_type, logfc, aveexpr, t, pval, fdr, b, sample) = tuple(line.rstrip().split('\t'))
-
+                    # Retrieve pathway info
                     reactome = PATHWAY_REACTOME_MAP[pathway_id.rstrip()]
                     reactome_identifier = reactome.split(":")
                     reactome_id = reactome_identifier[0].rstrip()
@@ -147,7 +147,6 @@ class PROGENY:
                         ),
                         value=float(pval)
                     )
-
                     # Loop through perturbed targets for each Pathway
                     if pathway_id in PATHWAY_TARGET_MAP:
                         for gene_symbol in PATHWAY_TARGET_MAP[pathway_id]:
@@ -164,15 +163,14 @@ class PROGENY:
                                     type="affected_pathway",
                                     sourceID="progeny"
                                 )
-
                                 # *** Build unique_association_fields object ***
                                 evidenceString.unique_association_fields = {
                                     'pathway_id': 'http://www.reactome.org/PathwayBrowser/#%s' % (reactome_id),
                                     'disease_id': TUMOR_TYPE_EFO_MAP[tumor_type]['uri']
                                 }
 
-                                ensembl_gene_id = self.symbols[gene_symbol]
                                 # *** Build target object ***
+                                ensembl_gene_id = self.symbols[gene_symbol]
                                 evidenceString.target = bioentity.Target(
                                     id="http://identifiers.org/ensembl/{0}".format(ensembl_gene_id),
                                     target_name=gene_symbol,
