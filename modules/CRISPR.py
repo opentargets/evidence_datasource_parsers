@@ -19,6 +19,19 @@ __status__    = "Production"
 CRISPR_DATABASE_ID='CRISPR'
 CRISPR_VERSION='2019.03'
 
+# A few genes do not have Ensembl IDs in the data file provided
+CRISPR_SYMBOL_MAPPING={
+    'CASC5': 'ENSG00000137812',
+    'CIRH1A': 'ENSG00000141076',
+    'EFTUD1': 'ENSG00000140598',
+    'ENSG00000163660': 'ENSG00000163660',
+    'KIAA0947': 'ENSG00000164151',
+    'KIAA1432': 'ENSG00000107036',
+    'NDNL2': 'ENSG00000185115',
+    'SRPR': 'ENSG00000182934',
+    'ZNF259': 'ENSG00000109917'
+}
+
 class CRISPR:
     def __init__(self):
         self.evidence_strings = list()
@@ -88,6 +101,9 @@ class CRISPR:
                         type = "affected_pathway",
                         sourceID = "crispr"
                     )
+
+                    if target_name in CRISPR_SYMBOL_MAPPING:
+                        target_name=CRISPR_SYMBOL_MAPPING[target_name]
 
                     if target_name in self.symbols.values():
 
