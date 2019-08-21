@@ -88,15 +88,6 @@ class CRISPR:
                         type = "affected_pathway",
                         sourceID = "crispr"
                     )
-
-                    # *** Build unique_association_field object ***
-                    evidenceString.unique_association_fields = {
-                        'pmid': pmid,
-                        'gene_set': gene_set_name,
-                        'gene_name': target_name,
-                        'disease_id': disease_id
-                    }
-
                     # *** Build target object ***
                     if target_name in self.symbols.values():
                         ensembl_gene_id = target_name
@@ -121,6 +112,13 @@ class CRISPR:
                             provenance_type = provenance_type,
                             resource_score = resource_score
                         )
+                        # *** Build unique_association_field object ***
+                        evidenceString.unique_association_fields = {
+                            'pmid': pmid,
+                            'gene_set': gene_set_name,
+                            'target_id': evidenceString.target.id,
+                            'disease_id': evidenceString.disease.id
+                        }
 
                         # Append current evidence string
                         self.evidence_strings.append(evidenceString)
