@@ -147,19 +147,6 @@ class PROGENY:
                         ),
                         value=float(pval)
                     )
-                    # *** General properties ***
-                    evidenceString = opentargets.Literature_Curated(
-                        validated_against_schema_version = Config.VALIDATED_AGAINST_SCHEMA_VERSION,
-                        access_level = "public",
-                        type = "affected_pathway",
-                        sourceID = "progeny"
-                    )
-
-                    # *** Build unique_association_fields object ***
-                    evidenceString.unique_association_fields = {
-                        'pathway_id': 'http://www.reactome.org/PathwayBrowser/#%s' % (reactome_id),
-                        'disease_id': TUMOR_TYPE_EFO_MAP[tumor_type]['uri']
-                    }
 
                     # Loop through perturbed targets for each Pathway
                     if pathway_id in PATHWAY_TARGET_MAP:
@@ -169,6 +156,20 @@ class PROGENY:
                                 gene_symbol = PROGENY_SYMBOL_MAPPING[gene_symbol]
 
                             if gene_symbol in self.symbols:
+
+                                # *** General properties ***
+                                evidenceString = opentargets.Literature_Curated(
+                                    validated_against_schema_version=Config.VALIDATED_AGAINST_SCHEMA_VERSION,
+                                    access_level="public",
+                                    type="affected_pathway",
+                                    sourceID="progeny"
+                                )
+
+                                # *** Build unique_association_fields object ***
+                                evidenceString.unique_association_fields = {
+                                    'pathway_id': 'http://www.reactome.org/PathwayBrowser/#%s' % (reactome_id),
+                                    'disease_id': TUMOR_TYPE_EFO_MAP[tumor_type]['uri']
+                                }
 
                                 ensembl_gene_id = self.symbols[gene_symbol]
                                 # *** Build target object ***
@@ -204,10 +205,11 @@ class PROGENY:
 
                                 ## TODO: At the moment, the output onto the screen is used to generate the JSON file
                                 ## TODO issue with append, repeats last item of each gene set for a pathway
+                                # this also happens when the append statement is outside the if statement, but still in the for-loop
                                 print(evidenceString.to_JSON(indentation=None))
                                 self.evidence_strings.append(evidenceString)
                             else:
-                                self.logger.error("%s is not found in Ensembl" % gene_symbol)
+                                self.logger.error("%s is not found in HGNC" % gene_symbol)
 
             self.logger.error("%s evidence parsed"%(n-1))
             self.logger.error("%s evidence created"%len(self.evidence_strings))
