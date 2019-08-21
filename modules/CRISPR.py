@@ -88,10 +88,11 @@ class CRISPR:
                         type = "affected_pathway",
                         sourceID = "crispr"
                     )
-                    # *** Build target object ***
-                    if target_name in self.symbols.values():
-                        ensembl_gene_id = target_name
 
+                    if target_name in self.symbols.values():
+
+                        # *** Build target object ***
+                        ensembl_gene_id = target_name
                         evidenceString.target = bioentity.Target(
                             id="http://identifiers.org/ensembl/{0}".format(ensembl_gene_id),
                             target_name=target_name,
