@@ -16,7 +16,7 @@ __copyright__ = "Copyright 2014-2018, Open Targets"
 __credits__   = ["Michaela Spitzer"]
 __license__   = "Apache 2.0"
 __version__   = "1.2.8"
-__maintainer__= "Michaela Spitzer"
+__maintainer__= "Open Targets Data Team"
 __email__     = ["data@opentargets.org"]
 __status__    = "Production"
 
@@ -108,17 +108,19 @@ class SysBio:
                             value=0.75
                         )
 
-                    evidenceString = opentargets.Literature_Curated()
-                    evidenceString.validated_against_schema_version = Config.VALIDATED_AGAINST_SCHEMA_VERSION
-                    evidenceString.access_level = "public"
-                    evidenceString.type = "affected_pathway"
-                    evidenceString.sourceID = "sysbio"
+                    evidenceString = opentargets.Literature_Curated(
+                        validated_against_schema_version = Config.VALIDATED_AGAINST_SCHEMA_VERSION,
+                        access_level = "public",
+                        type = "affected_pathway",
+                        sourceID = "sysbio"
+                    )
 
                     # *** Build unique_association_field object ***
-                    evidenceString.unique_association_fields = {}
-                    evidenceString.unique_association_fields['pmid'] = pmid
-                    evidenceString.unique_association_fields['gene_set'] = gene_set_name
-                    evidenceString.unique_association_fields['gene_name'] = target_name
+                    evidenceString.unique_association_fields = {
+                        'pmid': pmid,
+                        'gene_set': gene_set_name,
+                        'gene_name': target_name
+                    }
 
                     # *** Build target object ***
                     if target_name in self.symbols:
@@ -137,13 +139,13 @@ class SysBio:
                             name=disease_name
                         )
                         # *** Build evidence oject ***
-                        evidenceString.evidence = evidence_core.Literature_Curated()
-                        evidenceString.evidence.date_asserted = now.isoformat()
-                        evidenceString.evidence.is_associated = True
-                        evidenceString.evidence.evidence_codes = ["http://purl.obolibrary.org/obo/ECO_0000053"]
-                        evidenceString.evidence.provenance_type = provenance_type
-                        evidenceString.evidence.resource_score = resource_score
-
+                        evidenceString.evidence = evidence_core.Literature_Curated(
+                            date_asserted = now.isoformat(),
+                            is_associated = True,
+                            evidence_codes = ["http://purl.obolibrary.org/obo/ECO_0000053"],
+                            provenance_type = provenance_type,
+                            resource_score = resource_score
+                        )
                         error = evidenceString.validate(logging)
                         ##TODO issue with append, take only last item of the gene
                         self.evidence_strings.append(evidenceString)
