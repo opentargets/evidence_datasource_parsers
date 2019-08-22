@@ -131,7 +131,8 @@ class CRISPR:
                         )
                         # *** Build unique_association_field object ***
                         evidenceString.unique_association_fields = {
-                            'pmid': pmid,
+                            'pmid': "http://europepmc.org/abstract/MED/{0}".format(pmid),
+                            ## TODO: Add gene_set_name to main part of evidence string
                             'gene_set': gene_set_name,
                             'target_id': evidenceString.target.id,
                             'disease_id': evidenceString.disease.id
