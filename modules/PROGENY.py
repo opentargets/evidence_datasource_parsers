@@ -55,7 +55,7 @@ PATHWAY_TARGET_MAP = {
 }
 
 # === Pathway -> Reactome Pathway ID ===
-#TODO Hypoxia, JAK.STAT, Trail to be updated
+#TODO: For Hypoxia and Trail pathway mapping to be established and description to be updated
 PATHWAY_REACTOME_MAP = {
     'Androgen': 'R-HSA-8940973:RUNX2 regulates osteoblast differentiation',
     'EGFR': 'R-HSA-8856828:Clathrin-mediated endocytosis',
@@ -198,13 +198,9 @@ class PROGENY:
                                     resource_score = resource_score,
                                     urls=[linkout]
                                 )
-                                # Add gene_symbol to unique_association_fields
+                                # Add target_id to unique_association_fields
                                 evidenceString.unique_association_fields['target_id'] = evidenceString.target.id
-
-                                ## TODO: At the moment, the output onto the screen is used to generate the JSON file
-                                ## TODO issue with append, repeats last item of each gene set for a pathway
-                                # this also happens when the append statement is outside the if statement, but still in the for-loop
-                                print(evidenceString.to_JSON(indentation=None))
+                                # Append current evidence string
                                 self.evidence_strings.append(evidenceString)
                             else:
                                 self.logger.error("%s is not found in HGNC" % gene_symbol)
@@ -219,7 +215,6 @@ class PROGENY:
             for evidence_string in self.evidence_strings:
                 n += 1
                 self.logger.info(evidence_string.disease.id[0])
-                # get max_phase_for_all_diseases
                 error = evidence_string.validate(logging)
                 if error == 0:
                     progeny_output.write(evidence_string.to_JSON(indentation=None)+"\n")
