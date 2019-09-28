@@ -240,7 +240,7 @@ class SLAPEnrich():
 
                             # *** Build unique_association_field object ***
                             evidenceString.unique_association_fields = {
-                                'gene_id': evidenceString.target.id,
+                                'target_id': evidenceString.target.id,
                                 'pathway_id': 'http://www.reactome.org/PathwayBrowser/#%s' % (pathway_id),
                                 'disease_id': evidenceString.disease.id
                             }
