@@ -12,7 +12,7 @@ import opentargets.model.evidence.association_score as association_score
 # To check scores:
 # cat sysbio-29-01-2019.json | jq -r '[.evidence.resource_score.value, .unique_association_fields.gene_set, .unique_association_fields.gene_name]| @csv'
 
-__copyright__ = "Copyright 2014-2018, Open Targets"
+__copyright__ = "Copyright 2014-2019, Open Targets"
 __credits__   = ["Michaela Spitzer"]
 __license__   = "Apache 2.0"
 __version__   = "1.2.8"
@@ -147,7 +147,6 @@ class SysBio:
                             resource_score = resource_score
                         )
                         error = evidenceString.validate(logging)
-                        ##TODO issue with append, take only last item of the gene
                         self.evidence_strings.append(evidenceString)
                     else:
                         self.logger.error("%s is not found in Ensembl" % target_name)
