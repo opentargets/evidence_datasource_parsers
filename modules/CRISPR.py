@@ -12,12 +12,25 @@ __copyright__ = "Copyright 2014-2019, Open Targets"
 __credits__   = ["Michaela Spitzer"]
 __license__   = "Apache 2.0"
 __version__   = "1.2.8"
-__maintainer__= "Michaela Spitzer"
+__maintainer__= "Open Targets Data Team"
 __email__     = ["data@opentargets.org"]
 __status__    = "Production"
 
 CRISPR_DATABASE_ID='CRISPR'
 CRISPR_VERSION='2019.03'
+
+# A few genes do not have Ensembl IDs in the data file provided
+CRISPR_SYMBOL_MAPPING={
+    'CASC5': 'ENSG00000137812',
+    'CIRH1A': 'ENSG00000141076',
+    'EFTUD1': 'ENSG00000140598',
+    'ENSG00000163660': 'ENSG00000163660',
+    'KIAA0947': 'ENSG00000164151',
+    'KIAA1432': 'ENSG00000107036',
+    'NDNL2': 'ENSG00000185115',
+    'SRPR': 'ENSG00000182934',
+    'ZNF259': 'ENSG00000109917'
+}
 
 class CRISPR:
     def __init__(self):
@@ -82,23 +95,20 @@ class CRISPR:
                         value=float(score)/100
                     )
 
-                    evidenceString = opentargets.Literature_Curated()
-                    evidenceString.validated_against_schema_version = Config.VALIDATED_AGAINST_SCHEMA_VERSION
-                    evidenceString.access_level = "public"
-                    evidenceString.type = "affected_pathway"
-                    evidenceString.sourceID = "crispr"
+                    evidenceString = opentargets.Literature_Curated(
+                        validated_against_schema_version = Config.VALIDATED_AGAINST_SCHEMA_VERSION,
+                        access_level = "public",
+                        type = "affected_pathway",
+                        sourceID = "crispr"
+                    )
 
-                    # *** Build unique_association_field object ***
-                    evidenceString.unique_association_fields = {}
-                    evidenceString.unique_association_fields['pmid'] = pmid
-                    evidenceString.unique_association_fields['gene_set'] = gene_set_name
-                    evidenceString.unique_association_fields['gene_name'] = target_name
-                    evidenceString.unique_association_fields['disease_id'] = disease_id
+                    if target_name in CRISPR_SYMBOL_MAPPING:
+                        target_name=CRISPR_SYMBOL_MAPPING[target_name]
 
-                    # *** Build target object ***
                     if target_name in self.symbols.values():
-                        ensembl_gene_id = target_name
 
+                        # *** Build target object ***
+                        ensembl_gene_id = target_name
                         evidenceString.target = bioentity.Target(
                             id="http://identifiers.org/ensembl/{0}".format(ensembl_gene_id),
                             target_name=target_name,
@@ -112,14 +122,23 @@ class CRISPR:
                             name=disease_name
                         )
                         # *** Build evidence oject ***
-                        evidenceString.evidence = evidence_core.Literature_Curated()
-                        evidenceString.evidence.date_asserted = now.isoformat()
-                        evidenceString.evidence.is_associated = True
-                        evidenceString.evidence.evidence_codes = ["http://purl.obolibrary.org/obo/ECO_0000053"]
-                        evidenceString.evidence.provenance_type = provenance_type
-                        evidenceString.evidence.resource_score = resource_score
+                        evidenceString.evidence = evidence_core.Literature_Curated(
+                            date_asserted = now.isoformat(),
+                            is_associated = True,
+                            evidence_codes = ["http://purl.obolibrary.org/obo/ECO_0000053"],
+                            provenance_type = provenance_type,
+                            resource_score = resource_score
+                        )
+                        # *** Build unique_association_field object ***
+                        evidenceString.unique_association_fields = {
+                            'pmid': "http://europepmc.org/abstract/MED/{0}".format(pmid),
+                            ## TODO: Add gene_set_name to main part of evidence string
+                            'gene_set': gene_set_name,
+                            'target_id': evidenceString.target.id,
+                            'disease_id': evidenceString.disease.id
+                        }
 
-                        ##TODO issue with append, take only last item of the gene
+                        # Append current evidence string
                         self.evidence_strings.append(evidenceString)
                     else:
                         self.logger.error("%s is not found in Ensembl" % target_name)
