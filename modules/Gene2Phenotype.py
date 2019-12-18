@@ -127,7 +127,7 @@ class G2P(RareDiseaseMapper):
                             obj.unique_association_fields = {
                                 "target_id": ensembl_iri,
                                 "original_disease_label" : disease_name,
-                                "disease_uri": disease['efo_uri']
+                                "disease_id": disease['efo_uri']
                             }
 
 
