@@ -66,7 +66,7 @@ class IntOGen():
         self.get_cancer_acronym_to_efo_mappings()
         self.read_intogen_cohorts()
         self.read_intogen(driver_genes_filename=infile)
-        #self.write_evidence_strings(filename=outfile)
+        self.write_evidence_strings(filename=outfile)
 
     def get_cancer_acronym_to_efo_mappings(self, cancer_mapping_filename=Config.INTOGEN_CANCER2EFO_MAPPING_FILENAME):
         """Parse intogen_cancer2EFO_mapping.tsv and create a dictionary to map IntOGen 3-letter cancer acronyms to EFO"""
@@ -157,7 +157,7 @@ class IntOGen():
                     # *** Evidence ***
                     linkout = evidence_linkout.Linkout(
                         url='https://www.intogen.org/search?gene=%s&cancer=%s'%(line['SYMBOL'], line['CANCER_TYPE']),
-                        nice_name='IntOGen -  %s gene cancer mutations in %s (%s)'%(line['SYMBOL'], self.cancer_acronym_to_efo_map[line['CANCER_TYPE']], line['CANCER_TYPE'])
+                        nice_name='IntOGen -  %s gene cancer mutations in %s (%s)'%(line['SYMBOL'], disease['efo_label'], line['CANCER_TYPE'])
                     )
                     # inheritance_pattern - 'gain_of_function' = 'Dominant', 'loss_of_function' = 'Recessive'
                     inheritance_pattern='unknown'
@@ -169,7 +169,10 @@ class IntOGen():
                     mutation = evidence_mutation.Mutation(
                         functional_consequence='http://purl.obolibrary.org/obo/SO_0001564',
                         preferred_name='gene_variant',
-                        inheritance_pattern=inheritance_pattern)
+                        inheritance_pattern=inheritance_pattern,
+                        number_samples_tested= self.cohort_info[line['COHORT']]['number_samples'],
+                        number_mutated_samples= line['SAMPLES']
+                    )
                     # resource_score
                     resource_score = association_score.Pvalue(
                         type="pvalue",
@@ -194,7 +197,11 @@ class IntOGen():
                     # (target_id & disease_id are sufficient)
                     evidenceString.unique_association_fields = {
                         'target_id': evidenceString.target.id,
-                        'disease_id': evidenceString.disease.id
+                        'disease_id': evidenceString.disease.id,
+                        'cohort_id': line['COHORT'],
+                        'cohort_short_name': self.cohort_info[line['COHORT']]['short_cohort_name'],
+                        'cohort_description': self.cohort_info[line['COHORT']]['cohort_description'],
+                        'methods': line['METHODS']
                     }
 
                     error=evidenceString.validate(logging)
