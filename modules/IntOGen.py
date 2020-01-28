@@ -2,6 +2,7 @@ import sys
 import logging
 import datetime
 from collections import OrderedDict
+import pandas as pd
 from common.HGNCParser import GeneParser
 from settings import Config, file_or_resource
 import opentargets.model.core as opentargets
@@ -117,6 +118,7 @@ class IntOGen():
         self.genes=None
         self.symbols={}
         self.cancer_acronym_to_efo_map = OrderedDict()
+        self.cohort_info= OrderedDict()
         self.logger=logging.getLogger(__name__)
 
     def process_intogen(self, infile=Config.INTOGEN_FILENAME, outfile=Config.INTOGEN_EVIDENCE_FILENAME):
@@ -137,6 +139,23 @@ class IntOGen():
                 if cancer_acronym not in self.cancer_acronym_to_efo_map:
                     self.cancer_acronym_to_efo_map[cancer_acronym] = []
                 self.cancer_acronym_to_efo_map[cancer_acronym].append({'efo_uri': efo_uri, 'efo_label': efo_label})
+
+    def read_intogen_cohorts(self, cohorts_filename=Config.INTOGEN_COHORTS):
+        """Parse IntOGen cohorts file and create a dictionary with necessary information"""
+
+        cohorts_df = pd.read_csv(cohorts_filename, sep='\t', header=0)
+
+        for index, row in cohorts_df.iterrows():
+            if row['COHORT'] not in self.cohort_info:
+                cohort_info_dict = {}
+                cohort_info_dict['short_cohort_name'] = row['WEB_SHORT_COHORT_NAME']
+                cohort_info_dict['cohort_description'] = row['WEB_LONG_COHORT_NAME']
+                cohort_info_dict['number_samples'] = row['SAMPLES']
+                self.cohort_info[row['COHORT']] = cohort_info_dict
+            else:
+                self.logger.error("Cohort %s appears multiple times in %s"%(row['COHOR'], cohorts_filename))
+                sys.exit(1)
+
 
     def read_intogen(self, filename=Config.INTOGEN_FILENAME):
 
