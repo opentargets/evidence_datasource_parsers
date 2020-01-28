@@ -30,7 +30,8 @@ INTOGEN_ROLE_MAP={
     'Act': 'http://identifiers.org/cttv.activity/gain_of_function',
     'LoF': 'http://identifiers.org/cttv.activity/loss_of_function',
     'Ambiguous': 'http://identifiers.org/cttv.activity/unknown',
-    'ambiguous': 'http://identifiers.org/cttv.activity/unknown'
+    'ambiguous': 'http://identifiers.org/cttv.activity/unknown',
+    '': 'http://identifiers.org/cttv.activity/unknown'
 }
 
 INTOGEN_SYMBOL_MAPPING={
@@ -57,13 +58,15 @@ class IntOGen():
         self.cohort_info= OrderedDict()
         self.logger=logging.getLogger(__name__)
 
-    def process_intogen(self, infile=Config.INTOGEN_FILENAME, outfile=Config.INTOGEN_EVIDENCE_FILENAME):
+    def process_intogen(self, infile=Config.INTOGEN_DRIVER_GENES_FILENAME, outfile=Config.INTOGEN_EVIDENCE_FILENAME):
 
         gene_parser=GeneParser()
         gene_parser._get_hgnc_data_from_json()
         self.genes=gene_parser.genes
-        self.read_intogen(filename=infile)
-        self.write_evidence_strings(filename=outfile)
+        self.get_cancer_acronym_to_efo_mappings()
+        self.read_intogen_cohorts()
+        self.read_intogen(driver_genes_filename=infile)
+        #self.write_evidence_strings(filename=outfile)
 
     def get_cancer_acronym_to_efo_mappings(self, cancer_mapping_filename=Config.INTOGEN_CANCER2EFO_MAPPING_FILENAME):
         """Parse intogen_cancer2EFO_mapping.tsv and create a dictionary to map IntOGen 3-letter cancer acronyms to EFO"""
@@ -71,10 +74,10 @@ class IntOGen():
         with open(cancer_mapping_filename, 'r') as cancer2efo:
             for line in cancer2efo:
                 line = line.strip('\n')
-                (cancer_full_name, cancer_acronym, efo_uri, efo_label) = line.split("\t")
+                (intogen_cancer_full_name, cancer_acronym, efo_uri, efo_label) = line.split("\t")
                 if cancer_acronym not in self.cancer_acronym_to_efo_map:
                     self.cancer_acronym_to_efo_map[cancer_acronym] = []
-                self.cancer_acronym_to_efo_map[cancer_acronym].append({'efo_uri': efo_uri, 'efo_label': efo_label})
+                self.cancer_acronym_to_efo_map[cancer_acronym].append({'efo_uri': efo_uri, 'efo_label': efo_label, 'intogen_full_name': intogen_cancer_full_name})
 
     def read_intogen_cohorts(self, cohorts_filename=Config.INTOGEN_COHORTS):
         """Parse IntOGen cohorts file and create a dictionary with necessary information"""
@@ -89,11 +92,11 @@ class IntOGen():
                 cohort_info_dict['number_samples'] = row['SAMPLES']
                 self.cohort_info[row['COHORT']] = cohort_info_dict
             else:
-                self.logger.error("Cohort %s appears multiple times in %s"%(row['COHOR'], cohorts_filename))
+                self.logger.error("Cohort %s appears multiple times in %s"%(row['COHORT'], cohorts_filename))
                 sys.exit(1)
 
 
-    def read_intogen(self, filename=Config.INTOGEN_FILENAME):
+    def read_intogen(self, driver_genes_filename=Config.INTOGEN_DRIVER_GENES_FILENAME):
 
         # the database was created in 2014
         #now=datetime.datetime.now()
@@ -113,12 +116,14 @@ class IntOGen():
             print(provenance_type.to_JSON(indentation=4))
             sys.exit(1)
 
-        with open(filename, 'r') as intogen_file:
-            n=0
-            for line in intogen_file:
-                n += 1
-                if n > 1:
-                    (Symbol, Ensg, Tumor_Type, Evidence, Role)=tuple(line.rstrip().split('\t'))
+        intogen_driver_genes_df = pd.read_csv(driver_genes_filename, sep='\t', header=0, keep_default_na=False)
+
+        n=0
+        for index, line in intogen_driver_genes_df.iterrows():
+            n += 1
+            if n > 1:
+                # One IntOGen cancer type may be mapped to multiple disease, e.g. PCPG - Pheochromocytoma and paraganglioma, generate evidence strings for all of them
+                for disease in self.cancer_acronym_to_efo_map[line['CANCER_TYPE']]:
                     # *** General properties ***
                     evidenceString=opentargets.Literature_Curated()
                     evidenceString.validated_against_schema_version=Config.VALIDATED_AGAINST_SCHEMA_VERSION
@@ -128,36 +133,37 @@ class IntOGen():
 
                     # *** Target information ***
                     # get the Ensembl gene id from the symbol (mapping from 2014 won't work)
-                    if Symbol in INTOGEN_SYMBOL_MAPPING:
-                        Symbol=INTOGEN_SYMBOL_MAPPING[Symbol]
+                    # TODO: Check if this is still necessary with Nov 19 file
+                    if line['SYMBOL'] in INTOGEN_SYMBOL_MAPPING:
+                        line['SYMBOL']=INTOGEN_SYMBOL_MAPPING[line['SYMBOL']]
 
-                    ensembl_gene_id = self.genes.get(Symbol)
+                    ensembl_gene_id = self.genes.get(line['SYMBOL'])
                     if not ensembl_gene_id:
-                        self.logger.error("%s is not found in Ensembl" % Symbol)
+                        self.logger.error("%s is not found in Ensembl" % line['SYMBOL'])
                         continue
 
                     evidenceString.target = bioentity.Target(
                         id="http://identifiers.org/ensembl/{0}".format(ensembl_gene_id),
-                        target_name=Symbol,
-                        activity=INTOGEN_ROLE_MAP[Role],
+                        target_name=line['SYMBOL'],
+                        activity=INTOGEN_ROLE_MAP[line['ROLE']],
                         target_type='http://identifiers.org/cttv.target/gene_evidence'
                     )
                     # *** Disease information ***
                     evidenceString.disease = bioentity.Disease(
-                        id=INTOGEN_TUMOR_TYPE_EFO_MAP[Tumor_Type]['uri'],
-                        name=INTOGEN_TUMOR_TYPE_EFO_MAP[Tumor_Type]['label'],
-                        source_name=INTOGEN_TUMOR_TYPE_MAP[Tumor_Type]
+                        id=disease['efo_uri'],
+                        name=disease['efo_label'],
+                        source_name=disease['intogen_full_name']
                     )
                     # *** Evidence ***
                     linkout = evidence_linkout.Linkout(
-                        url='https://www.intogen.org/search?gene=%s&cancer=%s'%(Symbol, Tumor_Type),
-                        nice_name='IntOGen -  %s gene cancer mutations in %s (%s)'%(Symbol, INTOGEN_TUMOR_TYPE_MAP[Tumor_Type], Tumor_Type)
+                        url='https://www.intogen.org/search?gene=%s&cancer=%s'%(line['SYMBOL'], line['CANCER_TYPE']),
+                        nice_name='IntOGen -  %s gene cancer mutations in %s (%s)'%(line['SYMBOL'], self.cancer_acronym_to_efo_map[line['CANCER_TYPE']], line['CANCER_TYPE'])
                     )
                     # inheritance_pattern - 'gain_of_function' = 'Dominant', 'loss_of_function' = 'Recessive'
                     inheritance_pattern='unknown'
-                    if Role == 'Act':
+                    if line['ROLE'] == 'Act':
                         inheritance_pattern='dominant'
-                    elif Role == 'LoF':
+                    elif line['ROLE'] == 'LoF':
                         inheritance_pattern='recessive'
                     # known_mutations
                     mutation = evidence_mutation.Mutation(
@@ -165,13 +171,13 @@ class IntOGen():
                         preferred_name='gene_variant',
                         inheritance_pattern=inheritance_pattern)
                     # resource_score
-                    resource_score = association_score.Probability(
-                        type="probability",
+                    resource_score = association_score.Pvalue(
+                        type="pvalue",
                         method=association_score.Method(
                             description="IntOGen Driver identification methods as described in Rubio-Perez, C., Tamborero, D., Schroeder, MP., Antolin, AA., Deu-Pons,J., Perez-Llamas, C., Mestres, J., Gonzalez-Perez, A., Lopez-Bigas, N. In silico prescription of anticancer drugs to cohorts of 28 tumor types reveals novel targeting opportunities. Cancer Cell 27 (2015), pp. 382-396",
                             reference="http://europepmc.org/abstract/MED/25759023",
                             url="https://www.intogen.org/about"),
-                        value=INTOGEN_SCORE_MAP[Evidence]
+                        value=line['QVALUE_COMBINATION']
                     )
 
                     evidenceString.evidence = evidence_core.Literature_Curated(
