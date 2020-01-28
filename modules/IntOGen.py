@@ -129,10 +129,10 @@ class IntOGen():
         self.read_intogen(filename=infile)
         self.write_evidence_strings(filename=outfile)
 
-    def get_cancer_acronym_to_efo_mappings(self):
+    def get_cancer_acronym_to_efo_mappings(self, cancer_mapping_filename=Config.INTOGEN_CANCER2EFO_MAPPING_FILENAME):
         """Parse intogen_cancer2EFO_mapping.tsv and create a dictionary to map IntOGen 3-letter cancer acronyms to EFO"""
 
-        with open(Config.INTOGEN_CANCER2EFO_MAPPING_FILENAME, 'r') as cancer2efo:
+        with open(cancer_mapping_filename, 'r') as cancer2efo:
             for line in cancer2efo:
                 line = line.strip('\n')
                 (cancer_full_name, cancer_acronym, efo_uri, efo_label) = line.split("\t")
