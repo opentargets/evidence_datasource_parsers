@@ -1,6 +1,7 @@
 import sys
 import logging
 import datetime
+from collections import OrderedDict
 from common.HGNCParser import GeneParser
 from settings import Config, file_or_resource
 import opentargets.model.core as opentargets
@@ -115,6 +116,7 @@ class IntOGen():
         self.evidence_strings=list()
         self.genes=None
         self.symbols={}
+        self.cancer_acronym_to_efo_map = OrderedDict()
         self.logger=logging.getLogger(__name__)
 
     def process_intogen(self, infile=Config.INTOGEN_FILENAME, outfile=Config.INTOGEN_EVIDENCE_FILENAME):
@@ -124,6 +126,17 @@ class IntOGen():
         self.genes=gene_parser.genes
         self.read_intogen(filename=infile)
         self.write_evidence_strings(filename=outfile)
+
+    def get_cancer_acronym_to_efo_mappings(self):
+        """Parse intogen_cancer2EFO_mapping.tsv and create a dictionary to map IntOGen 3-letter cancer acronyms to EFO"""
+
+        with open(Config.INTOGEN_CANCER2EFO_MAPPING_FILENAME, 'r') as cancer2efo:
+            for line in cancer2efo:
+                line = line.strip('\n')
+                (cancer_full_name, cancer_acronym, efo_uri, efo_label) = line.split("\t")
+                if cancer_acronym not in self.cancer_acronym_to_efo_map:
+                    self.cancer_acronym_to_efo_map[cancer_acronym] = []
+                self.cancer_acronym_to_efo_map[cancer_acronym].append({'efo_uri': efo_uri, 'efo_label': efo_label})
 
     def read_intogen(self, filename=Config.INTOGEN_FILENAME):
 

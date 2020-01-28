@@ -1,0 +1,64 @@
+Cancer_type_full_name	Cancer_type_acronym	EFO_id	EFO_name
+Adrenocortical carcinoma	ACC	http://www.ebi.ac.uk/efo/EFO_1000796	adrenal cortex carcinoma
+Acute lymphoblastic leukemia	ALL	http://www.ebi.ac.uk/efo/EFO_0000220	acute lymphoblastic leukemia
+Acute myeloid leukemia	AML	http://www.ebi.ac.uk/efo/EFO_0000222	acute myeloid leukemia
+Angiosarcoma	ANGS	http://www.ebi.ac.uk/efo/EFO_0003968	angiosarcoma
+Bladder cancer	BLCA	http://purl.obolibrary.org/obo/MONDO_0001187	urinary bladder cancer
+Breast adenocarcinoma	BRCA	http://www.ebi.ac.uk/efo/EFO_0000304	breast adenocarcinoma
+Cervix squamous cancer	CESC	http://www.ebi.ac.uk/efo/EFO_1000172	cervical squamous cell carcinoma
+Cholangiocarcinoma	CH	http://www.ebi.ac.uk/efo/EFO_0005221	cholangiocarcinoma
+Chronic lymphoblastic leukemia	CLL	http://www.ebi.ac.uk/efo/EFO_0000095	chronic lymphocytic leukemia
+Cutaneous melanoma of the skin	CM	http://www.ebi.ac.uk/efo/EFO_0000389	cutaneous melanoma
+Colorectal adenocarcinoma	COREAD	http://www.ebi.ac.uk/efo/EFO_0000365	colorectal adenocarcinoma
+Cutaneous squamous cell carcinoma	CSCC	http://www.ebi.ac.uk/efo/EFO_1001927	cutaneous squamous cell carcinoma
+Diffuse large B-cell lymphoma	DLBCL	http://www.ebi.ac.uk/efo/EFO_0000403	diffuse large B-cell lymphoma
+Ependymoma	EPD	http://www.ebi.ac.uk/efo/EFO_1000028	ependymoma
+Esophageal cancer	ESCA	http://purl.obolibrary.org/obo/MONDO_0007576	esophageal cancer
+Ewings sarcoma	EWS	http://www.ebi.ac.uk/efo/EFO_0000174	Ewing sarcoma
+Glioblastoma	GBM	http://www.ebi.ac.uk/efo/EFO_0000519	glioblastoma multiforme
+Hepatic cancer	HC	http://www.ebi.ac.uk/efo/EFO_1001513	liver neoplasm
+High-grade Glioma	HGG	http://purl.obolibrary.org/obo/MONDO_0015917	malignant glioma
+Head and neck squamous cell carcinoma	HNSC	http://www.ebi.ac.uk/efo/EFO_0000181	head and neck squamous cell carcinoma
+Leiomyosarcoma	LEIS	http://www.ebi.ac.uk/efo/EFO_0000564	leiomyosarcoma
+Lower grade glioma	LGG	http://purl.obolibrary.org/obo/MONDO_0021637	low grade glioma
+Lung adenocarcinoma	LUAD	http://www.ebi.ac.uk/efo/EFO_0000571	lung adenocarcinoma
+Lung cancer	LUNG_CANCER	http://purl.obolibrary.org/obo/MONDO_0008903	lung cancer
+Lung squamous cell carcinoma	LUSC	http://www.ebi.ac.uk/efo/EFO_0000708	squamous cell lung carcinoma
+Lymphoma	LY	http://www.ebi.ac.uk/efo/EFO_0000574	lymphoma
+Medulloblastoma	MBL	http://www.ebi.ac.uk/efo/EFO_0002939	medulloblastoma
+Myelodisplasic proliferative	MDPS	http://www.ebi.ac.uk/efo/EFO_1000388	Myelodysplastic/Myeloproliferative Neoplasm
+Mesothelioma	MESO	http://www.ebi.ac.uk/efo/EFO_0000588	mesothelioma
+Male germ cell tumor	MGCT	http://www.ebi.ac.uk/efo/EFO_1000566	Testicular Germ Cell Tumor
+Multiple myeloma	MM	http://www.ebi.ac.uk/efo/EFO_0001378	multiple myeloma
+Neuroblastoma	NB	http://www.ebi.ac.uk/efo/EFO_0000621	neuroblastoma
+CNS Cancer	NERVOUS_SYSTEM_CANCER	http://www.ebi.ac.uk/efo/EFO_0000326	central nervous system cancer
+Non-hodking lymphoma	NHLY	http://www.ebi.ac.uk/efo/EFO_0005952	non-Hodgkins lymphoma
+Nasopharyngeal cancer	NSPH	http://www.ebi.ac.uk/efo/EFO_0004252	nasopharyngeal neoplasm
+Osteosarcoma	OS	http://www.ebi.ac.uk/efo/EFO_0000637	osteosarcoma
+Ovary cancer	OV	http://purl.obolibrary.org/obo/MONDO_0008170	ovarian cancer
+Pancreas adenocarcinoma	PAAD	http://www.ebi.ac.uk/efo/EFO_1000044	pancreatic adenocarcinoma
+Pancreatic neuroendocrine cancer	PAIS	http://www.ebi.ac.uk/efo/EFO_0007416	pancreatic endocrine carcinoma
+Pheochromocytoma and paraganglioma	PCPG	http://www.ebi.ac.uk/efo/EFO_0000239	adrenal gland pheochromocytoma
+Pheochromocytoma and paraganglioma	PCPG	http://www.ebi.ac.uk/efo/EFO_1000453	Paraganglioma
+Penile cancer	PENILE_CANCER	http://purl.obolibrary.org/obo/MONDO_0001325	penile cancer
+Pilocytic astrocytoma	PIA	http://www.ebi.ac.uk/efo/EFO_0000272	astrocytoma
+Prostate adenocarcinoma	PRAD	http://www.ebi.ac.uk/efo/EFO_0000673	prostate adenocarcinoma
+Kidney cancer	R	http://www.ebi.ac.uk/efo/EFO_0003865	kidney neoplasm
+Retinoblastoma	RB	http://www.orpha.net/ORDO/Orphanet_790	Retinoblastoma
+Renal clear cell carcinoma	RCCC	http://www.ebi.ac.uk/efo/EFO_0000349	clear cell renal carcinoma
+Chromophobe renal cell carcinoma	RCH	http://www.ebi.ac.uk/efo/EFO_0000335	chromophobe renal cell carcinoma
+Rhabdomyosarcoma	RHBDS	http://www.ebi.ac.uk/efo/EFO_0002918	rhabdomyosarcoma
+Renal papillary cell	RPC	http://www.ebi.ac.uk/efo/EFO_0000640	papillary renal cell carcinoma
+Sarcoma	S	http://www.ebi.ac.uk/efo/EFO_0000691	sarcoma
+Small-cell lung cancer	SCLC	http://www.ebi.ac.uk/efo/EFO_0000702	small cell lung carcinoma
+Salivary glands cancer	SG	http://purl.obolibrary.org/obo/MONDO_0004669	salivary gland cancer
+Bowel cancer	SMALL_INTESTINE_CANCER	http://www.ebi.ac.uk/efo/EFO_0007330	intestinal cancer
+Stomach adenocarcinoma	ST	http://www.ebi.ac.uk/efo/EFO_0000503	gastric adenocarcinoma
+Thyroid adenocarcinoma	THCA	http://purl.obolibrary.org/obo/MONDO_0024622	thyroid gland adenocarcinoma
+Thymic carcinoma	THYM	http://www.ebi.ac.uk/efo/EFO_1000576	Thymic Carcinoma
+Endometrial cancer	UCEC	http://purl.obolibrary.org/obo/MONDO_0011962	endometrial cancer
+Uterine carcinosarcoma	UCS	http://www.ebi.ac.uk/efo/EFO_1000613	Uterine Carcinosarcoma
+Uveal melanoma	UVM	http://www.ebi.ac.uk/efo/EFO_1000616	Uveal Melanoma
+Vulva cancer	VULVA_CANCER	http://purl.obolibrary.org/obo/MONDO_0001528	vulva cancer
+Wilms tumor	WT	http://www.orpha.net/ORDO/Orphanet_654	Wilms tumor
+Skin Basal Cell Carcinoma	SBCC	http://www.ebi.ac.uk/efo/EFO_0004193	basal cell carcinoma
