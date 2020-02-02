@@ -12,10 +12,10 @@ import opentargets.model.evidence.linkout as evidence_linkout
 import opentargets.model.evidence.association_score as association_score
 import opentargets.model.evidence.mutation as evidence_mutation
 
-__copyright__ ="Copyright 2014-2019, Open Targets"
-__credits__   =["Gautier Koscielny", "David Tamborero", "ChuangKee Ong", "Michaela Spitzer"]
+__copyright__ ="Copyright 2014-2020, Open Targets"
+__credits__   =["Gautier Koscielny", "David Tamborero", "ChuangKee Ong", "Michaela Spitzer", "Asier Gonzalez"]
 __license__   ="Apache 2.0"
-__version__   ="1.2.6"
+__version__   ="1.3.0"
 __maintainer__="Open Targets Data Team"
 __email__     =["data@opentargets.org"]
 __status__    ="Production"

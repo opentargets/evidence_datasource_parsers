@@ -39,7 +39,7 @@ class Config:
     # shared settings
 
     # schema version
-    VALIDATED_AGAINST_SCHEMA_VERSION = '1.2.8'
+    VALIDATED_AGAINST_SCHEMA_VERSION = '1.6.3'
 
     # Ontologies
     EFO_URL = 'https://github.com/EBISPOT/efo/raw/v2018-01-15/efo.obo'
@@ -85,7 +85,7 @@ class Config:
 
     # IntoGEN
     INTOGEN_DRIVER_GENES_FILENAME = file_or_resource('intogen_Compendium_Cancer_Genes.tsv')
-    INTOGEN_EVIDENCE_FILENAME = 'otar001_intogen-16-08-2019.json'
+    INTOGEN_EVIDENCE_FILENAME = 'intogen-02-02-2020.json'
     INTOGEN_CANCER2EFO_MAPPING_FILENAME = file_or_resource('intogen_cancer2EFO_mapping.tsv')
     INTOGEN_COHORTS = file_or_resource('intogen_cohorts.tsv')
 
