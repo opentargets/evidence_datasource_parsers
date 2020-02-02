@@ -100,12 +100,12 @@ class IntOGen():
 
         # the database was created in 2014
         #now=datetime.datetime.now()
-        now=datetime.datetime(2014, 12, 1, 8, 30)
+        now=datetime.datetime(2019, 11, 12, 0, 0)
         provenance_type = evidence_core.BaseProvenance_Type(
             database=evidence_core.BaseDatabase(
                 id="IntOGen Cancer Drivers Database",
-                version='2014.12',
-                dbxref=evidence_core.BaseDbxref(url="https://www.intogen.org/search", id="IntOGen Cancer Drivers Database", version="2014.12")),
+                version='2019.11',
+                dbxref=evidence_core.BaseDbxref(url="https://www.intogen.org/search", id="IntOGen Cancer Drivers Database", version="2019.11")),
             literature=evidence_core.BaseLiterature(
                 references=[evidence_core.Single_Lit_Reference(lit_id="http://europepmc.org/abstract/MED/25759023")]
             )
