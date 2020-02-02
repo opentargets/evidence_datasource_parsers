@@ -39,7 +39,7 @@ class Config:
     # shared settings
 
     # schema version
-    VALIDATED_AGAINST_SCHEMA_VERSION = '1.6.3'
+    VALIDATED_AGAINST_SCHEMA_VERSION = '1.2.8'
 
     # Ontologies
     EFO_URL = 'https://github.com/EBISPOT/efo/raw/v2018-01-15/efo.obo'
