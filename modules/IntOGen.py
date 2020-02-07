@@ -150,7 +150,7 @@ class IntOGen():
                     )
                     # *** Evidence ***
                     linkout = evidence_linkout.Linkout(
-                        url='https://www.intogen.org/search?gene=%s&cancer=%s'%(line['SYMBOL'], line['CANCER_TYPE']),
+                        url='https://www.intogen.org/search?gene=%s&cohort=%s'%(line['SYMBOL'], line['COHORT']),
                         nice_name='IntOGen -  %s gene cancer mutations in %s (%s)'%(line['SYMBOL'], disease['efo_label'], line['CANCER_TYPE'])
                     )
                     # inheritance_pattern - 'gain_of_function' = 'Dominant', 'loss_of_function' = 'Recessive'
