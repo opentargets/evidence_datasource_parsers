@@ -20,12 +20,6 @@ __maintainer__="Open Targets Data Team"
 __email__     =["data@opentargets.org"]
 __status__    ="Production"
 
-INTOGEN_SCORE_MAP={'A': 0.75, 'B': 0.5, 'C': 0.25}
-INTOGEN_SCORE_DOC = {
-    'A': 'the gene exhibits several signals of positive selection in the tumor type',
-    'B': 'the gene is already described as a cancer gene and exhibits a signal of positive selection in the tumor type',
-    'C': 'the gene exhibits a signal of positive selection and is functionally connected to the genes with evidence A or B in the tumor type'
-}
 INTOGEN_ROLE_MAP={
     'Act': 'http://identifiers.org/cttv.activity/gain_of_function',
     'LoF': 'http://identifiers.org/cttv.activity/loss_of_function',
