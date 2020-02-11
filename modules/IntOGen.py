@@ -115,95 +115,94 @@ class IntOGen():
         n=0
         for index, line in intogen_driver_genes_df.iterrows():
             n += 1
-            if n > 1:
-                # One IntOGen cancer type may be mapped to multiple disease, e.g. PCPG - Pheochromocytoma and paraganglioma, generate evidence strings for all of them
-                for disease in self.cancer_acronym_to_efo_map[line['CANCER_TYPE']]:
-                    # *** General properties ***
-                    evidenceString=opentargets.Literature_Curated()
-                    evidenceString.validated_against_schema_version=Config.VALIDATED_AGAINST_SCHEMA_VERSION
-                    evidenceString.access_level="public"
-                    evidenceString.type="somatic_mutation"
-                    evidenceString.sourceID="intogen"
+            # One IntOGen cancer type may be mapped to multiple disease, e.g. PCPG - Pheochromocytoma and paraganglioma, generate evidence strings for all of them
+            for disease in self.cancer_acronym_to_efo_map[line['CANCER_TYPE']]:
+                # *** General properties ***
+                evidenceString=opentargets.Literature_Curated()
+                evidenceString.validated_against_schema_version=Config.VALIDATED_AGAINST_SCHEMA_VERSION
+                evidenceString.access_level="public"
+                evidenceString.type="somatic_mutation"
+                evidenceString.sourceID="intogen"
 
-                    # *** Target information ***
-                    # get the Ensembl gene id from the symbol (mapping from 2014 won't work)
-                    # TODO: Check if this is still necessary with Nov 19 file
-                    if line['SYMBOL'] in INTOGEN_SYMBOL_MAPPING:
-                        line['SYMBOL']=INTOGEN_SYMBOL_MAPPING[line['SYMBOL']]
+                # *** Target information ***
+                # get the Ensembl gene id from the symbol (mapping from 2014 won't work)
+                # TODO: Check if this is still necessary with Nov 19 file
+                if line['SYMBOL'] in INTOGEN_SYMBOL_MAPPING:
+                    line['SYMBOL']=INTOGEN_SYMBOL_MAPPING[line['SYMBOL']]
 
-                    ensembl_gene_id = self.genes.get(line['SYMBOL'])
-                    if not ensembl_gene_id:
-                        self.logger.error("%s is not found in Ensembl" % line['SYMBOL'])
-                        continue
+                ensembl_gene_id = self.genes.get(line['SYMBOL'])
+                if not ensembl_gene_id:
+                    self.logger.error("%s is not found in Ensembl" % line['SYMBOL'])
+                    continue
 
-                    evidenceString.target = bioentity.Target(
-                        id="http://identifiers.org/ensembl/{0}".format(ensembl_gene_id),
-                        target_name=line['SYMBOL'],
-                        activity=INTOGEN_ROLE_MAP[line['ROLE']],
-                        target_type='http://identifiers.org/cttv.target/gene_evidence'
-                    )
-                    # *** Disease information ***
-                    evidenceString.disease = bioentity.Disease(
-                        id=disease['efo_uri'],
-                        name=disease['efo_label'],
-                        source_name=disease['intogen_full_name']
-                    )
-                    # *** Evidence ***
-                    linkout = evidence_linkout.Linkout(
-                        url='https://www.intogen.org/search?gene=%s&cohort=%s'%(line['SYMBOL'], line['COHORT']),
-                        nice_name='IntOGen -  %s gene cancer mutations in %s (%s)'%(line['SYMBOL'], disease['efo_label'], line['CANCER_TYPE'])
-                    )
-                    # inheritance_pattern - 'gain_of_function' = 'Dominant', 'loss_of_function' = 'Recessive'
-                    inheritance_pattern='unknown'
-                    if line['ROLE'] == 'Act':
-                        inheritance_pattern='dominant'
-                    elif line['ROLE'] == 'LoF':
-                        inheritance_pattern='recessive'
-                    # known_mutations
-                    mutation = evidence_mutation.Mutation(
-                        functional_consequence='http://purl.obolibrary.org/obo/SO_0001564',
-                        preferred_name='gene_variant',
-                        inheritance_pattern=inheritance_pattern,
-                        number_samples_tested= self.cohort_info[line['COHORT']]['number_samples'],
-                        number_mutated_samples= line['SAMPLES']
-                    )
-                    # resource_score
-                    resource_score = association_score.Pvalue(
-                        type="pvalue",
-                        method=association_score.Method(
-                            description="IntOGen Driver identification methods as described in Rubio-Perez, C., Tamborero, D., Schroeder, MP., Antolin, AA., Deu-Pons,J., Perez-Llamas, C., Mestres, J., Gonzalez-Perez, A., Lopez-Bigas, N. In silico prescription of anticancer drugs to cohorts of 28 tumor types reveals novel targeting opportunities. Cancer Cell 27 (2015), pp. 382-396",
-                            reference="http://europepmc.org/abstract/MED/25759023",
-                            url="https://www.intogen.org/about"),
-                        value=line['QVALUE_COMBINATION']
-                    )
+                evidenceString.target = bioentity.Target(
+                    id="http://identifiers.org/ensembl/{0}".format(ensembl_gene_id),
+                    target_name=line['SYMBOL'],
+                    activity=INTOGEN_ROLE_MAP[line['ROLE']],
+                    target_type='http://identifiers.org/cttv.target/gene_evidence'
+                )
+                # *** Disease information ***
+                evidenceString.disease = bioentity.Disease(
+                    id=disease['efo_uri'],
+                    name=disease['efo_label'],
+                    source_name=disease['intogen_full_name']
+                )
+                # *** Evidence ***
+                linkout = evidence_linkout.Linkout(
+                    url='https://www.intogen.org/search?gene=%s&cohort=%s'%(line['SYMBOL'], line['COHORT']),
+                    nice_name='IntOGen -  %s gene cancer mutations in %s (%s)'%(line['SYMBOL'], disease['efo_label'], line['CANCER_TYPE'])
+                )
+                # inheritance_pattern - 'gain_of_function' = 'Dominant', 'loss_of_function' = 'Recessive'
+                inheritance_pattern='unknown'
+                if line['ROLE'] == 'Act':
+                    inheritance_pattern='dominant'
+                elif line['ROLE'] == 'LoF':
+                    inheritance_pattern='recessive'
+                # known_mutations
+                mutation = evidence_mutation.Mutation(
+                    functional_consequence='http://purl.obolibrary.org/obo/SO_0001564',
+                    preferred_name='gene_variant',
+                    inheritance_pattern=inheritance_pattern,
+                    number_samples_tested= self.cohort_info[line['COHORT']]['number_samples'],
+                    number_mutated_samples= line['SAMPLES']
+                )
+                # resource_score
+                resource_score = association_score.Pvalue(
+                    type="pvalue",
+                    method=association_score.Method(
+                    description="IntOGen Driver identification methods as described in Rubio-Perez, C., Tamborero, D., Schroeder, MP., Antolin, AA., Deu-Pons,J., Perez-Llamas, C., Mestres, J., Gonzalez-Perez, A., Lopez-Bigas, N. In silico prescription of anticancer drugs to cohorts of 28 tumor types reveals novel targeting opportunities. Cancer Cell 27 (2015), pp. 382-396",
+                    reference="http://europepmc.org/abstract/MED/25759023",
+                    url="https://www.intogen.org/about"),
+                    value=line['QVALUE_COMBINATION']
+                )
 
-                    evidenceString.evidence = evidence_core.Literature_Curated(
-                        date_asserted=now.isoformat(),
-                        is_associated=True,
-                        evidence_codes=["http://purl.obolibrary.org/obo/ECO_0000053"],
-                        provenance_type=provenance_type,
-                        resource_score=resource_score,
-                        urls=[linkout],
-                        known_mutations=[mutation]
-                    )
+                evidenceString.evidence = evidence_core.Literature_Curated(
+                    date_asserted=now.isoformat(),
+                    is_associated=True,
+                    evidence_codes=["http://purl.obolibrary.org/obo/ECO_0000053"],
+                    provenance_type=provenance_type,
+                    resource_score=resource_score,
+                    urls=[linkout],
+                    known_mutations=[mutation]
+                )
 
-                    # *** unique_association_fields ***
-                    # (target_id & disease_id are sufficient)
-                    evidenceString.unique_association_fields = {
-                        'target_id': evidenceString.target.id,
-                        'disease_id': evidenceString.disease.id,
-                        'cohort_id': line['COHORT'],
-                        'cohort_short_name': self.cohort_info[line['COHORT']]['short_cohort_name'],
-                        'cohort_description': self.cohort_info[line['COHORT']]['cohort_description'],
-                        'methods': line['METHODS']
-                    }
+                # *** unique_association_fields ***
+                # (target_id & disease_id are sufficient)
+                evidenceString.unique_association_fields = {
+                    'target_id': evidenceString.target.id,
+                    'disease_id': evidenceString.disease.id,
+                    'cohort_id': line['COHORT'],
+                    'cohort_short_name': self.cohort_info[line['COHORT']]['short_cohort_name'],
+                    'cohort_description': self.cohort_info[line['COHORT']]['cohort_description'],
+                    'methods': line['METHODS']
+                }
 
-                    error=evidenceString.validate(logging)
-                    if error > 0:
-                        self.logger.error(evidenceString.to_JSON())
-                        sys.exit(1)
+                error=evidenceString.validate(logging)
+                if error > 0:
+                    self.logger.error(evidenceString.to_JSON())
+                    sys.exit(1)
 
-                    self.evidence_strings.append(evidenceString)
+                self.evidence_strings.append(evidenceString)
 
             self.logger.info("%s evidence parsed"%(n-1))
             self.logger.info("%s evidence created"%len(self.evidence_strings))
