@@ -5,9 +5,9 @@ Acute lymphoblastic leukemia	ALL	http://www.ebi.ac.uk/efo/EFO_0000220	acute lymp
 Acute myeloid leukemia	AML	http://www.ebi.ac.uk/efo/EFO_0000222	acute myeloid leukemia
 Anus cancer 	AN	http://purl.obolibrary.org/obo/MONDO_0001879	anus cancer
 Angiosarcoma	ANGS	http://www.ebi.ac.uk/efo/EFO_0003968	angiosarcoma
-Atypial teratoid/rhabdoid tumor 	ATRT	http://www.ebi.ac.uk/efo/EFO_1002008	atypical teratoid rhabdoid tumor
+Atypical teratoid/rhabdoid tumor 	ATRT	http://www.ebi.ac.uk/efo/EFO_1002008	atypical teratoid rhabdoid tumor
 Bowel cancer	BC	http://www.ebi.ac.uk/efo/EFO_0007330	intestinal cancer
-Bowel cancer neuroendocrine	BCNET	http://www.ebi.ac.uk/efo/EFO_1001928	small intestine neuroendocrine tumor
+Small intestine cancer neuroendocrine	BCNET	http://www.ebi.ac.uk/efo/EFO_1001928	small intestine neuroendocrine tumor
 Bladder cancer	BLCA	http://purl.obolibrary.org/obo/MONDO_0001187	urinary bladder cancer
 Burkitt lymphoma	BLY	http://www.ebi.ac.uk/efo/EFO_0000309	Burkitts lymphoma
 Breast adenocarcinoma	BRCA	http://www.ebi.ac.uk/efo/EFO_0000304	breast adenocarcinoma
@@ -29,7 +29,7 @@ Head and neck squamous cell carcinoma	HNSC	http://www.ebi.ac.uk/efo/EFO_0000181	
 Leiomyosarcoma	LEIS	http://www.ebi.ac.uk/efo/EFO_0000564	leiomyosarcoma
 Lower grade glioma	LGG	http://purl.obolibrary.org/obo/MONDO_0021637	low grade glioma
 Lung neuroendocrine cancer	LNET	http://www.ebi.ac.uk/efo/EFO_0005220	pulmonary neuroendocrine tumor
-Lung adenocarcinoma	LUAD 	http://www.ebi.ac.uk/efo/EFO_0000571	lung adenocarcinoma
+Lung adenocarcinoma	LUAD	http://www.ebi.ac.uk/efo/EFO_0000571	lung adenocarcinoma
 Lung squamous cell carcinoma	LUSC	http://www.ebi.ac.uk/efo/EFO_0000708	squamous cell lung carcinoma
 Lymphoma	LY	http://www.ebi.ac.uk/efo/EFO_0000574	lymphoma
 Medulloblastoma	MBL	http://www.ebi.ac.uk/efo/EFO_0002939	medulloblastoma
@@ -54,7 +54,7 @@ Retinoblastoma	RB	http://www.orpha.net/ORDO/Orphanet_790	Retinoblastoma
 Renal clear cell carcinoma	RCCC	http://www.ebi.ac.uk/efo/EFO_0000349	clear cell renal carcinoma
 Chromophobe renal cell carcinoma	RCH	http://www.ebi.ac.uk/efo/EFO_0000335	chromophobe renal cell carcinoma
 Rhabdomyosarcoma	RHBDS	http://www.ebi.ac.uk/efo/EFO_0002918	rhabdomyosarcoma
-Renal papillary cell	RPC	http://www.ebi.ac.uk/efo/EFO_0000640	papillary renal cell carcinoma
+Renal papillary cell carcinoma	RPC	http://www.ebi.ac.uk/efo/EFO_0000640	papillary renal cell carcinoma
 Sarcoma	S	http://www.ebi.ac.uk/efo/EFO_0000691	sarcoma
 Skin Basal Cell Carcinoma	SBCC	http://www.ebi.ac.uk/efo/EFO_0004193	basal cell carcinoma
 Small-cell lung cancer	SCLC	http://www.ebi.ac.uk/efo/EFO_0000702	small cell lung carcinoma
