@@ -7,12 +7,6 @@ import pandas as pd
 import python_jsonschema_objects as pjo
 from common.HGNCParser import GeneParser
 from settings import Config, file_or_resource
-import opentargets.model.core as opentargets
-import opentargets.model.bioentity as bioentity
-import opentargets.model.evidence.core as evidence_core
-import opentargets.model.evidence.linkout as evidence_linkout
-import opentargets.model.evidence.association_score as association_score
-import opentargets.model.evidence.mutation as evidence_mutation
 
 __copyright__ ="Copyright 2014-2020, Open Targets"
 __credits__   =["Gautier Koscielny", "David Tamborero", "ChuangKee Ong", "Michaela Spitzer", "Asier Gonzalez"]
