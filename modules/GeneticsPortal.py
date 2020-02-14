@@ -1,6 +1,5 @@
 import pandas as pd
 import numpy as np
-import json
 import python_jsonschema_objects as pjo
 import math
 from datetime import datetime
@@ -149,15 +148,15 @@ class genetics_portal_evidence_generator(object):
         # Compiling properties into evidence:
         try:
             evidence = self.evidence_builder.Opentargets4(
-                type = 'genetic_association',
-                access_level = 'public',
-                sourceID = self.source_id,
-                variant = variant_prop,
-                evidence = evidence_value,
-                target = target_prop,
-                disease = disease_prop,
-                unique_association_fields = unique_association_prop,
-                validated_against_schema_version = self.schema_version
+                type='genetic_association',
+                access_level='public',
+                sourceID=self.source_id,
+                variant=variant_prop,
+                evidence=evidence_value,
+                target=target_prop,
+                disease=disease_prop,
+                unique_association_fields=unique_association_prop,
+                validated_against_schema_version=self.schema_version
             )
             return evidence.serialize()
         except:
@@ -174,11 +173,11 @@ class genetics_portal_evidence_generator(object):
         # Generate return value:
         if self.pmid:
             return {
-                'references' : [
+                'references': [
                   {
-                    'lit_id' : '{}/{}'.format(self.literature_base_url, self.pmid),
-                    'author' : self.author,
-                    'year' : self.year
+                    'lit_id': '{}/{}'.format(self.literature_base_url, self.pmid),
+                    'author': self.author,
+                    'year': self.year
                   }
                 ]
             }
@@ -198,9 +197,9 @@ class genetics_portal_evidence_generator(object):
 
         # Generate target object:
         return {
-            'activity' : '{}/predicted_damaging'.format(self.activity_base_url),
-            'id' : '{}/{}'.format(self.target_id_base_url, self.ensembl_gene_id),
-            'target_type' : '{}/gene_evidence'.format(self.target_type_base_url)
+            'activity': '{}/predicted_damaging'.format(self.activity_base_url),
+            'id': '{}/{}'.format(self.target_id_base_url, self.ensembl_gene_id),
+            'target_type': '{}/gene_evidence'.format(self.target_type_base_url)
         }
 
     def generate_disease_value(self):
@@ -220,8 +219,8 @@ class genetics_portal_evidence_generator(object):
 
         # Generate
         return {
-            'id' : self.efo_id,
-            'reported_trait' : self.reported_trait
+            'id': self.efo_id,
+            'reported_trait': self.reported_trait
         }
 
     def generate_unique_fields(self):
@@ -237,10 +236,10 @@ class genetics_portal_evidence_generator(object):
         """
 
         return {
-            'target' : '{}/{}'.format(self.target_id_base_url, self.ensembl_gene_id),
-            'disease_id' : '{}/{}'.format(self.disease_base_url, self.efo_id),
-            'variant' : '{}/variant/{}'.format(self.genetics_portal_base_url, self.genetics_portal_variant_id),
-            'study' : '{}/study/{}'.format(self.genetics_portal_base_url, self.study_id)
+            'target': '{}/{}'.format(self.target_id_base_url, self.ensembl_gene_id),
+            'disease_id': '{}/{}'.format(self.disease_base_url, self.efo_id),
+            'variant': '{}/variant/{}'.format(self.genetics_portal_base_url, self.genetics_portal_variant_id),
+            'study': '{}/study/{}'.format(self.genetics_portal_base_url, self.study_id)
         }
 
     @staticmethod
@@ -253,16 +252,16 @@ class genetics_portal_evidence_generator(object):
 
         # These are the available ontology terms to annotate variant types:
         term_mapper = {
-            'SNP' : 'SO_0000694',
-            'deletion' : 'SO_0000159',
-            'insertion' : 'SO_0000667'
+            'SNP': 'SO_0000694',
+            'deletion': 'SO_0000159',
+            'insertion': 'SO_0000667'
         }
 
         # If any of the allele is missing, we cannot infer variant type:
         if (not ref_allele) or (not alt_allele):
             return OrderedDict({
-                'type' : None,
-                'type_link' : None
+                'type': None,
+                'type_link': None
             })
 
         # Infer variant type:
@@ -277,20 +276,20 @@ class genetics_portal_evidence_generator(object):
 
         if variant_type:
             return {
-                'type' : variant_type,
-                'type_link' : '{}/{}'.format(consequence_base_url,term_mapper[variant_type])
+                'type': variant_type,
+                'type_link': '{}/{}'.format(consequence_base_url,term_mapper[variant_type])
             }
         else:
             return {
-                'type' : None,
-                'type_link' : None
+                'type': None,
+                'type_link': None
             }
 
     def generate_variant_value(self):
         return_data = {
-            'id' : self.genetics_portal_variant_id,
-            'rs_id' : self.rs_id,
-            'source_link' : '{}/variant/{}'.format(self.genetics_portal_base_url, self.genetics_portal_variant_id),
+            'id': self.genetics_portal_variant_id,
+            'rs_id': self.rs_id,
+            'source_link': '{}/variant/{}'.format(self.genetics_portal_base_url, self.genetics_portal_variant_id),
         }
 
         # Adding variant type annotation:
@@ -298,15 +297,14 @@ class genetics_portal_evidence_generator(object):
 
         return return_data
 
-
     def generate_evidence_field(self):
         """
         This function returns with the
         """
 
         return_value = {
-            'variant2disease' : self.generate_variant2disease(),
-            'gene2variant' : self.generate_gene2variant(),
+            'variant2disease': self.generate_variant2disease(),
+            'gene2variant': self.generate_gene2variant(),
         }
 
         return return_value
@@ -318,12 +316,12 @@ class genetics_portal_evidence_generator(object):
 
         # Generate resource score field:
         resource_score = {
-            'type' : 'pvalue',
-            'method' : {
-                'description' : 'pvaluefor the snp to disease association'
+            'type': 'pvalue',
+            'method': {
+                'description': 'pvalue for the snp to disease association'
             },
-            'mantissa' : int(round(self.pval_mantissa)),
-            'exponent' : int(self.pval_exponent),
+            'mantissa': int(round(self.pval_mantissa)),
+            'exponent': int(self.pval_exponent),
             'value': pval
         }
 
@@ -333,17 +331,10 @@ class genetics_portal_evidence_generator(object):
             self.genetics_portal_base_url
         ]
 
-        return_value = {
-            'gwas_sample_size' : self.sample_size,
-            'provenance_type' : self.generate_provenance(),
-            'is_associated' : True,
-            'study_link' : '{}/study/{}'.format(self.genetics_portal_base_url, self.study_id),
-            'resource_score' : resource_score,
-            'evidence_codes' : evidence_codes,
-            'date_asserted' : self.date_added,
-            'confidence_interval' : self.confidence_interval,
-            'odds_ratio' : self.odds_ratio
-        }
+        return_value = dict(gwas_sample_size=self.sample_size, provenance_type=self.generate_provenance(),
+                            is_associated=True,study_link='{}/study/{}'.format(self.genetics_portal_base_url, self.study_id),
+                            resource_score=resource_score, evidence_codes=evidence_codes, date_asserted=self.date_added,
+                            confidence_interval=self.confidence_interval, odds_ratio=self.odds_ratio)
 
         # Adding reported trait:
         return_value['reported_trait'] = self.reported_trait
@@ -354,19 +345,18 @@ class genetics_portal_evidence_generator(object):
         return return_value
 
     def generate_provenance(self):
-        # ("'['date_asserted', 'is_associated', 'provenance_type', 'resource_score']' are required attributes for evidence \nwhile setting 'evidence' in opentargets_3", 'occurred at index 0')
         # Generate provenence type:
         provenence = {
-            'expert' : {
-                'status' : True,
-                'statement' : 'Primary submitter of the data'
+            'expert': {
+                'status': True,
+                'statement': 'Primary submitter of the data'
             },
-            'database' : {
-                'version' : self.date_added,
-                'id' : self.source_id,
-                'dbxref' : {
-                    'version' : self.date_added,
-                    'id' : self.genetics_portal_base_url
+            'database': {
+                'version': self.date_added,
+                'id': self.source_id,
+                'dbxref': {
+                    'version': self.date_added,
+                    'id': self.genetics_portal_base_url
                 }
             }
         }
@@ -386,21 +376,21 @@ class genetics_portal_evidence_generator(object):
 
         # Generate resource score field:
         resource_score = {
-            'type' : 'locus_to_gene_score',
-            'method' : {
-                'description' : 'Locus to gene score generated by OpenTargets Genetics portal',
+            'type': 'locus_to_gene_score',
+            'method': {
+                'description': 'Locus to gene score generated by OpenTargets Genetics portal',
             },
-            'value' : self.l2g_score
+            'value': self.l2g_score
         }
 
         return_data = {
-            'provenance_type' : self.generate_provenance(),
-            'is_associated' : True,
-            'date_asserted' : self.date_added,
-            'evidence_codes' : evidence_codes,
-            'resource_score' : resource_score,
-            'functional_consequence' : self.consequence_link,
-            'consequence_code' : self.consequence_code
+            'provenance_type': self.generate_provenance(),
+            'is_associated': True,
+            'date_asserted': self.date_added,
+            'evidence_codes': evidence_codes,
+            'resource_score': resource_score,
+            'functional_consequence': self.consequence_link,
+            'consequence_code': self.consequence_code
         }
 
         return return_data
@@ -421,14 +411,12 @@ def initialize_evidence_generation(df):
     evidence_builder = genetics_portal_evidence_generator(json_schema, '1.6.4')
 
     # Generate evidence for all rows of the dataframe:
-    evidences = df.apply(evidence_builder.get_evidence_string, axis = 1)
+    evidences = df.apply(evidence_builder.get_evidence_string, axis=1)
 
     return evidences
 
+
 def parallelize_dataframe(df, schema_url, n_cores=2):
-    """
-    Splitting dataframe to distribute across cores:
-    """
 
     # Splitting dataframe as many chunks as many cores we have defined:
     df_split = np.array_split(df, n_cores)
@@ -446,7 +434,7 @@ def parallelize_dataframe(df, schema_url, n_cores=2):
     return df
 
 
-def remove_for_duplicates(df):
+def remove_duplicates(df):
     """
     This function reports and removes duplicated evidences to make sure
     all evidences are unique.
@@ -471,7 +459,8 @@ def remove_for_duplicates(df):
     logging.warning(duplicates)
     logging.warning('Removing duplicates...')
 
-    df.drop_duplicates(unique_fields,keep=False, inplace = True)
+    # Removing duplicates:
+    df.drop_duplicates(unique_fields, keep=False, inplace=True)
     logging.info('Number of unique evidences: {}.'.format(len(df)))
 
     return df
@@ -496,21 +485,19 @@ def main():
     # Database related input:
     parser.add_argument('--inputFile', help='Input parquet file with the table containing association details.', type=str, required=True)
     parser.add_argument('--schemaFile', help='OpenTargets JSON schema file (Draft-4 compatible!!).', type=str)
-    # parser.add_argument('--schemaVersion', help='Version of the JSON schema', type=str)
-    parser.add_argument('--cores', help='tsv file to save output.', type=int, default=2)
-    parser.add_argument('--outputFile', help='Filename for the json file output.', type=str, default='output.json.gz')
-    parser.add_argument('--sample', help='If provided this many randomly selected of evidences will be processed.', type=int, required=False)
+    parser.add_argument('--cores', help='Number of computing cores available for the evidence generation.', type=int, default=2)
+    parser.add_argument('--outputFile', help='Name of the gzipped json output file.', type=str, default='output.json.gz')
+    parser.add_argument('--sample', help='If provided this many randomly selected of evidences will be generated.', type=int, required=False)
     args = parser.parse_args()
 
     # Parse input parameters:
-    json_schema = args.schemaFile
     inputFile = args.inputFile
     cores = args.cores
     outputFile = args.outputFile
     sample = args.sample
     schemaFile = args.schemaFile
 
-    #  Opening input file:
+    #  Opening input file parquet of tsv:
     if 'parquet' in inputFile:
         genetics_dataframe = pd.read_parquet(inputFile)
     elif '.tsv' in inputFile:
@@ -519,14 +506,14 @@ def main():
     logging.info('Loading data completed.')
 
     # Removing duplicates:
-    genetics_dataframe = remove_for_duplicates(genetics_dataframe)
+    genetics_dataframe = remove_duplicates(genetics_dataframe)
 
     # If required, the dataframe is subset:
     if sample:
-        genetics_dataframe = genetics_dataframe.sample(sample, random_state = 12937)
+        genetics_dataframe = genetics_dataframe.sample(sample, random_state=12937)
         logging.info('Resample comleted. Number of rows: {}.'.format(len(genetics_dataframe)))
 
-    # Evidences are generated in a parallel process spread across the defined number of nodes:
+    # Evidences are generated in a parallel process spread across the defined number of cores:
     evidences = parallelize_dataframe(df=genetics_dataframe, schema_url=schemaFile, n_cores=cores)
     evidences.dropna(inplace=True)
 
@@ -540,5 +527,8 @@ def main():
 
 
 if __name__ == '__main__':
+
+    # This variable needed to be made global as the pool object had no way to reach:
     schemaFile = ''
+    
     main()
