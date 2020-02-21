@@ -24,19 +24,6 @@ INTOGEN_ROLE_MAP={
     '': 'http://identifiers.org/cttv.activity/unknown'
 }
 
-INTOGEN_SYMBOL_MAPPING={
-    'C15orf55': 'NUTM1',
-    'CSDA': 'YBX3',
-    'EIF2C3': 'AGO3',
-    'ERBB2IP': 'ERBIN',
-    'FAM123B': 'AMER1',
-    'HNRPDL': 'HNRNPDL',
-    'MLL': 'KMT2A',
-    'MLL2': 'KMT2D',
-    'MLL3': 'KMT2C',
-    'RQCD1': 'CNOT9'
-}
-
 class IntOGen():
 
     def __init__(self, schema_json=Config.OT_JSON_SCHEMA, schema_version=Config.VALIDATED_AGAINST_SCHEMA_VERSION):
@@ -130,11 +117,7 @@ class IntOGen():
                 sourceID = "intogen"
 
                 # *** Target information ***
-                # get the Ensembl gene id from the symbol (mapping from 2014 won't work)
-                # TODO: Check if this is still necessary with Nov 19 file
-                if line['SYMBOL'] in INTOGEN_SYMBOL_MAPPING:
-                    line['SYMBOL']=INTOGEN_SYMBOL_MAPPING[line['SYMBOL']]
-
+                # Map HGNC symbols and previous symbols to Ensembl ids
                 ensembl_gene_id = self.genes.get(line['SYMBOL'])
                 if not ensembl_gene_id:
                     self.logger.error("%s is not found in Ensembl" % line['SYMBOL'])
