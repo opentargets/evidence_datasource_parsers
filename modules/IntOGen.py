@@ -73,7 +73,7 @@ class IntOGen():
                 (intogen_cancer_full_name, cancer_acronym, efo_uri, efo_label) = line.split("\t")
                 if cancer_acronym not in self.cancer_acronym_to_efo_map:
                     self.cancer_acronym_to_efo_map[cancer_acronym] = []
-                self.cancer_acronym_to_efo_map[cancer_acronym].append({'efo_uri': efo_uri, 'efo_label': efo_label, 'intogen_full_name': intogen_cancer_full_name})
+                self.cancer_acronym_to_efo_map[cancer_acronym].append({'efo_uri': efo_uri.strip(), 'efo_label': efo_label.strip(), 'intogen_full_name': intogen_cancer_full_name})
 
     def read_intogen_cohorts(self, cohorts_filename=Config.INTOGEN_COHORTS):
         """Parse IntOGen cohorts file and create a dictionary with necessary information"""
