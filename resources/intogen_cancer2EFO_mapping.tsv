@@ -33,12 +33,11 @@ Lung adenocarcinoma	LUAD	http://www.ebi.ac.uk/efo/EFO_0000571	lung adenocarcinom
 Lung squamous cell carcinoma	LUSC	http://www.ebi.ac.uk/efo/EFO_0000708	squamous cell lung carcinoma
 Lymphoma	LY	http://www.ebi.ac.uk/efo/EFO_0000574	lymphoma
 Medulloblastoma	MBL	http://www.ebi.ac.uk/efo/EFO_0002939	medulloblastoma
-Myelodysplastic proliferative	MDPS	http://www.ebi.ac.uk/efo/EFO_1000388	Myelodysplastic/Myeloproliferative Neoplasm
+Myelodysplastic syndrome neoplasm	MDPS	http://www.ebi.ac.uk/efo/EFO_0000198	myelodysplastic syndrome
 Mesothelioma	MESO	http://www.ebi.ac.uk/efo/EFO_0000588	mesothelioma
-Male germ cell tumor	MGCT	http://www.ebi.ac.uk/efo/EFO_1000566 	Testicular Germ Cell Tumor 
+Male germ cell tumor	MGCT	http://www.ebi.ac.uk/efo/EFO_1000566	Testicular Germ Cell Tumor 
 Multiple myeloma	MM	http://www.ebi.ac.uk/efo/EFO_0001378	multiple myeloma
 Neuroblastoma	NB	http://www.ebi.ac.uk/efo/EFO_0000621	neuroblastoma
-CNS Cancer		http://www.ebi.ac.uk/efo/EFO_0000326	central nervous system cancer
 Non-hodking lymphoma	NHLY	http://www.ebi.ac.uk/efo/EFO_0005952	non-Hodgkins lymphoma
 Non small cell lung cancer 	NSCLC	http://www.ebi.ac.uk/efo/EFO_0003060	non-small cell lung carcinoma
 Nasopharyngeal cancer	NSPH	http://www.ebi.ac.uk/efo/EFO_0004252	nasopharyngeal neoplasm
@@ -46,7 +45,7 @@ Osteosarcoma	OS	http://www.ebi.ac.uk/efo/EFO_0000637	osteosarcoma
 Ovary cancer	OV	http://purl.obolibrary.org/obo/MONDO_0008170	ovarian cancer
 Pancreas adenocarcinoma	PAAD	http://www.ebi.ac.uk/efo/EFO_1000044	pancreatic adenocarcinoma
 Pancreatic neuroendocrine cancer	PAIS	http://www.ebi.ac.uk/efo/EFO_0007416	pancreatic endocrine carcinoma
-Pheochromocytoma and paraganglioma	PCPG	http://www.ebi.ac.uk/efo/EFO_0000239 	adrenal gland pheochromocytoma 
+Pheochromocytoma and paraganglioma	PCPG	http://www.ebi.ac.uk/efo/EFO_0000239	adrenal gland pheochromocytoma 
 Pheochromocytoma and paraganglioma	PCPG	http://www.ebi.ac.uk/efo/EFO_1000453	Paraganglioma
 Pilocytic astrocytoma	PIA	http://www.ebi.ac.uk/efo/EFO_0000272	astrocytoma
 Prostate adenocarcinoma	PRAD	http://www.ebi.ac.uk/efo/EFO_0000673	prostate adenocarcinoma
