@@ -53,6 +53,13 @@ Further development of this repository should follow the next premises:
 1. Reproducibility (e.g. saving API results as files)
 1. Containerization - Dockerize
 
+### IntOGen
+
+The intOGen parser generates evidence strings from three files that need to be in the working directory or in the _resources_ directory:
+
+- _intogen_cancer2EFO_mapping.tsv_: Mappings of intOGen cancer type acronyms to EFO terms. Currently is a manually curated file given that in intOGen they do not use an specific ontology to model cancers.
+- _intogen_cohorts.tsv_: It contains information about the analysed cohorts and it can be downloaded from the [intOGen website](https://www.intogen.org/download). In the current implementation, the total number of samples included in each cohort is used to calculate the percentage of samples that carry a relevant mutation in a driver gene.
+- _intogen_Compendium_Cancer_Genes.tsv_: It contains the genes that have been identified as _drivers_ in at least one cohort and information related to  the methods that yield significant results, the q-value and additional data about mutations. It can be downloaded from the same place as the cohorts file.
 
 ### Phewascatalog.org
 
