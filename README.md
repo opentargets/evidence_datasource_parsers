@@ -38,6 +38,22 @@ interpreter:
 (venv)$ python3 modules/<parser you want>.py
 ```
 
+### Contributor guidelines
+
+Further development of this repository should follow the next premises:
+
+1. Data QC
+1. Configuration
+1. Documentation
+1. Logging
+1. Standardize disease mappings
+1. Reliability (e.g. network retries)
+1. JSON schema validation
+1. Uniqueness of unique_association_fields
+1. Reproducibility (e.g. saving API results as files)
+1. Containerization - Dockerize
+
+
 ### Phewascatalog.org
 
 ```sh
