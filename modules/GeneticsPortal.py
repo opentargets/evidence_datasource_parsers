@@ -9,27 +9,16 @@ import gzip
 import requests
 import logging
 
-class genetics_portal_evidence_generator(object):
+# Importing settings:
+from settings import Config
+
+class genetics_portal_evidence_generator(Config):
     """
     Based on the provided schema this class generates evidence string for the Genetics portal
     derived associations.
+
+    Parameters inherited from Config class
     """
-
-    ##
-    ## The following values should be read from a config file....
-    ##
-
-    # Defining base URLs for links:
-    activity_base_url = 'http://identifiers.org/cttv.activity'
-    target_id_base_url = 'http://identifiers.org/ensembl'
-    target_type_base_url = 'http://identifiers.org/cttv.target'
-    literature_base_url = 'http://europepmc.org/abstract/MED'
-    genetics_portal_base_url = 'https://genetics.opentargets.org'
-    disease_base_url = 'http://www.ebi.ac.uk/efo'
-    consequence_base_url = 'http://purl.obolibrary.org/obo'
-
-    # Evidence code: computational inference:
-    evidence_code = 'http://purl.obolibrary.org/obo/ECO_0000362'
 
     # Source name:
     source_id = 'ot_genetics_portal'
@@ -175,7 +164,7 @@ class genetics_portal_evidence_generator(object):
             return {
                 'references': [
                   {
-                    'lit_id': '{}/{}'.format(self.literature_base_url, self.pmid),
+                    'lit_id': '{}/{}'.format(self.LITERATURE_URL, self.pmid),
                     'author': self.author,
                     'year': self.year
                   }
@@ -197,9 +186,9 @@ class genetics_portal_evidence_generator(object):
 
         # Generate target object:
         return {
-            'activity': '{}/predicted_damaging'.format(self.activity_base_url),
-            'id': '{}/{}'.format(self.target_id_base_url, self.ensembl_gene_id),
-            'target_type': '{}/gene_evidence'.format(self.target_type_base_url)
+            'activity': '{}/predicted_damaging'.format(self.ACTIVITY_URL),
+            'id': '{}/{}'.format(self.TARGET_URL, self.ensembl_gene_id),
+            'target_type': '{}/gene_evidence'.format(self.TARGET_TYPE_URL)
         }
 
     def generate_disease_value(self):
@@ -236,19 +225,18 @@ class genetics_portal_evidence_generator(object):
         """
 
         return {
-            'target': '{}/{}'.format(self.target_id_base_url, self.ensembl_gene_id),
-            'disease_id': '{}/{}'.format(self.disease_base_url, self.efo_id),
-            'variant': '{}/variant/{}'.format(self.genetics_portal_base_url, self.genetics_portal_variant_id),
-            'study': '{}/study/{}'.format(self.genetics_portal_base_url, self.study_id)
+            'target': '{}/{}'.format(self.TARGET_URL, self.ensembl_gene_id),
+            'disease_id': '{}/{}'.format(self.DISEASE_URL, self.efo_id),
+            'variant': '{}/variant/{}'.format(self.GENETICS_PORTAL_URL, self.genetics_portal_variant_id),
+            'study': '{}/study/{}'.format(self.GENETICS_PORTAL_URL, self.study_id)
         }
 
     @staticmethod
-    def map_variant_type(ref_allele,alt_allele):
+    def map_variant_type(ref_allele,alt_allele,consequence_base_url = 'http://purl.obolibrary.org/obo'):
         """
         This function maps variants to variant ontology
         based on the provided reference and alternative alleles.
         """
-        consequence_base_url = 'http://purl.obolibrary.org/obo'
 
         # These are the available ontology terms to annotate variant types:
         term_mapper = {
@@ -289,11 +277,11 @@ class genetics_portal_evidence_generator(object):
         return_data = {
             'id': self.genetics_portal_variant_id,
             'rs_id': self.rs_id,
-            'source_link': '{}/variant/{}'.format(self.genetics_portal_base_url, self.genetics_portal_variant_id),
+            'source_link': '{}/variant/{}'.format(self.GENETICS_PORTAL_URL, self.genetics_portal_variant_id),
         }
 
         # Adding variant type annotation:
-        return_data.update(self.map_variant_type(self.references_allele, self.alternative_allele))
+        return_data.update(self.map_variant_type(self.references_allele, self.alternative_allele, self.CONSEQUENCE_URL))
 
         return return_data
 
@@ -327,12 +315,12 @@ class genetics_portal_evidence_generator(object):
 
         # Generate evidence code field:
         evidence_codes = [
-            self.evidence_code,
-            self.genetics_portal_base_url
+            self.EVIDENCE_CODE_INFERENCE,
+            self.EVIDENCE_CODE_EVIDENCE_TYPE
         ]
 
         return_value = dict(gwas_sample_size=self.sample_size, provenance_type=self.generate_provenance(),
-                            is_associated=True,study_link='{}/study/{}'.format(self.genetics_portal_base_url, self.study_id),
+                            is_associated=True,study_link='{}/study/{}'.format(self.GENETICS_PORTAL_URL, self.study_id),
                             resource_score=resource_score, evidence_codes=evidence_codes, date_asserted=self.date_added,
                             confidence_interval=self.confidence_interval, odds_ratio=self.odds_ratio)
 
@@ -340,7 +328,7 @@ class genetics_portal_evidence_generator(object):
         return_value['reported_trait'] = self.reported_trait
 
         # The literature link is only added if the pubmed ID is present:
-        return_value['unique_experiment_reference'] = '{}/{}'.format(self.literature_base_url, self.pmid) if self.pmid else '{}/0000'.format(self.literature_base_url)
+        return_value['unique_experiment_reference'] = '{}/{}'.format(self.LITERATURE_URL, self.pmid) if self.pmid else '{}/0000'.format(self.LITERATURE_URL)
 
         return return_value
 
@@ -356,7 +344,7 @@ class genetics_portal_evidence_generator(object):
                 'id': self.source_id,
                 'dbxref': {
                     'version': self.date_added,
-                    'id': self.genetics_portal_base_url
+                    'id': self.GENETICS_PORTAL_URL
                 }
             }
         }
@@ -370,8 +358,8 @@ class genetics_portal_evidence_generator(object):
 
         # Generate evidence code field:
         evidence_codes = [
-            self.evidence_code,
-            self.genetics_portal_base_url
+            self.EVIDENCE_CODE_INFERENCE,
+            self.EVIDENCE_CODE_EVIDENCE_TYPE
         ]
 
         # Generate resource score field:

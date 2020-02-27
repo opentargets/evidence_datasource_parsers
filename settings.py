@@ -95,3 +95,17 @@ class Config:
     MOUSEMODELS_PHENODIGM_SOLR = 'http://localhost:8983' # 'solrclouddev.sanger.ac.uk'
     # TODO remove refs to user directories
     MOUSEMODELS_CACHE_DIRECTORY = '.phenodigmcache'
+
+    # Configuration for genetics portal evidences:
+    ACTIVITY_URL = 'http://identifiers.org/cttv.activity'
+    TARGET_URL = 'http://identifiers.org/ensembl'
+    TARGET_TYPE_URL = 'http://identifiers.org/cttv.target'
+    LITERATURE_URL = 'http://europepmc.org/abstract/MED'
+    GENETICS_PORTAL_URL = 'https://genetics.opentargets.org'
+    DISEASE_URL = 'http://www.ebi.ac.uk/efo'
+    CONSEQUENCE_URL = 'http://purl.obolibrary.org/obo'
+
+    # Evidence codes:
+    EVIDENCE_CODE_INFERENCE = 'http://purl.obolibrary.org/obo/ECO_0000362' # computational inference
+    EVIDENCE_CODE_EVIDENCE_TYPE = 'http://identifiers.org/eco/GWAS' # GWAS data type.
+
