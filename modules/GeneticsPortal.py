@@ -8,6 +8,7 @@ import argparse
 import gzip
 import requests
 import logging
+import functools as fn
 
 # Importing settings:
 from settings import Config
@@ -384,13 +385,11 @@ class genetics_portal_evidence_generator(Config):
         return return_data
 
 
-def initialize_evidence_generation(df):
+def initialize_evidence_generation(df, schemaFile):
     """
     As it is not possible for multiprocessing.Pool to copy over states of objects,
     this function instantiates the evidence generator class and generates evidences.
     """
-
-    global schemaFile
 
     # Fetching schema:
     json_schema = requests.get(schemaFile).json()
@@ -404,7 +403,7 @@ def initialize_evidence_generation(df):
     return evidences
 
 
-def parallelize_dataframe(df, schema_url, n_cores=2):
+def parallelize_dataframe(df, schemaFile, n_cores=2):
 
     # Splitting dataframe as many chunks as many cores we have defined:
     df_split = np.array_split(df, n_cores)
@@ -412,8 +411,11 @@ def parallelize_dataframe(df, schema_url, n_cores=2):
     # Initialize pool object:
     pool = Pool(n_cores)
 
+    # Create partial function:
+    partial_function = fn.partial(initialize_evidence_generation, schemaFile = schemaFile)
+
     # Execute funciton on dataframe chunks and pool output:
-    df = pd.concat(pool.map(initialize_evidence_generation, df_split))
+    df = pd.concat(pool.map(partial_function, df_split))
 
     # Closing pool object:
     pool.close()
@@ -502,7 +504,7 @@ def main():
         logging.info('Resample comleted. Number of rows: {}.'.format(len(genetics_dataframe)))
 
     # Evidences are generated in a parallel process spread across the defined number of cores:
-    evidences = parallelize_dataframe(df=genetics_dataframe, schema_url=schemaFile, n_cores=cores)
+    evidences = parallelize_dataframe(df=genetics_dataframe, schemaFile=schemaFile, n_cores=cores)
     evidences.dropna(inplace=True)
 
     logging.info('{} evidence strings have been successfully generated.'.format(len(evidences)))
@@ -515,8 +517,5 @@ def main():
 
 
 if __name__ == '__main__':
-
-    # This variable needed to be made global as the pool object had no way to reach:
-    schemaFile = ''
     
     main()
