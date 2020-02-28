@@ -108,4 +108,5 @@ class Config:
     # Evidence codes:
     EVIDENCE_CODE_INFERENCE = 'http://purl.obolibrary.org/obo/ECO_0000362' # computational inference
     EVIDENCE_CODE_EVIDENCE_TYPE = 'http://identifiers.org/eco/GWAS' # GWAS data type.
+    EVIDENCE_CODE_SOURCE = 'http://identifiers.org/eco/locus_to_gene_pipeline' # variant to gene derived from l2g pipeline
 

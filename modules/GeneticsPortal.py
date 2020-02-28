@@ -360,7 +360,7 @@ class genetics_portal_evidence_generator(Config):
         # Generate evidence code field:
         evidence_codes = [
             self.EVIDENCE_CODE_INFERENCE,
-            self.EVIDENCE_CODE_EVIDENCE_TYPE
+            self.EVIDENCE_CODE_SOURCE
         ]
 
         # Generate resource score field:
