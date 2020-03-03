@@ -73,12 +73,12 @@ class genetics_portal_evidence_generator(Config):
         ##
 
         # If the association has no EFO attached:
-        if self.efo_id is None:
+        if self.efo_id is None or self.efo_id == '':
             logging.warning('No EFO id for association row: {}'.format(row.name))
             return None
 
         # If because of some reason no l2g score is given:
-        if self.l2g_score is None:
+        if self.l2g_score is None or self.l2g_score == '':
             logging.warning('No l2g score is available for association row: {}'.format(row.name))
             return None
 
