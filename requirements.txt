@@ -19,5 +19,9 @@ rdflib
 pysftp
 SPARQLWrapper>=1.7.6
 pytest
-python_jsonschema_objects
 pipdeptree
+pandas
+numpy
+python_jsonschema_objects==0.3.12
+pyarrow
+fastparquet

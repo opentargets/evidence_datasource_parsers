@@ -457,8 +457,6 @@ def remove_duplicates(df):
 
 
 def main():
-    global schemaFile
-
     # Initialize logger:
     logging.basicConfig(
         filename='evidence_builder.log',
@@ -519,4 +517,3 @@ def main():
 if __name__ == '__main__':
     
     main()
-
