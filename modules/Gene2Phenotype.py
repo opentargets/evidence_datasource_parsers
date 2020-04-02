@@ -2,16 +2,19 @@ from settings import Config
 from common.HGNCParser import GeneParser
 from common.RareDiseasesUtils import RareDiseaseMapper
 
-import opentargets.model.core as opentargets
-import opentargets.model.bioentity as bioentity
-import opentargets.model.evidence.core as evidence_core
-import opentargets.model.evidence.linkout as evidence_linkout
-import opentargets.model.evidence.association_score as association_score
+import python_jsonschema_objects as pjo
+#import opentargets.model.core as opentargets
+#import opentargets.model.bioentity as bioentity
+#import opentargets.model.evidence.core as evidence_core
+#import opentargets.model.evidence.linkout as evidence_linkout
+#import opentargets.model.evidence.association_score as association_score
 
 import sys
 import logging
 import csv
 import gzip
+import requests
+import datetime
 
 __copyright__  = "Copyright 2014-2019, Open Targets"
 __credits__    = ["Gautier Koscielny", "ChuangKee Ong", "Michaela Spitzer"]
@@ -22,12 +25,18 @@ __email__      = ["data@opentargets.org"]
 __status__     = "Production"
 
 class G2P(RareDiseaseMapper):
-    def __init__(self):
+    def __init__(self, schema_json=Config.OT_JSON_SCHEMA, schema_version=Config.VALIDATED_AGAINST_SCHEMA_VERSION):
         super(G2P, self).__init__()
         self.genes = None
         self.evidence_strings = list()
 
         self._logger = logging.getLogger(__name__)
+
+        # Initialize json builder based on the schema:
+        json_schema = requests.get(schema_json).json()
+        self.builder = pjo.ObjectBuilder(json_schema)
+        self.evidence_builder = self.builder.build_classes()
+        self.schema_version = schema_version
 
     def process_g2p(self):
 
@@ -73,90 +82,106 @@ class G2P(RareDiseaseMapper):
                             for disease in diseases:
                                 self._logger.info("%s %s %s %s"%(gene_symbol, target, disease_name, disease['efo_uri']))
 
-                                obj = opentargets.Literature_Curated(type='genetic_literature')
-                                provenance_type = evidence_core.BaseProvenance_Type(
-                                    database=evidence_core.BaseDatabase(
-                                        id="Gene2Phenotype",
-                                        version='v0.2',
-                                        dbxref=evidence_core.BaseDbxref(
-                                            url="http://www.ebi.ac.uk/gene2phenotype",
-                                            id="Gene2Phenotype", version="v0.2")),
-                                    literature=evidence_core.BaseLiterature(
-                                        references=[evidence_core.Single_Lit_Reference(lit_id="http://europepmc.org/abstract/MED/25529582")]
-                                    )
-                                )
+                                type = "genetic_literature"
+
+                                provenance_type = {
+                                    'database' : {
+                                        'id' : "Gene2Phenotype",
+                                        'version' : '2020.04.02',
+                                        'dbxref' : {
+                                            'url': "http://www.ebi.ac.uk/gene2phenotype",
+                                            'id' : "Gene2Phenotype",
+                                            'version' : "2020.04.02"
+
+                                        }
+                                    },
+                                    'literature' : {
+                                        'references' : [
+                                            {
+                                                'lit_id' : "http://europepmc.org/abstract/MED/25529582"
+                                            }
+                                        ]
+                                    }
+                                }
 
                             # *** General properties ***
-                            obj.access_level = "public"
-                            obj.sourceID = "gene2phenotype"
-                            obj.validated_against_schema_version = "1.2.8"
+                            access_level = "public"
+                            sourceID = "gene2phenotype"
+                            validated_against_schema_version = Config.VALIDATED_AGAINST_SCHEMA_VERSION
+
                             # *** Target info ***
-                            obj.target = bioentity.Target(id=ensembl_iri,
-                                                          activity="http://identifiers.org/cttv.activity/unknown",
-                                                          target_type='http://identifiers.org/cttv.target/gene_evidence',
-                                                          target_name=gene_symbol)
+                            target = {
+                                'id' : ensembl_iri,
+                                'activity' : "http://identifiers.org/cttv.activity/unknown",
+                                'target_type' : "http://identifiers.org/cttv.target/gene_evidence",
+                                'target_name' : gene_symbol
+                            }
                             # http://www.ontobee.org/ontology/ECO?iri=http://purl.obolibrary.org/obo/ECO_0000204 -- An evidence type that is based on an assertion by the author of a paper, which is read by a curator.
 
                             # *** Disease info ***
-                            obj.disease = bioentity.Disease(
-                                id=disease['efo_uri'],
-                                name=disease['efo_label'],
-                                source_name=disease_name
-                            )
+                            disease_info = {
+                                'id' : disease['efo_uri'],
+                                'name' : disease['efo_label'],
+                                'source_name' : disease_name
+                            }
                             # *** Evidence info ***
-                            # Score
-                            resource_score = association_score.Probability(
-                                type="probability",
-                                value=1
-                            )
+                            resource_score = {
+                                'type' : "probability",
+                                'value' : 1
+                            }
                             # Linkout
-                            linkout = evidence_linkout.Linkout(
-                                url='http://www.ebi.ac.uk/gene2phenotype/search?panel=ALL&search_term=%s' % (
-                                    gene_symbol,),
-                                nice_name='Gene2Phenotype%s' % (gene_symbol))
+                            linkout = [
+                                {
+                                    'url' : 'http://www.ebi.ac.uk/gene2phenotype/search?panel=ALL&search_term=%s' % (gene_symbol,),
+                                    'nice_name' : 'Gene2Phenotype%s' % (gene_symbol)
+                                }
+                            ]
 
-                            obj.evidence = evidence_core.Literature_Curated(
-                                is_associated = True,
-                                evidence_codes = ["http://purl.obolibrary.org/obo/ECO_0000204"],
-                                provenance_type = provenance_type,
-                                date_asserted = '2017-06-14T00:00:00',
-                                resource_score = resource_score,
-                                urls = [linkout]
-                            )
+                            evidence = {
+                                'is_associated' : True,
+                                'evidence_codes' : ["http://purl.obolibrary.org/obo/ECO_0000204"],
+                                'provenance_type' : provenance_type,
+                                'date_asserted' : datetime.datetime(2020, 4, 2, 0, 0).isoformat(),
+                                'resource_score' : resource_score,
+                                'urls' : linkout
+                            }
                             # *** unique_association_fields ***
-                            obj.unique_association_fields = {
-                                "target_id": ensembl_iri,
-                                "original_disease_label" : disease_name,
-                                "disease_id": disease['efo_uri']
+                            unique_association_fields = {
+                                'target_id' : ensembl_iri,
+                                'original_disease_label' : disease_name,
+                                'disease_id' : disease['efo_uri']
                             }
 
 
-                            error = obj.validate(logging)
-
-                            if error > 0:
-                                logging.error(obj.to_JSON())
-                                sys.exit(1)
-                            else:
-                                self.evidence_strings.append(obj)
+                            try:
+                                evidence = self.evidence_builder.Opentargets(
+                                    type = type,
+                                    access_level = access_level,
+                                    sourceID = sourceID,
+                                    evidence = evidence,
+                                    target = target,
+                                    disease = disease_info,
+                                    unique_association_fields = unique_association_fields,
+                                    validated_against_schema_version = validated_against_schema_version
+                                )
+                                self.evidence_strings.append(evidence)
+                            except:
+                                self.logger.warning('Evidence generation failed for row: {}'.format(c))
+                                raise
                     else:
                         self._logger.error("%s\t%s not mapped: please check manually"%(disease_name, disease_mim))
 
                 print("%i %i" % (total_efo, c))
 
     def write_evidence_strings(self, filename):
-        self._logger.info("Writing IntOGen evidence strings to %s", filename)
+        self._logger.info("Writing Gene2Phenotype evidence strings to %s", filename)
         with open(filename, 'w') as tp_file:
             n = 0
             for evidence_string in self.evidence_strings:
                 n += 1
-                self._logger.info(evidence_string.disease.id[0])
-                error = evidence_string.validate(logging)
-                if error == 0:
-                    tp_file.write(evidence_string.to_JSON(indentation=None) + "\n")
-                else:
-                    self._logger.error("REPORTING ERROR %i" % n)
-                    self._logger.error(evidence_string.to_JSON(indentation=4))
-                    # sys.exit(1)
+                self._logger.info(evidence_string['disease']['id'])
+                tp_file.write(evidence_string.serialize() + "\n")
+        tp_file.close()
 
 
 def main():
