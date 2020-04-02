@@ -11,10 +11,10 @@ import gzip
 import requests
 import datetime
 
-__copyright__  = "Copyright 2014-2019, Open Targets"
-__credits__    = ["Gautier Koscielny", "ChuangKee Ong", "Michaela Spitzer"]
+__copyright__  = "Copyright 2014-2020, Open Targets"
+__credits__    = ["Gautier Koscielny", "ChuangKee Ong", "Michaela Spitzer", "Asier Gonzalez" ]
 __license__    = "Apache 2.0"
-__version__    = "1.2.8"
+__version__    = "1.3.0"
 __maintainer__ = "Open Targets Data Team"
 __email__      = ["data@opentargets.org"]
 __status__     = "Production"
