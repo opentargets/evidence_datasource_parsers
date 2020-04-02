@@ -40,6 +40,7 @@ class Config:
 
     # schema version
     VALIDATED_AGAINST_SCHEMA_VERSION = '1.2.8'
+    OT_JSON_SCHEMA = "https://raw.githubusercontent.com/opentargets/json_schema/Draft-4_compatible/opentargets.json"
 
     # Ontologies
     EFO_URL = 'https://github.com/EBISPOT/efo/raw/v2018-01-15/efo.obo'
@@ -72,7 +73,7 @@ class Config:
 
     # Gene2Phenotype
     #G2P_FILENAME = 'DDG2P.csv.gz'
-    G2P_FILENAME = file_or_resource('DDG2P_19_8_2019.csv.gz')
+    G2P_FILENAME = file_or_resource('DDG2P_2_4_2020.csv.gz')
     G2P_EVIDENCE_FILENAME = 'gene2phenotype-19-08-2019.json'
 
     # Genomics England

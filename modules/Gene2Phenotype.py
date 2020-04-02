@@ -99,70 +99,70 @@ class G2P(RareDiseaseMapper):
                                     }
                                 }
 
-                            # *** General properties ***
-                            access_level = "public"
-                            sourceID = "gene2phenotype"
-                            validated_against_schema_version = Config.VALIDATED_AGAINST_SCHEMA_VERSION
+                                # *** General properties ***
+                                access_level = "public"
+                                sourceID = "gene2phenotype"
+                                validated_against_schema_version = Config.VALIDATED_AGAINST_SCHEMA_VERSION
 
-                            # *** Target info ***
-                            target = {
-                                'id' : ensembl_iri,
-                                'activity' : "http://identifiers.org/cttv.activity/unknown",
-                                'target_type' : "http://identifiers.org/cttv.target/gene_evidence",
-                                'target_name' : gene_symbol
-                            }
-                            # http://www.ontobee.org/ontology/ECO?iri=http://purl.obolibrary.org/obo/ECO_0000204 -- An evidence type that is based on an assertion by the author of a paper, which is read by a curator.
-
-                            # *** Disease info ***
-                            disease_info = {
-                                'id' : disease['efo_uri'],
-                                'name' : disease['efo_label'],
-                                'source_name' : disease_name
-                            }
-                            # *** Evidence info ***
-                            resource_score = {
-                                'type' : "probability",
-                                'value' : 1
-                            }
-                            # Linkout
-                            linkout = [
-                                {
-                                    'url' : 'http://www.ebi.ac.uk/gene2phenotype/search?panel=ALL&search_term=%s' % (gene_symbol,),
-                                    'nice_name' : 'Gene2Phenotype%s' % (gene_symbol)
+                                # *** Target info ***
+                                target = {
+                                    'id' : ensembl_iri,
+                                    'activity' : "http://identifiers.org/cttv.activity/unknown",
+                                    'target_type' : "http://identifiers.org/cttv.target/gene_evidence",
+                                    'target_name' : gene_symbol
                                 }
-                            ]
+                                # http://www.ontobee.org/ontology/ECO?iri=http://purl.obolibrary.org/obo/ECO_0000204 -- An evidence type that is based on an assertion by the author of a paper, which is read by a curator.
 
-                            evidence = {
-                                'is_associated' : True,
-                                'evidence_codes' : ["http://purl.obolibrary.org/obo/ECO_0000204"],
-                                'provenance_type' : provenance_type,
-                                'date_asserted' : datetime.datetime(2020, 4, 2, 0, 0).isoformat(),
-                                'resource_score' : resource_score,
-                                'urls' : linkout
-                            }
-                            # *** unique_association_fields ***
-                            unique_association_fields = {
-                                'target_id' : ensembl_iri,
-                                'original_disease_label' : disease_name,
-                                'disease_id' : disease['efo_uri']
-                            }
+                                # *** Disease info ***
+                                disease_info = {
+                                    'id' : disease['efo_uri'],
+                                    'name' : disease['efo_label'],
+                                    'source_name' : disease_name
+                                }
+                                # *** Evidence info ***
+                                resource_score = {
+                                    'type' : "probability",
+                                    'value' : 1
+                                }
+                                # Linkout
+                                linkout = [
+                                    {
+                                        'url' : 'http://www.ebi.ac.uk/gene2phenotype/search?panel=ALL&search_term=%s' % (gene_symbol,),
+                                        'nice_name' : 'Gene2Phenotype%s' % (gene_symbol)
+                                    }
+                                ]
+
+                                evidence = {
+                                    'is_associated' : True,
+                                    'evidence_codes' : ["http://purl.obolibrary.org/obo/ECO_0000204"],
+                                    'provenance_type' : provenance_type,
+                                    'date_asserted' : datetime.datetime(2020, 4, 2, 0, 0).isoformat(),
+                                    'resource_score' : resource_score,
+                                    'urls' : linkout
+                                }
+                                # *** unique_association_fields ***
+                                unique_association_fields = {
+                                    'target_id' : ensembl_iri,
+                                    'original_disease_label' : disease_name,
+                                    'disease_id' : disease['efo_uri']
+                                }
 
 
-                            try:
-                                evidence = self.evidence_builder.Opentargets(
-                                    type = type,
-                                    access_level = access_level,
-                                    sourceID = sourceID,
-                                    evidence = evidence,
-                                    target = target,
-                                    disease = disease_info,
-                                    unique_association_fields = unique_association_fields,
-                                    validated_against_schema_version = validated_against_schema_version
-                                )
-                                self.evidence_strings.append(evidence)
-                            except:
-                                self.logger.warning('Evidence generation failed for row: {}'.format(c))
-                                raise
+                                try:
+                                    evidence = self.evidence_builder.Opentargets(
+                                        type = type,
+                                        access_level = access_level,
+                                        sourceID = sourceID,
+                                        evidence = evidence,
+                                        target = target,
+                                        disease = disease_info,
+                                        unique_association_fields = unique_association_fields,
+                                        validated_against_schema_version = validated_against_schema_version
+                                    )
+                                    self.evidence_strings.append(evidence)
+                                except:
+                                    self.logger.warning('Evidence generation failed for row: {}'.format(c))
+                                    raise
                     else:
                         self._logger.error("%s\t%s not mapped: please check manually"%(disease_name, disease_mim))
 
