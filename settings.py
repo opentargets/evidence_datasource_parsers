@@ -84,8 +84,10 @@ class Config:
     GE_PANEL_VERSION = 'v5.7'
 
     # IntoGEN
-    INTOGEN_FILENAME = file_or_resource('intogen_opentargets.tsv')
-    INTOGEN_EVIDENCE_FILENAME = 'otar001_intogen-16-08-2019.json'
+    INTOGEN_DRIVER_GENES_FILENAME = file_or_resource('intogen_Compendium_Cancer_Genes.tsv')
+    INTOGEN_EVIDENCE_FILENAME = 'intogen-02-02-2020.json'
+    INTOGEN_CANCER2EFO_MAPPING_FILENAME = file_or_resource('intogen_cancer2EFO_mapping.tsv')
+    INTOGEN_COHORTS = file_or_resource('intogen_cohorts.tsv')
 
     # mapping that we maintain in Zooma
     OMIM_TO_EFO_MAP_URL = 'https://raw.githubusercontent.com/opentargets/platform_semantic/master/resources/xref_mappings/omim_to_efo.txt'
