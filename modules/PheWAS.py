@@ -155,7 +155,6 @@ def main(outputdir):
                     if gene not in ensgid:
                         __log__.debug("Skipping unmapped target %s",gene)
                         skipped_unmapped_target_cnt += 1
-                        #__log__.info("Unmapped target: {}".format(row))
                         continue
                     if not len(gene) or not len(ensgid[gene]):
                         __log__.debug("Skipping zero length gene name")
@@ -170,9 +169,6 @@ def main(outputdir):
                     ## find EFO term ##
                     if phewas_string not in mappings:
                         __log__.debug("Skipping unmapped disease %s", phewas_string)
-                        __log__.info("Skipped disease: {}".format(phewas_string))
-                        # __log__.info("Type: {}".format(type(phewas_string)))
-                        # __log__.info("Dict: {}".format(mappings['Intestinal infection']))
                         skipped_phewas_string_cnt += 1
                         continue
 
