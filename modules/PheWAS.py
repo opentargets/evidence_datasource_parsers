@@ -181,8 +181,8 @@ def main(outputdir):
                                                                 'disease_id' : pev['disease']['id'],
                                                                 'phewas_string' : phewas_string}
 
-                            #outfile.write("%s\n" % json.dumps(pev,
-                            #    sort_keys=True, separators = (',', ':')))
+                            outfile.write("%s\n" % json.dumps(pev,
+                                sort_keys=True, separators = (',', ':')))
 
                     built +=1
 
