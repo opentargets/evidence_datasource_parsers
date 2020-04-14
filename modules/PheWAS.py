@@ -99,14 +99,10 @@ def make_variant2disease(pval, odds_ratio, cases):
 
 
 def main(outputdir):
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--local', action='store_true',
-                        help='force using local mapping instead of the github version')
-    args = parser.parse_args()
 
     ## load prepared mappings
     mappings = {}
-    if (not args.local) and mapping_on_github('phewascat'):
+    if mapping_on_github('phewascat'):
         __log__.info('Downloading prepared mappings from github')
         #__log__.info('Using only mappings marked as `match`')
         with requests.get(ghmappings('phewascat'), stream=True) as rmap:
@@ -119,17 +115,9 @@ def main(outputdir):
                 mappings[phewas_str].append({'efo_uri':row['EFO_id'].strip(), 'efo_label':row['EFO_label'].strip(), 'phewas_string':phewas_str})
         __log__.info('Parsed %s mappings', len(mappings))
     else:
-        #moddir = os.path.dirname(os.path.realpath(__file__))
-        #inputfile = os.path.join(moddir, 'phewascat-diseaseterms.tsv')
-        #if os.path.exists(inputfile) and os.path.isfile(inputfile):
-            #with open(inputfile) as mapf:
-        with open(file_or_resource('phewascat-diseaseterms.tsv')) as mapf:
-            reader = csv.DictReader(mapf,delimiter='\t')
-            #mappings = {row['query']:row['term'] for row in reader if (row['quality'] and row['quality'] == 'match')}
-            mappings = {row['Phewas_string']: row['EFO_id'] for row in reader}
-            print(len(list(mappings)))
-        #else:
-        #    raise RuntimeError("Unable to read {}".format(inputfile))
+        __log__.error('Trait mapping file not found on GitHub: https://raw.githubusercontent.com/opentargets/mappings/master/phewascat.mappings.tsv')
+        sys.exit()
+
 
     #__log__.info("Dict: {}".format(mappings['Renal colic']))
     #__log__.info("Dict: {}".format(mappings['Intestinal infection']))
