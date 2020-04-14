@@ -131,8 +131,6 @@ def main(outputdir):
     with open(Config.PHEWAS_CATALOG_EVIDENCE_FILENAME, 'w') as outfile:
 
         with open(Config.PHEWAS_CATALOG_FILENAME) as r:
-            #catalog = tqdm(csv.DictReader(r.iter_lines(decode_unicode=True)),
-            #               total=TOTAL_NUM_PHEWAS)
             catalog = tqdm(csv.DictReader(r), total=TOTAL_NUM_PHEWAS)
             for i, row in enumerate(catalog):
                 __log__.debug(row)
