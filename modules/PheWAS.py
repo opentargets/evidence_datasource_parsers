@@ -115,9 +115,6 @@ def main(outputdir):
         __log__.error('Trait mapping file not found on GitHub: https://raw.githubusercontent.com/opentargets/mappings/master/phewascat.mappings.tsv')
         sys.exit()
 
-
-    #__log__.info("Dict: {}".format(mappings['Renal colic']))
-    #__log__.info("Dict: {}".format(mappings['Intestinal infection']))
     ## gene symbol <=> ENSGID mappings ##
     gene_parser = GeneParser()
     __log__.info('Parsing gene data from HGNC...')
