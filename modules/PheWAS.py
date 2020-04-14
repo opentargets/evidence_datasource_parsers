@@ -128,7 +128,7 @@ def main(outputdir):
     skipped_zero_length_cnt = 0
     skipped_non_significant_cnt = 0
     __log__.info('Begin processing phewascatalog evidences..')
-    with open(os.path.join(str(outputdir),'phewas-catalog.evidenceobjs.json'), 'w+') as outfile:
+    with open(Config.PHEWAS_CATALOG_EVIDENCE_FILENAME, 'w') as outfile:
 
         with open(Config.PHEWAS_CATALOG_FILENAME) as r:
             #catalog = tqdm(csv.DictReader(r.iter_lines(decode_unicode=True)),
