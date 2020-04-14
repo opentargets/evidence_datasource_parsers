@@ -20,8 +20,6 @@ from common.Utils import mapping_on_github, ghmappings, DuplicateFilter
 
 from settings import Config, file_or_resource
 
-PHEWAS_CATALOG_URL = 'https://storage.googleapis.com/otar000-evidence_input/PheWAScatalog/phewas-catalog.csv'
-
 '''define once where evidence is coming from
 '''
 PROVENANCE = {'literature': {
@@ -150,7 +148,6 @@ def main(outputdir):
     __log__.info('Begin processing phewascatalog evidences..')
     with open(os.path.join(str(outputdir),'phewas-catalog.evidenceobjs.json'), 'w+') as outfile:
 
-        #with requests.get(PHEWAS_CATALOG_URL, stream=True) as r:
         with open(Config.PHEWAS_CATALOG_FILENAME) as r:
             #catalog = tqdm(csv.DictReader(r.iter_lines(decode_unicode=True)),
             #               total=TOTAL_NUM_PHEWAS)
