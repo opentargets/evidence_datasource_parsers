@@ -193,7 +193,7 @@ def main(outputdir):
             "Built %s evidences. "
             "Skipped %s ",i,built,i-built
             )
-        __log__.info("Skipped unmapped PheWAS string: {} \n Skipped unmapped targets: {} \n Skipped zero length gene name: {} \n Skipped non-significant association: {}".format(skipped_phewas_string_cnt, skipped_unmapped_target_cnt, skipped_zero_length_cnt, skipped_non_significant_cnt))
+        __log__.debug("Skipped unmapped PheWAS string: {} \n Skipped unmapped targets: {} \n Skipped zero length gene name: {} \n Skipped non-significant association: {}".format(skipped_phewas_string_cnt, skipped_unmapped_target_cnt, skipped_zero_length_cnt, skipped_non_significant_cnt))
 
 
 if __name__ == '__main__':
