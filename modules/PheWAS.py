@@ -104,11 +104,8 @@ def main(outputdir):
     mappings = {}
     if mapping_on_github('phewascat'):
         __log__.info('Downloading prepared mappings from github')
-        #__log__.info('Using only mappings marked as `match`')
         with requests.get(ghmappings('phewascat'), stream=True) as rmap:
             for row in csv.DictReader(rmap.iter_lines(decode_unicode=True),delimiter='\t'):
-                #if row['quality'] and row['quality'].strip() == 'match':
-                #    mappings[row['query'].strip()] = row['term'].strip()
                 phewas_str = row['Phewas_string'].strip()
                 if phewas_str not in mappings:
                     mappings[phewas_str] = []
