@@ -98,7 +98,7 @@ def make_variant2disease(pval, odds_ratio, cases):
 
 
 
-def main(outputdir):
+def main():
 
     ## load prepared mappings
     mappings = {}
@@ -197,5 +197,4 @@ def main(outputdir):
 
 
 if __name__ == '__main__':
-    p = Path(__file__).parents
-    main(outputdir=p[1] / 'output')
+    main()
