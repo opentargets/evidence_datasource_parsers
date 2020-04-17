@@ -43,11 +43,11 @@ __log__.addHandler(ch)
 dup_filter = DuplicateFilter()
 __log__.addFilter(dup_filter)
 
-def make_disease(disease_info):
+def make_disease(disease_info, phecode):
     disease = {}
     disease["id"] = disease_info['efo_uri']
     disease['name'] = disease_info['efo_label']
-    disease['source_name'] = disease_info['phewas_string']
+    disease['source_name'] = disease_info['phewas_string'] + " [" + phecode + "]"
     return disease
 
 def make_target(ensgid):
@@ -135,6 +135,7 @@ def main():
                 if float(row['p']) < 0.05:
 
                     phewas_string = row['phewas_string'].strip()
+                    phewas_code = row['phewas_code'].strip()
                     gene = row['gene'].strip('*')
                     snp = row['snp']
                     row_p = row['p']
@@ -170,12 +171,13 @@ def main():
 
                     for disease in mappings[phewas_string]:
                         if disease['efo_uri'] != "NEW TERM REQUEST":
-                            pev['disease'] = make_disease(disease)
+                            pev['disease'] = make_disease(disease, phewas_code)
 
                             # Evidence strings are unique based on the target, disease EFO term and Phewas string
                             pev['unique_association_fields'] = {'target_id': ensgid[gene],
                                                                 'disease_id' : pev['disease']['id'],
-                                                                'phewas_string' : phewas_string}
+                                                                'phewas_string_and_code' : phewas_string + " [" + phewas_code + "]",
+                                                                'variant_id': snp}
 
                             outfile.write("%s\n" % json.dumps(pev,
                                 sort_keys=True, separators = (',', ':')))
