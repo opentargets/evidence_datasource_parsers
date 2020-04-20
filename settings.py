@@ -70,6 +70,10 @@ class Config:
     CRISPR_FILENAME2 = file_or_resource('crispr_descriptions-2019-03-26.tsv')
     CRISPR_EVIDENCE_FILENAME = 'crispr-21-08-2019.json'
 
+    # PheWAS catalog
+    PHEWAS_CATALOG_FILENAME = file_or_resource('phewas-catalog-19-10-2018.csv')
+    PHEWAS_CATALOG_EVIDENCE_FILENAME = 'phewas_catalog-07-04-2020.json'
+
     # Gene2Phenotype
     #G2P_FILENAME = 'DDG2P.csv.gz'
     G2P_FILENAME = file_or_resource('DDG2P_19_8_2019.csv.gz')

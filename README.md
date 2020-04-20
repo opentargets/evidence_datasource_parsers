@@ -61,15 +61,12 @@ The intOGen parser generates evidence strings from three files that need to be i
 - _intogen_cohorts.tsv_: It contains information about the analysed cohorts and it can be downloaded from the [intOGen website](https://www.intogen.org/download). In the current implementation, the total number of samples included in each cohort is used to calculate the percentage of samples that carry a relevant mutation in a driver gene.
 - _intogen_Compendium_Cancer_Genes.tsv_: It contains the genes that have been identified as _drivers_ in at least one cohort and information related to  the methods that yield significant results, the q-value and additional data about mutations. It can be downloaded from the same place as the cohorts file.
 
-### Phewascatalog.org
+### PheWAS catalog
+
+The `PheWAS.py` script parses the PheWAS Catalog CSV file specified as `PHEWAS_CATALOG_FILENAME` in `settings.py` and that should be located either in the working directory or the `resources` folder. The mappings between the Phecodes and EFO are read from the [phewascat.mappings.tsv](https://raw.githubusercontent.com/opentargets/mappings/master/phewascat.mappings.tsv) file in the `mappings` repository.
 
 ```sh
-(venv)$ python3 modules/phewascat/run.py
-```
-or to force using a local mapping file instead of the reference mappings
-stored in github:
-```sh
-(venv)$ python3 modules/phewascat/run.py --local
+(venv)$ python3 modules/PheWAS.py
 ```
 
 ### PhenoDigm - What version should I run?
