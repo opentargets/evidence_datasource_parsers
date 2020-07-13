@@ -41,10 +41,19 @@ class G2P(RareDiseaseMapper):
         gene_parser._get_hgnc_data_from_json()
         self.genes = gene_parser.genes
 
-        self.generate_evidence_strings(Config.G2P_FILENAME)
+        # Parser DD file
+        self.generate_evidence_strings(Config.G2P_DD_FILENAME, "DD")
+        # Parser DD file
+        self.generate_evidence_strings(Config.G2P_eye_FILENAME, "Eye")
+        # Parser DD file
+        self.generate_evidence_strings(Config.G2P_skin_FILENAME, "Skin")
+        # Parser DD file
+        self.generate_evidence_strings(Config.G2P_cancer_FILENAME, "Cancer")
+
+        # Save results to file
         self.write_evidence_strings(Config.G2P_EVIDENCE_FILENAME)
 
-    def generate_evidence_strings(self, filename):
+    def generate_evidence_strings(self, filename, panel):
 
         total_efo = 0
 
@@ -144,7 +153,8 @@ class G2P(RareDiseaseMapper):
                                 unique_association_fields = {
                                     'target_id' : ensembl_iri,
                                     'original_disease_label' : disease_name,
-                                    'disease_id' : disease['efo_uri']
+                                    'disease_id' : disease['efo_uri'],
+                                    'gene_panel': panel
                                 }
 
 
