@@ -42,18 +42,18 @@ class G2P(RareDiseaseMapper):
         self.genes = gene_parser.genes
 
         # Parser DD file
-        self.generate_evidence_strings(Config.G2P_DD_FILENAME, "DD")
+        self.generate_evidence_strings(Config.G2P_DD_FILENAME)
         # Parser DD file
-        self.generate_evidence_strings(Config.G2P_eye_FILENAME, "Eye")
+        self.generate_evidence_strings(Config.G2P_eye_FILENAME)
         # Parser DD file
-        self.generate_evidence_strings(Config.G2P_skin_FILENAME, "Skin")
+        self.generate_evidence_strings(Config.G2P_skin_FILENAME)
         # Parser DD file
-        self.generate_evidence_strings(Config.G2P_cancer_FILENAME, "Cancer")
+        self.generate_evidence_strings(Config.G2P_cancer_FILENAME)
 
         # Save results to file
         self.write_evidence_strings(Config.G2P_EVIDENCE_FILENAME)
 
-    def generate_evidence_strings(self, filename, panel):
+    def generate_evidence_strings(self, filename):
 
         total_efo = 0
 
@@ -70,6 +70,8 @@ class G2P(RareDiseaseMapper):
                     gene_symbol = row["gene symbol"]
                     disease_name = row["disease name"]
                     disease_mim = row["disease mim"]
+                    panel = row["panel"]
+
 
                     gene_symbol.rstrip()
 
