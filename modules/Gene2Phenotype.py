@@ -70,6 +70,9 @@ class G2P(RareDiseaseMapper):
                     gene_symbol = row["gene symbol"]
                     disease_name = row["disease name"]
                     disease_mim = row["disease mim"]
+                    allelic_requirement = row["allelic requirement"]
+                    mutation_consequence = row["mutation consequence"]
+                    confidence = row["DDD category"]
                     panel = row["panel"]
 
 
@@ -145,6 +148,9 @@ class G2P(RareDiseaseMapper):
 
                                 evidence = {
                                     'is_associated' : True,
+                                    'confidence' : confidence,
+                                    'allelic_requirement' : allelic_requirement,
+                                    'mutation_consequence' : mutation_consequence,
                                     'evidence_codes' : ["http://purl.obolibrary.org/obo/ECO_0000204"],
                                     'provenance_type' : provenance_type,
                                     'date_asserted' : datetime.datetime(2020, 4, 2, 0, 0).isoformat(),
