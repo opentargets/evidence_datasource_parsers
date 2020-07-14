@@ -162,7 +162,7 @@ class G2P(RareDiseaseMapper):
                                     'mutation_consequence' : mutation_consequence,
                                     'evidence_codes' : ["http://purl.obolibrary.org/obo/ECO_0000204"],
                                     'provenance_type' : provenance_type,
-                                    'date_asserted' : datetime.strptime(date , "%Y-%m-%d %H:%M:%S").isoformat(),
+                                    'date_asserted' : datetime.datetime.strptime(date , "%Y-%m-%d %H:%M:%S").isoformat(),
                                     'resource_score' : resource_score,
                                     'urls' : linkout
                                 }
