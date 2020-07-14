@@ -194,7 +194,7 @@ class G2P(RareDiseaseMapper):
                                     )
                                     self.evidence_strings.append(evidence)
                                 except:
-                                    self.logger.warning('Evidence generation failed for row: {}'.format(c))
+                                    self._logger.warning('Evidence generation failed for row: {}'.format(c))
                                     raise
                     else:
                         self._logger.error("%s\t%s not mapped: please check manually"%(disease_name, disease_mim))
