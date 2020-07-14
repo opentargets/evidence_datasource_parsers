@@ -78,6 +78,13 @@ class Config:
     G2P_skin_FILENAME = file_or_resource('SkinG2P_26_3_2020.csv.gz')
     G2P_cancer_FILENAME = file_or_resource('CancerG2P_26_3_2020.csv.gz')
     G2P_EVIDENCE_FILENAME = 'gene2phenotype-19-08-2019.json'
+    G2P_confidence2score = {
+        'confirmed' : 1,
+        'probable': 0.5,
+        'possible' : 0.25,
+        'both RD and IF' : 1,
+        'child IF': 0.25
+    }
 
     # Genomics England
     GE_PANEL_MAPPING_FILENAME = file_or_resource('genomicsenglandpanelapp_panelmapping.csv')

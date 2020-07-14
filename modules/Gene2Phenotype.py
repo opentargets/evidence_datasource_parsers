@@ -134,10 +134,17 @@ class G2P(RareDiseaseMapper):
                                     'source_name' : disease_name
                                 }
                                 # *** Evidence info ***
+                                # Score based on mutational consequence
+                                if confidence in Config.G2P_confidence2score:
+                                    score = Config.G2P_confidence2score[confidence]
+                                else:
+                                    self.logger.error('{} is not a recognised G2P confidence, assigning an score of 0'.format(confidence))
+                                    score = 0
                                 resource_score = {
-                                    'type' : "probability",
-                                    'value' : 1
+                                    'type': "probability",
+                                    'value': score
                                 }
+
                                 # Linkout
                                 linkout = [
                                     {
