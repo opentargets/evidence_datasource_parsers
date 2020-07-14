@@ -66,7 +66,8 @@ class G2P(RareDiseaseMapper):
                 if c > 1:
                     # Column names are:
                     # "gene symbol","gene mim","disease name","disease mim","DDD category","allelic requirement",
-                    # "mutation consequence",phenotypes,"organ specificity list",pmids,panel,"prev symbols","hgnc id"
+                    # "mutation consequence",phenotypes,"organ specificity list",pmids,panel,"prev symbols","hgnc id",
+                    # "gene disease pair entry date"
                     gene_symbol = row["gene symbol"]
                     disease_name = row["disease name"]
                     disease_mim = row["disease mim"]
@@ -74,6 +75,7 @@ class G2P(RareDiseaseMapper):
                     mutation_consequence = row["mutation consequence"]
                     confidence = row["DDD category"]
                     panel = row["panel"]
+                    date = row["gene disease pair entry date"]
 
 
                     gene_symbol.rstrip()
@@ -160,7 +162,7 @@ class G2P(RareDiseaseMapper):
                                     'mutation_consequence' : mutation_consequence,
                                     'evidence_codes' : ["http://purl.obolibrary.org/obo/ECO_0000204"],
                                     'provenance_type' : provenance_type,
-                                    'date_asserted' : datetime.datetime(2020, 4, 2, 0, 0).isoformat(),
+                                    'date_asserted' : datetime.strptime(date , "%Y-%m-%d %H:%M:%S").isoformat(),
                                     'resource_score' : resource_score,
                                     'urls' : linkout
                                 }
