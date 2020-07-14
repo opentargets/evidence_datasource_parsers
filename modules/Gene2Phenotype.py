@@ -75,7 +75,13 @@ class G2P(RareDiseaseMapper):
                     mutation_consequence = row["mutation consequence"]
                     confidence = row["DDD category"]
                     panel = row["panel"]
+
                     date = row["gene disease pair entry date"]
+                    # Handle missing dates ("No date" in file)
+                    try:
+                        date = datetime.datetime.strptime(date, "%Y-%m-%d %H:%M:%S").isoformat()
+                    except ValueError:
+                        date = "N/A"
 
 
                     gene_symbol.rstrip()
@@ -162,7 +168,7 @@ class G2P(RareDiseaseMapper):
                                     'mutation_consequence' : mutation_consequence,
                                     'evidence_codes' : ["http://purl.obolibrary.org/obo/ECO_0000204"],
                                     'provenance_type' : provenance_type,
-                                    'date_asserted' : datetime.datetime.strptime(date , "%Y-%m-%d %H:%M:%S").isoformat(),
+                                    'date_asserted' : date,
                                     'resource_score' : resource_score,
                                     'urls' : linkout
                                 }
