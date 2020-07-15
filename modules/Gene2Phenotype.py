@@ -19,6 +19,14 @@ __maintainer__ = "Open Targets Data Team"
 __email__      = ["data@opentargets.org"]
 __status__     = "Production"
 
+G2P_confidence2score = {
+    'confirmed' : 1,
+    'probable': 0.5,
+    'possible' : 0.25,
+    'both RD and IF' : 1,
+    'child IF': 0.25
+}
+
 class G2P(RareDiseaseMapper):
     def __init__(self, schema_json=Config.OT_JSON_SCHEMA, schema_version=Config.VALIDATED_AGAINST_SCHEMA_VERSION):
         super(G2P, self).__init__()
@@ -143,8 +151,8 @@ class G2P(RareDiseaseMapper):
                                 }
                                 # *** Evidence info ***
                                 # Score based on mutational consequence
-                                if confidence in Config.G2P_confidence2score:
-                                    score = Config.G2P_confidence2score[confidence]
+                                if confidence in G2P_confidence2score:
+                                    score = G2P_confidence2score[confidence]
                                 else:
                                     self.logger.error('{} is not a recognised G2P confidence, assigning an score of 0'.format(confidence))
                                     score = 0
