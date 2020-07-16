@@ -29,9 +29,8 @@ ClinGen_classification2score = {
     "No Reported Evidence": 0.01,
 }
 
-class ClinGen(RareDiseaseMapper):
+class ClinGen():
     def __init__(self, schema_version=Config.VALIDATED_AGAINST_SCHEMA_VERSION):
-        super(ClinGen, self).__init__()
         self.genes = None
         self.evidence_strings = list()
 
@@ -56,8 +55,6 @@ class ClinGen(RareDiseaseMapper):
 
 
     def process_gene_validity_curations(self, in_filename, out_filename):
-
-        self.get_omim_to_efo_mappings()
 
         gene_parser = GeneParser()
         gene_parser._get_hgnc_data_from_json()
