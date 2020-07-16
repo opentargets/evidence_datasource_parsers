@@ -157,9 +157,8 @@ class ClinGen(RareDiseaseMapper):
 
                 evidence = {
                     'is_associated' : True,
-                    'confidence' : confidence,
-                    'allelic_requirement' : allelic_requirement,
-                    'mutation_consequence' : mutation_consequence,
+                    'confidence' : classification,
+                    'allelic_requirement' : mode_of_inheritancr,
                     'evidence_codes' : ["http://purl.obolibrary.org/obo/ECO_0000204"],
                     'provenance_type' : provenance_type,
                     'date_asserted' : date,
@@ -169,9 +168,7 @@ class ClinGen(RareDiseaseMapper):
                 # *** unique_association_fields ***
                 unique_association_fields = {
                     'target_id' : ensembl_iri,
-                    'original_disease_label' : disease_name,
-                    'disease_id' : disease['efo_uri'],
-                    'gene_panel': panel
+                    'disease_id' : disease_id,
                 }
 
 
