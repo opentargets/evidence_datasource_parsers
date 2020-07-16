@@ -131,7 +131,7 @@ class ClinGen(RareDiseaseMapper):
 
                 # *** Disease info ***
                 disease_info = {
-                    'id' : "http://purl.obolibrary.org/obo/MONDO_0019181" + disease_id,
+                    'id' : "http://purl.obolibrary.org/obo/" + disease_id,
                     #'name' : disease['efo_label'],
                     'source_name' : disease_name
                 }
