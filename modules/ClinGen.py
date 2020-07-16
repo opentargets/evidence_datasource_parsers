@@ -103,21 +103,14 @@ class ClinGen(RareDiseaseMapper):
 
                 provenance_type = {
                     'database' : {
-                        'id' : "Gene2Phenotype",
-                        'version' : '2020.04.02',
+                        'id' : "ClinGen - Gene Validity Curations",
+                        'version' : '2020.07.16',
                         'dbxref' : {
-                            'url': "http://www.ebi.ac.uk/gene2phenotype",
-                            'id' : "Gene2Phenotype",
-                            'version' : "2020.04.02"
+                            'url': "https://search.clinicalgenome.org/kb/gene-validity",
+                            'id' : "ClinGen - Gene Validity Curations",
+                            'version' : "2020.07.16"
 
                         }
-                    },
-                    'literature' : {
-                        'references' : [
-                            {
-                                'lit_id' : "http://europepmc.org/abstract/MED/25529582"
-                            }
-                        ]
                     }
                 }
 
