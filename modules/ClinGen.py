@@ -116,7 +116,7 @@ class ClinGen(RareDiseaseMapper):
 
                 # *** General properties ***
                 access_level = "public"
-                sourceID = "gene2phenotype"
+                sourceID = "clingen"
                 validated_against_schema_version = self.schema_version
 
                 # *** Target info ***
@@ -130,8 +130,8 @@ class ClinGen(RareDiseaseMapper):
 
                 # *** Disease info ***
                 disease_info = {
-                    'id' : disease['efo_uri'],
-                    'name' : disease['efo_label'],
+                    'id' : "http://purl.obolibrary.org/obo/MONDO_0019181" + disease_id,
+                    #'name' : disease['efo_label'],
                     'source_name' : disease_name
                 }
                 # *** Evidence info ***
