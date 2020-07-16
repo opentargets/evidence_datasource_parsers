@@ -83,7 +83,7 @@ class ClinGen():
 
             gene_symbol = row["GENE SYMBOL"]
             disease_name = row["DISEASE LABEL"]
-            disease_id = row["DISEASE ID"]
+            disease_id = row["DISEASE ID (MONDO)"]
             mode_of_inheritancr = row["MOI"]
             classification = row["CLASSIFICATION"]
             date = row["CLASSIFICATION DATE"]
