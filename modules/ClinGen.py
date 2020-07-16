@@ -86,18 +86,10 @@ class ClinGen(RareDiseaseMapper):
 
             gene_symbol = row["GENE SYMBOL"]
             disease_name = row["DISEASE LABEL"]
-            allelic_requirement = row["allelic requirement"]
-            mutation_consequence = row["mutation consequence"]
-            confidence = row["DDD category"]
-            panel = row["panel"]
-
-            date = row["gene disease pair entry date"]
-            # Handle missing dates ("No date" in file)
-            try:
-                date = datetime.datetime.strptime(date, "%Y-%m-%d %H:%M:%S").isoformat()
-            except ValueError:
-                date = "N/A"
-
+            disease_id = row["DISEASE ID"]
+            mode_of_inheritancr = row["MOI"]
+            classification = row["CLASSIFICATION"]
+            date = row["CLASSIFICATION DATE"]
 
             gene_symbol.rstrip()
 
