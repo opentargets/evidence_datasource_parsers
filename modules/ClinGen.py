@@ -135,11 +135,11 @@ class ClinGen(RareDiseaseMapper):
                     'source_name' : disease_name
                 }
                 # *** Evidence info ***
-                # Score based on mutational consequence
-                if confidence in G2P_confidence2score:
-                    score = G2P_confidence2score[confidence]
+                # Score based on disease confidence/ classification
+                if classification in ClinGen_classification2score:
+                    score = ClinGen_classification2score[classification]
                 else:
-                    self.logger.error('{} is not a recognised G2P confidence, assigning an score of 0'.format(confidence))
+                    self.logger.error('{} is not a recognised ClinGen classification, assigning an score of 0'.format(classification))
                     score = 0
                 resource_score = {
                     'type': "probability",
