@@ -90,6 +90,7 @@ class ClinGen(RareDiseaseMapper):
             mode_of_inheritancr = row["MOI"]
             classification = row["CLASSIFICATION"]
             date = row["CLASSIFICATION DATE"]
+            report_url = row["ONLINE REPORT"]
 
             gene_symbol.rstrip()
 
@@ -149,8 +150,8 @@ class ClinGen(RareDiseaseMapper):
                 # Linkout
                 linkout = [
                     {
-                        'url' : 'http://www.ebi.ac.uk/gene2phenotype/search?panel=ALL&search_term=%s' % (gene_symbol,),
-                        'nice_name' : 'Gene2Phenotype%s' % (gene_symbol)
+                        'url' : report_url,
+                        'nice_name' : 'Gene Validit Curation: {} - {} report'.format(gene_symbol, disease_name)
                     }
                 ]
 
