@@ -5,7 +5,7 @@ from common.RareDiseasesUtils import RareDiseaseMapper
 import python_jsonschema_objects as pjo
 
 import logging
-import csv
+import pandas as pd
 import gzip
 import requests
 import datetime
@@ -72,147 +72,147 @@ class ClinGen(RareDiseaseMapper):
 
         total_efo = 0
 
-        with gzip.open(filename, mode='rt') as zf:
+        # When reading csv file skip header lines that don't contain column names
+        # CLINGEN GENE VALIDITY CURATIONS
+        # FILE CREATED: 2020-07-16
+        # WEBPAGE: https://search.clinicalgenome.org/kb/gene-validity
+        # +++++++++++,++++++++++++++,+++++++++++++,++++++++++++++++++,+++++++++,+++++++++,++++++++++++++,+++++++++++++,+++++++++++++++++++
+        # GENE SYMBOL,GENE ID (HGNC),DISEASE LABEL,DISEASE ID (MONDO),MOI,SOP,CLASSIFICATION,ONLINE REPORT,CLASSIFICATION DATE
+        # +++++++++++,++++++++++++++,+++++++++++++,++++++++++++++++++,+++++++++,+++++++++,++++++++++++++,+++++++++++++,+++++++++++++++++++
 
-            reader = csv.DictReader(zf, delimiter=',', quotechar='"')
-            c = 0
-            for row in reader:
-                c += 1
-                if c > 1:
-                    # Column names are:
-                    # "gene symbol","gene mim","disease name","disease mim","DDD category","allelic requirement",
-                    # "mutation consequence",phenotypes,"organ specificity list",pmids,panel,"prev symbols","hgnc id",
-                    # "gene disease pair entry date"
-                    gene_symbol = row["gene symbol"]
-                    disease_name = row["disease name"]
-                    disease_mim = row["disease mim"]
-                    allelic_requirement = row["allelic requirement"]
-                    mutation_consequence = row["mutation consequence"]
-                    confidence = row["DDD category"]
-                    panel = row["panel"]
+        gene_validity_curation_df = pd.read_csv(filename, skiprows= [0,1,2,3,5], quotechar='"')
+        for index, row in gene_validity_curation_df.iterrows():
+            print("{} - {}".format(row["GENE SYMBOL"], row["DISEASE LABEL"]))
 
-                    date = row["gene disease pair entry date"]
-                    # Handle missing dates ("No date" in file)
-                    try:
-                        date = datetime.datetime.strptime(date, "%Y-%m-%d %H:%M:%S").isoformat()
-                    except ValueError:
-                        date = "N/A"
+            gene_symbol = row["GENE SYMBOL"]
+            disease_name = row["DISEASE LABEL"]
+            allelic_requirement = row["allelic requirement"]
+            mutation_consequence = row["mutation consequence"]
+            confidence = row["DDD category"]
+            panel = row["panel"]
+
+            date = row["gene disease pair entry date"]
+            # Handle missing dates ("No date" in file)
+            try:
+                date = datetime.datetime.strptime(date, "%Y-%m-%d %H:%M:%S").isoformat()
+            except ValueError:
+                date = "N/A"
 
 
-                    gene_symbol.rstrip()
+            gene_symbol.rstrip()
 
-                    if gene_symbol in self.genes:
-                        # Map gene symbol to ensembl
-                        target = self.genes[gene_symbol]
-                        ensembl_iri = "http://identifiers.org/ensembl/" + target
+            if gene_symbol in self.genes:
+                # Map gene symbol to ensembl
+                target = self.genes[gene_symbol]
+                ensembl_iri = "http://identifiers.org/ensembl/" + target
 
-                        # Map disease to EFO or Orphanet
-                        if disease_mim in self.omim_to_efo_map:
-                            total_efo +=1
-                            diseases = self.omim_to_efo_map[disease_mim]
+                # Map disease to EFO or Orphanet
+                if disease_mim in self.omim_to_efo_map:
+                    total_efo +=1
+                    diseases = self.omim_to_efo_map[disease_mim]
 
-                            for disease in diseases:
-                                self._logger.info("%s %s %s %s"%(gene_symbol, target, disease_name, disease['efo_uri']))
+                    for disease in diseases:
+                        self._logger.info("%s %s %s %s"%(gene_symbol, target, disease_name, disease['efo_uri']))
 
-                                type = "genetic_literature"
+                        type = "genetic_literature"
 
-                                provenance_type = {
-                                    'database' : {
-                                        'id' : "Gene2Phenotype",
-                                        'version' : '2020.04.02',
-                                        'dbxref' : {
-                                            'url': "http://www.ebi.ac.uk/gene2phenotype",
-                                            'id' : "Gene2Phenotype",
-                                            'version' : "2020.04.02"
+                        provenance_type = {
+                            'database' : {
+                                'id' : "Gene2Phenotype",
+                                'version' : '2020.04.02',
+                                'dbxref' : {
+                                    'url': "http://www.ebi.ac.uk/gene2phenotype",
+                                    'id' : "Gene2Phenotype",
+                                    'version' : "2020.04.02"
 
-                                        }
-                                    },
-                                    'literature' : {
-                                        'references' : [
-                                            {
-                                                'lit_id' : "http://europepmc.org/abstract/MED/25529582"
-                                            }
-                                        ]
-                                    }
                                 }
-
-                                # *** General properties ***
-                                access_level = "public"
-                                sourceID = "gene2phenotype"
-                                validated_against_schema_version = self.schema_version
-
-                                # *** Target info ***
-                                target = {
-                                    'id' : ensembl_iri,
-                                    'activity' : "http://identifiers.org/cttv.activity/unknown",
-                                    'target_type' : "http://identifiers.org/cttv.target/gene_evidence",
-                                    'target_name' : gene_symbol
-                                }
-                                # http://www.ontobee.org/ontology/ECO?iri=http://purl.obolibrary.org/obo/ECO_0000204 -- An evidence type that is based on an assertion by the author of a paper, which is read by a curator.
-
-                                # *** Disease info ***
-                                disease_info = {
-                                    'id' : disease['efo_uri'],
-                                    'name' : disease['efo_label'],
-                                    'source_name' : disease_name
-                                }
-                                # *** Evidence info ***
-                                # Score based on mutational consequence
-                                if confidence in G2P_confidence2score:
-                                    score = G2P_confidence2score[confidence]
-                                else:
-                                    self.logger.error('{} is not a recognised G2P confidence, assigning an score of 0'.format(confidence))
-                                    score = 0
-                                resource_score = {
-                                    'type': "probability",
-                                    'value': score
-                                }
-
-                                # Linkout
-                                linkout = [
+                            },
+                            'literature' : {
+                                'references' : [
                                     {
-                                        'url' : 'http://www.ebi.ac.uk/gene2phenotype/search?panel=ALL&search_term=%s' % (gene_symbol,),
-                                        'nice_name' : 'Gene2Phenotype%s' % (gene_symbol)
+                                        'lit_id' : "http://europepmc.org/abstract/MED/25529582"
                                     }
                                 ]
+                            }
+                        }
 
-                                evidence = {
-                                    'is_associated' : True,
-                                    'confidence' : confidence,
-                                    'allelic_requirement' : allelic_requirement,
-                                    'mutation_consequence' : mutation_consequence,
-                                    'evidence_codes' : ["http://purl.obolibrary.org/obo/ECO_0000204"],
-                                    'provenance_type' : provenance_type,
-                                    'date_asserted' : date,
-                                    'resource_score' : resource_score,
-                                    'urls' : linkout
-                                }
-                                # *** unique_association_fields ***
-                                unique_association_fields = {
-                                    'target_id' : ensembl_iri,
-                                    'original_disease_label' : disease_name,
-                                    'disease_id' : disease['efo_uri'],
-                                    'gene_panel': panel
-                                }
+                        # *** General properties ***
+                        access_level = "public"
+                        sourceID = "gene2phenotype"
+                        validated_against_schema_version = self.schema_version
+
+                        # *** Target info ***
+                        target = {
+                            'id' : ensembl_iri,
+                            'activity' : "http://identifiers.org/cttv.activity/unknown",
+                            'target_type' : "http://identifiers.org/cttv.target/gene_evidence",
+                            'target_name' : gene_symbol
+                        }
+                        # http://www.ontobee.org/ontology/ECO?iri=http://purl.obolibrary.org/obo/ECO_0000204 -- An evidence type that is based on an assertion by the author of a paper, which is read by a curator.
+
+                        # *** Disease info ***
+                        disease_info = {
+                            'id' : disease['efo_uri'],
+                            'name' : disease['efo_label'],
+                            'source_name' : disease_name
+                        }
+                        # *** Evidence info ***
+                        # Score based on mutational consequence
+                        if confidence in G2P_confidence2score:
+                            score = G2P_confidence2score[confidence]
+                        else:
+                            self.logger.error('{} is not a recognised G2P confidence, assigning an score of 0'.format(confidence))
+                            score = 0
+                        resource_score = {
+                            'type': "probability",
+                            'value': score
+                        }
+
+                        # Linkout
+                        linkout = [
+                            {
+                                'url' : 'http://www.ebi.ac.uk/gene2phenotype/search?panel=ALL&search_term=%s' % (gene_symbol,),
+                                'nice_name' : 'Gene2Phenotype%s' % (gene_symbol)
+                            }
+                        ]
+
+                        evidence = {
+                            'is_associated' : True,
+                            'confidence' : confidence,
+                            'allelic_requirement' : allelic_requirement,
+                            'mutation_consequence' : mutation_consequence,
+                            'evidence_codes' : ["http://purl.obolibrary.org/obo/ECO_0000204"],
+                            'provenance_type' : provenance_type,
+                            'date_asserted' : date,
+                            'resource_score' : resource_score,
+                            'urls' : linkout
+                        }
+                        # *** unique_association_fields ***
+                        unique_association_fields = {
+                            'target_id' : ensembl_iri,
+                            'original_disease_label' : disease_name,
+                            'disease_id' : disease['efo_uri'],
+                            'gene_panel': panel
+                        }
 
 
-                                try:
-                                    evidence = self.evidence_builder.Opentargets(
-                                        type = type,
-                                        access_level = access_level,
-                                        sourceID = sourceID,
-                                        evidence = evidence,
-                                        target = target,
-                                        disease = disease_info,
-                                        unique_association_fields = unique_association_fields,
-                                        validated_against_schema_version = validated_against_schema_version
-                                    )
-                                    self.evidence_strings.append(evidence)
-                                except:
-                                    self._logger.warning('Evidence generation failed for row: {}'.format(c))
-                                    raise
-                    else:
-                        self._logger.error("%s\t%s not mapped: please check manually"%(disease_name, disease_mim))
+                        try:
+                            evidence = self.evidence_builder.Opentargets(
+                                type = type,
+                                access_level = access_level,
+                                sourceID = sourceID,
+                                evidence = evidence,
+                                target = target,
+                                disease = disease_info,
+                                unique_association_fields = unique_association_fields,
+                                validated_against_schema_version = validated_against_schema_version
+                            )
+                            self.evidence_strings.append(evidence)
+                        except:
+                            self._logger.warning('Evidence generation failed for row: {}'.format(c))
+                            raise
+            else:
+                self._logger.error("%s\t%s not mapped: please check manually"%(disease_name, disease_mim))
 
                 print("%i %i" % (total_efo, c))
 
