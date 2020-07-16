@@ -10,6 +10,7 @@ import csv
 import gzip
 import requests
 import datetime
+import argparse
 
 __copyright__  = "Copyright 2014-2020, Open Targets"
 __credits__    = ["Gautier Koscielny", "ChuangKee Ong", "Michaela Spitzer", "Asier Gonzalez" ]
@@ -28,18 +29,30 @@ G2P_confidence2score = {
 }
 
 class G2P(RareDiseaseMapper):
-    def __init__(self, schema_json=Config.OT_JSON_SCHEMA, schema_version=Config.VALIDATED_AGAINST_SCHEMA_VERSION):
+    def __init__(self, schema_version=Config.VALIDATED_AGAINST_SCHEMA_VERSION):
         super(G2P, self).__init__()
         self.genes = None
         self.evidence_strings = list()
 
         self._logger = logging.getLogger(__name__)
 
-        # Initialize json builder based on the schema:
-        json_schema = requests.get(schema_json).json()
-        self.builder = pjo.ObjectBuilder(json_schema)
-        self.evidence_builder = self.builder.build_classes()
+        # Build JSON schema url from version
         self.schema_version = schema_version
+        schema_url = "https://raw.githubusercontent.com/opentargets/json_schema/" + self.schema_version + "/draft4_schemas/opentargets.json"
+        self._logger.info('Loading JSON schema at {}'.format(schema_url))
+
+        # Initialize json builder based on the schema:
+        try:
+            r = requests.get(schema_url)
+            r.raise_for_status()
+            json_schema = r.json()
+            self.builder = pjo.ObjectBuilder(json_schema)
+            self.evidence_builder = self.builder.build_classes()
+            self.schema_version = schema_version
+        except requests.exceptions.HTTPError as e:
+            self._logger.error('Invalid JSON schema version')
+            raise e
+
 
     def process_g2p(self):
 
@@ -132,7 +145,7 @@ class G2P(RareDiseaseMapper):
                                 # *** General properties ***
                                 access_level = "public"
                                 sourceID = "gene2phenotype"
-                                validated_against_schema_version = Config.VALIDATED_AGAINST_SCHEMA_VERSION
+                                validated_against_schema_version = self.schema_version
 
                                 # *** Target info ***
                                 target = {
@@ -221,7 +234,18 @@ class G2P(RareDiseaseMapper):
 
 
 def main():
-    g2p = G2P()
+
+    # Parse CLI arguments
+    parser = argparse.ArgumentParser(description='Parse Gene2Phenotype gene-disease files downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads/')
+    parser.add_argument('-s', '--schema_version',
+                        help='JSON schema version to use, e.g. 1.6.8. It must be branch or a tag available in https://github.com/opentargets/json_schema',
+                        type=str, required=True)
+
+    args = parser.parse_args()
+    # Get parameters
+    schema_version = args.schema_version
+
+    g2p = G2P(schema_version=schema_version)
     g2p.process_g2p()
 
 if __name__ == "__main__":

@@ -40,7 +40,6 @@ class Config:
 
     # schema version
     VALIDATED_AGAINST_SCHEMA_VERSION = '1.2.8'
-    OT_JSON_SCHEMA = "https://raw.githubusercontent.com/opentargets/json_schema/Draft-4_compatible/opentargets.json"
 
     # Ontologies
     EFO_URL = 'https://github.com/EBISPOT/efo/raw/v2018-01-15/efo.obo'
