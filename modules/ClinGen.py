@@ -1,6 +1,6 @@
 from settings import Config
 from common.HGNCParser import GeneParser
-from common.RareDiseasesUtils import RareDiseaseMapper
+import ontoma
 
 import python_jsonschema_objects as pjo
 
@@ -53,6 +53,9 @@ class ClinGen():
             self._logger.error('Invalid JSON schema version')
             raise e
 
+        # Create OnToma object
+        self.ontoma = ontoma.interface.OnToma()
+
 
     def process_gene_validity_curations(self, in_filename, out_filename):
 
@@ -96,94 +99,100 @@ class ClinGen():
                 target = self.genes[gene_symbol]
                 ensembl_iri = "http://identifiers.org/ensembl/" + target
 
+                # Check that disease id exists in EFO or find equivalent term
+                # If id is not found in EFO OBO file the function returns None
+                disease_label = self.ontoma.get_efo_label(disease_id)
+                if disease_label:
+                    pass
+                else:
+                    # *** Disease info ***
+                    disease_info = {
+                        'id': "http://purl.obolibrary.org/obo/" + disease_id,
+                        'name' : disease_label,
+                        'source_name': disease_name
+                    }
 
-                type = "genetic_literature"
+                    type = "genetic_literature"
 
-                provenance_type = {
-                    'database' : {
-                        'id' : "ClinGen - Gene Validity Curations",
-                        'version' : '2020.07.16',
-                        'dbxref' : {
-                            'url': "https://search.clinicalgenome.org/kb/gene-validity",
+                    provenance_type = {
+                        'database' : {
                             'id' : "ClinGen - Gene Validity Curations",
-                            'version' : "2020.07.16"
+                            'version' : '2020.07.16',
+                            'dbxref' : {
+                                'url': "https://search.clinicalgenome.org/kb/gene-validity",
+                                'id' : "ClinGen - Gene Validity Curations",
+                                'version' : "2020.07.16"
 
+                            }
                         }
                     }
-                }
 
-                # *** General properties ***
-                access_level = "public"
-                sourceID = "clingen"
-                validated_against_schema_version = self.schema_version
+                    # *** General properties ***
+                    access_level = "public"
+                    sourceID = "clingen"
+                    validated_against_schema_version = self.schema_version
 
-                # *** Target info ***
-                target = {
-                    'id' : ensembl_iri,
-                    'activity' : "http://identifiers.org/cttv.activity/unknown",
-                    'target_type' : "http://identifiers.org/cttv.target/gene_evidence",
-                    'target_name' : gene_symbol
-                }
-                # http://www.ontobee.org/ontology/ECO?iri=http://purl.obolibrary.org/obo/ECO_0000204 -- An evidence type that is based on an assertion by the author of a paper, which is read by a curator.
-
-                # *** Disease info ***
-                disease_info = {
-                    'id' : "http://purl.obolibrary.org/obo/" + disease_id,
-                    #'name' : disease['efo_label'],
-                    'source_name' : disease_name
-                }
-                # *** Evidence info ***
-                # Score based on disease confidence/ classification
-                if classification in ClinGen_classification2score:
-                    score = ClinGen_classification2score[classification]
-                else:
-                    self.logger.error('{} is not a recognised ClinGen classification, assigning an score of 0'.format(classification))
-                    score = 0
-                resource_score = {
-                    'type': "probability",
-                    'value': score
-                }
-
-                # Linkout
-                linkout = [
-                    {
-                        'url' : report_url,
-                        'nice_name' : 'Gene Validit Curation: {} - {} report'.format(gene_symbol, disease_name)
+                    # *** Target info ***
+                    target = {
+                        'id' : ensembl_iri,
+                        'activity' : "http://identifiers.org/cttv.activity/unknown",
+                        'target_type' : "http://identifiers.org/cttv.target/gene_evidence",
+                        'target_name' : gene_symbol
                     }
-                ]
+                    # http://www.ontobee.org/ontology/ECO?iri=http://purl.obolibrary.org/obo/ECO_0000204 -- An evidence type that is based on an assertion by the author of a paper, which is read by a curator.
 
-                evidence = {
-                    'is_associated' : True,
-                    'confidence' : classification,
-                    'allelic_requirement' : mode_of_inheritancr,
-                    'evidence_codes' : ["http://purl.obolibrary.org/obo/ECO_0000204"],
-                    'provenance_type' : provenance_type,
-                    'date_asserted' : date,
-                    'resource_score' : resource_score,
-                    'urls' : linkout
-                }
-                # *** unique_association_fields ***
-                unique_association_fields = {
-                    'target_id' : ensembl_iri,
-                    'disease_id' : disease_id,
-                }
+                    # *** Evidence info ***
+                    # Score based on disease confidence/ classification
+                    if classification in ClinGen_classification2score:
+                        score = ClinGen_classification2score[classification]
+                    else:
+                        self.logger.error('{} is not a recognised ClinGen classification, assigning an score of 0'.format(classification))
+                        score = 0
+                    resource_score = {
+                        'type': "probability",
+                        'value': score
+                    }
+
+                    # Linkout
+                    linkout = [
+                        {
+                            'url' : report_url,
+                            'nice_name' : 'Gene Validit Curation: {} - {} report'.format(gene_symbol, disease_name)
+                        }
+                    ]
+
+                    evidence = {
+                        'is_associated' : True,
+                        'confidence' : classification,
+                        'allelic_requirement' : mode_of_inheritancr,
+                        'evidence_codes' : ["http://purl.obolibrary.org/obo/ECO_0000204"],
+                        'provenance_type' : provenance_type,
+                        'date_asserted' : date,
+                        'resource_score' : resource_score,
+                        'urls' : linkout
+                    }
+                    # *** unique_association_fields ***
+                    unique_association_fields = {
+                        'target_id' : ensembl_iri,
+                        'disease_id' : disease_id,
+                    }
 
 
-                try:
-                    evidence = self.evidence_builder.Opentargets(
-                        type = type,
-                        access_level = access_level,
-                        sourceID = sourceID,
-                        evidence = evidence,
-                        target = target,
-                        disease = disease_info,
-                        unique_association_fields = unique_association_fields,
-                        validated_against_schema_version = validated_against_schema_version
-                    )
-                    self.evidence_strings.append(evidence)
-                except:
-                    self._logger.warning('Evidence generation failed for row: {}'.format(c))
-                    raise
+                    try:
+                        evidence = self.evidence_builder.Opentargets(
+                            type = type,
+                            access_level = access_level,
+                            sourceID = sourceID,
+                            evidence = evidence,
+                            target = target,
+                            disease = disease_info,
+                            unique_association_fields = unique_association_fields,
+                            validated_against_schema_version = validated_against_schema_version
+                        )
+                        self.evidence_strings.append(evidence)
+                    except:
+                        self._logger.warning('Evidence generation failed for row: {}'.format(c))
+                        raise
 
     def write_evidence_strings(self, filename):
         self._logger.info("Writing Gene2Phenotype evidence strings to %s", filename)
