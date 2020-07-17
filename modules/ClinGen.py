@@ -101,14 +101,23 @@ class ClinGen():
 
                 # Check that disease id exists in EFO or find equivalent term
                 # If id is not found in EFO OBO file the function returns None
-                disease_label = self.ontoma.get_efo_label(disease_id)
-                if disease_label:
-                    pass
+                if self.ontoma.get_efo_label(disease_id):
+                    disease_label = self.ontoma.get_efo_label(disease_id)
+                    # Create list of single disease to mimic what is returned by next step
+                    efo_mappings = [{'id': disease_id, 'name': disease_label}]
+                elif self.ontoma.get_efo_from_xref(disease_id):
+                    efo_mappings = self.ontoma.get_efo_from_xref(disease_id)
                 else:
+                    # MONDO id could not be found in EFO. Log it and continue
+                    self._logger.info("{} - {} could not be mapped to any EFO id. Skipping it, it should be checked with the EFO team".format(disease_name, disease_id))
+                    continue
+
+                for efo_mapping in efo_mappings:
+
                     # *** Disease info ***
                     disease_info = {
-                        'id': "http://purl.obolibrary.org/obo/" + disease_id,
-                        'name' : disease_label,
+                        'id': ontoma.interface.make_uri(efo_mapping['id']),
+                        'name' : efo_mapping['name'],
                         'source_name': disease_name
                     }
 
