@@ -114,12 +114,16 @@ class ClinGen():
                     efo_mappings = [{'id': disease_id, 'name': disease_label}]
                 elif self.ontoma.get_efo_from_xref(disease_id):
                     efo_mappings = self.ontoma.get_efo_from_xref(disease_id)
+                    self._logger.info("{} mapped to {} EFO ids based on xrefs.".format(disease_id, len(efo_mappings)))
                 else:
                     # Search disease label using OnToma and accept perfect matches
                     ontoma_mapping = self.ontoma.find_term(disease_name, verbose=True)
                     if ontoma_mapping:
                         if ontoma_mapping['action'] is None:
                             efo_mappings = [{'id': ontoma_mapping['term'], 'name': ontoma_mapping['label']}]
+                        else:
+                            # OnToma fuzzy match ignored
+                            self._logger.info("Fuzzy match from OnToma ignored. Request EFO team to import {} - {}".format(disease_name, disease_id))
                     else:
                         # MONDO id could not be found in EFO. Log it and continue
                         self._logger.info("{} - {} could not be mapped to any EFO id. Skipping it, it should be checked with the EFO team".format(disease_name, disease_id))
