@@ -249,10 +249,7 @@ class ClinGen():
     def write_evidence_strings(self, filename):
         self._logger.info("Writing ClinGen evidence strings to %s", filename)
         with open(filename, 'w') as tp_file:
-            n = 0
             for evidence_string in self.evidence_strings:
-                n += 1
-                self._logger.info(evidence_string['disease']['id'])
                 tp_file.write(evidence_string.serialize() + "\n")
         tp_file.close()
 
