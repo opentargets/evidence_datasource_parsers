@@ -124,6 +124,7 @@ class ClinGen():
                         else:
                             # OnToma fuzzy match ignored
                             self._logger.info("Fuzzy match from OnToma ignored. Request EFO team to import {} - {}".format(disease_name, disease_id))
+                            continue
                     else:
                         # MONDO id could not be found in EFO. Log it and continue
                         self._logger.info("{} - {} could not be mapped to any EFO id. Skipping it, it should be checked with the EFO team".format(disease_name, disease_id))
