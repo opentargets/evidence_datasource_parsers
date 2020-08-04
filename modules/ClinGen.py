@@ -33,6 +33,7 @@ class ClinGen():
     def __init__(self, schema_version=Config.VALIDATED_AGAINST_SCHEMA_VERSION):
         self.genes = None
         self.evidence_strings = list()
+        self.unmapped_diseases = set()
 
         # Configure logging
         # Create logger
@@ -83,6 +84,9 @@ class ClinGen():
 
         # Save results to file
         self.write_evidence_strings(out_filename)
+
+        # Write unmapped diseases to file
+        self.write_unmapped_diseases()
 
     def generate_evidence_strings(self, filename):
 
@@ -140,10 +144,14 @@ class ClinGen():
                         else:
                             # OnToma fuzzy match ignored
                             self._logger.info("Fuzzy match from OnToma ignored. Request EFO team to import {} - {}".format(disease_name, disease_id))
+                            # Record the unmapped disease
+                            self.unmapped_diseases.add((disease_id, disease_name))
                             continue
                     else:
                         # MONDO id could not be found in EFO. Log it and continue
                         self._logger.info("{} - {} could not be mapped to any EFO id. Skipping it, it should be checked with the EFO team".format(disease_name, disease_id))
+                        # Record the unmapped disease
+                        self.unmapped_diseases.add((disease_id, disease_name))
                         continue
 
                 for efo_mapping in efo_mappings:
@@ -247,6 +255,13 @@ class ClinGen():
                 self._logger.info(evidence_string['disease']['id'])
                 tp_file.write(evidence_string.serialize() + "\n")
         tp_file.close()
+
+    def write_unmapped_diseases(self, filename="unmapped_diseases.tsv"):
+        self._logger.info("Writing ClinGen diseases not mapped to EFO to %s", filename)
+        with open(filename, 'w') as unmapped_diseases_file:
+            unmapped_diseases_file.write("disease_id\tdisease_name\n")
+            for unmapped_disease in self.unmapped_diseases:
+                unmapped_diseases_file.write(unmapped_disease[0] + "\t" + unmapped_disease[1] + "\n")
 
 
 def main():
