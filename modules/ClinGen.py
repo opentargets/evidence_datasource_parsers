@@ -239,7 +239,7 @@ class ClinGen():
                         raise
 
     def write_evidence_strings(self, filename):
-        self._logger.info("Writing Gene2Phenotype evidence strings to %s", filename)
+        self._logger.info("Writing ClinGen evidence strings to %s", filename)
         with open(filename, 'w') as tp_file:
             n = 0
             for evidence_string in self.evidence_strings:
@@ -252,7 +252,7 @@ class ClinGen():
 def main():
 
     # Parse CLI arguments
-    parser = argparse.ArgumentParser(description='Parse Gene2Phenotype gene-disease files downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads/')
+    parser = argparse.ArgumentParser(description='Parse ClinGen gene-disease associations from Gene Validity Curations')
     parser.add_argument('-i', '--input_file',
                         help='Name of csv file downloaded from https://search.clinicalgenome.org/kb/gene-validity',
                         type=str, required=True)
