@@ -72,13 +72,20 @@ class ClinGen():
 
         total_efo = 0
 
-        # When reading csv file skip header lines that don't contain column names
+        # When reading csv file first extract date from second row and the skip header lines that don't contain column names
         # CLINGEN GENE VALIDITY CURATIONS
         # FILE CREATED: 2020-07-16
         # WEBPAGE: https://search.clinicalgenome.org/kb/gene-validity
         # +++++++++++,++++++++++++++,+++++++++++++,++++++++++++++++++,+++++++++,+++++++++,++++++++++++++,+++++++++++++,+++++++++++++++++++
         # GENE SYMBOL,GENE ID (HGNC),DISEASE LABEL,DISEASE ID (MONDO),MOI,SOP,CLASSIFICATION,ONLINE REPORT,CLASSIFICATION DATE
         # +++++++++++,++++++++++++++,+++++++++++++,++++++++++++++++++,+++++++++,+++++++++,++++++++++++++,+++++++++++++,+++++++++++++++++++
+
+        # Read first two rows of file to extract date
+        with open(filename) as f:
+            f.readline() # Don't do anything with first row
+            second_row = f.readline()
+            file_created_date = second_row.split(": ")[1].strip() # Extract date and clean it
+
 
         gene_validity_curation_df = pd.read_csv(filename, skiprows= [0,1,2,3,5], quotechar='"')
         for index, row in gene_validity_curation_df.iterrows():
@@ -131,11 +138,11 @@ class ClinGen():
                     provenance_type = {
                         'database' : {
                             'id' : "ClinGen - Gene Validity Curations",
-                            'version' : '2020.07.16',
+                            'version' : file_created_date,
                             'dbxref' : {
                                 'url': "https://search.clinicalgenome.org/kb/gene-validity",
                                 'id' : "ClinGen - Gene Validity Curations",
-                                'version' : "2020.07.16"
+                                'version' : file_created_date
 
                             }
                         }
