@@ -74,7 +74,7 @@ class ClinGen():
         self.ontoma = ontoma.interface.OnToma()
 
 
-    def process_gene_validity_curations(self, in_filename, out_filename):
+    def process_gene_validity_curations(self, in_filename, out_filename, unmapped_diseases_filename):
 
         gene_parser = GeneParser()
         gene_parser._get_hgnc_data_from_json()
@@ -85,8 +85,9 @@ class ClinGen():
         # Save results to file
         self.write_evidence_strings(out_filename)
 
-        # Write unmapped diseases to file
-        self.write_unmapped_diseases()
+        # If selected, write unmapped diseases to file
+        if unmapped_diseases_filename:
+            self.write_unmapped_diseases(unmapped_diseases_filename)
 
     def generate_evidence_strings(self, filename):
 
@@ -253,7 +254,7 @@ class ClinGen():
                 tp_file.write(evidence_string.serialize() + "\n")
         tp_file.close()
 
-    def write_unmapped_diseases(self, filename="unmapped_diseases.tsv"):
+    def write_unmapped_diseases(self, filename):
         self._logger.info("Writing ClinGen diseases not mapped to EFO to %s", filename)
         with open(filename, 'w') as unmapped_diseases_file:
             unmapped_diseases_file.write("disease_id\tdisease_name\n")
@@ -274,15 +275,19 @@ def main():
     parser.add_argument('-s', '--schema_version',
                         help='JSON schema version to use, e.g. 1.6.8. It must be branch or a tag available in https://github.com/opentargets/json_schema',
                         type=str, required=True)
+    parser.add_argument('-u', '--unmapped_diseases_file',
+                        help='If specified, the diseases not mapped to EFO will be stored in this file',
+                        type=str, default=False)
 
     args = parser.parse_args()
     # Get parameters
     infile = args.input_file
     outfile = args.output_file
     schema_version = args.schema_version
+    unmapped_diseases_file = args.unmapped_diseases_file
 
     clingen = ClinGen(schema_version=schema_version)
-    clingen.process_gene_validity_curations(infile, outfile)
+    clingen.process_gene_validity_curations(infile, outfile, unmapped_diseases_file)
 
 if __name__ == "__main__":
     main()
