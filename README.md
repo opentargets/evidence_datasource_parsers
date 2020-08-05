@@ -76,10 +76,11 @@ The parser requires three parameters:
 - `-i`, `--input_file`: Name of csv file downloaded from https://search.clinicalgenome.org/kb/gene-validity
 - `-o`, `--output_file`: Name of evidence JSON file
 - `-s`, `--schema_version`: JSON schema version to use, e.g. 1.6.8. It must be branch or a tag available in https://github.com/opentargets/json_schema
+- `-u`, `--unmapped_diseases_file`: If specified, the diseases not mapped to EFO will be stored in this file'
 
 To use the parser configure the python environment and run it as follows:
 ```bash
-(venv)$ python3 ../evidence_datasource_parsers/modules/ClinGen.py -i ClinGen-Gene-Disease-Summary-2020-08-04.csv -o clingen_2020-08-04.json -s 1.6.9
+(venv)$ python3 ../evidence_datasource_parsers/modules/ClinGen.py -i ClinGen-Gene-Disease-Summary-2020-08-04.csv -o clingen_2020-08-04.json -s 1.6.9 -u unmapped_diseases_clingen.tsv
 ```
 
 ### IntOGen
