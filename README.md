@@ -53,6 +53,36 @@ Further development of this repository should follow the next premises:
 1. Reproducibility (e.g. saving API results as files)
 1. Containerization - Dockerize
 
+### ClinGen
+The ClinGen parser processes the _Gene Validity Curations_ table that can be downloaded from https://search.clinicalgenome.org/kb/gene-validity. At the time the parser was written (August 2020), the downloadable file contained six header lines that look as follows:
+```tsv
+CLINGEN GENE VALIDITY CURATIONS
+FILE CREATED: 2020-08-04
+WEBPAGE: https://search.clinicalgenome.org/kb/gene-validity
++++++++++++,++++++++++++++,+++++++++++++,++++++++++++++++++,+++++++++,+++++++++,++++++++++++++,+++++++++++++,+++++++++++++++++++
+GENE SYMBOL,GENE ID (HGNC),DISEASE LABEL,DISEASE ID (MONDO),MOI,SOP,CLASSIFICATION,ONLINE REPORT,CLASSIFICATION DATE
++++++++++++,++++++++++++++,+++++++++++++,++++++++++++++++++,+++++++++,+++++++++,++++++++++++++,+++++++++++++,+++++++++++++++++++
+
+```
+
+The mapping of the diseases is done on the fly as a three step process:
+1. The MONDO id provided by ClinGen is used if it exists in EFO.
+2. EFO is searched for xrefs to the MONDO id and all the EFO hits are used.
+3. OnToma is used to search for perfect matches of the ClinGen disease name.
+
+The unmapped diseases are saved to a file called `unmapped_diseases.tsv` so that they can be reported to [EFO](https://github.com/EBISPOT/efo/issues/).
+
+The parser requires three parameters:
+- `-i`, `--input_file`: Name of csv file downloaded from https://search.clinicalgenome.org/kb/gene-validity
+- `-o`, `--output_file`: Name of evidence JSON file
+- `-s`, `--schema_version`: JSON schema version to use, e.g. 1.6.8. It must be branch or a tag available in https://github.com/opentargets/json_schema
+- `-u`, `--unmapped_diseases_file`: If specified, the diseases not mapped to EFO will be stored in this file'
+
+To use the parser configure the python environment and run it as follows:
+```bash
+(venv)$ python3 ../evidence_datasource_parsers/modules/ClinGen.py -i ClinGen-Gene-Disease-Summary-2020-08-04.csv -o clingen_2020-08-04.json -s 1.6.9 -u unmapped_diseases_clingen.tsv
+```
+
 ### IntOGen
 
 The intOGen parser generates evidence strings from three files that need to be in the working directory or in the _resources_ directory:
