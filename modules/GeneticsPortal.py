@@ -476,6 +476,7 @@ def main():
     parser.add_argument('--cores', help='Number of computing cores available for the evidence generation.', type=int, default=2)
     parser.add_argument('--outputFile', help='Name of the gzipped json output file.', type=str, default='output.json.gz')
     parser.add_argument('--sample', help='If provided this many randomly selected of evidences will be generated.', type=int, required=False)
+    parser.add_argument('--threshold', help='If provided, evidences will be filtered for locus to gene score at the defined threshold.', type=float, required=False)
     args = parser.parse_args()
 
     # Parse input parameters:
@@ -484,6 +485,7 @@ def main():
     outputFile = args.outputFile
     sample = args.sample
     schemaFile = args.schemaFile
+    threshold = args.threshold
 
     #  Opening input file parquet of tsv:
     if 'parquet' in inputFile:
@@ -495,6 +497,13 @@ def main():
 
     # Removing duplicates:
     genetics_dataframe = remove_duplicates(genetics_dataframe)
+
+    # Applyting l2g score threshold if specified:
+    if threshold:
+        logging.info('Applying l2g score threshold {}'.format(threshold))
+        rows = len(genetics_dataframe)
+        genetics_dataframe = genetics_dataframe.loc[genetics_dataframe.y_proba_full_model > threshold]
+        logging.info('Number of rows went from {} to {} after applying the threshold.'.format(rows, len(genetics_dataframe)))
 
     # If required, the dataframe is subset:
     if sample:
