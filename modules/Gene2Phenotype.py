@@ -30,76 +30,6 @@ G2P_confidence2score = {
 }
 
 
-def map_disease_names_to_ontology(disease_name):
-    '''
-    Searches the G2P disease name in EFO, ORDO, HP and MONDO
-
-    OnToma is used to query the ontology OBO files, the manual mapping file and the Zooma and OLS APIs. MONDO is only searched if no exact matches are found.
-
-    Args:
-        disease_name (str): Gene2Phenotype disease name extracted from the "disease name" column
-
-    Returns:
-        dict: Dictionary that contains id and name of mapped ontology term or `None` if not found
-    '''
-
-    # Search disease name using OnToma and accept perfect matches
-    ontoma_mapping = self.ontoma.find_term(disease_name, verbose=True)
-    if ontoma_mapping:
-        if ontoma_mapping['action'] is None:
-            return {'id': ontoma_mapping['term'], 'name': ontoma_mapping['label']}
-        elif ontoma_mapping['quality'] == "match":
-            # Match in HP or ORDO, check if there is a match in MONDO too. If so, give preference to MONDO hit
-            mondo_mapping = self.ontoma.mondo_lookup(disease_name)
-            if mondo_mapping:
-                return mondo_mapping
-            else:
-                return {'id': ontoma_mapping['term'], 'name': ontoma_mapping['label']}
-        else:
-            # OnToma fuzzy match. Check in MONDO and if there is not match ignore evidence and report disease
-            mondo_mapping = self.ontoma.mondo_lookup(disease_name)
-            if mondo_mapping:
-                return mondo_mapping
-            else:
-                self._logger.info( "Fuzzy match from OnToma ignored for {}".format(disease_name))
-                # Record the unmapped disease
-                #self.unmapped_diseases.add((disease_id, disease_name))
-                return
-    else:
-        # No match in EFO, HP or ORDO
-        mondo_mapping = self.ontoma.mondo_lookup(disease_name)
-        if mondo_mapping:
-            return mondo_mapping
-        else:
-            self._logger.info(
-                "{} could not be mapped to any EFO, HP, ORDO or MONDO. Skipping it, it should be checked with Gene2Phenotype and/or EFO".format(
-                disease_name, disease_id))
-            # Record the unmapped disease
-            #self.unmapped_diseases.add((disease_id, disease_name))
-            return
-
-def search_mondo(disease_name):
-    '''
-    Searches the G2P disease name in MONDO, both using the OBO file and OLS
-
-    Args:
-        disease_name (str): Gene2Phenotype disease name extracted from the "disease name" column
-
-    Returns:
-        dict: Dictionary containing MONDO id and name or `None` if not found
-    '''
-    if self.ontoma.mondo_lookup(disease_name):
-        mondo_term = self.ontoma.mondo_lookup(disease_name)
-        return {'id': mondo_term, 'name': disease_name}
-    elif self.ontoma._ols.besthit(disease_name, ontology=['mondo'], filed_list=['iri', 'label'], exact=True):
-        exact_ols_mondo = self.ontoma._ols.besthit(disease_name, ontology=['mondo'],
-                                                   filed_list=['iri', 'label'],
-                                                   exact=True)
-        return {'id': exact_ols_mondo['iri'], 'name': exact_ols_mondo['label']}
-    else:
-        return
-
-
 class G2P(RareDiseaseMapper):
     def __init__(self, schema_version=Config.VALIDATED_AGAINST_SCHEMA_VERSION):
         super(G2P, self).__init__()
@@ -124,6 +54,78 @@ class G2P(RareDiseaseMapper):
         except requests.exceptions.HTTPError as e:
             self._logger.error('Invalid JSON schema version')
             raise e
+
+    def map_disease_name_to_ontology(self, disease_name):
+        '''
+        Searches the G2P disease name in EFO, ORDO, HP and MONDO
+
+        OnToma is used to query the ontology OBO files, the manual mapping file and the Zooma and OLS APIs. MONDO is only searched if no exact matches are found.
+
+        Args:
+            disease_name (str): Gene2Phenotype disease name extracted from the "disease name" column
+
+        Returns:
+            dict: Dictionary that contains id and name of mapped ontology term or `None` if not found
+        '''
+
+        # Create OnToma object
+        self.ontoma = ontoma.interface.OnToma()
+
+        # Search disease name using OnToma and accept perfect matches
+        ontoma_mapping = self.ontoma.find_term(disease_name, verbose=True)
+        if ontoma_mapping:
+            if ontoma_mapping['action'] is None:
+                return {'id': ontoma_mapping['term'], 'name': ontoma_mapping['label']}
+            elif ontoma_mapping['quality'] == "match":
+                # Match in HP or ORDO, check if there is a match in MONDO too. If so, give preference to MONDO hit
+                mondo_mapping = self.ontoma.mondo_lookup(disease_name)
+                if mondo_mapping:
+                    return mondo_mapping
+                else:
+                    return {'id': ontoma_mapping['term'], 'name': ontoma_mapping['label']}
+            else:
+                # OnToma fuzzy match. Check in MONDO and if there is not match ignore evidence and report disease
+                mondo_mapping = self.ontoma.mondo_lookup(disease_name)
+                if mondo_mapping:
+                    return mondo_mapping
+                else:
+                    # self._logger.info( "Fuzzy match from OnToma ignored for {}".format(disease_name))
+                    # Record the unmapped disease
+                    # self.unmapped_diseases.add((disease_id, disease_name))
+                    return
+        else:
+            # No match in EFO, HP or ORDO
+            mondo_mapping = self.ontoma.mondo_lookup(disease_name)
+            if mondo_mapping:
+                return mondo_mapping
+            else:
+                # self._logger.info(
+                #    "{} could not be mapped to any EFO, HP, ORDO or MONDO. Skipping it, it should be checked with Gene2Phenotype and/or EFO".format(
+                #    disease_name, disease_id))
+                # Record the unmapped disease
+                # self.unmapped_diseases.add((disease_id, disease_name))
+                return
+
+    def search_mondo(self, disease_name):
+        '''
+        Searches the G2P disease name in MONDO, both using the OBO file and OLS
+
+        Args:
+            disease_name (str): Gene2Phenotype disease name extracted from the "disease name" column
+
+        Returns:
+            dict: Dictionary containing MONDO id and name or `None` if not found
+        '''
+        if self.ontoma.mondo_lookup(disease_name):
+            mondo_term = self.ontoma.mondo_lookup(disease_name)
+            return {'id': mondo_term, 'name': disease_name}
+        elif self.ontoma._ols.besthit(disease_name, ontology=['mondo'], filed_list=['iri', 'label'], exact=True):
+            exact_ols_mondo = self.ontoma._ols.besthit(disease_name, ontology=['mondo'],
+                                                       filed_list=['iri', 'label'],
+                                                       exact=True)
+            return {'id': exact_ols_mondo['iri'], 'name': exact_ols_mondo['label']}
+        else:
+            return
 
 
     def process_g2p(self):
@@ -184,111 +186,110 @@ class G2P(RareDiseaseMapper):
                         target = self.genes[gene_symbol]
                         ensembl_iri = "http://identifiers.org/ensembl/" + target
 
-                        # Map disease to EFO or Orphanet
-                        if disease_mim in self.omim_to_efo_map:
+                        # Map disease to ontology terms
+                        disease_mapping = map_disease_name_to_ontology(disease_name)
+                        if disease_mapping:
                             total_efo +=1
-                            diseases = self.omim_to_efo_map[disease_mim]
 
-                            for disease in diseases:
-                                self._logger.info("%s %s %s %s"%(gene_symbol, target, disease_name, disease['efo_uri']))
+                            self._logger.info(f'{gene_symbol} {target} {disease_name} {disease["id"]}')
 
-                                type = "genetic_literature"
+                            type = "genetic_literature"
 
-                                provenance_type = {
-                                    'database' : {
+                            provenance_type = {
+                                'database' : {
+                                    'id' : "Gene2Phenotype",
+                                    'version' : '2020.04.02',
+                                    'dbxref' : {
+                                        'url': "http://www.ebi.ac.uk/gene2phenotype",
                                         'id' : "Gene2Phenotype",
-                                        'version' : '2020.04.02',
-                                        'dbxref' : {
-                                            'url': "http://www.ebi.ac.uk/gene2phenotype",
-                                            'id' : "Gene2Phenotype",
-                                            'version' : "2020.04.02"
+                                        'version' : "2020.04.02"
 
+                                    }
+                                },
+                                'literature' : {
+                                    'references' : [
+                                        {
+                                            'lit_id' : "http://europepmc.org/abstract/MED/25529582"
                                         }
-                                    },
-                                    'literature' : {
-                                        'references' : [
-                                            {
-                                                'lit_id' : "http://europepmc.org/abstract/MED/25529582"
-                                            }
-                                        ]
-                                    }
+                                    ]
                                 }
+                            }
 
-                                # *** General properties ***
-                                access_level = "public"
-                                sourceID = "gene2phenotype"
-                                validated_against_schema_version = self.schema_version
+                            # *** General properties ***
+                            access_level = "public"
+                            sourceID = "gene2phenotype"
+                            validated_against_schema_version = self.schema_version
 
-                                # *** Target info ***
-                                target = {
-                                    'id' : ensembl_iri,
-                                    'activity' : "http://identifiers.org/cttv.activity/unknown",
-                                    'target_type' : "http://identifiers.org/cttv.target/gene_evidence",
-                                    'target_name' : gene_symbol
+                            # *** Target info ***
+                            target = {
+                                'id' : ensembl_iri,
+                                'activity' : "http://identifiers.org/cttv.activity/unknown",
+                                'target_type' : "http://identifiers.org/cttv.target/gene_evidence",
+                                'target_name' : gene_symbol
+                            }
+                            # http://www.ontobee.org/ontology/ECO?iri=http://purl.obolibrary.org/obo/ECO_0000204 -- An evidence type that is based on an assertion by the author of a paper, which is read by a curator.
+
+                            # *** Disease info ***
+                            disease_info = {
+                                'id' : disease_mapping['id'],
+                                'name' : disease_mapping['name'],
+                                'source_name' : disease_name
+                            }
+                            # *** Evidence info ***
+                            # Score based on mutational consequence
+                            if confidence in G2P_confidence2score:
+                                score = G2P_confidence2score[confidence]
+                            else:
+                                self.logger.error('{} is not a recognised G2P confidence, assigning an score of 0'.format(confidence))
+                                score = 0
+                            resource_score = {
+                                'type': "probability",
+                                'value': score
+                            }
+
+                            # Linkout
+                            linkout = [
+                                {
+                                    'url' : 'http://www.ebi.ac.uk/gene2phenotype/search?panel=ALL&search_term=%s' % (gene_symbol,),
+                                    'nice_name' : 'Gene2Phenotype%s' % (gene_symbol)
                                 }
-                                # http://www.ontobee.org/ontology/ECO?iri=http://purl.obolibrary.org/obo/ECO_0000204 -- An evidence type that is based on an assertion by the author of a paper, which is read by a curator.
+                            ]
 
-                                # *** Disease info ***
-                                disease_info = {
-                                    'id' : disease['efo_uri'],
-                                    'name' : disease['efo_label'],
-                                    'source_name' : disease_name
-                                }
-                                # *** Evidence info ***
-                                # Score based on mutational consequence
-                                if confidence in G2P_confidence2score:
-                                    score = G2P_confidence2score[confidence]
-                                else:
-                                    self.logger.error('{} is not a recognised G2P confidence, assigning an score of 0'.format(confidence))
-                                    score = 0
-                                resource_score = {
-                                    'type': "probability",
-                                    'value': score
-                                }
-
-                                # Linkout
-                                linkout = [
-                                    {
-                                        'url' : 'http://www.ebi.ac.uk/gene2phenotype/search?panel=ALL&search_term=%s' % (gene_symbol,),
-                                        'nice_name' : 'Gene2Phenotype%s' % (gene_symbol)
-                                    }
-                                ]
-
-                                evidence = {
-                                    'is_associated' : True,
-                                    'confidence' : confidence,
-                                    'allelic_requirement' : allelic_requirement,
-                                    'mutation_consequence' : mutation_consequence,
-                                    'evidence_codes' : ["http://purl.obolibrary.org/obo/ECO_0000204"],
-                                    'provenance_type' : provenance_type,
-                                    'date_asserted' : date,
-                                    'resource_score' : resource_score,
-                                    'urls' : linkout
-                                }
-                                # *** unique_association_fields ***
-                                unique_association_fields = {
-                                    'target_id' : ensembl_iri,
-                                    'original_disease_label' : disease_name,
-                                    'disease_id' : disease['efo_uri'],
-                                    'gene_panel': panel
-                                }
+                            evidence = {
+                                'is_associated' : True,
+                                'confidence' : confidence,
+                                'allelic_requirement' : allelic_requirement,
+                                'mutation_consequence' : mutation_consequence,
+                                'evidence_codes' : ["http://purl.obolibrary.org/obo/ECO_0000204"],
+                                'provenance_type' : provenance_type,
+                                'date_asserted' : date,
+                                'resource_score' : resource_score,
+                                'urls' : linkout
+                            }
+                            # *** unique_association_fields ***
+                            unique_association_fields = {
+                                'target_id' : ensembl_iri,
+                                'original_disease_label' : disease_name,
+                                'disease_id' : disease['efo_uri'],
+                                'gene_panel': panel
+                            }
 
 
-                                try:
-                                    evidence = self.evidence_builder.Opentargets(
-                                        type = type,
-                                        access_level = access_level,
-                                        sourceID = sourceID,
-                                        evidence = evidence,
-                                        target = target,
-                                        disease = disease_info,
-                                        unique_association_fields = unique_association_fields,
-                                        validated_against_schema_version = validated_against_schema_version
-                                    )
-                                    self.evidence_strings.append(evidence)
-                                except:
-                                    self._logger.warning('Evidence generation failed for row: {}'.format(c))
-                                    raise
+                            try:
+                                evidence = self.evidence_builder.Opentargets(
+                                    type = type,
+                                    access_level = access_level,
+                                    sourceID = sourceID,
+                                    evidence = evidence,
+                                    target = target,
+                                    disease = disease_info,
+                                    unique_association_fields = unique_association_fields,
+                                    validated_against_schema_version = validated_against_schema_version
+                                )
+                                self.evidence_strings.append(evidence)
+                            except:
+                                self._logger.warning('Evidence generation failed for row: {}'.format(c))
+                                raise
                     else:
                         self._logger.error("%s\t%s not mapped: please check manually"%(disease_name, disease_mim))
 
