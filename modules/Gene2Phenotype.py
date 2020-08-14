@@ -1,6 +1,7 @@
 from settings import Config
 from common.HGNCParser import GeneParser
 from common.RareDiseasesUtils import RareDiseaseMapper
+import ontoma
 
 import python_jsonschema_objects as pjo
 
@@ -27,6 +28,77 @@ G2P_confidence2score = {
     'both RD and IF' : 1,
     'child IF': 0.25
 }
+
+
+def map_disease_names_to_ontology(disease_name):
+    '''
+    Searches the G2P disease name in EFO, ORDO, HP and MONDO
+
+    OnToma is used to query the ontology OBO files, the manual mapping file and the Zooma and OLS APIs. MONDO is only searched if no exact matches are found.
+
+    Args:
+        disease_name (str): Gene2Phenotype disease name extracted from the "disease name" column
+
+    Returns:
+        dict: Dictionary that contains id and name of mapped ontology term or `None` if not found
+    '''
+
+    # Search disease name using OnToma and accept perfect matches
+    ontoma_mapping = self.ontoma.find_term(disease_name, verbose=True)
+    if ontoma_mapping:
+        if ontoma_mapping['action'] is None:
+            return {'id': ontoma_mapping['term'], 'name': ontoma_mapping['label']}
+        elif ontoma_mapping['quality'] == "match":
+            # Match in HP or ORDO, check if there is a match in MONDO too. If so, give preference to MONDO hit
+            mondo_mapping = self.ontoma.mondo_lookup(disease_name)
+            if mondo_mapping:
+                return mondo_mapping
+            else:
+                return {'id': ontoma_mapping['term'], 'name': ontoma_mapping['label']}
+        else:
+            # OnToma fuzzy match. Check in MONDO and if there is not match ignore evidence and report disease
+            mondo_mapping = self.ontoma.mondo_lookup(disease_name)
+            if mondo_mapping:
+                return mondo_mapping
+            else:
+                self._logger.info( "Fuzzy match from OnToma ignored for {}".format(disease_name))
+                # Record the unmapped disease
+                #self.unmapped_diseases.add((disease_id, disease_name))
+                return
+    else:
+        # No match in EFO, HP or ORDO
+        mondo_mapping = self.ontoma.mondo_lookup(disease_name)
+        if mondo_mapping:
+            return mondo_mapping
+        else:
+            self._logger.info(
+                "{} could not be mapped to any EFO, HP, ORDO or MONDO. Skipping it, it should be checked with Gene2Phenotype and/or EFO".format(
+                disease_name, disease_id))
+            # Record the unmapped disease
+            #self.unmapped_diseases.add((disease_id, disease_name))
+            return
+
+def search_mondo(disease_name):
+    '''
+    Searches the G2P disease name in MONDO, both using the OBO file and OLS
+
+    Args:
+        disease_name (str): Gene2Phenotype disease name extracted from the "disease name" column
+
+    Returns:
+        dict: Dictionary containing MONDO id and name or `None` if not found
+    '''
+    if self.ontoma.mondo_lookup(disease_name):
+        mondo_term = self.ontoma.mondo_lookup(disease_name)
+        return {'id': mondo_term, 'name': disease_name}
+    elif self.ontoma._ols.besthit(disease_name, ontology=['mondo'], filed_list=['iri', 'label'], exact=True):
+        exact_ols_mondo = self.ontoma._ols.besthit(disease_name, ontology=['mondo'],
+                                                   filed_list=['iri', 'label'],
+                                                   exact=True)
+        return {'id': exact_ols_mondo['iri'], 'name': exact_ols_mondo['label']}
+    else:
+        return
+
 
 class G2P(RareDiseaseMapper):
     def __init__(self, schema_version=Config.VALIDATED_AGAINST_SCHEMA_VERSION):
