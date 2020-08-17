@@ -256,7 +256,7 @@ class G2P(RareDiseaseMapper):
                             if confidence in G2P_confidence2score:
                                 score = G2P_confidence2score[confidence]
                             else:
-                                self.logger.error('{} is not a recognised G2P confidence, assigning an score of 0'.format(confidence))
+                                self._logger.error('{} is not a recognised G2P confidence, assigning an score of 0'.format(confidence))
                                 score = 0
                             resource_score = {
                                 'type': "probability",
