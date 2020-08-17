@@ -78,14 +78,14 @@ class G2P(RareDiseaseMapper):
                 return {'id': ontoma_mapping['term'], 'name': ontoma_mapping['label']}
             elif ontoma_mapping['quality'] == "match":
                 # Match in HP or ORDO, check if there is a match in MONDO too. If so, give preference to MONDO hit
-                mondo_mapping = self.ontoma.mondo_lookup(disease_name)
+                mondo_mapping = self.search_mondo(disease_name)
                 if mondo_mapping:
                     return mondo_mapping
                 else:
                     return {'id': ontoma_mapping['term'], 'name': ontoma_mapping['label']}
             else:
                 # OnToma fuzzy match. Check in MONDO and if there is not match ignore evidence and report disease
-                mondo_mapping = self.ontoma.mondo_lookup(disease_name)
+                mondo_mapping = self.search_mondo(disease_name)
                 if mondo_mapping:
                     return mondo_mapping
                 else:
@@ -95,7 +95,7 @@ class G2P(RareDiseaseMapper):
                     return
         else:
             # No match in EFO, HP or ORDO
-            mondo_mapping = self.ontoma.mondo_lookup(disease_name)
+            mondo_mapping = self.search_mondo(disease_name)
             if mondo_mapping:
                 return mondo_mapping
             else:
