@@ -35,6 +35,7 @@ class G2P(RareDiseaseMapper):
         super(G2P, self).__init__()
         self.genes = None
         self.evidence_strings = list()
+        self.unmapped_diseases = set()
 
         # Configure logging
         # Create logger
@@ -125,7 +126,7 @@ class G2P(RareDiseaseMapper):
                 self._logger.info(
                     f"'{disease_name}' could not be mapped to any EFO, HP, ORDO or MONDO. Skipping it, it should be checked with Gene2Phenotype and/or EFO")
                 # Record the unmapped disease
-                # self.unmapped_diseases.add((disease_id, disease_name))
+                self.unmapped_diseases.add(disease_name)
                 return
 
     def search_mondo(self, disease_name):
@@ -157,7 +158,7 @@ class G2P(RareDiseaseMapper):
                 return
 
 
-    def process_g2p(self):
+    def process_g2p(self, unmapped_diseases_filename):
 
         self.get_omim_to_efo_mappings()
 
@@ -176,6 +177,10 @@ class G2P(RareDiseaseMapper):
 
         # Save results to file
         self.write_evidence_strings(Config.G2P_EVIDENCE_FILENAME)
+
+        # If selected, write unmapped diseases to file
+        if unmapped_diseases_filename:
+            self.write_unmapped_diseases(unmapped_diseases_filename)
 
     def generate_evidence_strings(self, filename):
 
@@ -334,6 +339,13 @@ class G2P(RareDiseaseMapper):
                 tp_file.write(evidence_string.serialize() + "\n")
         tp_file.close()
 
+    def write_unmapped_diseases(self, filename):
+        self._logger.info(f"Writing Gene2Phenotype diseases not mapped to EFO to {filename}")
+        with open(filename, 'w') as unmapped_diseases_file:
+            unmapped_diseases_file.write("disease_name\n")
+            for unmapped_disease in self.unmapped_diseases:
+                unmapped_diseases_file.write(unmapped_disease + "\n")
+
 
 def main():
 
@@ -342,13 +354,17 @@ def main():
     parser.add_argument('-s', '--schema_version',
                         help='JSON schema version to use, e.g. 1.6.8. It must be branch or a tag available in https://github.com/opentargets/json_schema',
                         type=str, required=True)
+    parser.add_argument('-u', '--unmapped_diseases_file',
+                        help='If specified, the diseases not mapped to EFO will be stored in this file',
+                        type=str, default=False)
 
     args = parser.parse_args()
     # Get parameters
     schema_version = args.schema_version
+    unmapped_diseases_file = args.unmapped_diseases_file
 
     g2p = G2P(schema_version=schema_version)
-    g2p.process_g2p()
+    g2p.process_g2p(unmapped_diseases_file)
 
 if __name__ == "__main__":
     main()
