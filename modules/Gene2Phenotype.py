@@ -31,11 +31,12 @@ G2P_confidence2score = {
 
 
 class G2P(RareDiseaseMapper):
-    def __init__(self, schema_version=Config.VALIDATED_AGAINST_SCHEMA_VERSION):
+    def __init__(self, g2p_version, schema_version=Config.VALIDATED_AGAINST_SCHEMA_VERSION):
         super(G2P, self).__init__()
         self.genes = None
         self.evidence_strings = list()
         self.unmapped_diseases = set()
+        self.g2p_version = g2p_version
 
         # Configure logging
         # Create logger
@@ -158,7 +159,7 @@ class G2P(RareDiseaseMapper):
                 return
 
 
-    def process_g2p(self, unmapped_diseases_filename, version):
+    def process_g2p(self, evidence_file=Config.G2P_EVIDENCE_FILENAME, unmapped_diseases_filename=False):
 
         self.get_omim_to_efo_mappings()
 
@@ -167,22 +168,22 @@ class G2P(RareDiseaseMapper):
         self.genes = gene_parser.genes
 
         # Parser DD file
-        self.generate_evidence_strings(Config.G2P_DD_FILENAME, version)
+        self.generate_evidence_strings(Config.G2P_DD_FILENAME)
         # Parser DD file
-        self.generate_evidence_strings(Config.G2P_eye_FILENAME, version)
+        self.generate_evidence_strings(Config.G2P_eye_FILENAME)
         # Parser DD file
-        self.generate_evidence_strings(Config.G2P_skin_FILENAME, version)
+        self.generate_evidence_strings(Config.G2P_skin_FILENAME)
         # Parser DD file
-        self.generate_evidence_strings(Config.G2P_cancer_FILENAME, version)
+        self.generate_evidence_strings(Config.G2P_cancer_FILENAME)
 
         # Save results to file
-        self.write_evidence_strings(Config.G2P_EVIDENCE_FILENAME)
+        self.write_evidence_strings(evidence_file)
 
         # If selected, write unmapped diseases to file
         if unmapped_diseases_filename:
             self.write_unmapped_diseases(unmapped_diseases_filename)
 
-    def generate_evidence_strings(self, filename, version):
+    def generate_evidence_strings(self, filename):
 
         total_efo = 0
 
@@ -232,12 +233,11 @@ class G2P(RareDiseaseMapper):
                             provenance_type = {
                                 'database' : {
                                     'id' : "Gene2Phenotype",
-                                    'version' : version,
+                                    'version' : self.g2p_version,
                                     'dbxref' : {
                                         'url': "http://www.ebi.ac.uk/gene2phenotype",
                                         'id' : "Gene2Phenotype",
-                                        'version' : version
-
+                                        'version' : self.g2p_version
                                     }
                                 },
                                 'literature' : {
@@ -354,6 +354,9 @@ def main():
     parser.add_argument('-s', '--schema_version',
                         help='JSON schema version to use, e.g. 1.6.8. It must be branch or a tag available in https://github.com/opentargets/json_schema',
                         type=str, required=True)
+    parser.add_argument('-o', '--output_file',
+                        help='Name of evidence file. It uses the value of G2P_EVIDENCE_FILENAME in setting.py if not specified',
+                        type=str)
     parser.add_argument('-u', '--unmapped_diseases_file',
                         help='If specified, the diseases not mapped to EFO will be stored in this file',
                         type=str, default=False)
@@ -364,11 +367,12 @@ def main():
     args = parser.parse_args()
     # Get parameters
     schema_version = args.schema_version
+    outfile = args.output_file
     unmapped_diseases_file = args.unmapped_diseases_file
     g2p_version = args.g2p_version
 
-    g2p = G2P(schema_version=schema_version)
-    g2p.process_g2p(unmapped_diseases_file, g2p_version)
+    g2p = G2P(schema_version=schema_version, g2p_version=g2p_version)
+    g2p.process_g2p(outfile, unmapped_diseases_file)
 
 if __name__ == "__main__":
     main()
