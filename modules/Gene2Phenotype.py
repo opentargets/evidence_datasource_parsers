@@ -36,7 +36,23 @@ class G2P(RareDiseaseMapper):
         self.genes = None
         self.evidence_strings = list()
 
+        # Configure logging
+        # Create logger
         self._logger = logging.getLogger(__name__)
+        self._logger.setLevel(logging.INFO)
+
+        # Create console handler
+        ch = logging.StreamHandler()
+        ch.setLevel(logging.INFO)
+
+        # Create formatter
+        formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
+
+        # Add formatter to ch
+        ch.setFormatter(formatter)
+
+        # Add ch to handler
+        self._logger.addHandler(ch)
 
         # Build JSON schema url from version
         self.schema_version = schema_version
