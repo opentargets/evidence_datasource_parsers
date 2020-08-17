@@ -158,7 +158,7 @@ class G2P(RareDiseaseMapper):
                 return
 
 
-    def process_g2p(self, unmapped_diseases_filename):
+    def process_g2p(self, unmapped_diseases_filename, version):
 
         self.get_omim_to_efo_mappings()
 
@@ -167,13 +167,13 @@ class G2P(RareDiseaseMapper):
         self.genes = gene_parser.genes
 
         # Parser DD file
-        self.generate_evidence_strings(Config.G2P_DD_FILENAME)
+        self.generate_evidence_strings(Config.G2P_DD_FILENAME, version)
         # Parser DD file
-        self.generate_evidence_strings(Config.G2P_eye_FILENAME)
+        self.generate_evidence_strings(Config.G2P_eye_FILENAME, version)
         # Parser DD file
-        self.generate_evidence_strings(Config.G2P_skin_FILENAME)
+        self.generate_evidence_strings(Config.G2P_skin_FILENAME, version)
         # Parser DD file
-        self.generate_evidence_strings(Config.G2P_cancer_FILENAME)
+        self.generate_evidence_strings(Config.G2P_cancer_FILENAME, version)
 
         # Save results to file
         self.write_evidence_strings(Config.G2P_EVIDENCE_FILENAME)
@@ -182,7 +182,7 @@ class G2P(RareDiseaseMapper):
         if unmapped_diseases_filename:
             self.write_unmapped_diseases(unmapped_diseases_filename)
 
-    def generate_evidence_strings(self, filename):
+    def generate_evidence_strings(self, filename, version):
 
         total_efo = 0
 
@@ -232,11 +232,11 @@ class G2P(RareDiseaseMapper):
                             provenance_type = {
                                 'database' : {
                                     'id' : "Gene2Phenotype",
-                                    'version' : '2020.04.02',
+                                    'version' : version,
                                     'dbxref' : {
                                         'url': "http://www.ebi.ac.uk/gene2phenotype",
                                         'id' : "Gene2Phenotype",
-                                        'version' : "2020.04.02"
+                                        'version' : version
 
                                     }
                                 },
@@ -357,14 +357,18 @@ def main():
     parser.add_argument('-u', '--unmapped_diseases_file',
                         help='If specified, the diseases not mapped to EFO will be stored in this file',
                         type=str, default=False)
+    parser.add_argument('-v', '--g2p_version',
+                        help='Version of the Gene2Phenotype data used. If not available please use the date in which the data was downloaded in YYYY-MM-DD format',
+                        type=str, required=True)
 
     args = parser.parse_args()
     # Get parameters
     schema_version = args.schema_version
     unmapped_diseases_file = args.unmapped_diseases_file
+    g2p_version = args.g2p_version
 
     g2p = G2P(schema_version=schema_version)
-    g2p.process_g2p(unmapped_diseases_file)
+    g2p.process_g2p(unmapped_diseases_file, g2p_version)
 
 if __name__ == "__main__":
     main()
