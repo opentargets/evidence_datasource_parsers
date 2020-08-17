@@ -94,7 +94,7 @@ class G2P(RareDiseaseMapper):
                 return {'id': ontoma_mapping['term'], 'name': ontoma_mapping['label']}
             elif ontoma_mapping['quality'] == "match":
                 # Match in HP or ORDO, check if there is a match in MONDO too. If so, give preference to MONDO hit
-                self._logger.info(f"OnToma found match for {disease_name} in HP or ORDO, checking in MONDO")
+                self._logger.info(f"OnToma found match for '{disease_name}' in HP or ORDO, checking in MONDO")
                 mondo_mapping = self.search_mondo(disease_name)
                 if mondo_mapping:
                     self._logger.info(f"Using MONDO match")
@@ -104,26 +104,26 @@ class G2P(RareDiseaseMapper):
                     return {'id': ontoma_mapping['term'], 'name': ontoma_mapping['label']}
             else:
                 # OnToma fuzzy match. Check in MONDO and if there is not match ignore evidence and report disease
-                self._logger.info(f"No exact match for {disease_name} found in OnToma, checking in MONDO")
+                self._logger.info(f"No exact match for '{disease_name}' found in OnToma, checking in MONDO")
                 mondo_mapping = self.search_mondo(disease_name)
                 if mondo_mapping:
                     self._logger.info(f"Using MONDO match")
                     return mondo_mapping
                 else:
-                    self._logger.info(f"Fuzzy match from OnToma ignored for {disease_name}, recording the unmapped disease")
+                    self._logger.info(f"Fuzzy match from OnToma ignored for '{disease_name}', recording the unmapped disease")
                     # Record the unmapped disease
                     # self.unmapped_diseases.add((disease_id, disease_name))
                     return
         else:
             # No match in EFO, HP or ORDO
-            self._logger.info(f"No match found in EFO, HP or ORDO for {disease_name} with OnToma, checking in MONDO")
+            self._logger.info(f"No match found in EFO, HP or ORDO for '{disease_name}' with OnToma, checking in MONDO")
             mondo_mapping = self.search_mondo(disease_name)
             if mondo_mapping:
                 self._logger.info(f"Using MONDO match")
                 return mondo_mapping
             else:
                 self._logger.info(
-                    f"{disease_name} could not be mapped to any EFO, HP, ORDO or MONDO. Skipping it, it should be checked with Gene2Phenotype and/or EFO")
+                    f"'{disease_name}' could not be mapped to any EFO, HP, ORDO or MONDO. Skipping it, it should be checked with Gene2Phenotype and/or EFO")
                 # Record the unmapped disease
                 # self.unmapped_diseases.add((disease_id, disease_name))
                 return
@@ -141,19 +141,19 @@ class G2P(RareDiseaseMapper):
         # mondo_lookup works like a dictionary lookup so if disease is not in there it raises and error instead of returning `None`
         try:
             mondo_term = self.ontoma.mondo_lookup(disease_name)
-            self._logger.info(f"Found {mondo_term} for {disease_name} from MONDO OBO file - Request EFO to import it from MONDO")
+            self._logger.info(f"Found {mondo_term} for '{disease_name}' from MONDO OBO file - Request EFO to import it from MONDO")
             return {'id': mondo_term, 'name': disease_name}
         except KeyError as e:
-            self._logger.debug('Failed EFO OBO lookup for %s', e)
+            self._logger.info(f"No match found in MONDO OBO for '{disease_name}'")
             if self.ontoma._ols.besthit(disease_name, ontology=['mondo'], field_list=['iri', 'label'], exact=True):
                 exact_ols_mondo = self.ontoma._ols.besthit(disease_name, ontology=['mondo'],
                                                            field_list=['iri', 'label'],
                                                            exact=True)
                 self._logger.info(
-                f"Found {exact_ols_mondo['iri']} for {disease_name} from OLS API MONDO lookup - Request EFO to import it from MONDO")
+                f"Found {exact_ols_mondo['iri']} for '{disease_name}' from OLS API MONDO lookup - Request EFO to import it from MONDO")
                 return {'id': exact_ols_mondo['iri'], 'name': exact_ols_mondo['label']}
             else:
-                self._logger.info(f"No match for {disease_name} in MONDO")
+                self._logger.info(f"No match for '{disease_name}' in MONDO")
                 return
 
 
