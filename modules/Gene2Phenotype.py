@@ -73,6 +73,9 @@ class G2P(RareDiseaseMapper):
             self._logger.error('Invalid JSON schema version')
             raise e
 
+        # Create OnToma object
+        self.ontoma = ontoma.interface.OnToma()
+
     def map_disease_name_to_ontology(self, disease_name):
         '''
         Searches the G2P disease name in EFO, ORDO, HP and MONDO
@@ -86,8 +89,6 @@ class G2P(RareDiseaseMapper):
             dict: Dictionary that contains id and name of mapped ontology term or `None` if not found
         '''
 
-        # Create OnToma object
-        self.ontoma = ontoma.interface.OnToma()
         self._logger.info(f"Mapping '{disease_name}'")
 
         # Search disease name using OnToma and accept perfect matches
