@@ -116,7 +116,7 @@ class G2P(RareDiseaseMapper):
                 else:
                     self._logger.info(f"Fuzzy match from OnToma ignored for '{disease_name}', recording the unmapped disease")
                     # Record the unmapped disease
-                    # self.unmapped_diseases.add((disease_id, disease_name))
+                    self.unmapped_diseases.add((disease_name, True, ontoma_mapping['term'], ontoma_mapping['label']))
                     return
         else:
             # No match in EFO, HP or ORDO
@@ -129,7 +129,7 @@ class G2P(RareDiseaseMapper):
                 self._logger.info(
                     f"'{disease_name}' could not be mapped to any EFO, HP, ORDO or MONDO. Skipping it, it should be checked with Gene2Phenotype and/or EFO")
                 # Record the unmapped disease
-                self.unmapped_diseases.add(disease_name)
+                self.unmapped_diseases.add((disease_name, False, "", ""))
                 return
 
     def search_mondo(self, disease_name):
@@ -346,9 +346,9 @@ class G2P(RareDiseaseMapper):
     def write_unmapped_diseases(self, filename):
         self._logger.info(f"Writing Gene2Phenotype diseases not mapped to EFO to {filename}")
         with open(filename, 'w') as unmapped_diseases_file:
-            unmapped_diseases_file.write("disease_name\n")
+            unmapped_diseases_file.write("disease_name\tontoma_mapping_bool\tontoma_disease_id\tontoma_disease_name\n")
             for unmapped_disease in self.unmapped_diseases:
-                unmapped_diseases_file.write(unmapped_disease + "\n")
+                unmapped_diseases_file.write(unmapped_disease[0] + "\t" + unmapped_disease[1] + "\t" + unmapped_disease[2] + "\n")
 
 
 def main():
