@@ -361,7 +361,7 @@ class G2P(RareDiseaseMapper):
         with open(filename, 'w') as unmapped_diseases_file:
             unmapped_diseases_file.write("disease_name\tontoma_mapping_bool\tontoma_disease_id\tontoma_disease_name\n")
             for unmapped_disease in self.unmapped_diseases:
-                unmapped_diseases_file.write(unmapped_disease[0] + "\t" + unmapped_disease[1] + "\t" + unmapped_disease[2] + "\n")
+                unmapped_diseases_file.write(unmapped_disease[0] + "\t" + str(unmapped_disease[1]) + "\t" + unmapped_disease[2] + "\t" + unmapped_disease[3] + "\n")
 
 
 def main():
