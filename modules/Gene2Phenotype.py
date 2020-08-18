@@ -212,6 +212,7 @@ class G2P(RareDiseaseMapper):
             c = 0
             for row in reader:
                 c += 1
+                self._logger.info(f"Parsing row {c}")
 
                 # Column names are:
                 # "gene symbol","gene mim","disease name","disease mim","DDD category","allelic requirement",
