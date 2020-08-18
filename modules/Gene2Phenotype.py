@@ -345,7 +345,7 @@ class G2P(RareDiseaseMapper):
                             self._logger.warning('Evidence generation failed for row: {}'.format(c))
                             raise
 
-            self._logger.info(f"Processed {c} diseases, mapped {total_efo}")
+            self._logger.info(f"Processed {c} diseases, mapped {total_efo}\n")
 
     def write_evidence_strings(self, filename):
         self._logger.info("Writing Gene2Phenotype evidence strings to %s", filename)
@@ -353,8 +353,8 @@ class G2P(RareDiseaseMapper):
             n = 0
             for evidence_string in self.evidence_strings:
                 n += 1
-                self._logger.info(evidence_string['disease']['id'])
                 tp_file.write(evidence_string.serialize() + "\n")
+            self._logger.info(f"{n} evidence strings saved.\n")
         tp_file.close()
 
     def write_unmapped_diseases(self, filename):
