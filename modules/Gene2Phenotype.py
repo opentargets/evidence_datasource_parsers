@@ -88,6 +88,7 @@ class G2P(RareDiseaseMapper):
 
         # Create OnToma object
         self.ontoma = ontoma.interface.OnToma()
+        self._logger.info(f"Mapping '{disease_name}'")
 
         # Search disease name using OnToma and accept perfect matches
         ontoma_mapping = self.ontoma.find_term(disease_name, verbose=True)
@@ -168,12 +169,16 @@ class G2P(RareDiseaseMapper):
         self.genes = gene_parser.genes
 
         # Parser DD file
+        self._logger.info("Started parsing DD file")
         self.generate_evidence_strings(Config.G2P_DD_FILENAME)
-        # Parser DD file
+        # Parser eye file
+        self._logger.info("Started parsing eye file")
         self.generate_evidence_strings(Config.G2P_eye_FILENAME)
-        # Parser DD file
+        # Parser skin file
+        self._logger.info("Started parsing skin file")
         self.generate_evidence_strings(Config.G2P_skin_FILENAME)
-        # Parser DD file
+        # Parser cancer file
+        self._logger.info("Started parsing cancer file")
         self.generate_evidence_strings(Config.G2P_cancer_FILENAME)
 
         # Save results to file
@@ -226,7 +231,7 @@ class G2P(RareDiseaseMapper):
                         if disease_mapping:
                             total_efo +=1
 
-                            self._logger.info(f'{gene_symbol} {target} {disease_name} {disease_mapping["id"]}')
+                            self._logger.info(f"{gene_symbol}, {target}, '{disease_name}', {disease_mapping['id']}")
 
                             type = "genetic_literature"
 
@@ -304,7 +309,7 @@ class G2P(RareDiseaseMapper):
                             unique_association_fields = {
                                 'target_id' : ensembl_iri,
                                 'original_disease_label' : disease_name,
-                                'disease_id' : disease['efo_uri'],
+                                'disease_id' : disease_mapping['id'],
                                 'gene_panel': panel
                             }
 
@@ -327,7 +332,7 @@ class G2P(RareDiseaseMapper):
                     else:
                         self._logger.error("%s\t%s not mapped: please check manually"%(disease_name, disease_mim))
 
-                print("%i %i" % (total_efo, c))
+            self._logger.info(f"Processed {c} diseases, mapped {total_efo}")
 
     def write_evidence_strings(self, filename):
         self._logger.info("Writing Gene2Phenotype evidence strings to %s", filename)
