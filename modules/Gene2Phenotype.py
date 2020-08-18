@@ -174,7 +174,7 @@ class G2P(RareDiseaseMapper):
                 return
 
 
-    def process_g2p(self, evidence_file=Config.G2P_EVIDENCE_FILENAME, unmapped_diseases_filename=False):
+    def process_g2p(self, dd_file, eye_file, skin_file, cancer_file, evidence_file, unmapped_diseases_filename):
 
         self.get_omim_to_efo_mappings()
 
@@ -184,16 +184,16 @@ class G2P(RareDiseaseMapper):
 
         # Parser DD file
         self._logger.info("Started parsing DD file")
-        self.generate_evidence_strings(Config.G2P_DD_FILENAME)
+        self.generate_evidence_strings(dd_file)
         # Parser eye file
         self._logger.info("Started parsing eye file")
-        self.generate_evidence_strings(Config.G2P_eye_FILENAME)
+        self.generate_evidence_strings(eye_file)
         # Parser skin file
         self._logger.info("Started parsing skin file")
-        self.generate_evidence_strings(Config.G2P_skin_FILENAME)
+        self.generate_evidence_strings(skin_file)
         # Parser cancer file
         self._logger.info("Started parsing cancer file")
-        self.generate_evidence_strings(Config.G2P_cancer_FILENAME)
+        self.generate_evidence_strings(cancer_file)
 
         # Save results to file
         self.write_evidence_strings(evidence_file)
@@ -371,9 +371,21 @@ def main():
     parser.add_argument('-s', '--schema_version',
                         help='JSON schema version to use, e.g. 1.6.8. It must be branch or a tag available in https://github.com/opentargets/json_schema',
                         type=str, required=True)
+    parser.add_argument('-d', '--dd_panel',
+                        help='DD panel file downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads',
+                        type=str, default=Config.G2P_DD_FILENAME)
+    parser.add_argument('-e', '--eye_panel',
+                        help='Eye panel file downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads',
+                        type=str, default=Config.G2P_eye_FILENAME)
+    parser.add_argument('-k', '--skin_panel',
+                        help='Skin panel file downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads',
+                        type=str, default=Config.G2P_skin_FILENAME)
+    parser.add_argument('-c', '--cancer_panel',
+                        help='Cancer panel file downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads',
+                        type=str, default=Config.G2P_cancer_FILENAME)
     parser.add_argument('-o', '--output_file',
                         help='Name of evidence file. It uses the value of G2P_EVIDENCE_FILENAME in setting.py if not specified',
-                        type=str)
+                        type=str, default=Config.G2P_EVIDENCE_FILENAME)
     parser.add_argument('-u', '--unmapped_diseases_file',
                         help='If specified, the diseases not mapped to EFO will be stored in this file',
                         type=str, default=False)
@@ -384,12 +396,16 @@ def main():
     args = parser.parse_args()
     # Get parameters
     schema_version = args.schema_version
+    dd_file = args.dd_panel
+    eye_file = args.eye_panel
+    skin_file = args.skin_panel
+    cancer_file = args.cancer_panel
     outfile = args.output_file
     unmapped_diseases_file = args.unmapped_diseases_file
     g2p_version = args.g2p_version
 
     g2p = G2P(schema_version=schema_version, g2p_version=g2p_version)
-    g2p.process_g2p(outfile, unmapped_diseases_file)
+    g2p.process_g2p(dd_file, eye_file, skin_file, cancer_file, outfile, unmapped_diseases_file)
 
 if __name__ == "__main__":
     main()
