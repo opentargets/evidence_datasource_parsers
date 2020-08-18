@@ -222,11 +222,11 @@ class G2P(RareDiseaseMapper):
                         ensembl_iri = "http://identifiers.org/ensembl/" + target
 
                         # Map disease to ontology terms
-                        disease_mapping = map_disease_name_to_ontology(disease_name)
+                        disease_mapping = self.map_disease_name_to_ontology(disease_name)
                         if disease_mapping:
                             total_efo +=1
 
-                            self._logger.info(f'{gene_symbol} {target} {disease_name} {disease["id"]}')
+                            self._logger.info(f'{gene_symbol} {target} {disease_name} {disease_mapping["id"]}')
 
                             type = "genetic_literature"
 
