@@ -330,8 +330,6 @@ class G2P(RareDiseaseMapper):
                         except:
                             self._logger.warning('Evidence generation failed for row: {}'.format(c))
                             raise
-                else:
-                    self._logger.error("%s\t%s not mapped: please check manually"%(disease_name, disease_mim))
 
             self._logger.info(f"Processed {c} diseases, mapped {total_efo}")
 
