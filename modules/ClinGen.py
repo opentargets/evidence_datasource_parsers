@@ -252,7 +252,6 @@ class ClinGen():
         with open(filename, 'w') as tp_file:
             for evidence_string in self.evidence_strings:
                 tp_file.write(evidence_string.serialize() + "\n")
-        tp_file.close()
 
     def write_unmapped_diseases(self, filename):
         self._logger.info("Writing ClinGen diseases not mapped to EFO to %s", filename)

@@ -355,7 +355,6 @@ class G2P(RareDiseaseMapper):
                 n += 1
                 tp_file.write(evidence_string.serialize() + "\n")
             self._logger.info(f"{n} evidence strings saved.\n")
-        tp_file.close()
 
     def write_unmapped_diseases(self, filename):
         self._logger.info(f"Writing Gene2Phenotype diseases not mapped to EFO to {filename}")
