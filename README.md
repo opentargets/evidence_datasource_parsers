@@ -108,6 +108,11 @@ There are also a number of optional parameters to specify the name of the input 
 
 Note that when using the default file names, the input files have to exist in the working directory or in the _resources_ directory:
 
+To use the parser configure the python environment and run it as follows:
+```bash
+(venv)$ python3 modules/Gene2Phenotype.py -s 1.7.1 -v 2020-08-19 -d DDG2P_19_8_2020.csv.gz -e EyeG2P_19_8_2020.csv.gz -k SkinG2P_19_8_2020.csv.gz -c CancerG2P_19_8_2020.csv.gz -o gene2phenotype-19-08-2020.json -u gene2phenotype-19-08-2020_unmapped_diseases.txt 
+```
+
 ### IntOGen
 
 The intOGen parser generates evidence strings from three files that need to be in the working directory or in the _resources_ directory:
