@@ -82,7 +82,7 @@ There is also an optional parameter to save the unmapped diseases to a file:
 
 To use the parser configure the python environment and run it as follows:
 ```bash
-(venv)$ python3 ../evidence_datasource_parsers/modules/ClinGen.py -i ClinGen-Gene-Disease-Summary-2020-08-04.csv -o clingen_2020-08-04.json -s 1.6.9 -u unmapped_diseases_clingen.tsv
+(venv)$ python3 modules/ClinGen.py -i ClinGen-Gene-Disease-Summary-2020-08-04.csv -o clingen_2020-08-04.json -s 1.6.9 -u unmapped_diseases_clingen.tsv
 ```
 
 ### Gene2Phenotype
