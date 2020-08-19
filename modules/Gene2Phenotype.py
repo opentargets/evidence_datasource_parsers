@@ -101,8 +101,12 @@ class G2P(RareDiseaseMapper):
                 self._logger.info(f"OnToma found match for '{disease_name}' in HP or ORDO, checking in MONDO")
                 mondo_mapping = self.search_mondo(disease_name)
                 if mondo_mapping:
-                    self._logger.info(f"Using MONDO match")
-                    return mondo_mapping
+                    if mondo_mapping['exact']:
+                        self._logger.info(f"Using MONDO match")
+                        return mondo_mapping
+                    else:
+                        self._logger.info(f"No exact matches in MONDO, using OnToma results")
+                        return {'id': ontoma_mapping['term'], 'name': ontoma_mapping['label']}
                 else:
                     self._logger.info(f"No match in MONDO, using OnToma results")
                     return {'id': ontoma_mapping['term'], 'name': ontoma_mapping['label']}
@@ -114,6 +118,8 @@ class G2P(RareDiseaseMapper):
                     if mondo_mapping['exact']:
                         self._logger.info(f"Using MONDO match")
                         return mondo_mapping
+                    else:
+                        return
                 else:
                     self._logger.info(f"Fuzzy match from OnToma ignored for '{disease_name}', recording the unmapped disease")
                     # Record the unmapped disease
@@ -127,6 +133,8 @@ class G2P(RareDiseaseMapper):
                 if mondo_mapping['exact']:
                     self._logger.info(f"Using MONDO match")
                     return mondo_mapping
+                else:
+                    return
             else:
                 self._logger.info(
                     f"'{disease_name}' could not be mapped to any EFO, HP, ORDO or MONDO. Skipping it, it should be checked with Gene2Phenotype and/or EFO")
