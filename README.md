@@ -83,6 +83,29 @@ To use the parser configure the python environment and run it as follows:
 (venv)$ python3 ../evidence_datasource_parsers/modules/ClinGen.py -i ClinGen-Gene-Disease-Summary-2020-08-04.csv -o clingen_2020-08-04.json -s 1.6.9 -u unmapped_diseases_clingen.tsv
 ```
 
+### Gene2Phenotype
+The Gene2Phenotype parser processes the four gene panels (Developmental Disorders - DD, eye disorders, skin disorders and cancer) that can be downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads/.
+
+The mapping of the diseases, i.e. the "disease name" column, is done on the fly using [OnToma](https://pypi.org/project/ontoma/):
+- Exact matches to EFO are used directly.
+- If the match comes from HP or ORDO the disease is searched in MONDO and if there is an exact match it is used. If not the HP or ORDO term is used.
+- If OnToma returns a fuzzy match it is ignore and MONDO is searched for exact matches.
+- When no exact matches are found the disease is considered unmapped and it's saved to a file (see the `-u`/ `--unmapped_disease_file` option below).
+
+The parser requires two parameters to run:
+- `-s`, `--schema_version`: JSON schema version to use, e.g. 1.6.8. It must be branch or a tag available in https://github.com/opentargets/json_schema.
+- `-v`, `--g2p_version`: Version of the Gene2Phenotype data used. If not available please use the date in which the data was downloaded in YYYY-MM-DD format.
+
+There are also a number of optional parameters to specify the name of the input and out files:
+- `-d`, `--dd_panel`: Name of Developmental Disorders (DD) panel file. It uses the value of G2P_DD_FILENAME in setting.py if not specified.
+- `-e`, `--eye_panel`: Name of eye panel file. It uses the value of G2P_eye_FILENAME in setting.py if not specified.
+- `-k`, `--skin_panel`: Name of skin panel. It uses the value of G2P_skin_FILENAME in setting.py if not specified.
+- `-c`, `--cancer_panel`: Name of cancer panel file. It uses the value of G2P_cancer_FILENAME in setting.py if not specified.
+- `-o`, `--output_file`: Name of output evidence file. It uses the value of G2P_EVIDENCE_FILENAME in setting.py if not specified.
+- `-u`, `--unmapped_diseases_file`: If specified, the diseases not mapped to EFO will be stored in this file.
+
+Note that when using the default file names, the input files have to exist in the working directory or in the _resources_ directory:
+
 ### IntOGen
 
 The intOGen parser generates evidence strings from three files that need to be in the working directory or in the _resources_ directory:
