@@ -76,6 +76,8 @@ The parser requires three parameters:
 - `-i`, `--input_file`: Name of csv file downloaded from https://search.clinicalgenome.org/kb/gene-validity
 - `-o`, `--output_file`: Name of evidence JSON file
 - `-s`, `--schema_version`: JSON schema version to use, e.g. 1.6.8. It must be branch or a tag available in https://github.com/opentargets/json_schema
+
+There is also an optional parameter to save the unmapped diseases to a file:
 - `-u`, `--unmapped_diseases_file`: If specified, the diseases not mapped to EFO will be stored in this file'
 
 To use the parser configure the python environment and run it as follows:
