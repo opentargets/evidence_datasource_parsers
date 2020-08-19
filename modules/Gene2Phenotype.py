@@ -151,7 +151,7 @@ class G2P(RareDiseaseMapper):
         try:
             mondo_term = self.ontoma.mondo_lookup(disease_name)
             self._logger.info(f"Found {mondo_term} for '{disease_name}' from MONDO OBO file - Request EFO to import it from MONDO")
-            return {'id': mondo_term, 'name': disease_name, 'exact': True}
+            return {'id': mondo_term, 'name': self.ontoma.get_mondo_label(mondo_term), 'exact': True}
         except KeyError as e:
             self._logger.info(f"No match found in MONDO OBO for '{disease_name}'")
             if self.ontoma._ols.besthit(disease_name, ontology=['mondo'], field_list=['iri', 'label'], exact=True):
