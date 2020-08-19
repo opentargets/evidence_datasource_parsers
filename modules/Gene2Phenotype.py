@@ -144,6 +144,9 @@ class G2P(RareDiseaseMapper):
         Returns:
             dict: Dictionary containing MONDO id, name and whether it's exact or not, or `None` if not found
         '''
+
+        disease_name = disease_name.lower()
+
         # mondo_lookup works like a dictionary lookup so if disease is not in there it raises and error instead of returning `None`
         try:
             mondo_term = self.ontoma.mondo_lookup(disease_name)
