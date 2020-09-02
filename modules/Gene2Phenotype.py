@@ -5,7 +5,6 @@ import ontoma
 
 import python_jsonschema_objects as pjo
 
-import sys
 import logging
 import csv
 import gzip

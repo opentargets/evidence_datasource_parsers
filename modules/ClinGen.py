@@ -6,9 +6,7 @@ import python_jsonschema_objects as pjo
 
 import logging
 import pandas as pd
-import gzip
 import requests
-import datetime
 import argparse
 
 __copyright__  = "Copyright 2014-2020, Open Targets"
