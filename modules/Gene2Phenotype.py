@@ -26,7 +26,7 @@ G2P_confidence2score = {
     'probable': 0.5,
     'possible' : 0.25,
     'both RD and IF' : 1,
-    'child IF': 0.25
+    'child IF': 1
 }
 
 

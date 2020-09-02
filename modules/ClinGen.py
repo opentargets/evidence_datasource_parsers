@@ -21,12 +21,12 @@ __status__     = "Prototype"
 
 ClinGen_classification2score = {
     "Definitive": 1,
-    "Strong": 0.75,
+    "Strong": 1,
     "Moderate": 0.5,
-    "Limited": 0.25,
-    "Disputed": 0.1,
-    "Refuted": 0.05,
-    "No Reported Evidence": 0.01,
+    "Limited": 0,
+    "Disputed": 0,
+    "Refuted": 0,
+    "No Reported Evidence": 0,
 }
 
 class ClinGen():
