@@ -23,10 +23,10 @@ ClinGen_classification2score = {
     "Definitive": 1,
     "Strong": 1,
     "Moderate": 0.5,
-    "Limited": 0,
-    "Disputed": 0,
-    "Refuted": 0,
-    "No Reported Evidence": 0,
+    "Limited": 0.01,
+    "Disputed": 0.01,
+    "Refuted": 0.01,
+    "No Reported Evidence": 0.01,
 }
 
 class ClinGen():
