@@ -241,7 +241,7 @@ class G2P(RareDiseaseMapper):
                 try:
                     date = datetime.datetime.strptime(date, "%Y-%m-%d %H:%M:%S").isoformat()
                 except ValueError:
-                    date = "N/A"
+                    date = None
 
 
                 gene_symbol.rstrip()
