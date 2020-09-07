@@ -207,7 +207,7 @@ class ClinGen():
                     linkout = [
                         {
                             'url' : report_url,
-                            'nice_name' : 'Gene Validity Curation: {} - {} report'.format(gene_symbol, disease_name)
+                            'nice_name' : 'Gene Validity Curations: {} - {} report'.format(gene_symbol, disease_name)
                         }
                     ]
 
