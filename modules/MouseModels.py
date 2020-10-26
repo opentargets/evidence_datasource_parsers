@@ -258,8 +258,9 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                             model_phenotypes = []
                             for raw_mp in doc['model_phenotypes']:
                                 mt = re.match("^(MP\:\d+)\s+", raw_mp)
-                                mp_id = mt.groups()[0]
-                                model_phenotypes.append(mp_id)
+                                if mt:
+                                    mp_id = mt.groups()[0]
+                                    model_phenotypes.append(mp_id)
                             self.mouse_models[model_id]['model_phenotypes'] = model_phenotypes
 
                     elif doc['type'] == 'disease_model_summary':
