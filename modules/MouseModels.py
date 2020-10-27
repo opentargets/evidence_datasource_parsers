@@ -139,8 +139,6 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
 
     def access_solr(self, mode='update_cache'):
 
-        #url = Config.MOUSEMODELS_PHENODIGM_SOLR + '/solr/phenodigm/select'
-
         start = 0
         rows = 20000
         nbItems = rows
@@ -151,19 +149,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
         while (total < numFound):
             counter+=1
             self._logger.info(start)
-            #self._logger.info(start)
 
-            #uri = url + '?q=*:*&wt=json&indent=true&start=%i&rows=%i&fq=type:gene' %(start,rows)
-            #uri = url + '?q=*:*&wt=json&indent=true&start=%i&rows=%i' %(start,rows)
-            #params = dict(q="*", wt="json", indent="true", start="%i"%start, rows="%i"%rows)
-            #if mode == 'update_cache':
-            #    uri = uri + '&fq=type:gene'
-            #    params['fq']="type:gene"
-            #self._logger.info("REQUEST {0}. {1}".format(counter, uri))
-            #r = requests.get(url, params=params, timeout=30)
-            #self._logger.info("REQUEST %s"%(r.url))
-            #r.raise_for_status()
-            #rsp = r.json()
             rsp = self.query_solr(counter, start, rows, mode)
 
             numFound = rsp['response']['numFound']
