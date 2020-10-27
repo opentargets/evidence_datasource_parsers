@@ -164,7 +164,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
             #self._logger.info("REQUEST %s"%(r.url))
             #r.raise_for_status()
             #rsp = r.json()
-            rsp = self.request_genes(conter, start, rows, mode)
+            rsp = self.request_genes(counter, start, rows, mode)
 
             numFound = rsp['response']['numFound']
             self._logger.info("NumFound %i"%(numFound))
