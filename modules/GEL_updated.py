@@ -3,35 +3,27 @@ pd.options.mode.chained_assignment = None  # default='warn'
 from ontoma import OnToma
 
 from settings import Config
+from common.HGNCParser import GeneParser
 from datetime import date
 import logging
 import requests
 import python_jsonschema_objects as pjo
 
 
+PanelApp_classification2score = {
+    "green": 1,
+    "amber": 0.5,
+}
+
 class panelapp_evidence_generator():
 
     def __init__(self, schema_version=Config.VALIDATED_AGAINST_SCHEMA_VERSION):
-
-        # Logger configuration
-
-        self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(logging.INFO)
-        # create console handler
-        ch = logging.StreamHandler()
-        ch.setLevel(logging.INFO)
-        # create formatter
-        formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
-        # add formatter to ch
-        ch.setFormatter(formatter)
-        # add ch to logger
-        self.logger.addHandler(ch)
 
         # Get JSON Schema
 
         self.schema_version = schema_version
         schema_url = "https://raw.githubusercontent.com/opentargets/json_schema/" + self.schema_version + "/draft4_schemas/opentargets.json"
-        self.logger.info(f"Loading JSON Schema from {schema_url}")
+        logger.info(f"Loading JSON Schema from {schema_url}")
 
 
         # Initialize JSON Schema builder
@@ -43,7 +35,7 @@ class panelapp_evidence_generator():
             self.builder = pjo.ObjectBuilder(json_schema)
             self.evidence_builder = self.builder.build_classes()
         except requests.exceptions.HTTPError as e:
-            self.logger.error('Invalid JSON schema version')
+            logger.error('Invalid JSON schema version')
             raise e
 
 
@@ -57,11 +49,12 @@ class panelapp_evidence_generator():
         gene_parser._get_hgnc_data_from_json()
         self.genes = gene_parser.genes
 
+    @staticmethod
     def build_publications(self, dataframe):
         '''
         Builds a dataframe with the publications fetched from the PanelApp API
         '''
-        panel_lst = dataframe["Panel Id"].value_counts().index.to_list()
+        panel_lst = dataframe["Panel Id"].unique()
         lst = []
 
         for panel in panel_lst:
@@ -73,7 +66,7 @@ class panelapp_evidence_generator():
         dataframe = pd.concat(lst, ignore_index=True, sort=False)
         return dataframe
 
-    
+    @staticmethod 
     def publications_from_panel(self, panel_id):
         '''
         queries the PanelApp API to obtain a list of the publications for every gene within a panel_id
@@ -86,6 +79,7 @@ class panelapp_evidence_generator():
         except:
             return None
     
+    @staticmethod
     def publication_from_symbol(self, symbol, response):
         '''
 
@@ -96,7 +90,7 @@ class panelapp_evidence_generator():
                 return publication
             continue
 
-
+    @staticmethod
     def split_dataframes(self, dataframe):
         '''
         Cleaning of the initial .tsv or .csv file
@@ -148,6 +142,7 @@ class panelapp_evidence_generator():
 
         return cleaned_OMIM, not_OMIM, multiple_phenotype
 
+    @staticmethod 
     def ontoma_query(self, iterable, dict_name="ontoma_queries.json"):
         '''
         Queries the OnToma utility to map a phenotype to a disease.
@@ -185,11 +180,11 @@ class panelapp_evidence_generator():
         self.ensembl_iri = "http://identifiers.org/ensembl/" + self.genes[self.gene_symbol]
         self.mapped_disease = row["OnToma Label"]
         self.mapped_id = row["OnToma Term"]
-        self.reported_disease = row["Phenotypes"]
+        self.source_disease = row["Phenotypes"]
         self.mode_of_inheritance = row["Mode of inheritance"]
-        self.evidence_confidence = row["List"]
+        self.evidence_classification = row["List"]
         self.sources = row["Sources"]
-        self.publication = row["Publications"]
+        #self.publication = row["Publications"]
 
         # Panel level information:
         self.panel_id = row["Panel Id"]
@@ -217,51 +212,54 @@ class panelapp_evidence_generator():
                             'id' : "Genomics England PanelApp",
                             'version' : date.today().strftime("%d/%m/%Y"),
                             'dbxref' : {
-                                'url': "https://panelapp.genomicsengland.co.uk/",
                                 'id' : "Genomics England PanelApp",
-                                'version' : date.today().strftime("%d/%m/%Y")
+                                'url': "https://panelapp.genomicsengland.co.uk/",
+                                'version' : date.today().strftime("%d/%m/%Y") # Config.GE_PANEL_VERSION
                                         }
                                     }
                             }
         resource_score = {
+                        'method': {
+                            'description': "Further details in the Genomics England PanelApp.",
+                            'url': 'https://panelapp.genomicsengland.co.uk'
+                        }
                         'type': "probability",
-                        'value': 1
+                        'value': PanelApp_classification2score[self.evidence_classification]
                     }
         
-        linkout = [
+        urls = [
                 {
-                'url' : "http://europepmc.org/abstract/MED/" + self.publication,
-                'nice_name' : 'Gene Validity Curations: {} - {} report'.format(gene_symbol, disease_name)
+                'nice_name' : f'Further details in the Genomics England PanelApp for panel {self.panel_id} and gene {self.gene_symbol}',
+                'url' : f"https://panelapp.genomicsengland.co.uk/panels/{self.panel_id}/{self.gene_symbol}"
                 }
             ]
 
         evidence_field = {
-                    'is_associated' : True,
-                    'confidence' : 1,
-                    'allelic_requirement' : self.mode_of_inheritance,
-                    'evidence_codes' : ["http://purl.obolibrary.org/obo/ECO_0000204"],
-                    'provenance_type' : provenance_type,
                     'date_asserted' : date.today().strftime("%d/%m/%Y"),
+                    'evidence_codes' : ["http://purl.obolibrary.org/obo/ECO_0000205"],
+                    'is_associated' : True,
+                    'provenance_type' : provenance_type,
                     'resource_score' : resource_score,
-                    'urls' : linkout
+                    'urls' : urls
+                    #'confidence' : PanelApp_classification2score[self.evidence_classification]
                     }
 
-        target = {
+        target_field = {
                         'id' : self.ensembl_iri,
                         'activity' : "http://identifiers.org/cttv.activity/unknown",
                         'target_type' : "http://identifiers.org/cttv.target/gene_evidence",
                         'target_name' : gene_symbol
                     }
 
-        disease_info = {
+        disease_field = {
                         'id': self.mapped_id,
                         'name' : self.mapped_disease,
-                        'source_name': self.mapped_disease
+                        'source_name': self.source_disease
                     }
         
-        unique_association_fields = {
+        unique_association_field = {
                         'panel_name' : self.panel_name,
-                        'original_disease': self.reported_disease,
+                        'original_disease': self.source_disease,
                         'target_id' : self.ensembl_iri,
                         'disease_id' : self.mapped_id,
                     }
@@ -275,21 +273,42 @@ class panelapp_evidence_generator():
                 sourceID = "genomics_england",
                 evidence = evidence_field,
                 target = target_field,
-                disease = disease_info,
+                disease = disease_field,
                 unique_association_fields = unique_association_fields,
                 validated_against_schema_version = self.schema_version
             )
-            self.evidence_strings.append(evidence)
+            return evidence.serialize()
         except:
             self._logger.warning('Evidence generation failed for row: {}'.format(c))
             raise
 
+def parser():
+    '''
+
+    '''
+    pass
+
 def main(dataframe):
 
-    dataframe = pd.read_csv(dataframe, sep='\t')
+    # Initialize logger
+
+        logger = logging.getLogger(__name__)
+        logger.setLevel(logging.INFO)
+        # create console handler
+        ch = logging.StreamHandler()
+        ch.setLevel(logging.INFO)
+        # create formatter
+        formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
+        # add formatter to ch
+        ch.setFormatter(formatter)
+        # add ch to logger
+        logger.addHandler(ch)
 
     # Initialize evidence builder object:
-    evidence_builder = panelapp_evidence_generator(json_schema="1.6.9")
+    evidence_builder = panelapp_evidence_generator(schema_version="1.6.9")
+
+    # Read input file
+    dataframe = pd.read_csv(dataframe, sep='\t')
 
     # Filtering with green and ambar evidences
 
@@ -299,7 +318,7 @@ def main(dataframe):
 
     # Feed the dataframe with publications
 
-    dataframe = evidence_builder.build_publications(dataframe)
+    # dataframe = evidence_builder.build_publications(dataframe)
 
     # Splitting and cleaning the dataframe according to the phenotype string
 
@@ -310,7 +329,7 @@ def main(dataframe):
 
     dataframe = OMIM_codes.copy()
 
-    phenotypes = dataframe["Phenotypes"].value_counts().index.to_list()
+    phenotypes = dataframe["Phenotypes"].unique()
 
     mappings_dict = evidence_builder.ontoma_query(phenotypes)
     assert mappings_dict, "Disease mappings completed."
