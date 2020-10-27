@@ -6,6 +6,7 @@ import logging
 import os
 import sys
 import json
+import gzip
 import re
 import hashlib
 import datetime
@@ -747,7 +748,8 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
     def write_to_cloud(self, filename):
 
         # The name of the blob. This corresponds to the unique path of the object in the bucket.
-        blob = self.bucket.blob(filename)
+        # Uploading the file to otar000-evidence_input/PhenoDigm/json
+        blob = self.bucket.blob("PhenoDigm/json/" + filename)
         with open(filename, 'rb') as my_file:
             print("have opened " + filename)
             blob.upload_from_file(my_file)
@@ -786,7 +788,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
         bar.update()
 
 
-    def process_all(self, update_cache=False):
+    def process_all(self, update_cache=False, write2cloud=False):
 
         if update_cache == True:
             bar = tqdm(desc='Generate PhenoDigm evidence strings',
@@ -794,6 +796,10 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                        unit='steps')
             self.access_solr(mode='update_cache')
             bar.update()
+            return
+        elif write2cloud:
+            self._logger.info("Upload evidence file to {}/PhenoDigm/json in the {} Google Cloud project".format(Config.GOOGLE_BUCKET_EVIDENCE_INPUT, Config.GOOGLE_DEFAULT_PROJECT))
+            self.write_to_cloud(Config.MOUSEMODELS_EVIDENCE_FILENAME)
             return
 
         self.process_ontologies()
@@ -821,7 +827,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
         self._logger.info("write evidence strings")
         self.write_evidence_strings(Config.MOUSEMODELS_EVIDENCE_FILENAME)
         bar.update()
-        #self.write_to_cloud(Config.MOUSEMODELS_EVIDENCE_FILENAME)
+        #
         #bar.update()
         return
 
@@ -829,12 +835,16 @@ def main():
 
     parser = optparse.OptionParser()
     parser.add_option("-u", '--update-cache', action="store_true", dest="update_cache", default=False)
+    parser.add_option("-w", '--write-evidence-to-cloud', action="store_true", dest="write2cloud", default=False)
     options, args = parser.parse_args()
-    print("update_cache value is %s"%(options.update_cache))
+
+    # -u and -w options are mutually exclusuve
+    if options.update_cache and options.write2cloud:
+        parser.error("Options -u and -w are mutually exclusive, please use one only")
 
     ph = Phenodigm()
     #ph.process_ontologies()
-    ph.process_all(update_cache=options.update_cache)
+    ph.process_all(update_cache=options.update_cache, write2cloud=options.write2cloud)
 
 if __name__ == "__main__":
     main()
