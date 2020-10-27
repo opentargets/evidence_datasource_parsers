@@ -261,8 +261,6 @@ class panelapp_evidence_generator():
         
         unique_association_fields = {
                         'panel_name' : self.panel_name,
-                        'panel_id' : self.panel_id,
-                        'panel_version': self.panel_version,
                         'original_disease': self.reported_disease,
                         'target_id' : self.ensembl_iri,
                         'disease_id' : self.mapped_id,
@@ -288,12 +286,14 @@ class panelapp_evidence_generator():
 
 def main(dataframe):
 
+    dataframe = pd.read_csv(dataframe, sep='\t')
+
     # Initialize evidence builder object:
     evidence_builder = panelapp_evidence_generator(json_schema="1.6.9")
 
     # Filtering with green and ambar evidences
 
-    dataframe = dataframe[((dataframe["List"] == "green") | (dataframe["List"] == "ambar")) & (dataframe["Panel Version"] > 1) & (dataframe["Panel Status"] == "PUBLIC")].reset_index(drop=True)
+    dataframe = dataframe[((dataframe["List"] == "green") | (dataframe["List"] == "amber")) & (dataframe["Panel Version"] > 1) & (dataframe["Panel Status"] == "PUBLIC")].reset_index(drop=True)
     dataframe.dropna(axis=1, how="all", inplace=True)
 
 
@@ -350,7 +350,7 @@ def main(dataframe):
 
     return evidences
 
-test = main("genes_toy.csv")
+test = main("modules/genes_toy.tsv")
 
 print(test)
 
