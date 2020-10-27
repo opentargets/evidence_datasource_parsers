@@ -10,6 +10,7 @@ import re
 import hashlib
 import datetime
 import collections
+from retry import retry
 from settings import Config
 from common.Utils import TqdmLoggingHandler
 from common.RareDiseasesUtils import RareDiseaseMapper
@@ -138,7 +139,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
 
     def access_solr(self, mode='update_cache'):
 
-        url = Config.MOUSEMODELS_PHENODIGM_SOLR + '/solr/phenodigm/select'
+        #url = Config.MOUSEMODELS_PHENODIGM_SOLR + '/solr/phenodigm/select'
 
         start = 0
         rows = 20000
@@ -153,15 +154,17 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
             #self._logger.info(start)
 
             #uri = url + '?q=*:*&wt=json&indent=true&start=%i&rows=%i&fq=type:gene' %(start,rows)
-            uri = url + '?q=*:*&wt=json&indent=true&start=%i&rows=%i' %(start,rows)
-            params = dict(q="*", wt="json", indent="true", start="%i"%start, rows="%i"%rows)
-            if mode == 'update_cache':
-                uri = uri + '&fq=type:gene'
-                params['fq']="type:gene"
-            self._logger.info("REQUEST {0}. {1}".format(counter, uri))
-            r = requests.get(url, params=params, timeout=30)
-            self._logger.info("REQUEST %s"%(r.url))
-            rsp = r.json()
+            #uri = url + '?q=*:*&wt=json&indent=true&start=%i&rows=%i' %(start,rows)
+            #params = dict(q="*", wt="json", indent="true", start="%i"%start, rows="%i"%rows)
+            #if mode == 'update_cache':
+            #    uri = uri + '&fq=type:gene'
+            #    params['fq']="type:gene"
+            #self._logger.info("REQUEST {0}. {1}".format(counter, uri))
+            #r = requests.get(url, params=params, timeout=30)
+            #self._logger.info("REQUEST %s"%(r.url))
+            #r.raise_for_status()
+            #rsp = r.json()
+            rsp = self.request_genes(conter, start, rows, mode)
 
             numFound = rsp['response']['numFound']
             self._logger.info("NumFound %i"%(numFound))
@@ -178,6 +181,39 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
 
         if mode == 'update_cache':
             self.update_genes(docs=None)
+
+    # Use @retry decorator to ensure that errors like the query failing because server was overloaded, are handled correctly and the request is retried
+    @retry(tries=3, delay=5, backoff=1.2, jitter=(1, 3), logger=self._logger)
+    def query_solr(self, counter, start, rows, mode):
+        '''
+        Queries IMPC solr API
+
+        :param url: Query
+        :return: Dictionary with response
+        '''
+
+        # SOLR base URL
+        url = Config.MOUSEMODELS_PHENODIGM_SOLR + '/solr/phenodigm/select'
+
+        # Full URI for printing
+        uri = url + '?q=*:*&wt=json&indent=true&start=%i&rows=%i' % (start, rows)
+
+        # Params for querying
+        params = dict(q="*", wt="json", indent="true", start="%i" % start, rows="%i" % rows)
+        if mode == 'update_cache':
+            uri = uri + '&fq=type:gene'
+            params['fq'] = "type:gene"
+        self._logger.info("REQUEST {0}. {1}".format(counter, uri))
+
+        # Query
+        r = requests.get(url, params=params, timeout=30)
+        self._logger.info("REQUEST %s" % (r.url))
+
+        # Check for erroneous HTTP response statuses
+        r.raise_for_status()
+        rsp = r.json()
+        return rsp
+
 
     def request_genes(self, buffer, default_species='homo_sapiens'):
         g = self.hsGenes
