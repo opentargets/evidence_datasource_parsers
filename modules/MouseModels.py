@@ -732,7 +732,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
 
         countExported = 0
         logger.info("Writing Phenodigm evidence strings")
-        with open(filename, 'w') as tp_file:
+        with gzip.open(filename, 'wt') as tp_file:
             self._logger.info("Processing %i records" % (len(self.hashkeys)))
             for hashkey in self.hashkeys:
                 self._logger.info("Processing key %s"%(hashkey))
