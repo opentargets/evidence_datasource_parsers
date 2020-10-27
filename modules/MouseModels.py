@@ -183,7 +183,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
             self.update_genes(docs=None)
 
     # Use @retry decorator to ensure that errors like the query failing because server was overloaded, are handled correctly and the request is retried
-    @retry(tries=3, delay=5, backoff=1.2, jitter=(1, 3), logger=self._logger)
+    @retry(tries=3, delay=5, backoff=1.2, jitter=(1, 3))
     def query_solr(self, counter, start, rows, mode):
         '''
         Queries IMPC solr API
