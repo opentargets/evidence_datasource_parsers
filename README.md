@@ -35,7 +35,7 @@ Start the machine and connect to it via SSH.
 
 Before you start you may want to change the name of the output JSON by editing `MOUSEMODELS_EVIDENCE_FILENAME` variable in [settings.py](https://github.com/opentargets/evidence_datasource_parsers/blob/solr_phenodigm_1904/settings.py):
 ```python3
-MOUSEMODELS_EVIDENCE_FILENAME = 'phenodigm-4-4-2019.json'
+MOUSEMODELS_EVIDENCE_FILENAME = 'phenodigm-4-4-2019.json.gz'
 ```
 When you are ready follow these steps:
 ```sh
@@ -55,5 +55,8 @@ python3 modules/MouseModels.py --update-cache
 
 # Run PhenoDigm parser
 python3 modules/MouseModels.py 
+
+# Upload the evidence file to Google Cloud Storage
+python3 modules/MouseModels.py -w
 ```
 **NOTE:** Remember to stop the machine once you are done as it costs money to have it on! 
