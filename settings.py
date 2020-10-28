@@ -97,5 +97,5 @@ class Config:
     # used to be 'http://localhost:8983' # 'solrclouddev.sanger.ac.uk'
     MOUSEMODELS_PHENODIGM_SOLR = 'http://www.ebi.ac.uk/mi/impc'
     # write to the cloud direcly
-    MOUSEMODELS_CACHE_DIRECTORY = 'Phenodigm/phenodigmcache'
+    MOUSEMODELS_CACHE_DIRECTORY = 'PhenoDigm/phenodigmcache'
     MOUSEMODELS_EVIDENCE_FILENAME = 'phenodigm-4-4-2019.json'
