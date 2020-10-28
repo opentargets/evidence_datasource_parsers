@@ -7,6 +7,7 @@ from common.HGNCParser import GeneParser
 from datetime import date
 import logging
 import requests
+import json
 import python_jsonschema_objects as pjo
 
 
@@ -15,15 +16,15 @@ PanelApp_classification2score = {
     "amber": 0.5,
 }
 
-class panelapp_evidence_generator():
+class PanelApp_evidence_generator():
 
     def __init__(self, schema_version=Config.VALIDATED_AGAINST_SCHEMA_VERSION):
 
         # Get JSON Schema
 
         self.schema_version = schema_version
-        schema_url = "https://raw.githubusercontent.com/opentargets/json_schema/" + self.schema_version + "/draft4_schemas/opentargets.json"
-        logger.info(f"Loading JSON Schema from {schema_url}")
+        schema_url = f"https://raw.githubusercontent.com/opentargets/json_schema/{self.schema_version}/draft4_schemas/opentargets.json"
+        logging.info(f"Loading JSON Schema from {schema_url}")
 
 
         # Initialize JSON Schema builder
@@ -35,9 +36,8 @@ class panelapp_evidence_generator():
             self.builder = pjo.ObjectBuilder(json_schema)
             self.evidence_builder = self.builder.build_classes()
         except requests.exceptions.HTTPError as e:
-            logger.error('Invalid JSON schema version')
+            logging.error('Invalid JSON schema version')
             raise e
-
 
         # Create OnToma object
 
@@ -50,7 +50,7 @@ class panelapp_evidence_generator():
         self.genes = gene_parser.genes
 
     @staticmethod
-    def build_publications(self, dataframe):
+    def build_publications(dataframe):
         '''
         Builds a dataframe with the publications fetched from the PanelApp API
         '''
@@ -67,7 +67,7 @@ class panelapp_evidence_generator():
         return dataframe
 
     @staticmethod 
-    def publications_from_panel(self, panel_id):
+    def publications_from_panel(panel_id):
         '''
         queries the PanelApp API to obtain a list of the publications for every gene within a panel_id
         '''
@@ -80,7 +80,7 @@ class panelapp_evidence_generator():
             return None
     
     @staticmethod
-    def publication_from_symbol(self, symbol, response):
+    def publication_from_symbol(symbol, response):
         '''
 
         '''
@@ -91,7 +91,7 @@ class panelapp_evidence_generator():
             continue
 
     @staticmethod
-    def split_dataframes(self, dataframe):
+    def split_dataframes(dataframe):
         '''
         Cleaning of the initial .tsv or .csv file
         '''
@@ -143,7 +143,7 @@ class panelapp_evidence_generator():
         return cleaned_OMIM, not_OMIM, multiple_phenotype
 
     @staticmethod 
-    def ontoma_query(self, iterable, dict_name="ontoma_queries.json"):
+    def ontoma_query(iterable, dict_name="ontoma_queries.json"):
         '''
         Queries the OnToma utility to map a phenotype to a disease.
         '''
@@ -222,7 +222,7 @@ class panelapp_evidence_generator():
                         'method': {
                             'description': "Further details in the Genomics England PanelApp.",
                             'url': 'https://panelapp.genomicsengland.co.uk'
-                        }
+                            },
                         'type': "probability",
                         'value': PanelApp_classification2score[self.evidence_classification]
                     }
@@ -246,7 +246,7 @@ class panelapp_evidence_generator():
 
         target_field = {
                         'id' : self.ensembl_iri,
-                        'activity' : "http://identifiers.org/cttv.activity/unknown",
+                        'activity' : "http://identifiers.org/cttv.activity/predicted_damaging",
                         'target_type' : "http://identifiers.org/cttv.target/gene_evidence",
                         'target_name' : gene_symbol
                     }
@@ -258,28 +258,30 @@ class panelapp_evidence_generator():
                     }
         
         unique_association_field = {
-                        'panel_name' : self.panel_name,
-                        'original_disease': self.source_disease,
-                        'target_id' : self.ensembl_iri,
-                        'disease_id' : self.mapped_id,
+                        'disease_iri': self.mapped_id,
+                        'target_id': self.ensembl_iri,
+                        'panel_id': self.panel_id,
+                        'panel_name': self.panel_name,
+                        'panel_version': self.panel_version,
+                        'original_disease_name': self.source_disease,
                     }
 
         
 
         try:
             evidence = self.evidence_builder.Opentargets(
-                type = "genetic_literature",
-                access_level = "public",
-                sourceID = "genomics_england",
-                evidence = evidence_field,
-                target = target_field,
-                disease = disease_field,
-                unique_association_fields = unique_association_fields,
+                type = "genetic_literature", # done
+                access_level = "public", # done
+                sourceID = "genomics_england", # done
+                evidence = evidence_field, # done
+                target = target_field, # done
+                disease = disease_field, # done
+                unique_association_fields = unique_association_fields, # done
                 validated_against_schema_version = self.schema_version
             )
             return evidence.serialize()
         except:
-            self._logger.warning('Evidence generation failed for row: {}'.format(c))
+            self._logging.warning('Evidence generation failed for row: {}'.format(c))
             raise
 
 def parser():
@@ -290,22 +292,16 @@ def parser():
 
 def main(dataframe):
 
-    # Initialize logger
+    # Initialize logging:
+    logging.basicConfig(
+        filename='evidence_builder.log',
+        level=logging.INFO,
+        format='%(name)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S',
+    )
 
-        logger = logging.getLogger(__name__)
-        logger.setLevel(logging.INFO)
-        # create console handler
-        ch = logging.StreamHandler()
-        ch.setLevel(logging.INFO)
-        # create formatter
-        formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
-        # add formatter to ch
-        ch.setFormatter(formatter)
-        # add ch to logger
-        logger.addHandler(ch)
-
-    # Initialize evidence builder object:
-    evidence_builder = panelapp_evidence_generator(schema_version="1.6.9")
+    # Initialize evidence builder object
+    evidence_builder = PanelApp_evidence_generator(schema_version="1.6.9")
 
     # Read input file
     dataframe = pd.read_csv(dataframe, sep='\t')
@@ -325,7 +321,7 @@ def main(dataframe):
     OMIM_codes, not_OMIM, multiple_phenotype = evidence_builder.split_dataframes(dataframe)
 
     # Mapping the phenotypes to an EFO code
-        # (Working only with OMIM)
+        # (Working only with OMIM ATM)
 
     dataframe = OMIM_codes.copy()
 
