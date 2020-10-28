@@ -256,9 +256,9 @@ class genetics_portal_evidence_generator(Config):
         # Infer variant type:
         if (len(ref_allele) == 1) and (len(alt_allele) ==1):
             variant_type = 'SNP'
-        elif (len(ref_allele) == 1) and (len(alt_allele) > 1):
-            variant_type = 'deletion'
         elif (len(ref_allele) > 1) and (len(alt_allele) == 1):
+            variant_type = 'deletion'
+        elif (len(ref_allele) == 1) and (len(alt_allele) > 1):
             variant_type = 'insertion'
         else:
             variant_type = None
