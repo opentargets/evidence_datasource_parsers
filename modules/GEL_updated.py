@@ -1,14 +1,13 @@
+from settings import Config
+from common.HGNCParser import GeneParser
+import python_jsonschema_objects as pjo
 import pandas as pd
 pd.options.mode.chained_assignment = None  # default='warn'
 from ontoma import OnToma
-
-from settings import Config
-from common.HGNCParser import GeneParser
 from datetime import datetime
 import logging
 import requests
 import json
-import python_jsonschema_objects as pjo
 import argparse
 
 
@@ -37,7 +36,7 @@ class PanelApp_evidence_generator():
             self.builder = pjo.ObjectBuilder(json_schema)
             self.evidence_builder = self.builder.build_classes()
         except requests.exceptions.HTTPError as e:
-            logging.error('Invalid JSON schema version')
+            logging.error("Invalid JSON schema version")
             raise e
 
         # Create OnToma object
@@ -70,7 +69,7 @@ class PanelApp_evidence_generator():
     @staticmethod 
     def publications_from_panel(panel_id):
         '''
-        queries the PanelApp API to obtain a list of the publications for every gene within a panel_id
+        Queries the PanelApp API to obtain a list of the publications for every gene within a panel_id
         '''
         try:
             url = f"http://panelapp.genomicsengland.co.uk/api/v1/panels/{panel_id}/"
@@ -78,6 +77,7 @@ class PanelApp_evidence_generator():
 
             return res["genes"]
         except:
+            logging.error("Query of the PanelApp API failed.")
             return None
     
     @staticmethod
@@ -135,12 +135,6 @@ class PanelApp_evidence_generator():
         cleaned_OMIM["Phenotypes"] = cleaned_OMIM["Phenotypes"].apply(lambda X: X.replace("#", ""))
         cleaned_OMIM["Phenotypes"] = cleaned_OMIM["Phenotypes"].apply(lambda X: X.strip())
 
-        # Exporting dfs to .csv
-
-        #cleaned_OMIM.to_csv("cleaned_OMIM.csv", index=False)
-        #not_OMIM.to_csv("not_OMIM.csv", index=False)
-        #multiple_phenotype.to_csv("multiple_phenotype.csv", index=False)
-
         return cleaned_OMIM, not_OMIM, multiple_phenotype
 
     def ontoma_query(self, iterable, dict_name="ontoma_queries.json"):
@@ -164,7 +158,7 @@ class PanelApp_evidence_generator():
                      'action': None
                     }
             except Exception as error:
-                print(error)
+                logging.error(f"{e} mapping has failed.")
                 continue
         
         with open(dict_name, "w") as outfile:  
@@ -329,66 +323,62 @@ class PanelApp_evidence_generator():
             )
             return evidence.serialize()
         except:
-            logging.warning(f'Evidence generation failed for row: {row.name}')
+            logging.error(f'Evidence generation failed for row: {row.name}')
             raise
 
-def write_evidence_strings(dataframe, schema_version):
+    def write_evidence_strings(self, dataframe):
 
-    # Initialize logging:
-    logging.basicConfig(
-        filename='evidence_builder.log',
-        level=logging.INFO,
-        format='%(name)s - %(levelname)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S',
-    )
+        # Initialize logging:
+        logging.basicConfig(
+            filename='evidence_builder.log',
+            level=logging.INFO,
+            format='%(name)s - %(levelname)s - %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S',
+        )
 
-    # Initialize evidence builder object
-    evidence_builder = PanelApp_evidence_generator(schema_version)
+        # Read input file
+        dataframe = pd.read_csv(dataframe, sep='\t')
 
-    # Read input file
-    dataframe = pd.read_csv(dataframe, sep='\t')
+        # Filtering with green and ambar evidences
 
-    # Filtering with green and ambar evidences
+        dataframe = dataframe[((dataframe["List"] == "green") | (dataframe["List"] == "amber")) & (dataframe["Panel Version"] > 1) & (dataframe["Panel Status"] == "PUBLIC")].reset_index(drop=True)
+        dataframe.dropna(axis=1, how="all", inplace=True)
 
-    dataframe = dataframe[((dataframe["List"] == "green") | (dataframe["List"] == "amber")) & (dataframe["Panel Version"] > 1) & (dataframe["Panel Status"] == "PUBLIC")].reset_index(drop=True)
-    dataframe.dropna(axis=1, how="all", inplace=True)
+        # Feed the dataframe with publications
 
-    # Feed the dataframe with publications
+        # dataframe = evidence_builder.build_publications(dataframe)
 
-    # dataframe = evidence_builder.build_publications(dataframe)
+        # Splitting and cleaning the dataframe according to the phenotype string
 
-    # Splitting and cleaning the dataframe according to the phenotype string
+        OMIM_codes, not_OMIM, multiple_phenotype = PanelApp_evidence_generator.split_dataframes(dataframe)
 
-    OMIM_codes, not_OMIM, multiple_phenotype = evidence_builder.split_dataframes(dataframe)
+        # Mapping the phenotypes to an EFO code (Excluding multiple phenotypes ATM)
 
-    # Mapping the phenotypes to an EFO code (Excluding multiple phenotypes ATM)
+        dataframe = pd.concat([OMIM_codes, not_OMIM], ignore_index=True)
 
-    dataframe = pd.concat([OMIM_codes, not_OMIM], ignore_index=True)
+        phenotypes = dataframe["Phenotypes"].unique()
 
-    phenotypes = dataframe["Phenotypes"].unique()
+        mappings_dict = self.ontoma_query(phenotypes)
+        logging.info("Disease mappings completed.")
 
-    mappings_dict = evidence_builder.ontoma_query(phenotypes)
-    assert mappings_dict, "Disease mappings completed."
+        # New columns: OnToma Result, OnToma Source, OnToma Term, OnToma Label
+        dataframe = PanelApp_evidence_generator.build_mappings(mappings_dict,dataframe)
+        dataframe = dataframe[dataframe["OnToma Result"] == "match"]
 
-    # New columns: OnToma Result, OnToma Source, OnToma Term, OnToma Label
-    dataframe = evidence_builder.build_mappings(mappings_dict,dataframe)
+        # Build evidence strings per row
+        evidences = dataframe.apply(self.get_evidence_string, axis=1)
+        logging.info(f"{len(evidences)} evidence strings have been generated.")
 
-    # Build evidence strings per row
-    evidences = dataframe.apply(evidence_builder.get_evidence_string, axis=1)
-
-    return evidences
+        return evidences
 
 def main():
-    '''
-
-    '''
     # Initiating parser
     parser = argparse.ArgumentParser(description=
     "This script generates Genomics England PanelApp sourced evidences.")
 
-    parser.add_argument("--input_file", required=True, type=str, help="Input .tsv file with the table containing association details.")
-    parser.add_argument("--output_file", required=True, type=str, help="Name of the json output file containing the evidence strings.")
-    parser.add_argument("--schema_version", required=True, type=str, help="JSON schema version to use, e.g. 1.6.9. It must be branch or a tag available in https://github.com/opentargets/json_schema.")
+    parser.add_argument("-i", "--input_file", required=True, type=str, help="Input .tsv file with the table containing association details.")
+    parser.add_argument("-o", "--output_file", required=True, type=str, help="Name of the json output file containing the evidence strings.")
+    parser.add_argument("-s", "--schema_version", required=True, type=str, help="JSON schema version to use, e.g. 1.6.9. It must be branch or a tag available in https://github.com/opentargets/json_schema.")
 
     # Parsing parameters
     args = parser.parse_args()
@@ -397,12 +387,16 @@ def main():
     output_file = args.output_file
     schema_version = args.schema_version
 
+    # Initialize evidence builder object
+    evidence_builder = PanelApp_evidence_generator(schema_version)
+
     # Writing evidence strings into a json file
-    evidences = write_evidence_strings(dataframe, schema_version)
+    evidences = evidence_builder.write_evidence_strings(dataframe)
 
     with open(output_file, "wt") as f:
         evidences.apply(lambda x: f.write(str(x)+'\n'))
+    
+    logging.info(f"Evidence strings saved into {output_file}. Exiting.")
 
 if __name__ == '__main__':
-    
     main()
