@@ -4,11 +4,12 @@ from ontoma import OnToma
 
 from settings import Config
 from common.HGNCParser import GeneParser
-from datetime import date
+from datetime import datetime
 import logging
 import requests
 import json
 import python_jsonschema_objects as pjo
+import argparse
 
 
 PanelApp_classification2score = {
@@ -142,8 +143,7 @@ class PanelApp_evidence_generator():
 
         return cleaned_OMIM, not_OMIM, multiple_phenotype
 
-    @staticmethod 
-    def ontoma_query(iterable, dict_name="ontoma_queries.json"):
+    def ontoma_query(self, iterable, dict_name="ontoma_queries.json"):
         '''
         Queries the OnToma utility to map a phenotype to a disease.
         '''
@@ -163,13 +163,63 @@ class PanelApp_evidence_generator():
                      'quality': None,
                      'action': None
                     }
-            except:
+            except Exception as error:
+                print(error)
                 continue
         
         with open(dict_name, "w") as outfile:  
             json.dump(dct, outfile)
 
         return dct
+    
+    @staticmethod
+    def build_mappings(mappings_dict, dataframe):
+
+        '''valid_mappings = {}
+        for i in mappings_dict.keys():
+            if mappings_dict[i]["quality"] != None:
+                valid_mappings[i] = mappings_dict[i]
+
+        for phenotype in valid_mappings.keys():
+            try:
+                data.loc[data["Phenotypes"] == phenotype, "OnToma Result"] = valid_mappings[phenotype]["quality"]
+                data.loc[data["Phenotypes"] == phenotype, "OnToma Source"] = valid_mappings[phenotype]["source"]
+                data.loc[data["Phenotypes"] == phenotype, "OnToma Term"] = valid_mappings[phenotype]["term"]
+                data.loc[data["Phenotypes"] == phenotype, "OnToma Label"] = valid_mappings[phenotype]["label"]
+            except:
+                continue'''
+        
+        # Splitting dictionaries between fuzzies and matches
+
+        fuzzy = {}
+        match = {}
+
+        for i in mappings_dict.keys():
+            try:
+                if mappings_dict[i]["quality"] == "fuzzy":
+                    fuzzy[i] = mappings_dict[i]
+                elif mappings_dict[i]["quality"] == "match":
+                    match[i] = mappings_dict[i]
+            except:
+                continue
+
+        # Creating the corresponding OnToma result for each phenotype
+        # New columns: OnToma Result, OnToma Source, OnToma Term, OnToma Label
+        # TO-DO: Refactor this
+
+        for phenotype in match.keys():
+            dataframe.loc[dataframe["Phenotypes"] == phenotype, "OnToma Result"] = "match"
+            dataframe.loc[dataframe["Phenotypes"] == phenotype, "OnToma Source"] = match[phenotype]["source"]
+            dataframe.loc[dataframe["Phenotypes"] == phenotype, "OnToma Term"] = match[phenotype]["term"]
+            dataframe.loc[dataframe["Phenotypes"] == phenotype, "OnToma Label"] = match[phenotype]["label"]
+            
+        for phenotype in fuzzy.keys():
+            dataframe.loc[dataframe["Phenotypes"] == phenotype, "OnToma Result"] = "fuzzy"
+            dataframe.loc[dataframe["Phenotypes"] == phenotype, "OnToma Source"] = fuzzy[phenotype]["source"]
+            dataframe.loc[dataframe["Phenotypes"] == phenotype, "OnToma Term"] = fuzzy[phenotype]["term"]
+            dataframe.loc[dataframe["Phenotypes"] == phenotype, "OnToma Label"] = fuzzy[phenotype]["label"]
+
+        return dataframe
     
 
     def get_evidence_string(self, row):
@@ -197,24 +247,24 @@ class PanelApp_evidence_generator():
 
         # If the association has no EFO attached:
         if self.mapped_id is None or self.mapped_id == '':
-            logging.warning('No EFO id for association row: {}'.format(row.name))
+            logging.warning(f'No EFO id for association row: {row.name}')
             return None
 
         target_field = {
-                'id' : ensembl_iri,
+                'id' : self.ensembl_iri,
                 'activity' : "http://identifiers.org/cttv.activity/unknown",
                 'target_type' : "http://identifiers.org/cttv.target/gene_evidence",
-                'target_name' : gene_symbol
+                'target_name' : self.gene_symbol
         }
 
         provenance_type = {
                         'database' : {
                             'id' : "Genomics England PanelApp",
-                            'version' : date.today().strftime("%d/%m/%Y"),
+                            'version' : datetime.now().isoformat(),
                             'dbxref' : {
                                 'id' : "Genomics England PanelApp",
                                 'url': "https://panelapp.genomicsengland.co.uk/",
-                                'version' : date.today().strftime("%d/%m/%Y") # Config.GE_PANEL_VERSION
+                                'version' : datetime.now().isoformat() # Config.GE_PANEL_VERSION
                                         }
                                     }
                             }
@@ -235,7 +285,7 @@ class PanelApp_evidence_generator():
             ]
 
         evidence_field = {
-                    'date_asserted' : date.today().strftime("%d/%m/%Y"),
+                    'date_asserted' : datetime.now().isoformat(),
                     'evidence_codes' : ["http://purl.obolibrary.org/obo/ECO_0000205"],
                     'is_associated' : True,
                     'provenance_type' : provenance_type,
@@ -248,7 +298,7 @@ class PanelApp_evidence_generator():
                         'id' : self.ensembl_iri,
                         'activity' : "http://identifiers.org/cttv.activity/predicted_damaging",
                         'target_type' : "http://identifiers.org/cttv.target/gene_evidence",
-                        'target_name' : gene_symbol
+                        'target_name' : self.gene_symbol
                     }
 
         disease_field = {
@@ -266,31 +316,23 @@ class PanelApp_evidence_generator():
                         'original_disease_name': self.source_disease,
                     }
 
-        
-
         try:
-            evidence = self.evidence_builder.Opentargets(
+            evidence = self.evidence_builder.Opentargets5(
                 type = "genetic_literature", # done
                 access_level = "public", # done
                 sourceID = "genomics_england", # done
                 evidence = evidence_field, # done
                 target = target_field, # done
                 disease = disease_field, # done
-                unique_association_fields = unique_association_fields, # done
+                unique_association_fields = unique_association_field, # done
                 validated_against_schema_version = self.schema_version
             )
             return evidence.serialize()
         except:
-            self._logging.warning('Evidence generation failed for row: {}'.format(c))
+            logging.warning(f'Evidence generation failed for row: {row.name}')
             raise
 
-def parser():
-    '''
-
-    '''
-    pass
-
-def main(dataframe):
+def write_evidence_strings(dataframe, schema_version):
 
     # Initialize logging:
     logging.basicConfig(
@@ -301,7 +343,7 @@ def main(dataframe):
     )
 
     # Initialize evidence builder object
-    evidence_builder = PanelApp_evidence_generator(schema_version="1.6.9")
+    evidence_builder = PanelApp_evidence_generator(schema_version)
 
     # Read input file
     dataframe = pd.read_csv(dataframe, sep='\t')
@@ -311,7 +353,6 @@ def main(dataframe):
     dataframe = dataframe[((dataframe["List"] == "green") | (dataframe["List"] == "amber")) & (dataframe["Panel Version"] > 1) & (dataframe["Panel Status"] == "PUBLIC")].reset_index(drop=True)
     dataframe.dropna(axis=1, how="all", inplace=True)
 
-
     # Feed the dataframe with publications
 
     # dataframe = evidence_builder.build_publications(dataframe)
@@ -320,52 +361,48 @@ def main(dataframe):
 
     OMIM_codes, not_OMIM, multiple_phenotype = evidence_builder.split_dataframes(dataframe)
 
-    # Mapping the phenotypes to an EFO code
-        # (Working only with OMIM ATM)
+    # Mapping the phenotypes to an EFO code (Excluding multiple phenotypes ATM)
 
-    dataframe = OMIM_codes.copy()
+    dataframe = pd.concat([OMIM_codes, not_OMIM], ignore_index=True)
 
     phenotypes = dataframe["Phenotypes"].unique()
 
     mappings_dict = evidence_builder.ontoma_query(phenotypes)
     assert mappings_dict, "Disease mappings completed."
 
-    # Splitting dictionaries between fuzzies and matches
-
-    fuzzy = {}
-    match = {}
-
-    for i in mappings_dict.keys():
-        try:
-            if mappings_dict[i]["quality"] == "fuzzy":
-                fuzzy[i] = mappings_dict[i]
-            elif mappings_dict[i]["quality"] == "match":
-                match[i] = mappings_dict[i]
-        except:
-            continue
-
-    # Creating the corresponding OnToma result for each phenotype
     # New columns: OnToma Result, OnToma Source, OnToma Term, OnToma Label
-    # TO-DO: Refactor this
+    dataframe = evidence_builder.build_mappings(mappings_dict,dataframe)
 
-    for phenotype in match.keys():
-        dataframe.loc[dataframe["mesh_heading"] == phenotype, "OnToma Result"] = "match"
-        dataframe.loc[dataframe["mesh_heading"] == phenotype, "OnToma Source"] = match[phenotype]["source"]
-        dataframe.loc[dataframe["mesh_heading"] == phenotype, "OnToma Term"] = match[phenotype]["term"]
-        dataframe.loc[dataframe["mesh_heading"] == phenotype, "OnToma Label"] = match[phenotype]["label"]
-        
-    for phenotype in fuzzy.keys():
-        dataframe.loc[dataframe["mesh_heading"] == phenotype, "OnToma Result"] = "fuzzy"
-        dataframe.loc[dataframe["mesh_heading"] == phenotype, "OnToma Source"] = fuzzy[phenotype]["source"]
-        dataframe.loc[dataframe["mesh_heading"] == phenotype, "OnToma Term"] = fuzzy[phenotype]["term"]
-        dataframe.loc[dataframe["mesh_heading"] == phenotype, "OnToma Label"] = fuzzy[phenotype]["label"]
-        
-
+    # Build evidence strings per row
     evidences = dataframe.apply(evidence_builder.get_evidence_string, axis=1)
 
     return evidences
 
-test = main("modules/genes_toy.tsv")
+def main():
+    '''
 
-print(test)
+    '''
+    # Initiating parser
+    parser = argparse.ArgumentParser(description=
+    "This script generates Genomics England PanelApp sourced evidences.")
 
+    parser.add_argument("--input_file", required=True, type=str, help="Input .tsv file with the table containing association details.")
+    parser.add_argument("--output_file", required=True, type=str, help="Name of the json output file containing the evidence strings.")
+    parser.add_argument("--schema_version", required=True, type=str, help="JSON schema version to use, e.g. 1.6.9. It must be branch or a tag available in https://github.com/opentargets/json_schema.")
+
+    # Parsing parameters
+    args = parser.parse_args()
+
+    dataframe = args.input_file
+    output_file = args.output_file
+    schema_version = args.schema_version
+
+    # Writing evidence strings into a json file
+    evidences = write_evidence_strings(dataframe, schema_version)
+
+    with open(output_file, "wt") as f:
+        evidences.apply(lambda x: f.write(str(x)+'\n'))
+
+if __name__ == '__main__':
+    
+    main()
