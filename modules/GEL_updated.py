@@ -92,50 +92,33 @@ class PanelApp_evidence_generator():
             continue
 
     @staticmethod
-    def split_dataframes(dataframe):
+    def clean_dataframe(dataframe):
         '''
         Cleaning of the initial .tsv or .csv file
         '''
 
-        # NaNs in "Phenotypes" column --> Assignment of Pannel Name
+        # NaNs and "No OMIM phenotype" in "Phenotypes" column --> Assignment of Pannel Name
 
-        dataframe.loc[dataframe["Phenotypes"].isna(), "Phenotypes"] = dataframe["Panel Name"]
+        dataframe.loc[(dataframe["Phenotypes"] == "No OMIM phenotype") | (dataframe["Phenotypes"].isna()), "Phenotypes"] = dataframe["Panel Name"]
 
-        # Splitting between one and multiple associations 
-        # "Phenotypes" column contains the separator ";"
+        # Handling multiple phenotypes column: Phenotypes exploded and phenotype_list with the original string
 
-        one_phenotype = dataframe[~dataframe["Phenotypes"].str.contains(";", na=False)].reset_index(drop=True)
-        multiple_phenotype = dataframe[dataframe["Phenotypes"].str.contains(";", na=False)].reset_index(drop=True)
+        dataframe["phenotype_list"] = dataframe["Phenotypes"]
+        dataframe["Phenotypes"] = dataframe["Phenotypes"].apply(lambda X: X.split(";"))
+        dataframe = dataframe.explode("Phenotypes")
 
-        # Among one_phenotype, splitting between those that include an OMIM code and those who don't.
+        # Extracting and cleaning the OMIM codes: 
+        #   removal of the OMIM codes in the Phenotypes column and the inclusion of these in a Codes column
+        #   deleting special characters
 
-        OMIM_codes = one_phenotype[one_phenotype["Phenotypes"].str.contains('[0-9]{5}', na=False, regex=True)].reset_index(drop=True)
-        not_OMIM = one_phenotype[~one_phenotype["Phenotypes"].str.contains('[0-9]{5}', na=False, regex=True)].reset_index(drop=True)
+        dataframe["Codes"] = dataframe["Phenotypes"].str.extract(r"(\d{6})")
+        dataframe["Phenotypes"] = dataframe["Phenotypes"].replace("(\d{6})","",regex=True)
 
-        # Cleaning the OMIM_codes df: 
-        #   - cleaned_OMIM: df after the removal of the OMIM codes in the Phenotypes column and the inclusion of these in a Codes column
-        #   - Deleting special characters (Code is crashing, solution is a shame - TO FIX)
+        dataframe["Phenotypes"] = dataframe["Phenotypes"].str.replace("-", " ", regex=False)
+        dataframe["Phenotypes"] = dataframe["Phenotypes"].str.replace("[^0-9a-zA-Z *]", "", regex=True)
+        dataframe["Phenotypes"] = dataframe["Phenotypes"].apply(lambda X: X.strip())
 
-        cleaned_OMIM = OMIM_codes.copy()
-        cleaned_OMIM["Codes"] = cleaned_OMIM["Phenotypes"].str.extract(r"(\d{6})")
-        cleaned_OMIM["Phenotypes"] = cleaned_OMIM["Phenotypes"].replace("(\d{6})","",regex=True)
-
-        cleaned_OMIM["Phenotypes"] = cleaned_OMIM["Phenotypes"].apply(lambda X: X.replace("{", ""))
-        cleaned_OMIM["Phenotypes"] = cleaned_OMIM["Phenotypes"].apply(lambda X: X.replace("}", ""))
-        cleaned_OMIM["Phenotypes"] = cleaned_OMIM["Phenotypes"].apply(lambda X: X.replace(",", ""))
-        cleaned_OMIM["Phenotypes"] = cleaned_OMIM["Phenotypes"].apply(lambda X: X.replace("(", ""))
-        cleaned_OMIM["Phenotypes"] = cleaned_OMIM["Phenotypes"].apply(lambda X: X.replace(")", ""))
-        cleaned_OMIM["Phenotypes"] = cleaned_OMIM["Phenotypes"].apply(lambda X: X.replace("[", ""))
-        cleaned_OMIM["Phenotypes"] = cleaned_OMIM["Phenotypes"].apply(lambda X: X.replace("]", ""))
-        cleaned_OMIM["Phenotypes"] = cleaned_OMIM["Phenotypes"].apply(lambda X: X.replace("'", ""))
-        cleaned_OMIM["Phenotypes"] = cleaned_OMIM["Phenotypes"].apply(lambda X: X.replace('"', ''))
-        cleaned_OMIM["Phenotypes"] = cleaned_OMIM["Phenotypes"].apply(lambda X: X.replace(".", ""))
-        cleaned_OMIM["Phenotypes"] = cleaned_OMIM["Phenotypes"].apply(lambda X: X.replace("-", " "))
-        cleaned_OMIM["Phenotypes"] = cleaned_OMIM["Phenotypes"].apply(lambda X: X.replace("?", ""))
-        cleaned_OMIM["Phenotypes"] = cleaned_OMIM["Phenotypes"].apply(lambda X: X.replace("#", ""))
-        cleaned_OMIM["Phenotypes"] = cleaned_OMIM["Phenotypes"].apply(lambda X: X.strip())
-
-        return cleaned_OMIM, not_OMIM, multiple_phenotype
+        return dataframe
 
     def ontoma_query(self, iterable, dict_name="ontoma_queries.json"):
         '''
@@ -189,17 +172,13 @@ class PanelApp_evidence_generator():
         match = {}
 
         for i in mappings_dict.keys():
-            try:
-                if mappings_dict[i]["quality"] == "fuzzy":
-                    fuzzy[i] = mappings_dict[i]
-                elif mappings_dict[i]["quality"] == "match":
-                    match[i] = mappings_dict[i]
-            except:
-                continue
+            if mappings_dict[i]["quality"] == "fuzzy":
+                fuzzy[i] = mappings_dict[i]
+            elif mappings_dict[i]["quality"] == "match":
+                match[i] = mappings_dict[i]
 
         # Creating the corresponding OnToma result for each phenotype
         # New columns: OnToma Result, OnToma Source, OnToma Term, OnToma Label
-        # TO-DO: Refactor this
 
         for phenotype in match.keys():
             dataframe.loc[dataframe["Phenotypes"] == phenotype, "OnToma Result"] = "match"
@@ -221,14 +200,17 @@ class PanelApp_evidence_generator():
 
         # Association level information:
         self.gene_symbol = row["Symbol"]
-        self.ensembl_iri = "http://identifiers.org/ensembl/" + self.genes[self.gene_symbol]
         self.mapped_disease = row["OnToma Label"]
         self.mapped_id = row["OnToma Term"]
-        self.source_disease = row["Phenotypes"]
+        self.source_disease = row["phenotype_list"]
         self.mode_of_inheritance = row["Mode of inheritance"]
         self.evidence_classification = row["List"]
         self.sources = row["Sources"]
         #self.publication = row["Publications"]
+        try:
+            self.ensembl_iri = "http://identifiers.org/ensembl/" + self.genes[self.gene_symbol]
+        except:
+            self.ensembl_iri = "http://identifiers.org/ensembl/" + row["EnsemblId(GRch37)"]
 
         # Panel level information:
         self.panel_id = row["Panel Id"]
@@ -312,13 +294,13 @@ class PanelApp_evidence_generator():
 
         try:
             evidence = self.evidence_builder.Opentargets5(
-                type = "genetic_literature", # done
-                access_level = "public", # done
-                sourceID = "genomics_england", # done
-                evidence = evidence_field, # done
-                target = target_field, # done
-                disease = disease_field, # done
-                unique_association_fields = unique_association_field, # done
+                type = "genetic_literature",
+                access_level = "public",
+                sourceID = "genomics_england",
+                evidence = evidence_field,
+                target = target_field,
+                disease = disease_field,
+                unique_association_fields = unique_association_field,
                 validated_against_schema_version = self.schema_version
             )
             return evidence.serialize()
@@ -326,15 +308,7 @@ class PanelApp_evidence_generator():
             logging.error(f'Evidence generation failed for row: {row.name}')
             raise
 
-    def write_evidence_strings(self, dataframe):
-
-        # Initialize logging:
-        logging.basicConfig(
-            filename='evidence_builder.log',
-            level=logging.INFO,
-            format='%(name)s - %(levelname)s - %(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S',
-        )
+    def write_evidence_strings(self, dataframe, mappings_dict):
 
         # Read input file
         dataframe = pd.read_csv(dataframe, sep='\t')
@@ -350,19 +324,19 @@ class PanelApp_evidence_generator():
 
         # Splitting and cleaning the dataframe according to the phenotype string
 
-        OMIM_codes, not_OMIM, multiple_phenotype = PanelApp_evidence_generator.split_dataframes(dataframe)
+        dataframe = PanelApp_evidence_generator.clean_dataframe(dataframe)
 
-        # Mapping the phenotypes to an EFO code (Excluding multiple phenotypes ATM)
-
-        dataframe = pd.concat([OMIM_codes, not_OMIM], ignore_index=True)
+        # Mapping the phenotypes to an EFO code
 
         phenotypes = dataframe["Phenotypes"].unique()
 
-        mappings_dict = self.ontoma_query(phenotypes)
-        logging.info("Disease mappings completed.")
+        if len(mappings_dict) == 0:
+            mappings_dict = self.ontoma_query(phenotypes)
+            logging.info("Disease mappings completed.")
+        logging.info("Disease mappings imported.")
 
         # New columns: OnToma Result, OnToma Source, OnToma Term, OnToma Label
-        dataframe = PanelApp_evidence_generator.build_mappings(mappings_dict,dataframe)
+        dataframe = PanelApp_evidence_generator.build_mappings(mappings_dict, dataframe)
         dataframe = dataframe[dataframe["OnToma Result"] == "match"]
 
         # Build evidence strings per row
@@ -379,6 +353,7 @@ def main():
     parser.add_argument("-i", "--input_file", required=True, type=str, help="Input .tsv file with the table containing association details.")
     parser.add_argument("-o", "--output_file", required=True, type=str, help="Name of the json output file containing the evidence strings.")
     parser.add_argument("-s", "--schema_version", required=True, type=str, help="JSON schema version to use, e.g. 1.6.9. It must be branch or a tag available in https://github.com/opentargets/json_schema.")
+    parser.add_argument("-d", "--dictionary", required=False, type=str, help="Path of the dictionary containing the mapped phenotypes.")
 
     # Parsing parameters
     args = parser.parse_args()
@@ -387,11 +362,26 @@ def main():
     output_file = args.output_file
     schema_version = args.schema_version
 
+    # Initialize logging:
+        logging.basicConfig(
+        filename='evidence_builder.log',
+        level=logging.INFO,
+        format='%(name)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S',
+    )
+
     # Initialize evidence builder object
     evidence_builder = PanelApp_evidence_generator(schema_version)
 
+    # Import dictionary if present
+    if args.dictionary:
+        with open(args.dictionary, "r") as f:
+                mappings_dict = json.load(f)
+    else:
+        mappings_dict = {}
+    
     # Writing evidence strings into a json file
-    evidences = evidence_builder.write_evidence_strings(dataframe)
+    evidences = evidence_builder.write_evidence_strings(dataframe, mappings_dict)
 
     with open(output_file, "wt") as f:
         evidences.apply(lambda x: f.write(str(x)+'\n'))
