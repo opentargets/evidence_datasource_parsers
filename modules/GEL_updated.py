@@ -52,18 +52,30 @@ class PanelApp_evidence_generator():
     @staticmethod
     def build_publications(dataframe):
         '''
-        Builds a dataframe with the publications fetched from the PanelApp API
+        Builds a dataframe with the publications fetched from the PanelApp API and cleans them to match PubMed IDs.
         '''
         panel_lst = dataframe["Panel Id"].unique()
         lst = []
 
         for panel in panel_lst:
             tmp = dataframe[dataframe["Panel Id"] == panel]
-            request = publications_from_panel(panel)
-            tmp["Publications"] = tmp.apply(lambda X: publication_from_symbol(X.Symbol, request), axis=1)
+            request = PanelApp_evidence_generator.publications_from_panel(panel)
+            tmp["Publications"] = tmp.apply(lambda X: PanelApp_evidence_generator.publication_from_symbol(X.Symbol, request), axis=1)
             lst.append(tmp)
         
         dataframe = pd.concat(lst, ignore_index=True, sort=False)
+
+        cleaned_publication = []
+        for row in dataframe["Publications"].to_list():
+            try:
+                tmp = [re.match(r"(\d{8})", e)[0] for e in row]
+                cleaned_publication.append(tmp)
+            except:
+                cleaned_publication.append([])
+                continue
+
+        dataframe["Publications"] = cleaned_publication
+
         return dataframe
 
     @staticmethod 
@@ -193,6 +205,25 @@ class PanelApp_evidence_generator():
             dataframe.loc[dataframe["Phenotypes"] == phenotype, "OnToma Label"] = fuzzy[phenotype]["label"]
 
         return dataframe
+
+    def get_pub_array(self):
+        '''
+        '''
+        pub_array = []
+        pub_dict = {}
+
+        if len(self.publication) != 0:
+            for index, pub in enumerate(self.publication):
+                pub_dict[str(index)] = {
+                    "lit_id": f"http://europepmc.org/abstract/MED/{pub}"
+                }
+                pub_array.append(pub_dict)
+        else:
+            pub_dict["0"] = {
+                "lit_id": None
+            }
+            pub_array.append(pub_dict)
+        return pub_array
     
 
     def get_evidence_string(self, row):
@@ -206,7 +237,8 @@ class PanelApp_evidence_generator():
         self.mode_of_inheritance = row["Mode of inheritance"]
         self.evidence_classification = row["List"]
         self.sources = row["Sources"]
-        #self.publication = row["Publications"]
+        self.publication = row["Publications"]
+        print(row["Publications"])
         try:
             self.ensembl_iri = "http://identifiers.org/ensembl/" + self.genes[self.gene_symbol]
         except:
@@ -242,8 +274,11 @@ class PanelApp_evidence_generator():
                                 'url': "https://panelapp.genomicsengland.co.uk/",
                                 'version' : datetime.now().isoformat() # Config.GE_PANEL_VERSION
                                         }
-                                    }
-                            }
+                                    },
+                        'literature': {
+                            'references': self.get_pub_array()
+                        }
+                        }
         resource_score = {
                         'method': {
                             'description': "Further details in the Genomics England PanelApp.",
@@ -320,10 +355,12 @@ class PanelApp_evidence_generator():
 
         # Feed the dataframe with publications
 
-        # dataframe = evidence_builder.build_publications(dataframe)
+        logging.info("Fetching publications from the API...")
+        dataframe = self.build_publications(dataframe)
+        logging.info("Publications loaded.")
 
         # Splitting and cleaning the dataframe according to the phenotype string
-
+        
         dataframe = PanelApp_evidence_generator.clean_dataframe(dataframe)
 
         # Mapping the phenotypes to an EFO code
@@ -333,7 +370,8 @@ class PanelApp_evidence_generator():
         if len(mappings_dict) == 0:
             mappings_dict = self.ontoma_query(phenotypes)
             logging.info("Disease mappings completed.")
-        logging.info("Disease mappings imported.")
+        else:
+            logging.info("Disease mappings imported.")
 
         # New columns: OnToma Result, OnToma Source, OnToma Term, OnToma Label
         dataframe = PanelApp_evidence_generator.build_mappings(mappings_dict, dataframe)
@@ -363,11 +401,11 @@ def main():
     schema_version = args.schema_version
 
     # Initialize logging:
-        logging.basicConfig(
-        filename='evidence_builder.log',
-        level=logging.INFO,
-        format='%(name)s - %(levelname)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S',
+    logging.basicConfig(
+    filename='evidence_builder.log',
+    level=logging.INFO,
+    format='%(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
     )
 
     # Initialize evidence builder object
