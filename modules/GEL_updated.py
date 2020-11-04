@@ -9,6 +9,7 @@ import logging
 import requests
 import json
 import argparse
+import re
 
 
 PanelApp_classification2score = {
@@ -69,8 +70,9 @@ class PanelApp_evidence_generator():
         for row in dataframe["Publications"].to_list():
             try:
                 tmp = [re.match(r"(\d{8})", e)[0] for e in row]
+                tmp = list(set(tmp)) # Removing duplicated publications
                 cleaned_publication.append(tmp)
-            except:
+            except Exception as e:
                 cleaned_publication.append([])
                 continue
 
@@ -210,16 +212,15 @@ class PanelApp_evidence_generator():
         '''
         '''
         pub_array = []
-        pub_dict = {}
 
         if len(self.publication) != 0:
-            for index, pub in enumerate(self.publication):
-                pub_dict[str(index)] = {
+            for pub in self.publication:
+                pub_dict = {
                     "lit_id": f"http://europepmc.org/abstract/MED/{pub}"
                 }
                 pub_array.append(pub_dict)
         else:
-            pub_dict["0"] = {
+            pub_dict = {
                 "lit_id": None
             }
             pub_array.append(pub_dict)
@@ -238,7 +239,6 @@ class PanelApp_evidence_generator():
         self.evidence_classification = row["List"]
         self.sources = row["Sources"]
         self.publication = row["Publications"]
-        print(row["Publications"])
         try:
             self.ensembl_iri = "http://identifiers.org/ensembl/" + self.genes[self.gene_symbol]
         except:
@@ -274,11 +274,14 @@ class PanelApp_evidence_generator():
                                 'url': "https://panelapp.genomicsengland.co.uk/",
                                 'version' : datetime.now().isoformat() # Config.GE_PANEL_VERSION
                                         }
-                                    },
-                        'literature': {
+                                    }
+                        }
+
+        if len(self.publication) != 0:
+            provenance_type["literature"] = {
                             'references': self.get_pub_array()
                         }
-                        }
+
         resource_score = {
                         'method': {
                             'description': "Further details in the Genomics England PanelApp.",
@@ -339,7 +342,8 @@ class PanelApp_evidence_generator():
                 validated_against_schema_version = self.schema_version
             )
             return evidence.serialize()
-        except:
+        except Exception as e:
+            print(e)
             logging.error(f'Evidence generation failed for row: {row.name}')
             raise
 
