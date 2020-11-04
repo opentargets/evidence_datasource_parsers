@@ -276,7 +276,7 @@ class PanelApp_evidence_generator():
                                         }
                                     }
                         }
-
+        # literature field only shown when the publication array is not empty
         if len(self.publication) != 0:
             provenance_type["literature"] = {
                             'references': self.get_pub_array()
@@ -305,7 +305,7 @@ class PanelApp_evidence_generator():
                     'provenance_type' : provenance_type,
                     'resource_score' : resource_score,
                     'urls' : urls
-                    #'confidence' : PanelApp_classification2score[self.evidence_classification]
+                    'confidence' : PanelApp_classification2score[self.evidence_classification]
                     }
 
         target_field = {
