@@ -162,7 +162,31 @@ class PanelApp_evidence_generator():
             json.dump(dct, outfile)
 
         return dct
-    
+
+    @staticmethod
+    def check_xref(phenotype, code, mappings_dict, codes_dict):
+        '''
+        Among the Fuzzy results of a phenotype query, it checks if the term and the respective code points to the same term
+        '''
+
+        try:
+            if phenotype == "":
+                return
+            phenotype_result = mappings_dict[phenotype]
+            if phenotype_result == None:
+                return
+
+            if phenotype_result["quality"] == "fuzzy":
+                code_result = codes_dict[code]
+                if code_result == None:
+                    return
+
+                if code_result["term"] == phenotype_result["term"]:
+                    mappings_dict[phenotype]["quality"] = "match"
+                    mappings_dict[phenotype]["action"] = "checked"
+        except Exception as e:
+            logging.error(f'No OMIM code for phenotype: {phenotype}')
+
     @staticmethod
     def build_mappings(mappings_dict, dataframe):
 
@@ -196,13 +220,13 @@ class PanelApp_evidence_generator():
 
         for phenotype in match.keys():
             dataframe.loc[dataframe["Phenotypes"] == phenotype, "OnToma Result"] = "match"
-            dataframe.loc[dataframe["Phenotypes"] == phenotype, "OnToma Source"] = match[phenotype]["source"]
+            dataframe.loc[dataframe["Phenotypes"] == phenotype, "OnToma Action"] = match[phenotype]["action"]
             dataframe.loc[dataframe["Phenotypes"] == phenotype, "OnToma Term"] = match[phenotype]["term"]
             dataframe.loc[dataframe["Phenotypes"] == phenotype, "OnToma Label"] = match[phenotype]["label"]
             
         for phenotype in fuzzy.keys():
             dataframe.loc[dataframe["Phenotypes"] == phenotype, "OnToma Result"] = "fuzzy"
-            dataframe.loc[dataframe["Phenotypes"] == phenotype, "OnToma Source"] = fuzzy[phenotype]["source"]
+            dataframe.loc[dataframe["Phenotypes"] == phenotype, "OnToma Action"] = fuzzy[phenotype]["action"]
             dataframe.loc[dataframe["Phenotypes"] == phenotype, "OnToma Term"] = fuzzy[phenotype]["term"]
             dataframe.loc[dataframe["Phenotypes"] == phenotype, "OnToma Label"] = fuzzy[phenotype]["label"]
 
@@ -304,7 +328,7 @@ class PanelApp_evidence_generator():
                     'is_associated' : True,
                     'provenance_type' : provenance_type,
                     'resource_score' : resource_score,
-                    'urls' : urls
+                    'urls' : urls,
                     'confidence' : PanelApp_classification2score[self.evidence_classification]
                     }
 
@@ -367,8 +391,9 @@ class PanelApp_evidence_generator():
         
         dataframe = PanelApp_evidence_generator.clean_dataframe(dataframe)
 
-        # Mapping the phenotypes to an EFO code
+        # Mapping the phenotypes and OMIM codes to an EFO code
 
+        codes = dataframe["Codes"].unique()
         phenotypes = dataframe["Phenotypes"].unique()
 
         if len(mappings_dict) == 0:
@@ -376,6 +401,17 @@ class PanelApp_evidence_generator():
             logging.info("Disease mappings completed.")
         else:
             logging.info("Disease mappings imported.")
+        
+        codes_dict = self.ontoma_query(codes)
+
+        # Xref of the fuzzy matches with the corresponding code
+
+        phenotypes_list = dataframe["Phenotypes"].to_list()
+        codes_list = dataframe["Codes"].to_list()
+        merged = list(zip(phenotypes_list, codes_list))
+
+        for pheno, code in merged:
+            PanelApp_evidence_generator.check_xref(pheno, code, mappings_dict, codes_dict)
 
         # New columns: OnToma Result, OnToma Source, OnToma Term, OnToma Label
         dataframe = PanelApp_evidence_generator.build_mappings(mappings_dict, dataframe)
