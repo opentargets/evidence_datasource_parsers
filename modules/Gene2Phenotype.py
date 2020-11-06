@@ -296,11 +296,14 @@ class G2P(RareDiseaseMapper):
                                     'id' : "Gene2Phenotype",
                                     'version' : self.g2p_version
                                 }
-                            },
-                            'literature' : {
-                                'references' : self.get_pub_array(pmids.split(";"))
                             }
                         }
+
+                        # Add literature provenance if there are PMIDs
+                        if len(pmids) != 0:
+                            provenance_type["literature"] = {
+                                'references' : self.get_pub_array(pmids.split(";"))
+                            }
 
                         # *** General properties ***
                         access_level = "public"
