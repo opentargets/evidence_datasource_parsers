@@ -335,7 +335,9 @@ class G2P(RareDiseaseMapper):
                             'target_id' : ensembl_iri,
                             'original_disease_label' : disease_name,
                             'disease_id' : disease_mapping['id'],
-                            'gene_panel': panel
+                            'gene_panel': panel,
+                            "mutation_consequence": mutation_consequence,
+                            "allelic_requirement": allelic_requirement
                         }
 
 
