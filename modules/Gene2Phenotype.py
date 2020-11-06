@@ -75,7 +75,7 @@ class G2P(RareDiseaseMapper):
         # Create OnToma object
         self.ontoma = ontoma.interface.OnToma()
 
-    def map_disease_name_to_ontology(self, disease_name):
+    def map_disease_name_to_ontology(self, disease_name, omim_id):
         '''
         Searches the G2P disease name in EFO, ORDO, HP and MONDO
 
@@ -83,6 +83,7 @@ class G2P(RareDiseaseMapper):
 
         Args:
             disease_name (str): Gene2Phenotype disease name extracted from the "disease name" column
+            omim_id (int): Gene2Phenotype disease OMIM id extracted from the "disease mim" column
 
         Returns:
             dict: Dictionary that contains id and name of mapped ontology term or `None` if not found
@@ -110,7 +111,17 @@ class G2P(RareDiseaseMapper):
                     self._logger.info(f"No match in MONDO, using OnToma results")
                     return {'id': ontoma_mapping['term'], 'name': ontoma_mapping['label']}
             else:
-                # OnToma fuzzy match. Check in MONDO and if there is not match ignore evidence and report disease
+                # OnToma fuzzy match. First check if the mapping term has a xref to the OMIM id. If not, check in MONDO and if there is not match ignore evidence and report disease
+                self._logger.info(f"Fuzzy match for '{disease_name}' found in OnToma, checking if it has a xref to OMIM:{omim_id}")
+                if self.ontoma.get_efo_from_xref(f"OMIM:{omim_id}"):
+                    for efo_xref in self.ontoma.get_efo_from_xref(f"OMIM:{omim_id}"):
+                        # Extract EFO id from OnToma results
+                        efo_id = ontoma_mapping['term'].split('/')[-1].replace('_', ':')
+                        if efo_id == efo_xref['id']:
+                            self._logger.info(
+                                f"{ontoma_mapping['term']} has a xref to OMIM:{omim_id}, using this term as a match for {disease_name}")
+                            return {'id': ontoma_mapping['term'], 'name': ontoma_mapping['label']}
+                # xref search didn't work, try MONDO as the last resort
                 self._logger.info(f"No exact match for '{disease_name}' found in OnToma, checking in MONDO")
                 mondo_mapping = self.search_mondo(disease_name)
                 if mondo_mapping:
@@ -279,7 +290,7 @@ class G2P(RareDiseaseMapper):
                     ensembl_iri = "http://identifiers.org/ensembl/" + target
 
                     # Map disease to ontology terms
-                    disease_mapping = self.map_disease_name_to_ontology(disease_name)
+                    disease_mapping = self.map_disease_name_to_ontology(disease_name, disease_mim)
                     if disease_mapping:
                         total_efo +=1
 
