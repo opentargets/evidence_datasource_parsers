@@ -73,6 +73,7 @@ class Config:
     # PheWAS catalog
     PHEWAS_CATALOG_FILENAME = file_or_resource('phewas-catalog-19-10-2018.csv')
     PHEWAS_CATALOG_EVIDENCE_FILENAME = 'phewas_catalog-10-11-2020.json'
+    PHEWAS_CATALOG_W_CONSEQUENCES = 'https://storage.googleapis.com/otar000-evidence_input/PheWAS/data_files/phewas_w_consequences.csv'
 
     # Gene2Phenotype
     #G2P_FILENAME = 'DDG2P.csv.gz'

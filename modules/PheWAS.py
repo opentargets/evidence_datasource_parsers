@@ -139,11 +139,13 @@ def main():
 
     ## load pheWAS data enriched from Genetics Portal
 
-    data_dir = Path("resources/phewas_w_rsid.parquet")
+    '''data_dir = Path("resources/phewas_w_rsid.parquet")
     phewas_w_consequences = pd.concat(
         pd.read_parquet(parquet_file)
         for parquet_file in data_dir.glob('*.parquet')
-    )
+    )'''
+
+    phewas_w_consequences = pd.read_csv(Config.PHEWAS_CATALOG_W_CONSEQUENCES)
     phewas_w_consequences.rename(columns = {'rsid':'snp', 'gene_id': 'gene'}, inplace = True)
 
     ## gene symbol <=> ENSGID mappings ##
@@ -164,6 +166,7 @@ def main():
         with open(Config.PHEWAS_CATALOG_FILENAME) as r:
             #catalog = tqdm(csv.DictReader(r), total=TOTAL_NUM_PHEWAS)
             catalog = pd.read_csv(r, dtype={'basepair': str, 'phewas_code': str}).fillna(np.nan)
+            catalog = catalog.sample(frac=0.005)
             # Parsing genes
             catalog["gene"] = catalog["gene"].dropna().apply(lambda X: ensgid_from_gene(X, ensgid))
             catalog.dropna(subset=["gene"], inplace=True)
