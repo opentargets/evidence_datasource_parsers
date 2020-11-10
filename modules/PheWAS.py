@@ -11,7 +11,6 @@ import numpy as np
 
 import requests
 from tqdm import tqdm
-from collections import Counter
 
 from common.HGNCParser import GeneParser
 from common.Utils import mapping_on_github, ghmappings, DuplicateFilter
@@ -118,7 +117,7 @@ def write_variant_id(row, one2many_variants):
             return variant_id
     except Exception as e:
         print(e)
-        return np.nan
+        return None
 
 def main():
 
@@ -138,12 +137,6 @@ def main():
         sys.exit()
 
     ## load pheWAS data enriched from Genetics Portal
-
-    '''data_dir = Path("resources/phewas_w_rsid.parquet")
-    phewas_w_consequences = pd.concat(
-        pd.read_parquet(parquet_file)
-        for parquet_file in data_dir.glob('*.parquet')
-    )'''
 
     phewas_w_consequences = pd.read_csv(Config.PHEWAS_CATALOG_W_CONSEQUENCES)
     phewas_w_consequences.rename(columns = {'rsid':'snp', 'gene_id': 'gene'}, inplace = True)
@@ -166,7 +159,7 @@ def main():
         with open(Config.PHEWAS_CATALOG_FILENAME) as r:
             #catalog = tqdm(csv.DictReader(r), total=TOTAL_NUM_PHEWAS)
             catalog = pd.read_csv(r, dtype={'basepair': str, 'phewas_code': str}).fillna(np.nan)
-            catalog = catalog.sample(frac=0.005)
+            
             # Parsing genes
             catalog["gene"] = catalog["gene"].dropna().apply(lambda X: ensgid_from_gene(X, ensgid))
             catalog.dropna(subset=["gene"], inplace=True)
