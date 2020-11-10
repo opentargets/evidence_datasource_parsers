@@ -93,7 +93,7 @@ The intOGen parser generates evidence strings from three files that need to be i
 
 ### PheWAS catalog
 
-The `PheWAS.py` script parses the PheWAS Catalog CSV file specified as `PHEWAS_CATALOG_FILENAME` in `settings.py` and that should be located either in the working directory or the `resources` folder. The mappings between the Phecodes and EFO are read from the [phewascat.mappings.tsv](https://raw.githubusercontent.com/opentargets/mappings/master/phewascat.mappings.tsv) file in the `mappings` repository.
+The `PheWAS.py` script parses the PheWAS Catalog CSV file specified as `PHEWAS_CATALOG_FILENAME` in `settings.py` and that should be located either in the working directory or the `resources` folder. This file can be downloaded [here](https://storage.googleapis.com/otar000-evidence_input/PheWAS/data_files/phewas-catalog-19-10-2018.csv). The mappings between the Phecodes and EFO are read from the [phewascat.mappings.tsv](https://raw.githubusercontent.com/opentargets/mappings/master/phewascat.mappings.tsv) file in the `mappings` repository.
 
 ```sh
 (venv)$ python3 modules/PheWAS.py

@@ -6,10 +6,12 @@ import csv
 import sys
 import json
 from pathlib import Path
-
+import pandas as pd
+import numpy as np
 
 import requests
 from tqdm import tqdm
+from collections import Counter
 
 from common.HGNCParser import GeneParser
 from common.Utils import mapping_on_github, ghmappings, DuplicateFilter
@@ -58,19 +60,21 @@ def make_target(ensgid):
     return target
 
 
-def make_variant(rsid):
+def make_variant(rsid, variant_id):
     variant = {}
     variant['type'] = "snp single"
-    variant['id'] = "http://identifiers.org/dbsnp/{}".format(rsid)
+    variant['rs_id'] = f"http://identifiers.org/dbsnp/{rsid}"
+    if variant_id != None:
+        variant["id"] = variant_id 
     return variant
 
 
-def make_gene2variant():
+def make_gene2variant(consequence_link):
     return {'provenance_type':PROVENANCE,
             'is_associated':True,
             'date_asserted':"2017-12-31T09:53:37+00:00",
             'evidence_codes':["http://purl.obolibrary.org/obo/ECO_0000205"],
-            'functional_consequence':'http://purl.obolibrary.org/obo/SO_0001060'
+            'functional_consequence': consequence_link
             }
 
 def make_variant2disease(pval, odds_ratio, cases):
@@ -92,7 +96,29 @@ def make_variant2disease(pval, odds_ratio, cases):
     variant2disease['cases'] = cases
     return variant2disease
 
+def ensgid_from_gene(gene, ensgid):
 
+    ## find ENSGID ##
+    gene = gene.strip("*")
+    if gene not in ensgid:
+        #__log__.debug("Skipping unmapped target %s",gene)
+        #skipped_unmapped_target_cnt += 1
+        return np.nan
+    if not len(gene) or not len(ensgid[gene]):
+        #__log__.debug("Skipping zero length gene name")
+        #skipped_zero_length_cnt += 1
+        return np.nan
+    return ensgid[gene]
+
+
+def write_variant_id(row, one2many_variants):
+    try:
+        if row["snp"] not in one2many_variants:
+            variant_id = "{}_{}_{}_{}".format(row["chrom"], int(row["pos"]), row["ref"], row["alt"])
+            return variant_id
+    except Exception as e:
+        print(e)
+        return np.nan
 
 def main():
 
@@ -111,6 +137,15 @@ def main():
         __log__.error('Trait mapping file not found on GitHub: https://raw.githubusercontent.com/opentargets/mappings/master/phewascat.mappings.tsv')
         sys.exit()
 
+    ## load pheWAS data enriched from Genetics Portal
+
+    data_dir = Path("resources/phewas_w_rsid.parquet")
+    phewas_w_consequences = pd.concat(
+        pd.read_parquet(parquet_file)
+        for parquet_file in data_dir.glob('*.parquet')
+    )
+    phewas_w_consequences.rename(columns = {'rsid':'snp', 'gene_id': 'gene'}, inplace = True)
+
     ## gene symbol <=> ENSGID mappings ##
     gene_parser = GeneParser()
     __log__.info('Parsing gene data from HGNC...')
@@ -127,60 +162,78 @@ def main():
     with open(Config.PHEWAS_CATALOG_EVIDENCE_FILENAME, 'w') as outfile:
 
         with open(Config.PHEWAS_CATALOG_FILENAME) as r:
-            catalog = tqdm(csv.DictReader(r), total=TOTAL_NUM_PHEWAS)
-            for i, row in enumerate(catalog):
+            #catalog = tqdm(csv.DictReader(r), total=TOTAL_NUM_PHEWAS)
+            catalog = pd.read_csv(r, dtype={'basepair': str, 'phewas_code': str}).fillna(np.nan)
+            catalog = catalog.sample(frac=0.005)
+            # Parsing genes
+            catalog["gene"] = catalog["gene"].dropna().apply(lambda X: ensgid_from_gene(X, ensgid))
+            catalog.dropna(subset=["gene"], inplace=True)
+            # Merging dataframes: more records due to 1:many associations
+            enriched_catalog = pd.merge(catalog, phewas_w_consequences, on=["gene", "snp"])
+
+            one2many_variants = {i for i in phewas_w_consequences["snp"] if phewas_w_consequences["snp"].tolist().count(i) > 1}
+            enriched_catalog["variant_id"] = enriched_catalog.dropna(how="any", subset=["chrom", "pos", "ref", "alt"]).apply(lambda X: write_variant_id(X, one2many_variants), axis=1)
+            enriched_catalog.drop(["csq_arr", "most_severe_gene_csq"], axis=1, inplace=True)
+
+
+            for i, row in enriched_catalog.iterrows():
                 __log__.debug(row)
 
                 # Only use data with p-value<0.05
                 if float(row['p']) < 0.05:
-
+                    if row['gene'] == None:
+                        continue
+                    gene = row["gene"]
                     phewas_string = row['phewas_string'].strip()
                     phewas_code = row['phewas_code'].strip()
-                    gene = row['gene'].strip('*')
                     snp = row['snp']
                     row_p = row['p']
                     odds_ratio = row['odds_ratio']
                     cases = row['cases']
-
+                    variant_id = row['variant_id']
+                    if row["consequence_link"] == None and row["most_severe_csq"] == None:
+                        consequence_link = "http://purl.obolibrary.org/obo/SO_0001060"
+                        functional_csq = "sequence_variant"
+                    else:
+                        consequence_link = row["consequence_link"]
+                        functional_csq = row["most_severe_csq"]
+                    
                     pev = {}
                     pev['type'] = 'genetic_association'
                     pev['access_level'] = 'public'
                     pev['sourceID'] = 'phewas_catalog'
                     pev['validated_against_schema_version'] = '1.6.7'
 
-                    ## find ENSGID ##
-                    if gene not in ensgid:
-                        __log__.debug("Skipping unmapped target %s",gene)
-                        skipped_unmapped_target_cnt += 1
-                        continue
-                    if not len(gene) or not len(ensgid[gene]):
-                        __log__.debug("Skipping zero length gene name")
-                        skipped_zero_length_cnt += 1
-                        continue
-                    pev['target'] = make_target(ensgid[gene])
 
-                    pev["variant"]= make_variant(snp)
+                    pev['target'] = make_target(gene)
+
+                    pev["variant"]= make_variant(snp, variant_id)
                     pev["evidence"] = { "variant2disease": make_variant2disease(row_p, odds_ratio, cases),
-                                        "gene2variant": make_gene2variant()}
+                                        "gene2variant": make_gene2variant(consequence_link)}
 
                     ## find EFO term ##
                     if phewas_string not in mappings:
                         __log__.debug("Skipping unmapped disease %s", phewas_string)
                         skipped_phewas_string_cnt += 1
                         continue
-
+                    
                     for disease in mappings[phewas_string]:
                         if disease['efo_uri'] != "NEW TERM REQUEST":
                             pev['disease'] = make_disease(disease, phewas_code)
 
                             # Evidence strings are unique based on the target, disease EFO term and Phewas string
-                            pev['unique_association_fields'] = {'target_id': ensgid[gene],
+                            pev['unique_association_fields'] = {'target_id': gene,
                                                                 'disease_id' : pev['disease']['id'],
                                                                 'phewas_string_and_code' : phewas_string + " [" + phewas_code + "]",
-                                                                'variant_id': snp}
+                                                                'variant_id': variant_id if variant_id != None else snp}
 
-                            outfile.write("%s\n" % json.dumps(pev,
-                                sort_keys=True, separators = (',', ':')))
+                        
+                            with open(Config.PHEWAS_CATALOG_EVIDENCE_FILENAME, 'r') as readfile: # tweak to not duplicate evidence strings
+                                if pev in readfile: #implement with Counter?, inefficient
+                                    continue
+                                else:
+                                    outfile.write("%s\n" % json.dumps(pev,
+                                        sort_keys=True, separators = (',', ':')))
 
                     built +=1
 

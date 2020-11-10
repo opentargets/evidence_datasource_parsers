@@ -72,7 +72,7 @@ class Config:
 
     # PheWAS catalog
     PHEWAS_CATALOG_FILENAME = file_or_resource('phewas-catalog-19-10-2018.csv')
-    PHEWAS_CATALOG_EVIDENCE_FILENAME = 'phewas_catalog-07-04-2020.json'
+    PHEWAS_CATALOG_EVIDENCE_FILENAME = 'phewas_catalog-10-11-2020.json'
 
     # Gene2Phenotype
     #G2P_FILENAME = 'DDG2P.csv.gz'
