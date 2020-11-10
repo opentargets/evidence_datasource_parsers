@@ -62,8 +62,8 @@ def make_target(ensgid):
 def make_variant(rsid, variant_id):
     variant = {}
     variant['type'] = "snp single"
-    variant['rs_id'] = f"http://identifiers.org/dbsnp/{rsid}"
-    if variant_id != None:
+    variant['rs_id'] = rsid
+    if pd.notna(variant_id):
         variant["id"] = variant_id 
     return variant
 
@@ -117,7 +117,7 @@ def write_variant_id(row, one2many_variants):
             return variant_id
     except Exception as e:
         print(e)
-        return None
+        return np.nan
 
 def main():
 
@@ -179,7 +179,7 @@ def main():
 
                 # Only use data with p-value<0.05
                 if float(row['p']) < 0.05:
-                    if row['gene'] == None:
+                    if row['gene'] is None:
                         continue
                     gene = row["gene"]
                     phewas_string = row['phewas_string'].strip()
@@ -189,18 +189,19 @@ def main():
                     odds_ratio = row['odds_ratio']
                     cases = row['cases']
                     variant_id = row['variant_id']
-                    if row["consequence_link"] == None and row["most_severe_csq"] == None:
+                    if row["consequence_link"] is None or pd.isna(row["consequence_link"]):
                         consequence_link = "http://purl.obolibrary.org/obo/SO_0001060"
                         functional_csq = "sequence_variant"
                     else:
                         consequence_link = row["consequence_link"]
                         functional_csq = row["most_severe_csq"]
-                    
+                
+
                     pev = {}
                     pev['type'] = 'genetic_association'
                     pev['access_level'] = 'public'
                     pev['sourceID'] = 'phewas_catalog'
-                    pev['validated_against_schema_version'] = '1.6.7'
+                    pev['validated_against_schema_version'] = '1.7.5'
 
 
                     pev['target'] = make_target(gene)
@@ -223,7 +224,7 @@ def main():
                             pev['unique_association_fields'] = {'target_id': gene,
                                                                 'disease_id' : pev['disease']['id'],
                                                                 'phewas_string_and_code' : phewas_string + " [" + phewas_code + "]",
-                                                                'variant_id': variant_id if variant_id != None else snp}
+                                                                'variant_id': variant_id if pd.notna(variant_id) else snp}
 
                         
                             outfile.write("%s\n" % json.dumps(pev,
