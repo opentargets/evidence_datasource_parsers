@@ -164,7 +164,6 @@ def main():
         with open(Config.PHEWAS_CATALOG_FILENAME) as r:
             #catalog = tqdm(csv.DictReader(r), total=TOTAL_NUM_PHEWAS)
             catalog = pd.read_csv(r, dtype={'basepair': str, 'phewas_code': str}).fillna(np.nan)
-            catalog = catalog.sample(frac=0.005)
             # Parsing genes
             catalog["gene"] = catalog["gene"].dropna().apply(lambda X: ensgid_from_gene(X, ensgid))
             catalog.dropna(subset=["gene"], inplace=True)
@@ -175,6 +174,9 @@ def main():
             enriched_catalog["variant_id"] = enriched_catalog.dropna(how="any", subset=["chrom", "pos", "ref", "alt"]).apply(lambda X: write_variant_id(X, one2many_variants), axis=1)
             enriched_catalog.drop(["csq_arr", "most_severe_gene_csq"], axis=1, inplace=True)
 
+            # Dropping exploded duplicates
+            columns = ['chromosome', 'basepair', 'gene','snp', 'phewas_code', 'phewas_string', 'cases', 'odds_ratio','p','chrom','pos','most_severe_csq','consequence_link']
+            enriched_catalog.drop_duplicates(subset=columns, inplace=True)
 
             for i, row in enriched_catalog.iterrows():
                 __log__.debug(row)
@@ -228,12 +230,8 @@ def main():
                                                                 'variant_id': variant_id if variant_id != None else snp}
 
                         
-                            with open(Config.PHEWAS_CATALOG_EVIDENCE_FILENAME, 'r') as readfile: # tweak to not duplicate evidence strings
-                                if pev in readfile: #implement with Counter?, inefficient
-                                    continue
-                                else:
-                                    outfile.write("%s\n" % json.dumps(pev,
-                                        sort_keys=True, separators = (',', ':')))
+                            outfile.write("%s\n" % json.dumps(pev,
+                                sort_keys=True, separators = (',', ':')))
 
                     built +=1
 
