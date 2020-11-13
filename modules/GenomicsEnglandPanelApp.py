@@ -252,6 +252,7 @@ class PanelApp_evidence_generator():
         self.evidence_classification = row["List"]
         self.sources = row["Sources"]
         self.publication = row["Publications"]
+        
         try:
             self.ensembl_iri = "http://identifiers.org/ensembl/" + self.genes[self.gene_symbol]
         except:
@@ -318,7 +319,7 @@ class PanelApp_evidence_generator():
                     'provenance_type' : provenance_type,
                     'resource_score' : resource_score,
                     'urls' : urls,
-                    'confidence' : PanelApp_classification2score[self.evidence_classification]
+                    'confidence' : self.evidence_classification
                     }
 
         target_field = {
