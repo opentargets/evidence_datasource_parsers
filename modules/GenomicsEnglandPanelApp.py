@@ -319,7 +319,8 @@ class PanelApp_evidence_generator():
                     'provenance_type' : provenance_type,
                     'resource_score' : resource_score,
                     'urls' : urls,
-                    'confidence' : self.evidence_classification
+                    'confidence' : self.evidence_classification,
+                    'allelic_requirement' : self.mode_of_inheritance
                     }
 
         target_field = {
