@@ -247,7 +247,8 @@ class PanelApp_evidence_generator():
         self.gene_symbol = row["Symbol"]
         self.mapped_disease = row["OnToma Label"]
         self.mapped_id = row["OnToma Term"]
-        self.source_disease = row["phenotype_list"]
+        self.source_array = row["phenotype_list"].split(";")
+        self.source_name = row["Phenotypes"]
         self.mode_of_inheritance = row["Mode of inheritance"]
         self.evidence_classification = row["List"]
         self.sources = row["Sources"]
@@ -322,7 +323,8 @@ class PanelApp_evidence_generator():
                     'confidence' : self.evidence_classification,
                     'panel_id': self.panel_id,
                     'panel_version': self.panel_version,
-                    'allelic_requirement' : self.mode_of_inheritance
+                    'allelic_requirement' : self.mode_of_inheritance,
+                    'phenotypes_array' : self.phenotypes_array
                     }
 
         target_field = {
@@ -335,13 +337,14 @@ class PanelApp_evidence_generator():
         disease_field = {
                         'id': self.mapped_id,
                         'name' : self.mapped_disease,
-                        'source_name': self.source_disease
+                        'source_name': self.source_name
                     }
         
         unique_association_field = {
                         'disease_iri': self.mapped_id,
                         'target_id': self.ensembl_iri,
                         'panel_id': self.panel_id,
+                        'panel_name': self.panel_name,
                         'panel_version': self.panel_version,
                         'original_disease_name': self.source_disease,
                     }
