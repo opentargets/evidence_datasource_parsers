@@ -108,7 +108,7 @@ class PanelApp_evidence_generator():
     @staticmethod
     def clean_dataframe(dataframe):
         '''
-        Cleaning of the initial .tsv or .csv file
+        Cleaning of the initial .tsv file
         '''
 
         # NaNs and "No OMIM phenotype" in "Phenotypes" column --> Assignment of Pannel Name
@@ -131,6 +131,8 @@ class PanelApp_evidence_generator():
         dataframe["Phenotypes"] = dataframe["Phenotypes"].str.replace("-", " ", regex=False)
         dataframe["Phenotypes"] = dataframe["Phenotypes"].str.replace("[^0-9a-zA-Z *]", "", regex=True)
         dataframe["Phenotypes"] = dataframe["Phenotypes"].apply(lambda X: X.strip())
+
+        dataframe.reset_index(inplace=True)
 
         return dataframe
 
@@ -247,7 +249,7 @@ class PanelApp_evidence_generator():
         self.gene_symbol = row["Symbol"]
         self.mapped_disease = row["OnToma Label"]
         self.mapped_id = row["OnToma Term"]
-        self.source_array = row["phenotype_list"].split(";")
+        self.phenotypes_array = row["phenotype_list"].split(";")
         self.source_name = row["Phenotypes"]
         self.mode_of_inheritance = row["Mode of inheritance"]
         self.evidence_classification = row["List"]
@@ -321,8 +323,9 @@ class PanelApp_evidence_generator():
                     'resource_score' : resource_score,
                     'urls' : urls,
                     'confidence' : self.evidence_classification,
-                    'panel_id': self.panel_id,
-                    'panel_version': self.panel_version,
+                    'study_overview': self.panel_name,
+                    'study_id': self.panel_id,
+                    'study_version': self.panel_version,
                     'allelic_requirement' : self.mode_of_inheritance,
                     'phenotypes_array' : self.phenotypes_array
                     }
@@ -343,10 +346,10 @@ class PanelApp_evidence_generator():
         unique_association_field = {
                         'disease_iri': self.mapped_id,
                         'target_id': self.ensembl_iri,
-                        'panel_id': self.panel_id,
-                        'panel_name': self.panel_name,
-                        'panel_version': self.panel_version,
-                        'original_disease_name': self.source_disease,
+                        'study_overview': self.panel_name,
+                        'study_id': self.panel_id,
+                        'study_version': self.panel_version,
+                        'original_disease_name': self.source_name,
                     }
 
         try:
