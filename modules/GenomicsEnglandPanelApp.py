@@ -320,6 +320,8 @@ class PanelApp_evidence_generator():
                     'resource_score' : resource_score,
                     'urls' : urls,
                     'confidence' : self.evidence_classification,
+                    'panel_id': self.panel_id,
+                    'panel_version': self.panel_version,
                     'allelic_requirement' : self.mode_of_inheritance
                     }
 
@@ -340,7 +342,6 @@ class PanelApp_evidence_generator():
                         'disease_iri': self.mapped_id,
                         'target_id': self.ensembl_iri,
                         'panel_id': self.panel_id,
-                        'panel_name': self.panel_name,
                         'panel_version': self.panel_version,
                         'original_disease_name': self.source_disease,
                     }
