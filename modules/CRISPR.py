@@ -145,7 +145,8 @@ class CRISPR:
                             'is_associated': True,
                             'evidence_codes': ["http://purl.obolibrary.org/obo/ECO_0000053"],
                             'provenance_type': provenance_type,
-                            'resource_score': resource_score
+                            'resource_score': resource_score,
+                            'experiment_overview': gene_set_name #TODO: Add this to the schema
                         }
 
                         # *** Build unique_association_field object ***
