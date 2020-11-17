@@ -128,8 +128,6 @@ class CRISPR:
                         target_info = {
                             'id': "http://identifiers.org/ensembl/{0}".format(ensembl_gene_id),
                             'target_name': target_name,
-                            # TODO activity is a required field in target object, currently set as unknown
-                            'activity': "http://identifiers.org/cttv.activity/unknown",
                             'target_type': "http://identifiers.org/cttv.target/gene_evidence"
                         }
 
