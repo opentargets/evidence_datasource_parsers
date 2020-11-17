@@ -1,10 +1,11 @@
 from settings import Config
 from common.HGNCParser import GeneParser
-import sys
+
 import logging
 import datetime
 import requests
 import python_jsonschema_objects as pjo
+import argparse
 
 __copyright__ = "Copyright 2014-2019, Open Targets"
 __credits__   = ["Michaela Spitzer"]
@@ -53,15 +54,15 @@ class CRISPR:
             self.logger.error('Invalid JSON schema version')
             raise e
 
-    def process_crispr(self):
+    def process_crispr(self, in_filename, desc_filename, out_filename):
         gene_parser = GeneParser()
         gene_parser._get_hgnc_data_from_json()
 
         self.symbols = gene_parser.genes
-        self.build_evidence()
-        self.write_evidence()
+        self.build_evidence(in_filename, desc_filename)
+        self.write_evidence(out_filename)
 
-    def build_evidence(self, filename1=Config.CRISPR_FILENAME1, filename2=Config.CRISPR_FILENAME2):
+    def build_evidence(self, input_filename=Config.CRISPR_FILENAME1, description_filename=Config.CRISPR_FILENAME2):
 
         now = datetime.datetime.now()
 
@@ -80,14 +81,14 @@ class CRISPR:
 
         # Build dictionary with publication info (pmid, method description, score type, min_score, max_score)
         CRISPR_METHOD_MAP = {}
-        with open(filename2, 'r') as crispr_descriptions:
+        with open(description_filename, 'r') as crispr_descriptions:
 
             for line in crispr_descriptions:
                 # pmid	method	score_type
                 (efo_id, crispr_method) = tuple(line.rstrip().split('\t'))
                 CRISPR_METHOD_MAP[efo_id]={'method':crispr_method}
 
-        with open(filename1, 'r') as crispr_input:
+        with open(input_filename, 'r') as crispr_input:
             n = 0
             for line in crispr_input:
                 n +=1
@@ -187,7 +188,35 @@ class CRISPR:
                 crispr_output.write(evidence_string.serialize() + "\n")
 
 def main():
-    CRISPR().process_crispr()
+
+    # Parse CLI arguments
+    parser = argparse.ArgumentParser(description='Parse essential cancer genes identified using CRISPR assays and prioritised in Project Score')
+    parser.add_argument('-d', '--descriptions_file',
+                        help='Name of tsv file with the description of the method per cancer type',
+                        type=str, default=Config.CRISPR_FILENAME2)
+    parser.add_argument('-i', '--input_file',
+                        help='Name of tsv file with the priority score',
+                        type=str, default=Config.CRISPR_FILENAME1)
+    parser.add_argument('-c', '--cell_types_file',
+                        help='Name of tsv file with cell line names pero cancer type',
+                        type=str, required=True)
+    parser.add_argument('-o', '--output_file',
+                        help='Name of evidence file',
+                        type=str, default=Config.CRISPR_EVIDENCE_FILENAME)
+    parser.add_argument('-s', '--schema_version',
+                        help='JSON schema version to use, e.g. 1.7.5. It must be branch or a tag available in https://github.com/opentargets/json_schema',
+                        type=str, required=True)
+
+    args = parser.parse_args()
+    # Get parameters
+    desc_file = args.descriptions_file
+    infile = args.input_file
+    cell_file = args.cell_types_file
+    outfile = args.output_file
+    schema_version = args.schema_version
+
+    crispr_parser = CRISPR(schema_version)
+    crispr_parser.process_crispr(infile, desc_file, outfile)
 
 if __name__ == "__main__":
     main()
