@@ -14,8 +14,8 @@ __maintainer__= "Open Targets Data Team"
 __email__     = ["data@opentargets.org"]
 __status__    = "Production"
 
-CRISPR_DATABASE_ID='CRISPR'
-CRISPR_VERSION='2019.03'
+CRISPR_DATABASE_ID='Project Score'
+CRISPR_VERSION='April 2019'
 
 # A few genes do not have Ensembl IDs in the data file provided
 CRISPR_SYMBOL_MAPPING={
