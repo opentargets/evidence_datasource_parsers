@@ -3,10 +3,8 @@ from common.HGNCParser import GeneParser
 import sys
 import logging
 import datetime
-import opentargets.model.core as opentargets
-import opentargets.model.bioentity as bioentity
-import opentargets.model.evidence.core as evidence_core
-import opentargets.model.evidence.association_score as association_score
+import requests
+import python_jsonschema_objects as pjo
 
 __copyright__ = "Copyright 2014-2019, Open Targets"
 __credits__   = ["Michaela Spitzer"]
@@ -33,10 +31,27 @@ CRISPR_SYMBOL_MAPPING={
 }
 
 class CRISPR:
-    def __init__(self):
+    def __init__(self, schema_version=Config.VALIDATED_AGAINST_SCHEMA_VERSION):
         self.evidence_strings = list()
         self.symbols = {}
         self.logger = logging.getLogger(__name__)
+
+        # Build JSON schema url from version
+        self.schema_version = schema_version
+        schema_url = "https://raw.githubusercontent.com/opentargets/json_schema/" + self.schema_version + "/draft4_schemas/opentargets.json"
+        self.logger.info('Loading JSON schema at {}'.format(schema_url))
+
+        # Initialize json builder based on the schema:
+        try:
+            r = requests.get(schema_url)
+            r.raise_for_status()
+            json_schema = r.json()
+            self.builder = pjo.ObjectBuilder(json_schema)
+            self.evidence_builder = self.builder.build_classes()
+            self.schema_version = schema_version
+        except requests.exceptions.HTTPError as e:
+            self.logger.error('Invalid JSON schema version')
+            raise e
 
     def process_crispr(self):
         gene_parser = GeneParser()
@@ -51,17 +66,17 @@ class CRISPR:
         now = datetime.datetime.now()
 
         # *** Build evidence.provenance_type object ***
-        provenance_type = evidence_core.BaseProvenance_Type(
-            database=evidence_core.BaseDatabase(
-                id=CRISPR_DATABASE_ID,
-                version=CRISPR_VERSION
-            )
-        )
-        error = provenance_type.validate(logging)
-
-        if error > 0:
-            self.logger.error(provenance_type.to_JSON(indentation=4))
-            sys.exit(1)
+        provenance_type = {
+            'database': {
+                'id': CRISPR_DATABASE_ID,
+                'version': CRISPR_VERSION,
+                'dbxref': {
+                    'url': "https://score.depmap.sanger.ac.uk/",
+                    'id': CRISPR_DATABASE_ID,
+                    'version': CRISPR_VERSION,
+                }
+            }
+        }
 
         # Build dictionary with publication info (pmid, method description, score type, min_score, max_score)
         CRISPR_METHOD_MAP = {}
@@ -86,21 +101,20 @@ class CRISPR:
 
 
                     # *** Build evidence.resource_score object ***
-                    resource_score = association_score.Probability(
-                        type="probability",
-                        method=association_score.Method(
-                            description = CRISPR_METHOD_MAP[disease_id]['method'],
-                            reference = "http://europepmc.org/abstract/MED/{0}".format(pmid)
-                        ),
-                        value=float(score)/100
-                    )
+                    resource_score = {
+                        'type': "probability",
+                        'method': {
+                            'description': CRISPR_METHOD_MAP[disease_id]['method'],
+                            'reference': "http://europepmc.org/abstract/MED/{0}".format(pmid)
+                        },
+                        'value': float(score)/100
+                    }
 
-                    evidenceString = opentargets.Literature_Curated(
-                        validated_against_schema_version = Config.VALIDATED_AGAINST_SCHEMA_VERSION,
-                        access_level = "public",
-                        type = "affected_pathway",
-                        sourceID = "crispr"
-                    )
+                    # General properties of the evidence
+                    validated_against_schema_version = Config.VALIDATED_AGAINST_SCHEMA_VERSION
+                    access_level = "public"
+                    type = "affected_pathway"
+                    sourceID = "crispr"
 
                     if target_name in CRISPR_SYMBOL_MAPPING:
                         target_name=CRISPR_SYMBOL_MAPPING[target_name]
@@ -109,37 +123,55 @@ class CRISPR:
 
                         # *** Build target object ***
                         ensembl_gene_id = target_name
-                        evidenceString.target = bioentity.Target(
-                            id="http://identifiers.org/ensembl/{0}".format(ensembl_gene_id),
-                            target_name=target_name,
+                        target_info = {
+                            'id': "http://identifiers.org/ensembl/{0}".format(ensembl_gene_id),
+                            'target_name': target_name,
                             # TODO activity is a required field in target object, currently set as unknown
-                            activity="http://identifiers.org/cttv.activity/unknown",
-                            target_type='http://identifiers.org/cttv.target/gene_evidence'
-                        )
+                            'activity': "http://identifiers.org/cttv.activity/unknown",
+                            'target_type': "http://identifiers.org/cttv.target/gene_evidence"
+                        }
+
                         # *** Build disease object ***
-                        evidenceString.disease = bioentity.Disease(
-                            id=disease_id,
-                            name=disease_name
-                        )
+                        disease_info = {
+                            'id': disease_id,
+                            'name': disease_name
+                        }
+
                         # *** Build evidence oject ***
-                        evidenceString.evidence = evidence_core.Literature_Curated(
-                            date_asserted = now.isoformat(),
-                            is_associated = True,
-                            evidence_codes = ["http://purl.obolibrary.org/obo/ECO_0000053"],
-                            provenance_type = provenance_type,
-                            resource_score = resource_score
-                        )
+                        evidence_info = {
+                            'date_asserted': now.isoformat(),
+                            'is_associated': True,
+                            'evidence_codes': ["http://purl.obolibrary.org/obo/ECO_0000053"],
+                            'provenance_type': provenance_type,
+                            'resource_score': resource_score
+                        }
+
                         # *** Build unique_association_field object ***
-                        evidenceString.unique_association_fields = {
+                        unique_association_fields = {
                             'pmid': "http://europepmc.org/abstract/MED/{0}".format(pmid),
                             ## TODO: Add gene_set_name to main part of evidence string
                             'gene_set': gene_set_name,
-                            'target_id': evidenceString.target.id,
-                            'disease_id': evidenceString.disease.id
+                            'target_id': target_info['id'],
+                            'disease_id': disease_info['id']
                         }
 
-                        # Append current evidence string
-                        self.evidence_strings.append(evidenceString)
+                        try:
+                            evidence_string = self.evidence_builder.Opentargets(
+                                type = type,
+                                access_level = access_level,
+                                sourceID = sourceID,
+                                evidence = evidence_info,
+                                target = target_info,
+                                disease = disease_info,
+                                unique_association_fields = unique_association_fields,
+                                validated_against_schema_version = validated_against_schema_version
+                            )
+
+                            # Append current evidence string
+                            self.evidence_strings.append(evidence_string)
+                        except:
+                            self.logger.error('Evidence generation failed for the following row:\n{}'.format(line.rstrip()))
+                            raise
                     else:
                         self.logger.error("%s is not found in Ensembl" % target_name)
 
@@ -147,19 +179,11 @@ class CRISPR:
             self.logger.error("%s evidence created"%len(self.evidence_strings))
 
     def write_evidence(self, filename=Config.CRISPR_EVIDENCE_FILENAME):
-        self.logger.info("Writing CRISPR evidence strings")
+        self.logger.info(f"Writing CRISPR evidence strings to {Config.CRISPR_EVIDENCE_FILENAME}")
 
         with open(filename, 'w') as crispr_output:
-            n = 0
             for evidence_string in self.evidence_strings:
-                n += 1
-                self.logger.info(evidence_string.disease.id[0])
-                error = evidence_string.validate(logging)
-                if error == 0:
-                    crispr_output.write(evidence_string.to_JSON(indentation=None)+"\n")
-                else:
-                    self.logger.error("REPORTING ERROR %i" %n)
-                    self.logger.error(evidence_string.to_JSON(indentation=4))
+                crispr_output.write(evidence_string.serialize() + "\n")
 
 def main():
     CRISPR().process_crispr()
