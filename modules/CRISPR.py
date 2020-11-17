@@ -93,10 +93,11 @@ class CRISPR:
                 n +=1
                 if n>1:
                     # pmid	gene_set_name	target_id	disease_id	disease_name	score
-                    # 28892060	Intestine Key Driver Genes	CD53	EFO_0003767	Inflammatory bowel disease	0.083369979
-                    # 28892060	Intestine Key Driver Genes	RHOH	EFO_0003767	Inflammatory bowel disease	0.11673251
-                    # 28892060	Intestine Key Driver Genes	DOCK2	EFO_0003767	Inflammatory bowel disease	0.122212311
-                    # 28892060	Intestine Key Driver Genes	FGR	EFO_0003767	Inflammatory bowel disease	0.13290268
+                    # 30971826	Project Score: Prioritisation of oncology therapeutic targets using CRISPR-Cas9 screening	ENSG00000110092	http://www.ebi.ac.uk/efo/EFO_0000174	Ewing sarcoma	79.7813
+                    # 30971826	Project Score: Prioritisation of oncology therapeutic targets using CRISPR-Cas9 screening	ENSG00000130725	http://www.ebi.ac.uk/efo/EFO_0000174	Ewing sarcoma	58.5
+                    # 30971826	Project Score: Prioritisation of oncology therapeutic targets using CRISPR-Cas9 screening	ENSG00000111142	http://www.ebi.ac.uk/efo/EFO_0000174	Ewing sarcoma	57.9375
+                    # 30971826	Project Score: Prioritisation of oncology therapeutic targets using CRISPR-Cas9 screening	ENSG00000152234	http://www.ebi.ac.uk/efo/EFO_0000174	Ewing sarcoma	54.125
+                    # 30971826	Project Score: Prioritisation of oncology therapeutic targets using CRISPR-Cas9 screening	ENSG00000165501	http://www.ebi.ac.uk/efo/EFO_0000174	Ewing sarcoma	52.5
                     (pmid, gene_set_name, target_name, disease_id, disease_name, score) = tuple(line.rstrip().split('\t'))
 
 
