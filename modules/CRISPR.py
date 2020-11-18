@@ -205,7 +205,7 @@ def main():
                         help='Name of tsv file with the priority score',
                         type=str, default=Config.CRISPR_FILENAME1)
     parser.add_argument('-c', '--cell_types_file',
-                        help='Name of tsv file with cell line names pero cancer type',
+                        help='Name of tsv file with cell line names per cancer type',
                         type=str, required=True)
     parser.add_argument('-o', '--output_file',
                         help='Name of evidence file',
