@@ -122,7 +122,7 @@ class CRISPR:
                     }
 
                     # General properties of the evidence
-                    validated_against_schema_version = Config.VALIDATED_AGAINST_SCHEMA_VERSION
+                    validated_against_schema_version = self.schema_version
                     access_level = "public"
                     type = "affected_pathway"
                     sourceID = "crispr"
