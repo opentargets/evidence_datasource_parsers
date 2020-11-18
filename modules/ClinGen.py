@@ -89,8 +89,6 @@ class ClinGen():
 
     def generate_evidence_strings(self, filename):
 
-        total_efo = 0
-
         # When reading csv file first extract date from second row and the skip header lines that don't contain column names
         # CLINGEN GENE VALIDITY CURATIONS
         # FILE CREATED: 2020-07-16
