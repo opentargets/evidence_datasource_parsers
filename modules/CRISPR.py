@@ -4,6 +4,7 @@ from common.HGNCParser import GeneParser
 import logging
 import datetime
 import requests
+import pandas as pd
 import python_jsonschema_objects as pjo
 import argparse
 
@@ -54,15 +55,15 @@ class CRISPR:
             self.logger.error('Invalid JSON schema version')
             raise e
 
-    def process_crispr(self, in_filename, desc_filename, out_filename):
+    def process_crispr(self, in_filename, desc_filename, cell_filename, out_filename):
         gene_parser = GeneParser()
         gene_parser._get_hgnc_data_from_json()
 
         self.symbols = gene_parser.genes
-        self.build_evidence(in_filename, desc_filename)
+        self.build_evidence(in_filename, desc_filename, cell_filename)
         self.write_evidence(out_filename)
 
-    def build_evidence(self, input_filename=Config.CRISPR_FILENAME1, description_filename=Config.CRISPR_FILENAME2):
+    def build_evidence(self, input_filename=Config.CRISPR_FILENAME1, description_filename=Config.CRISPR_FILENAME2, cell_line_filename=None):
 
         now = datetime.datetime.now()
 
@@ -79,14 +80,22 @@ class CRISPR:
             }
         }
 
-        # Build dictionary with publication info (pmid, method description, score type, min_score, max_score)
-        CRISPR_METHOD_MAP = {}
-        with open(description_filename, 'r') as crispr_descriptions:
+        # Get cell lines per cancer type
+        crispr_desc_df = pd.read_csv(description_filename ,sep='\t')
+        crispr_cells_df = pd.read_csv(cell_line_filename, sep='\t')
+        # Join using cancer type
+        joined_cancer_type_df = crispr_desc_df.join(crispr_cells_df.set_index('Cancer Type'),
+                                                    on='tissue_or_cancer_type', how='inner').drop('Tissue', axis=1)
+        # Join using tissue
+        joined_tissue_df = crispr_desc_df.join(crispr_cells_df.set_index('Tissue'), on='tissue_or_cancer_type',
+                                               how='inner').drop('Cancer Type', axis=1)
+        # Concatenate two data frames
+        concat_df = pd.concat([joined_cancer_type_df, joined_tissue_df ], ignore_index=True)
 
-            for line in crispr_descriptions:
-                # pmid	method	score_type
-                (efo_id, crispr_method) = tuple(line.rstrip().split('\t'))
-                CRISPR_METHOD_MAP[efo_id]={'method':crispr_method}
+        # Aggregate cell lines in Name column
+        joined_df = concat_df.groupby(['efo_id', 'tissue_or_cancer_type', 'method']).agg(
+            {'Name': lambda x: list(x)}).reset_index()
+        joined_df = joined_df.set_index('efo_id')
 
         with open(input_filename, 'r') as crispr_input:
             n = 0
@@ -106,7 +115,7 @@ class CRISPR:
                     resource_score = {
                         'type': "probability",
                         'method': {
-                            'description': CRISPR_METHOD_MAP[disease_id]['method'],
+                            'description': joined_df.loc[disease_id]['method'],
                             'reference': "http://europepmc.org/abstract/MED/{0}".format(pmid)
                         },
                         'value': float(score)/100
@@ -134,7 +143,8 @@ class CRISPR:
                         # *** Build disease object ***
                         disease_info = {
                             'id': disease_id,
-                            'name': disease_name
+                            'name': disease_name,
+                            'source_name': joined_df.loc[disease_id]['tissue_or_cancer_type'] #NOTE: It may be a tissue or a cancer type
                         }
 
                         # *** Build evidence oject ***
@@ -144,7 +154,8 @@ class CRISPR:
                             'evidence_codes': ["http://purl.obolibrary.org/obo/ECO_0000053"],
                             'provenance_type': provenance_type,
                             'resource_score': resource_score,
-                            'experiment_overview': gene_set_name #TODO: Add this to the schema
+                            'experiment_overview': gene_set_name, #TODO: Add this to the schema
+                            'cell_lines': joined_df.loc[disease_id]['Name'] #TODO: Add this to the schema
                         }
 
                         # *** Build unique_association_field object ***
@@ -212,7 +223,7 @@ def main():
     schema_version = args.schema_version
 
     crispr_parser = CRISPR(schema_version)
-    crispr_parser.process_crispr(infile, desc_file, outfile)
+    crispr_parser.process_crispr(infile, desc_file, cell_file, outfile)
 
 if __name__ == "__main__":
     main()
