@@ -1,0 +1,337 @@
+Name	Tissue	Cancer Type
+A375	Skin	Melanoma
+HCT-15	Large Intestine	Colorectal Carcinoma
+HT-29	Large Intestine	Colorectal Carcinoma
+HCC-78	Lung	Lung Adenocarcinoma
+SW620	Large Intestine	Colorectal Carcinoma
+22RV1	Prostate	Prostate Carcinoma
+23132-87	Stomach	Gastric Carcinoma
+769-P	Kidney	Kidney Carcinoma
+A2058	Skin	Melanoma
+A253	Head and Neck	Head and Neck Carcinoma
+A2780ADR	Ovary	Ovarian Carcinoma
+A2780cis	Ovary	Ovarian Carcinoma
+AsPC-1	Pancreas	Pancreatic Carcinoma
+AU565	Breast	Breast Carcinoma
+BB30-HNC	Head and Neck	Head and Neck Carcinoma
+BE2-M17	Peripheral Nervous System	Neuroblastoma
+BHY	Head and Neck	Oral Cavity Carcinoma
+BICR10	Head and Neck	Oral Cavity Carcinoma
+BICR22	Head and Neck	Oral Cavity Carcinoma
+BICR78	Head and Neck	Oral Cavity Carcinoma
+C2BBe1	Large Intestine	Colorectal Carcinoma
+CAL-27	Head and Neck	Oral Cavity Carcinoma
+CAL-33	Head and Neck	Oral Cavity Carcinoma
+CAL-72	Bone	Osteosarcoma
+Caov-4	Ovary	Ovarian Carcinoma
+CAPAN-1	Pancreas	Pancreatic Carcinoma
+CL-11	Large Intestine	Colorectal Carcinoma
+COLO-205	Large Intestine	Colorectal Carcinoma
+COLO-320-HSR	Large Intestine	Colorectal Carcinoma
+COLO-678	Large Intestine	Colorectal Carcinoma
+COLO-680N	Esophagus	Esophageal Squamous Cell Carcinoma
+COLO-824	Breast	Breast Carcinoma
+COR-L23	Lung	Non-Small Cell Lung Carcinoma
+DAN-G	Pancreas	Pancreatic Carcinoma
+Detroit562	Head and Neck	Head and Neck Carcinoma
+DiFi	Large Intestine	Colorectal Carcinoma
+DOK	Head and Neck	Oral Cavity Carcinoma
+DOV13	Ovary	Ovarian Carcinoma
+DU-145	Prostate	Prostate Carcinoma
+EBC-1	Lung	Squamous Cell Lung Carcinoma
+EC-GI-10	Esophagus	Esophageal Squamous Cell Carcinoma
+EFO-21	Ovary	Ovarian Carcinoma
+EFO-27	Ovary	Ovarian Carcinoma
+EGI-1	Biliary Tract	Biliary Tract Carcinoma
+EPLC-272H	Lung	Other Lung Carcinomas
+ES-2	Ovary	Ovarian Carcinoma
+ES4	Bone	Ewing's Sarcoma
+ES5	Bone	Ewing's Sarcoma
+ES8	Bone	Ewing's Sarcoma
+ESO26	Esophagus	Esophageal Adenocarcinoma
+ESO51	Esophagus	Esophageal Adenocarcinoma
+EVSA-T	Breast	Breast Carcinoma
+EW-1	Bone	Ewing's Sarcoma
+EW-16	Bone	Ewing's Sarcoma
+EW-22	Bone	Ewing's Sarcoma
+EW-7	Bone	Ewing's Sarcoma
+FADU	Head and Neck	Head and Neck Carcinoma
+FLO-1	Esophagus	Esophageal Adenocarcinoma
+GP5d	Large Intestine	Colorectal Carcinoma
+HARA	Lung	Squamous Cell Lung Carcinoma
+HCC-15	Lung	Squamous Cell Lung Carcinoma
+HCC1143	Breast	Breast Carcinoma
+HCC1187	Breast	Breast Carcinoma
+HCC1806	Breast	Breast Carcinoma
+HCC1937	Breast	Breast Carcinoma
+HCC1954	Breast	Breast Carcinoma
+HCC2998	Large Intestine	Colorectal Carcinoma
+HCC38	Breast	Breast Carcinoma
+HCE-4	Esophagus	Esophageal Squamous Cell Carcinoma
+HCT-116	Large Intestine	Colorectal Carcinoma
+HEC-1	Endometrium	Endometrial Carcinoma
+Hey	Ovary	Ovarian Carcinoma
+HGC-27	Stomach	Gastric Carcinoma
+HO-1-u-1	Head and Neck	Oral Cavity Carcinoma
+HOP-62	Lung	Lung Adenocarcinoma
+Hs-578-T	Breast	Breast Carcinoma
+HSC-3	Head and Neck	Oral Cavity Carcinoma
+HSC-39	Stomach	Gastric Carcinoma
+HSC-4	Head and Neck	Oral Cavity Carcinoma
+HT55	Large Intestine	Colorectal Carcinoma
+hTERT-RPE-1	Eye	Eye Non Cancerous
+HuP-T3	Pancreas	Pancreatic Carcinoma
+HuP-T4	Pancreas	Pancreatic Carcinoma
+IGROV-1	Ovary	Ovarian Carcinoma
+IST-MEL1	Skin	Melanoma
+JHOS-2	Ovary	Ovarian Carcinoma
+JHOS-4	Ovary	Ovarian Carcinoma
+JHU-011	Head and Neck	Head and Neck Carcinoma
+JHU-022	Head and Neck	Oral Cavity Carcinoma
+JIMT-1	Breast	Breast Carcinoma
+KATOIII	Stomach	Gastric Carcinoma
+KLE	Endometrium	Endometrial Carcinoma
+KM12	Large Intestine	Colorectal Carcinoma
+KMS-11	Haematopoietic and Lymphoid	Plasma Cell Myeloma
+KNS-62	Lung	Squamous Cell Lung Carcinoma
+KON	Head and Neck	Oral Cavity Carcinoma
+KP-1N	Pancreas	Pancreatic Carcinoma
+KP-3	Pancreas	Pancreatic Carcinoma
+KP-4	Pancreas	Pancreatic Carcinoma
+KP-N-YN	Peripheral Nervous System	Neuroblastoma
+KP-N-YS	Peripheral Nervous System	Neuroblastoma
+KURAMOCHI	Ovary	Ovarian Carcinoma
+KYAE-1	Esophagus	Esophageal Adenocarcinoma
+KYSE-140	Esophagus	Esophageal Squamous Cell Carcinoma
+KYSE-150	Esophagus	Esophageal Squamous Cell Carcinoma
+KYSE-220	Esophagus	Esophageal Squamous Cell Carcinoma
+KYSE-270	Esophagus	Esophageal Squamous Cell Carcinoma
+KYSE-410	Esophagus	Esophageal Squamous Cell Carcinoma
+KYSE-450	Esophagus	Esophageal Squamous Cell Carcinoma
+KYSE-510	Esophagus	Esophageal Squamous Cell Carcinoma
+KYSE-520	Esophagus	Esophageal Squamous Cell Carcinoma
+KYSE-70	Esophagus	Esophageal Squamous Cell Carcinoma
+L-363	Haematopoietic and Lymphoid	Plasma Cell Myeloma
+LB1047-RCC	Kidney	Kidney Carcinoma
+LB771-HNC	Head and Neck	Head and Neck Carcinoma
+LC-1-sq	Lung	Squamous Cell Lung Carcinoma
+LCLC-97TM1	Lung	Non-Small Cell Lung Carcinoma
+LK-2	Lung	Squamous Cell Lung Carcinoma
+LNCaP-Clone-FGC	Prostate	Prostate Carcinoma
+LOU-NH91	Lung	Squamous Cell Lung Carcinoma
+LoVo	Large Intestine	Colorectal Carcinoma
+LP-1	Haematopoietic and Lymphoid	Plasma Cell Myeloma
+LS-1034	Large Intestine	Colorectal Carcinoma
+LS-123	Large Intestine	Colorectal Carcinoma
+LS-180	Large Intestine	Colorectal Carcinoma
+LS-411N	Large Intestine	Colorectal Carcinoma
+LS-513	Large Intestine	Colorectal Carcinoma
+LU-65	Lung	Non-Small Cell Lung Carcinoma
+LU-99A	Lung	Non-Small Cell Lung Carcinoma
+LXF-289	Lung	Lung Adenocarcinoma
+MC-IXC	Bone	Ewing's Sarcoma
+MCAS	Ovary	Ovarian Carcinoma
+MCF7	Breast	Breast Carcinoma
+MDA-MB-361	Breast	Breast Carcinoma
+MDA-MB-415	Breast	Breast Carcinoma
+MDA-MB-436	Breast	Breast Carcinoma
+MDA-MB-453	Breast	Breast Carcinoma
+MFE-280	Endometrium	Endometrial Carcinoma
+MFE-296	Endometrium	Endometrial Carcinoma
+MFM-223	Breast	Breast Carcinoma
+MHH-ES-1	Bone	Ewing's Sarcoma
+MIA-PaCa-2	Pancreas	Pancreatic Carcinoma
+MKN28	Stomach	Gastric Carcinoma
+NB13	Peripheral Nervous System	Neuroblastoma
+NB17	Peripheral Nervous System	Neuroblastoma
+NB6	Peripheral Nervous System	Neuroblastoma
+NB69	Peripheral Nervous System	Neuroblastoma
+NB7	Peripheral Nervous System	Neuroblastoma
+NCI-H1155	Lung	Non-Small Cell Lung Carcinoma
+NCI-H1299	Lung	Non-Small Cell Lung Carcinoma
+NCI-H1568	Lung	Lung Adenocarcinoma
+NCI-H1650	Lung	Lung Adenocarcinoma
+NCI-H1755	Lung	Lung Adenocarcinoma
+NCI-H1869	Lung	Non-Small Cell Lung Carcinoma
+NCI-H1915	Lung	Non-Small Cell Lung Carcinoma
+NCI-H1944	Lung	Lung Adenocarcinoma
+NCI-H1975	Lung	Lung Adenocarcinoma
+NCI-H1993	Lung	Lung Adenocarcinoma
+NCI-H2023	Lung	Non-Small Cell Lung Carcinoma
+NCI-H2087	Lung	Lung Adenocarcinoma
+NCI-H2170	Lung	Squamous Cell Lung Carcinoma
+NCI-H226	Lung	Mesothelioma
+NCI-H23	Lung	Lung Adenocarcinoma
+NCI-H3118	Head and Neck	Head and Neck Carcinoma
+NCI-H3122	Lung	Lung Adenocarcinoma
+NCI-H322M	Lung	Lung Adenocarcinoma
+NCI-H358	Lung	Lung Adenocarcinoma
+NCI-H520	Lung	Squamous Cell Lung Carcinoma
+NCI-N87	Stomach	Gastric Carcinoma
+NH-12	Peripheral Nervous System	Neuroblastoma
+NUGC-3	Stomach	Gastric Carcinoma
+OACM5-1	Esophagus	Esophageal Adenocarcinoma
+OAW-42	Ovary	Ovarian Carcinoma
+OC-314	Ovary	Ovarian Carcinoma
+OCI-AML2	Haematopoietic and Lymphoid	Acute Myeloid Leukemia
+OCI-AML3	Haematopoietic and Lymphoid	Acute Myeloid Leukemia
+OCI-LY-19	Haematopoietic and Lymphoid	B Cell Non Hodgkin's Lymphoma
+OCUB-M	Breast	Breast Carcinoma
+OE21	Esophagus	Esophageal Squamous Cell Carcinoma
+OE33	Esophagus	Esophageal Adenocarcinoma
+OPM-2	Haematopoietic and Lymphoid	Plasma Cell Myeloma
+OSC-20	Head and Neck	Oral Cavity Carcinoma
+OV-90	Ovary	Ovarian Carcinoma
+OVCA420	Ovary	Ovarian Carcinoma
+OVCAR-5	Ovary	Ovarian Carcinoma
+OVCAR-8	Ovary	Ovarian Carcinoma
+OVK-18	Ovary	Ovarian Carcinoma
+PA-TU-8902	Pancreas	Pancreatic Carcinoma
+PA-TU-8988T	Pancreas	Pancreatic Carcinoma
+PANC-03-27	Pancreas	Pancreatic Carcinoma
+PANC-04-03	Pancreas	Pancreatic Carcinoma
+PANC-08-13	Pancreas	Pancreatic Carcinoma
+PANC-10-05	Pancreas	Pancreatic Carcinoma
+PC-14	Lung	Lung Adenocarcinoma
+PCI-15A	Head and Neck	Head and Neck Carcinoma
+PCI-30	Head and Neck	Head and Neck Carcinoma
+PCI-38	Head and Neck	Head and Neck Carcinoma
+PCI-4B	Head and Neck	Head and Neck Carcinoma
+PE-CA-PJ15	Head and Neck	Oral Cavity Carcinoma
+PEO1	Ovary	Ovarian Carcinoma
+PEO4	Ovary	Ovarian Carcinoma
+PSN1	Pancreas	Pancreatic Carcinoma
+RCC-FG2	Kidney	Kidney Carcinoma
+RCM-1	Large Intestine	Colorectal Carcinoma
+RERF-LC-Sq1	Lung	Squamous Cell Lung Carcinoma
+RKN	Soft Tissue	Soft Tissue Carcinomas
+RKO	Large Intestine	Colorectal Carcinoma
+RL95-2	Endometrium	Endometrial Carcinoma
+RMG-I	Ovary	Ovarian Carcinoma
+ROS-50	Haematopoietic and Lymphoid	B Cell Non Hodgkin's Lymphoma
+RPMI-8226	Haematopoietic and Lymphoid	Plasma Cell Myeloma
+SAS	Head and Neck	Oral Cavity Carcinoma
+SCC-4	Head and Neck	Oral Cavity Carcinoma
+SCC-9	Head and Neck	Oral Cavity Carcinoma
+SCC90	Head and Neck	Head and Neck Carcinoma
+SF126	Central Nervous System	Glioblastoma
+SJSA-1	Bone	Osteosarcoma
+SK-GT-4	Esophagus	Esophageal Adenocarcinoma
+SK-MEL-2	Skin	Melanoma
+SK-MES-1	Lung	Squamous Cell Lung Carcinoma
+SK-N-AS	Peripheral Nervous System	Neuroblastoma
+SK-N-DZ	Peripheral Nervous System	Neuroblastoma
+SK-N-FI	Peripheral Nervous System	Neuroblastoma
+SK-N-SH	Peripheral Nervous System	Neuroblastoma
+SKN-3	Head and Neck	Head and Neck Carcinoma
+SNG-M	Endometrium	Endometrial Carcinoma
+SNU-1	Stomach	Gastric Carcinoma
+SNU-16	Stomach	Gastric Carcinoma
+SNU-61	Large Intestine	Colorectal Carcinoma
+SNU-81	Large Intestine	Colorectal Carcinoma
+SNU-C1	Large Intestine	Colorectal Carcinoma
+SNU-C5	Large Intestine	Colorectal Carcinoma
+SU-DHL-10	Haematopoietic and Lymphoid	B Cell Non Hodgkin's Lymphoma
+SU-DHL-5	Haematopoietic and Lymphoid	B Cell Non Hodgkin's Lymphoma
+SU8686	Pancreas	Pancreatic Carcinoma
+SUIT-2	Pancreas	Pancreatic Carcinoma
+SW1573	Lung	Lung Adenocarcinoma
+SW48	Large Intestine	Colorectal Carcinoma
+SW626	Large Intestine	Colorectal Carcinoma
+SW837	Large Intestine	Colorectal Carcinoma
+T-T	Esophagus	Esophageal Squamous Cell Carcinoma
+TC-71	Bone	Ewing's Sarcoma
+TE-10	Esophagus	Esophageal Squamous Cell Carcinoma
+TE-4	Esophagus	Esophageal Squamous Cell Carcinoma
+TE-5	Esophagus	Esophageal Squamous Cell Carcinoma
+TE-8	Esophagus	Esophageal Squamous Cell Carcinoma
+TE-9	Esophagus	Esophageal Squamous Cell Carcinoma
+TGW	Peripheral Nervous System	Neuroblastoma
+TMK-1	Stomach	Gastric Carcinoma
+TOV-112D	Ovary	Ovarian Carcinoma
+TOV-21G	Ovary	Ovarian Carcinoma
+TYK-nu	Ovary	Ovarian Carcinoma
+U251	Central Nervous System	Low Grade Glioma
+UACC-893	Breast	Breast Carcinoma
+UWB1.289	Ovary	Ovarian Carcinoma
+VMRC-LCD	Lung	Lung Adenocarcinoma
+8-MG-BA	Central Nervous System	Glioblastoma
+A172	Central Nervous System	Glioblastoma
+A2780	Ovary	Ovarian Carcinoma
+A549	Lung	Lung Adenocarcinoma
+AGS	Stomach	Gastric Carcinoma
+AM-38	Central Nervous System	Glioblastoma
+Becker	Central Nervous System	Low Grade Glioma
+BxPC-3	Pancreas	Pancreatic Carcinoma
+Ca9-22	Head and Neck	Head and Neck Carcinoma
+CAL-51	Breast	Breast Carcinoma
+CAS-1	Central Nervous System	Glioblastoma
+CHP-212	Peripheral Nervous System	Neuroblastoma
+COLO-684	Endometrium	Endometrial Carcinoma
+D-502MG	Central Nervous System	Glioblastoma
+D-542MG	Central Nervous System	Glioblastoma
+DBTRG-05MG	Central Nervous System	Glioblastoma
+DK-MG	Central Nervous System	Glioblastoma
+ESS-1	Endometrium	Other Endometrial Cancers
+GAMG	Central Nervous System	Glioblastoma
+GB-1	Central Nervous System	Glioblastoma
+GI-1	Central Nervous System	Glioblastoma
+HCC1395	Breast	Breast Carcinoma
+HCC70	Breast	Breast Carcinoma
+HPAF-II	Pancreas	Pancreatic Carcinoma
+Hs-683	Central Nervous System	Low Grade Glioma
+JHU-029	Head and Neck	Head and Neck Carcinoma
+KINGS-1	Central Nervous System	Low Grade Glioma
+KNS-42	Central Nervous System	Glioblastoma
+LN-229	Central Nervous System	Glioblastoma
+LNZTA3WT4	Central Nervous System	Low Grade Glioma
+MDA-MB-231	Breast	Breast Carcinoma
+MOG-G-UVW	Central Nervous System	Low Grade Glioma
+NB10	Peripheral Nervous System	Neuroblastoma
+NB5	Peripheral Nervous System	Neuroblastoma
+NCI-H650	Lung	Lung Adenocarcinoma
+NMC-G1	Central Nervous System	Low Grade Glioma
+no-10	Central Nervous System	Glioblastoma
+no-11	Central Nervous System	Glioblastoma
+OSC-19	Head and Neck	Oral Cavity Carcinoma
+OVCAR-3	Ovary	Ovarian Carcinoma
+OVISE	Ovary	Ovarian Carcinoma
+OVMIU	Ovary	Ovarian Carcinoma
+PANC-02-03	Pancreas	Pancreatic Carcinoma
+PCI-6A	Head and Neck	Head and Neck Carcinoma
+PL4	Pancreas	Pancreatic Carcinoma
+RERF-GC-1B	Stomach	Gastric Carcinoma
+SCH	Stomach	Gastric Carcinoma
+SF295	Central Nervous System	Glioblastoma
+SF539	Central Nervous System	Glioblastoma
+SK-MG-1	Central Nervous System	Low Grade Glioma
+SNB75	Central Nervous System	Glioblastoma
+SU-DHL-8	Haematopoietic and Lymphoid	B Cell Non Hodgkin's Lymphoma
+SW1088	Central Nervous System	Low Grade Glioma
+SW1990	Pancreas	Pancreatic Carcinoma
+T47D	Breast	Breast Carcinoma
+T84	Large Intestine	Colorectal Carcinoma
+T98G	Central Nervous System	Glioblastoma
+U-87-MG	Central Nervous System	Glioblastoma
+YH-13	Central Nervous System	Glioblastoma
+42-MG-BA	Central Nervous System	Glioblastoma
+D-423MG	Central Nervous System	Glioblastoma
+IM-95	Stomach	Gastric Carcinoma
+MDA-MB-468	Breast	Breast Carcinoma
+MDST8	Large Intestine	Colorectal Carcinoma
+NCI-H1355	Lung	Lung Adenocarcinoma
+D-247MG	Central Nervous System	Glioblastoma
+GCIY	Stomach	Gastric Carcinoma
+MKN1	Stomach	Gastric Carcinoma
+TE-15	Esophagus	Esophageal Squamous Cell Carcinoma
+GI-ME-N	Peripheral Nervous System	Neuroblastoma
+Hs-746T	Stomach	Gastric Carcinoma
+KS-1	Central Nervous System	Glioblastoma
+M059J	Central Nervous System	Glioblastoma
+M14	Skin	Melanoma
+MM1S	Haematopoietic and Lymphoid	Plasma Cell Myeloma
+NCI-H2405	Lung	Lung Adenocarcinoma
+OV-56	Ovary	Ovarian Carcinoma
+OVCAR-4	Ovary	Ovarian Carcinoma
+SF268	Central Nervous System	Low Grade Glioma
+TGBC11TKB	Stomach	Gastric Carcinoma
