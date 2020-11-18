@@ -240,7 +240,7 @@ class ClinGen():
                         )
                         self.evidence_strings.append(evidence)
                     except:
-                        self._logger.warning('Evidence generation failed for row: {}'.format(c))
+                        self._logger.warning('Evidence generation failed for row: {}'.format(index))
                         raise
 
     def write_evidence_strings(self, filename):
