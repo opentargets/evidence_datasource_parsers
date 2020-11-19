@@ -76,8 +76,12 @@ class Config:
 
     # Gene2Phenotype
     #G2P_FILENAME = 'DDG2P.csv.gz'
-    G2P_FILENAME = file_or_resource('DDG2P_19_8_2019.csv.gz')
+    G2P_DD_FILENAME = file_or_resource('DDG2P_2_4_2020.csv.gz')
+    G2P_eye_FILENAME = file_or_resource('EyeG2P_26_3_2020.csv.gz')
+    G2P_skin_FILENAME = file_or_resource('SkinG2P_26_3_2020.csv.gz')
+    G2P_cancer_FILENAME = file_or_resource('CancerG2P_26_3_2020.csv.gz')
     G2P_EVIDENCE_FILENAME = 'gene2phenotype-19-08-2019.json'
+
 
     # Genomics England
     GE_PANEL_MAPPING_FILENAME = file_or_resource('genomicsenglandpanelapp_panelmapping.csv')
