@@ -67,7 +67,7 @@ def main():
     parser.add_argument('--study', help='Table with all the studies.', type=str, required=True)
     parser.add_argument('--variantIndex', help='Table with the variant indices (from gnomad).', type=str, required=True)
     parser.add_argument('--ecoCodes', help='Table with consequence ECO codes.', type=str, required=True)
-    parser.add_argument('--output', help='Output file name.', type=str, required=True)
+    parser.add_argument('--outputJson', help='Output JSON file name.', type=str, required=True)
     args = parser.parse_args()
 
     # Parse input parameters:  
@@ -78,7 +78,7 @@ def main():
     in_csq_eco = args.ecoCodes
 
     # Parse output parameter
-    out_file = args.output
+    out_file = args.outputJson
     out_path = '/'.join(out_file.split('/')[:-1]) # Will be used for logging.
 
     ##
@@ -227,10 +227,32 @@ def main():
     # Write output
     (
         processed
-        .write.parquet(
-            out_file,
-            mode='overwrite'
+        .withColumn('literature', when(col('pmid')!='', array(regexp_extract(col('pmid'), "PMID:(\d+)$",1))).otherwise(None))
+        .select(
+            lit('ot_genetics_portal').alias('datasourceId'),
+            lit('genetic_association').alias('datatypeId'),
+            col('gene_id').alias('targetFromSourceId'),
+            col('efo').alias('diseaseId'),
+            col('literature'),
+            col('pub_author').alias('publicationFirstAuthor'),
+            substring(col('pub_date'), 1, 4).cast(IntegerType()).alias('publicationYear'),
+            col('trait_reported').alias('diseaseFromSource'),
+            col('study_id').alias('studyId'),
+            col('sample_size').alias('studySampleSize'),
+            col('pval_mantissa').alias('pValueMantissa'),
+            col('pval_exponent').alias('pValueExponent'),
+            col('odds_ratio').alias('oddsRatio'),
+            col('oddsr_ci_lower').alias('confidenceIntervalLower'),
+            col('oddsr_ci_upper').alias('confidenceIntervalUpper'),
+            col('y_proba_full_model').alias('resouceScore'),
+            col('rsid').alias('variantRsId'),
+            concat_ws('_', col('chrom'),col('pos'),col('alt'),col('ref')).alias('variantId'),
+            regexp_extract(col('consequence_link'), "\/(SO.+)$",1).alias('variantFunctionalConsequenceId')
         )
+        .orderBy(rand())
+        .limit(500)
+        .write.format('json').mode('overwrite').option("compression", "org.apache.hadoop.io.compress.GzipCodec")
+        .save(out_file)
     )
 
     return 0
