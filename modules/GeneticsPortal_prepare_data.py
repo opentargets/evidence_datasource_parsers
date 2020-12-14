@@ -65,9 +65,9 @@ def main():
     parser.add_argument('--locus2gene', help='Input table containing locus to gene scores.', type=str, required=True)
     parser.add_argument('--toploci', help='Table containing top loci for all studies.', type=str, required=True)
     parser.add_argument('--study', help='Table with all the studies.', type=str, required=True)
-    parser.add_argument('--variantIndex', help='Table with the variant indices (from gnomad).', type=str, required=True)
+    parser.add_argument('--variantIndex', help='Table with the variant indices (from gnomad 2.x).', type=str, required=True)
     parser.add_argument('--ecoCodes', help='Table with consequence ECO codes.', type=str, required=True)
-    parser.add_argument('--outputJson', help='Output JSON file name.', type=str, required=True)
+    parser.add_argument('--outputFolder', help='location where to save the json.', type=str, required=True)
     args = parser.parse_args()
 
     # Parse input parameters:  
@@ -78,15 +78,26 @@ def main():
     in_csq_eco = args.ecoCodes
 
     # Parse output parameter
-    out_file = args.outputJson
-    out_path = '/'.join(out_file.split('/')[:-1]) # Will be used for logging.
+    out_path = args.outputFolder
+    out_file = f'{out_path}/ot_genetics_portal_{datetime.now().strftime('%Y-%m-%d')}.json.gz'
 
     ##
     ## Initialize spark session
     ##
     global spark
     spark = (pyspark.sql.SparkSession.builder.getOrCreate())
-    print('Spark version: ', spark.version)
+    logging.info('Spark version: ', spark.version)
+
+    ##
+    ## Logging parameters:
+    ##
+    logging.info(f'Locus2gene table: {in_l2g}')
+    logging.info(f'Top locus table: {in_toploci}')
+    logging.info(f'Study table: {in_study}')
+    logging.info(f'Variant index table: {in_varindex}')
+    logging.info(f'ECO code table: {in_csq_eco}')
+    logging.info(f'Output file: {out_file}')
+    logging.info(f'\nGenerating evidence:')
 
     ##
     ## Load datasets
@@ -209,7 +220,6 @@ def main():
     ##
     ## Join datasets together
     ##
-
     processed = (
         l2g
         # Join L2G to pvals, using study and variant info as key
@@ -249,8 +259,6 @@ def main():
             concat_ws('_', col('chrom'),col('pos'),col('alt'),col('ref')).alias('variantId'),
             regexp_extract(col('consequence_link'), "\/(SO.+)$",1).alias('variantFunctionalConsequenceId')
         )
-        .orderBy(rand())
-        .limit(500)
         .write.format('json').mode('overwrite').option("compression", "org.apache.hadoop.io.compress.GzipCodec")
         .save(out_file)
     )
@@ -259,5 +267,16 @@ def main():
 
 
 if __name__ == '__main__':
+    # Initialize logger:
+    logging.basicConfig(
+        filename='OT_platform_evidence_builder.log',
+        level=logging.INFO,
+        format='%(asctime)s %(levelname)s %(module)s - %(funcName)s: %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S',
+    )
+
+    logging.info('Evidence generation started...')
+
 
     main()
+
