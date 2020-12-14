@@ -58,7 +58,7 @@ class PanelAppEvidenceGenerator():
 
         for (PanelId), group in dataframe.groupby("Panel Id"):
             request = PanelAppEvidenceGenerator.publications_from_panel(PanelId)
-            group["Publications"] = group.apply(lambda X: publication_from_symbol(X.Symbol, request), axis=1)
+            group["Publications"] = group.apply(lambda X: PanelAppEvidenceGenerator.publication_from_symbol(X.Symbol, request), axis=1)
             populated_groups.append(group)
         
         dataframe = pd.concat(populated_groups, ignore_index=True, sort=False)
