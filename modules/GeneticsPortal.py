@@ -257,7 +257,7 @@ class genetics_portal_evidence_generator(Config):
         if (len(ref_allele) == 1) and (len(alt_allele) ==1):
             variant_type = 'SNP'
         elif (len(ref_allele) == 1) and (len(alt_allele) > 1):
-            variant_type = 'instertion'
+            variant_type = 'insertion'
         elif (len(ref_allele) > 1) and (len(alt_allele) == 1):
             variant_type = 'deletion'
         else:
