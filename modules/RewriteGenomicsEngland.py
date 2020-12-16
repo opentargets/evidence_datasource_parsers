@@ -29,13 +29,13 @@ class PanelEvidenceGenerator():
                 .appName('evidence_builder') \
                 .getOrCreate()
 
-    def writeEvidenceFromSource(self, dataframe):
+    def writeEvidenceFromSource(self, dataframe, phenotypesMappings):
         '''
         Processing of the dataframe to build all the evidences from its data
 
         Args:
-            dataframe (pd.DataFrame): Initial .tsv file
-            mappings_dict (dict): All mapping results for every phenotype
+            dataframe (pyspark.DataFrame): Initial .tsv file
+            phenotypesMappings (dict): All mapping results for every phenotype
         Returns:
             evidences (array): Object with all the generated evidences strings
         '''
@@ -60,26 +60,34 @@ class PanelEvidenceGenerator():
         # Splitting and cleaning the dataframe according to the phenotype string
         dataframe = PanelAppEvidenceGenerator.cleanDataframe(dataframe)
 
-        # Mapping the phenotypes and OMIM codes to an EFO code
-        omimCodes = dataframe.select("omimCode").distinct().rdd.flatMap(lambda x: x).collect()
-        phenotypes = dataframe.select("phenotype").distinct().rdd.flatMap(lambda x: x).collect()
+        # Mapping the phenotypes and OMIM codes to an EFO code - 2 steps:
+        #   Querying OnToma with all distinch codes and phenotypes
+        #   Xref between the results of every phenotype/OMIM code pair for a better coverage
+        omimCodesDistinct = dataframe.select("omimCode").distinct().rdd.flatMap(lambda x: x).collect()
+        phenotypesDistinct = dataframe.select("phenotype").distinct().rdd.flatMap(lambda x: x).collect()
+        omimCodes = dataframe.select("omimCode").rdd.flatMap(lambda x: x).collect()
+        phenotypes = dataframe.select("phenotype").rdd.flatMap(lambda x: x).collect()
+        phenotypeCodePairs = list(zip(phenotypes, omimCodes))
+
         if len(phenotypesMappings) == 0:
             # Checks whether the dictionary is not provided as a parameter 
-            phenotypesMappings = self.diseaseToEfo(phenotypes)
+            phenotypesMappings = self.diseaseToEfo(phenotypesDistinct)
             logging.info("Disease mappings completed.")
         else:
             logging.info("Disease mappings imported.")
-        
-        codesMappings = self.diseaseToEfo(omimCodes) # TODO: add posibility to provide dict
+        codesMappings = self.diseaseToEfo(omimCodesDistinct) # TODO: add posibility to provide dict
+
+        for pheno, code in phenotypeCodePairs:
+            PanelAppEvidenceGenerator.OMIM_phenotype_xref(pheno, code, phenotypesMappings, codesMappings)
 
         pass
 
     def cleanDataframe(dataframe):
         '''
         Args:
-            dataframe (pd.DataFrame): Initial .tsv data converted to a Pandas dataframe
+            dataframe (pyspark.DataFrame): Initial .tsv data converted to a Pandas dataframe
         Returns:
-            dataframe (pd.DataFrame): Original dataframe cleaned
+            dataframe (pyspark.DataFrame): Original dataframe cleaned
         '''
         # TODO: Wrap different steps into one function to iterate less times
         
@@ -116,7 +124,7 @@ class PanelEvidenceGenerator():
 
         Args:
             iterable (array): Array or column of a dataframe containing the strings to query
-            dict_name (str): Name of the output file where the OnToma queries will be saved
+            dictExport (str): Name of the output file where the OnToma queries will be saved
         Returns:
             mappings (dict): Output file. Keys: queried term (phenotype or OMIM code), Values: OnToma output
         '''
@@ -142,3 +150,32 @@ class PanelEvidenceGenerator():
             json.dump(mappings, outfile)
         
         return mappings
+
+def phenotypeCodePairCheck(phenotype, omimCode, phenotypesMappings, codesMappings):
+    '''
+    Among the Fuzzy results of a phenotype query, it checks if the phenotype and the respective code points to the same EFO term
+
+    Args:
+        phenotype (str): Phenotype of each phenotype-OMIM code pair
+        omimCode (str): Code of each phenotype-OMIM code pair
+        phenotypesMappings (dict): All mapping results for every phenotype
+        codesMappings (dict): All mapping results for every OMIM code
+    '''
+    try:
+        if phenotype == "":
+            return
+        phenotypeResult = phenotypesMappings[phenotype]
+        if phenotypeResult == None:
+            return
+
+        if phenotypeResult["quality"] == "fuzzy":
+            codeResult = codesMappings[code]
+            if codeResult == None:
+                return
+
+            if codeResult["term"] == phenotypeResult["term"]:
+                # If both EFO terms coincide, the phenotype in mappings_dict becomes a match
+                phenotypesMappings[phenotype]["quality"] = "match"
+                phenotypesMappings[phenotype]["action"] = "checked"
+    except Exception as e:
+        logging.error(f'No OMIM code for phenotype: {phenotype}')
