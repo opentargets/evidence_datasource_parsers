@@ -58,7 +58,20 @@ class PanelEvidenceGenerator():
         logging.info("Publications loaded.")
 
         # Splitting and cleaning the dataframe according to the phenotype string
-        dataframe = PanelAppEvidenceGenerator.clean_dataframe(dataframe)
+        dataframe = PanelAppEvidenceGenerator.cleanDataframe(dataframe)
+
+        # Mapping the phenotypes and OMIM codes to an EFO code
+        omimCodes = dataframe.select("omimCode").distinct().rdd.flatMap(lambda x: x).collect()
+        phenotypes = dataframe.select("phenotype").distinct().rdd.flatMap(lambda x: x).collect()
+        if len(phenotypesMappings) == 0:
+            # Checks whether the dictionary is not provided as a parameter 
+            phenotypesMappings = self.diseaseToEfo(phenotypes)
+            logging.info("Disease mappings completed.")
+        else:
+            logging.info("Disease mappings imported.")
+        
+        codesMappings = self.diseaseToEfo(omimCodes) # TODO: add posibility to provide dict
+
         pass
 
     def cleanDataframe(dataframe):
@@ -93,6 +106,39 @@ class PanelEvidenceGenerator():
                         .withColumn("phenotype", regexp_replace(col("phenotype"), "[^0-9a-zA-Z *]", "")) \
                         .withColumn("phenotype", stripLambda(col("phenotype")))
 
+        return dataframe
 
 
-        pass
+    def diseaseToEfo(self, iterable, dictExport="diseaseToEfo_results.json"):
+        '''
+        Queries the OnToma utility to map a phenotype to a disease.
+        OnToma is used to query the ontology OBO files, the manual mapping file and the Zooma and OLS APIs.
+
+        Args:
+            iterable (array): Array or column of a dataframe containing the strings to query
+            dict_name (str): Name of the output file where the OnToma queries will be saved
+        Returns:
+            mappings (dict): Output file. Keys: queried term (phenotype or OMIM code), Values: OnToma output
+        '''
+        mappings = dict()
+        for e in iterable:
+            try:
+                ontomaResult = self.otmap.find_term(e, verbose=True)
+                if ontomaResult != None:
+                    mappings[e] = ontomaResult
+                else:
+                    mappings[e] = {
+                    'term': None,
+                     'label': None,
+                     'source': None,
+                     'quality': None,
+                     'action': None
+                    }
+            except Exception as error:
+                logging.error(f"{e} mapping has failed.")
+                continue
+        
+        with open(dictExport, "w") as outfile:
+            json.dump(mappings, outfile)
+        
+        return mappings
