@@ -10,13 +10,16 @@ import pyspark.sql.functions import col, coalesce, when, udf, explode, regexp_ex
 from pyspark.sql.types import *
 
 class PanelAppEvidenceGenerator():
-    def __init__(self, schemaVersion, mappingStep):
+    def __init__(self, schemaVersion, mappingStep, mappingsDict):
         # Build JSON schema url from version
         self.schemaVersion = schemaVersion
         schema_url = f"https://raw.githubusercontent.com/opentargets/json_schema/{self.schemaVersion}/draft4_schemas/opentargets.json" #TODO Update the url 
         logging.info(f"Loading JSON Schema from {schema_url}")
 
+        # Initialize mapping variables
         self.mappingStep = mappingStep
+        self.phenotypesMappings = mappingsDict
+        self.codesMappings = None
 
         # Create OnToma object
         self.otmap = OnToma()
@@ -32,13 +35,12 @@ class PanelAppEvidenceGenerator():
                 .appName('evidence_builder') \
                 .getOrCreate()
 
-    def writeEvidenceFromSource(self, dataframe, phenotypesMappings):
+    def writeEvidenceFromSource(self, dataframe):
         '''
         Processing of the dataframe to build all the evidences from its data
 
         Args:
             dataframe (pyspark.DataFrame): Initial .tsv file
-            phenotypesMappings (dict): All mapping results for every phenotype
         Returns:
             evidences (array): Object with all the generated evidences strings
         '''
@@ -65,7 +67,7 @@ class PanelAppEvidenceGenerator():
 
         # Map the diseases to an EFO term if necessary
         if self.mappingStep:
-            dataframe = self.runMappingStep(dataframe, phenotypesMappings)
+            dataframe = self.runMappingStep(dataframe)
 
         # Build evidence strings per row
         evidences = dataframe.toPandas().apply(PanelAppEvidenceGenerator.parseEvidenceString, axis=1)
@@ -76,8 +78,7 @@ class PanelAppEvidenceGenerator():
 
         return evidences
 
-    @staticmethod
-    def build_publications(dataframe):
+    def build_publications(self, dataframe):
         '''
         Populates a dataframe with the publications fetched from the PanelApp API and cleans them to match PubMed IDs.
 
@@ -191,13 +192,12 @@ class PanelAppEvidenceGenerator():
         
         return mappings
     
-    def runMappingStep(self, dataframe, phenotypesMappings):
+    def runMappingStep(self, dataframe):
         '''
         Builds the mapping logic into the dataframe
 
         Args:
             dataframe (pyspark.DataFrame): DataFrame with transformed PanelApp data
-            phenotypesMappings (dict): All mapping results for every phenotype
         Returns:
             dataframe (pyspark.DataFrame): DataFrame with the mapping results filtered by only matches
         '''
@@ -211,60 +211,57 @@ class PanelAppEvidenceGenerator():
         phenotypeCodePairs = list(zip(phenotypes, omimCodes))
 
         # TODO: Parallelize this process
-        if len(phenotypesMappings) == 0:
+        if len(self.phenotypesMappings) == 0:
             # Checks whether the dictionary is not provided as a parameter 
-            phenotypesMappings = self.diseaseToEfo(phenotypesDistinct)
+            self.phenotypesMappings = self.diseaseToEfo(phenotypesDistinct)
             logging.info("Disease mappings completed.")
         else:
             logging.info("Disease mappings imported.")
-        codesMappings = self.diseaseToEfo(omimCodesDistinct) # TODO: add posibility to provide dict
+        self.codesMappings = self.diseaseToEfo(omimCodesDistinct) # TODO: add posibility to provide dict
 
         for pheno, code in phenotypeCodePairs:
-            PanelAppEvidenceGenerator.phenotypeCodePairCheck(pheno, code, phenotypesMappings, codesMappings)
+            PanelAppEvidenceGenerator.phenotypeCodePairCheck(pheno, code)
 
         # TODO: Add new columns: OnToma Result, OnToma Term, OnToma Label
-        #dataframe = PanelAppEvidenceGenerator.buildMappings(dataframe, phenotypesMappings)
+        #dataframe = PanelAppEvidenceGenerator.buildMappings(dataframe)
 
         return dataframe.filter(col("ontomaResult") == "match")
 
     @staticmethod
-    def phenotypeCodePairCheck(phenotype, omimCode, phenotypesMappings, codesMappings):
+    def phenotypeCodePairCheck(phenotype, omimCode):
         '''
         Among the Fuzzy results of a phenotype query, it checks if the phenotype and the respective code points to the same EFO term
 
         Args:
             phenotype (str): Phenotype of each phenotype-OMIM code pair
             omimCode (str): Code of each phenotype-OMIM code pair
-            phenotypesMappings (dict): All mapping results for every phenotype
-            codesMappings (dict): All mapping results for every OMIM code
         '''
         try:
             if phenotype == "":
                 return
-            phenotypeResult = phenotypesMappings[phenotype]
+            phenotypeResult = self.phenotypesMappings[phenotype]
             if phenotypeResult == None:
                 return
 
             if phenotypeResult["quality"] == "fuzzy":
-                codeResult = codesMappings[code]
+                codeResult = self.codesMappings[code]
                 if codeResult == None:
                     return
 
                 if codeResult["term"] == phenotypeResult["term"]:
-                    # If both EFO terms coincide, the phenotype in mappings_dict becomes a match
-                    phenotypesMappings[phenotype]["quality"] = "match"
-                    phenotypesMappings[phenotype]["action"] = "checked"
+                    # If both EFO terms coincide, the phenotype in mappingsDict becomes a match
+                    self.phenotypesMappings[phenotype]["quality"] = "match"
+                    self.phenotypesMappings[phenotype]["action"] = "checked"
         except Exception as e:
             logging.error(f'No OMIM code for phenotype: {phenotype}')
 
     @staticmethod
-    def buildMappings(dataframe, phenotypesMappings):
+    def buildMappings(dataframe):
         '''
         Populates the dataframe with the mappings resulted from OnToma.
 
         Args:
             dataframe (pyspark.DataFrame): DataFrame with transformed PanelApp data
-            phenotypesMappings (dict): All mapping results for every phenotype
         Return:
             dataframe (pyspark.DataFrame): DataFrame with new columns corresponding to the OnToma result
         '''
@@ -342,6 +339,7 @@ def main():
     outputFile = args.outputFile
     schemaVersion = args.schemaVersion
     mappingStep = args.mappingStep
+    mappingsDict = args.mappingsDict
 
     # Initialize logging:
     logging.basicConfig(
@@ -352,11 +350,11 @@ def main():
     )
 
     # Initialize evidence builder object
-    evidenceBuilder = PanelAppEvidenceGenerator(schemaVersion, mappingStep)
+    evidenceBuilder = PanelAppEvidenceGenerator(schemaVersion, mappingStep, mappingsDict)
 
     # Import dictionary if present
-    if args.mappingsDict:
-        with open(args.mappingsDict, "r") as f:
+    if mappingsDict:
+        with open(mappingsDict, "r") as f:
                 phenotypesMappings = json.load(f)
     else:
         phenotypesMappings = {}
