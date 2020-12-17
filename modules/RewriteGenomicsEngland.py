@@ -9,7 +9,7 @@ from pyspark.sql import SparkSession
 import pyspark.sql.functions import col, coalesce, when, udf, explode, regexp_extract, regexp_replace
 from pyspark.sql.types import *
 
-class PanelEvidenceGenerator():
+class PanelAppEvidenceGenerator():
     def __init__(self, schema_version):
         # Build JSON schema url from version
         self.schema_version = schema_version
@@ -78,10 +78,19 @@ class PanelEvidenceGenerator():
         codesMappings = self.diseaseToEfo(omimCodesDistinct) # TODO: add posibility to provide dict
 
         for pheno, code in phenotypeCodePairs:
-            PanelAppEvidenceGenerator.OMIM_phenotype_xref(pheno, code, phenotypesMappings, codesMappings)
+            PanelAppEvidenceGenerator.phenotypeCodePairCheck(pheno, code, phenotypesMappings, codesMappings)
+
+        # TODO: Add new columns: OnToma Result, OnToma Term, OnToma Label
+        #dataframe = PanelAppEvidenceGenerator.buildMappings(dataframe, phenotypesMappings)
+
+        # Build evidence strings per row
+        dataframe = dataframe.filter(col("ontomaResult") == "match")
+        evidences = dataframe.apply(self.get_evidence_string, axis=1)
+        logging.info(f"{len(evidences)} evidence strings have been generated.")
 
         pass
-
+    
+    @staticmethod
     def cleanDataframe(dataframe):
         '''
         Args:
@@ -151,31 +160,88 @@ class PanelEvidenceGenerator():
         
         return mappings
 
-def phenotypeCodePairCheck(phenotype, omimCode, phenotypesMappings, codesMappings):
-    '''
-    Among the Fuzzy results of a phenotype query, it checks if the phenotype and the respective code points to the same EFO term
+    @staticmethod
+    def phenotypeCodePairCheck(phenotype, omimCode, phenotypesMappings, codesMappings):
+        '''
+        Among the Fuzzy results of a phenotype query, it checks if the phenotype and the respective code points to the same EFO term
 
-    Args:
-        phenotype (str): Phenotype of each phenotype-OMIM code pair
-        omimCode (str): Code of each phenotype-OMIM code pair
-        phenotypesMappings (dict): All mapping results for every phenotype
-        codesMappings (dict): All mapping results for every OMIM code
-    '''
-    try:
-        if phenotype == "":
-            return
-        phenotypeResult = phenotypesMappings[phenotype]
-        if phenotypeResult == None:
-            return
-
-        if phenotypeResult["quality"] == "fuzzy":
-            codeResult = codesMappings[code]
-            if codeResult == None:
+        Args:
+            phenotype (str): Phenotype of each phenotype-OMIM code pair
+            omimCode (str): Code of each phenotype-OMIM code pair
+            phenotypesMappings (dict): All mapping results for every phenotype
+            codesMappings (dict): All mapping results for every OMIM code
+        '''
+        try:
+            if phenotype == "":
+                return
+            phenotypeResult = phenotypesMappings[phenotype]
+            if phenotypeResult == None:
                 return
 
-            if codeResult["term"] == phenotypeResult["term"]:
-                # If both EFO terms coincide, the phenotype in mappings_dict becomes a match
-                phenotypesMappings[phenotype]["quality"] = "match"
-                phenotypesMappings[phenotype]["action"] = "checked"
-    except Exception as e:
-        logging.error(f'No OMIM code for phenotype: {phenotype}')
+            if phenotypeResult["quality"] == "fuzzy":
+                codeResult = codesMappings[code]
+                if codeResult == None:
+                    return
+
+                if codeResult["term"] == phenotypeResult["term"]:
+                    # If both EFO terms coincide, the phenotype in mappings_dict becomes a match
+                    phenotypesMappings[phenotype]["quality"] = "match"
+                    phenotypesMappings[phenotype]["action"] = "checked"
+        except Exception as e:
+            logging.error(f'No OMIM code for phenotype: {phenotype}')
+
+    @staticmethod
+    def buildMappings(dataframe, phenotypesMappings):
+        '''
+        Populates the dataframe with the mappings resulted from OnToma.
+
+        Args:
+            dataframe (pyspark.DataFrame): DataFrame with transformed PanelApp data
+            phenotypesMappings (dict): All mapping results for every phenotype
+        Return:
+            dataframe (pyspark.DataFrame): DataFrame with new columns corresponding to the OnToma result
+        '''
+
+        pass
+
+    def parseEvidenceString(self, row):
+        # Association level information
+        self.targetFromSourceId = row["Symbol"]
+        self.diseaseFromSource = row["phenotype"]
+        self.diseaseFromSourceId = row["omimCode"]
+        self.diseaseId = row["ontomaId"]
+        if self.diseaseId is None or self.diseaseId == '':
+            logging.warning(f'No EFO id for association row: {row.name}')
+            return None
+        self.cohortPhenotypes = row["cohortPhenotypes"]
+        # self.mapped_disease = row["ontomaLabel"] This field?
+        self.allelicRequirements = row["Mode of inheritance"]
+        self.confidence = row["List"]
+        self.literature = row["publications"]
+        try:
+            self.targetId = self.genes[self.gene_symbol]
+        except:
+            self.targetId = row["EnsemblId(GRch37)"]
+        self.studyId = row["Panel Id"]
+        self.studyOverview = row["Panel Name"]
+
+        try:
+            evidence = {
+                "datasourceId" : "genomics_england",
+                "datatypeId" : "genetic_literature",
+                "confidence" : self.confidence,
+                "diseaseFromSource" : self.diseaseFromSource,
+                "diseaseFromSourceId" : self.diseaseFromSourceId,
+                "diseaseId" : self.diseaseId,
+                "cohortPhenotypes" : self.cohortPhenotypes,
+                "targetFromSourceId" : self.targetFromSourceId,
+                "allelicRequirements" : self.allelicRequirements,
+                "studyId" : self.studyId,
+                "studyOverview" : self.studyOverview,
+                "literature" : self.literature,
+            }
+            return evidence.serialize()
+        except Exception as e:
+            print(e)
+            logging.error(f'Evidence generation failed for row: {row.name}')
+            raise
