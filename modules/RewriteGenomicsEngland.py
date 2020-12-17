@@ -20,6 +20,7 @@ class PanelAppEvidenceGenerator():
         self.otmap = OnToma()
 
         # Parse Gene Symbol to EnsEMBL ID
+        # TODO: Remove step
         gene_parser = GeneParser()
         gene_parser._get_hgnc_data_from_json()
         self.genes = gene_parser.genes
@@ -60,31 +61,11 @@ class PanelAppEvidenceGenerator():
         # Splitting and cleaning the dataframe according to the phenotype string
         dataframe = PanelAppEvidenceGenerator.cleanDataframe(dataframe)
 
-        # Mapping the phenotypes and OMIM codes to an EFO code - 2 steps:
-        #   Querying OnToma with all distinch codes and phenotypes
-        #   Xref between the results of every phenotype/OMIM code pair for a better coverage
-        omimCodesDistinct = dataframe.select("omimCode").distinct().rdd.flatMap(lambda x: x).collect()
-        phenotypesDistinct = dataframe.select("phenotype").distinct().rdd.flatMap(lambda x: x).collect()
-        omimCodes = dataframe.select("omimCode").rdd.flatMap(lambda x: x).collect()
-        phenotypes = dataframe.select("phenotype").rdd.flatMap(lambda x: x).collect()
-        phenotypeCodePairs = list(zip(phenotypes, omimCodes))
-
-        if len(phenotypesMappings) == 0:
-            # Checks whether the dictionary is not provided as a parameter 
-            phenotypesMappings = self.diseaseToEfo(phenotypesDistinct)
-            logging.info("Disease mappings completed.")
-        else:
-            logging.info("Disease mappings imported.")
-        codesMappings = self.diseaseToEfo(omimCodesDistinct) # TODO: add posibility to provide dict
-
-        for pheno, code in phenotypeCodePairs:
-            PanelAppEvidenceGenerator.phenotypeCodePairCheck(pheno, code, phenotypesMappings, codesMappings)
-
-        # TODO: Add new columns: OnToma Result, OnToma Term, OnToma Label
-        #dataframe = PanelAppEvidenceGenerator.buildMappings(dataframe, phenotypesMappings)
+        # Map the diseases to an EFO term if necessary
+        if self.mappingStep:
+            dataframe = self.runMappingStep(dataframe, phenotypesMappings)
 
         # Build evidence strings per row
-        dataframe = dataframe.filter(col("ontomaResult") == "match")
         evidences = dataframe.toPandas().apply(PanelAppEvidenceGenerator.parseEvidenceString, axis=1)
         logging.info(f"{len(evidences)} evidence strings have been generated.")
 
@@ -207,6 +188,42 @@ class PanelAppEvidenceGenerator():
             json.dump(mappings, outfile)
         
         return mappings
+    
+    def runMappingStep(self, dataframe, phenotypesMappings):
+        '''
+        Builds the mapping logic into the dataframe
+
+        Args:
+            dataframe (pyspark.DataFrame): DataFrame with transformed PanelApp data
+            phenotypesMappings (dict): All mapping results for every phenotype
+        Returns:
+            dataframe (pyspark.DataFrame): DataFrame with the mapping results filtered by only matches
+        '''
+        # Mapping the phenotypes and OMIM codes to an EFO code - 2 steps:
+        #   Querying OnToma with all distinch codes and phenotypes
+        #   Xref between the results of every phenotype/OMIM code pair for a better coverage
+        omimCodesDistinct = dataframe.select("omimCode").distinct().rdd.flatMap(lambda x: x).collect()
+        phenotypesDistinct = dataframe.select("phenotype").distinct().rdd.flatMap(lambda x: x).collect()
+        omimCodes = dataframe.select("omimCode").rdd.flatMap(lambda x: x).collect()
+        phenotypes = dataframe.select("phenotype").rdd.flatMap(lambda x: x).collect()
+        phenotypeCodePairs = list(zip(phenotypes, omimCodes))
+
+        # TODO: Parallelize this process
+        if len(phenotypesMappings) == 0:
+            # Checks whether the dictionary is not provided as a parameter 
+            phenotypesMappings = self.diseaseToEfo(phenotypesDistinct)
+            logging.info("Disease mappings completed.")
+        else:
+            logging.info("Disease mappings imported.")
+        codesMappings = self.diseaseToEfo(omimCodesDistinct) # TODO: add posibility to provide dict
+
+        for pheno, code in phenotypeCodePairs:
+            PanelAppEvidenceGenerator.phenotypeCodePairCheck(pheno, code, phenotypesMappings, codesMappings)
+
+        # TODO: Add new columns: OnToma Result, OnToma Term, OnToma Label
+        #dataframe = PanelAppEvidenceGenerator.buildMappings(dataframe, phenotypesMappings)
+
+        return dataframe.filter(col("ontomaResult") == "match")
 
     @staticmethod
     def phenotypeCodePairCheck(phenotype, omimCode, phenotypesMappings, codesMappings):
