@@ -59,7 +59,7 @@ class PanelAppEvidenceGenerator():
 
         # TODO: Feed the dataframe with publications
         logging.info("Fetching publications from the API...")
-        #dataframe = self.build_publications(dataframe)
+        #dataframe = self.buildPublications(dataframe)
         logging.info("Publications loaded.")
 
         # Splitting and cleaning the dataframe according to the phenotype string
@@ -78,7 +78,7 @@ class PanelAppEvidenceGenerator():
 
         return evidences
 
-    def build_publications(self, dataframe):
+    def buildPublications(self, dataframe):
         '''
         Populates a dataframe with the publications fetched from the PanelApp API and cleans them to match PubMed IDs.
 
@@ -220,15 +220,14 @@ class PanelAppEvidenceGenerator():
         self.codesMappings = self.diseaseToEfo(omimCodesDistinct) # TODO: add posibility to provide dict
 
         for pheno, code in phenotypeCodePairs:
-            PanelAppEvidenceGenerator.phenotypeCodePairCheck(pheno, code)
+            self.phenotypeCodePairCheck(pheno, code)
 
         # TODO: Add new columns: OnToma Result, OnToma Term, OnToma Label
-        #dataframe = PanelAppEvidenceGenerator.buildMappings(dataframe)
+        #dataframe = self..buildMappings(dataframe)
 
         return dataframe.filter(col("ontomaResult") == "match")
 
-    @staticmethod
-    def phenotypeCodePairCheck(phenotype, omimCode):
+    def phenotypeCodePairCheck(self, phenotype, omimCode):
         '''
         Among the Fuzzy results of a phenotype query, it checks if the phenotype and the respective code points to the same EFO term
 
@@ -255,7 +254,6 @@ class PanelAppEvidenceGenerator():
         except Exception as e:
             logging.error(f'No OMIM code for phenotype: {phenotype}')
 
-    @staticmethod
     def buildMappings(dataframe):
         '''
         Populates the dataframe with the mappings resulted from OnToma.
