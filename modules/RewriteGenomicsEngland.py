@@ -10,10 +10,10 @@ import pyspark.sql.functions import col, coalesce, when, udf, explode, regexp_ex
 from pyspark.sql.types import *
 
 class PanelAppEvidenceGenerator():
-    def __init__(self, schema_version):
+    def __init__(self, schemaVersion):
         # Build JSON schema url from version
-        self.schema_version = schema_version
-        schema_url = f"https://raw.githubusercontent.com/opentargets/json_schema/{self.schema_version}/draft4_schemas/opentargets.json" #TODO Update the url 
+        self.schemaVersion = schemaVersion
+        schema_url = f"https://raw.githubusercontent.com/opentargets/json_schema/{self.schemaVersion}/draft4_schemas/opentargets.json" #TODO Update the url 
         logging.info(f"Loading JSON Schema from {schema_url}")
 
         # Create OnToma object
@@ -85,11 +85,60 @@ class PanelAppEvidenceGenerator():
 
         # Build evidence strings per row
         dataframe = dataframe.filter(col("ontomaResult") == "match")
-        evidences = dataframe.apply(self.get_evidence_string, axis=1)
+        evidences = dataframe.toPandas().apply(PanelAppEvidenceGenerator.parseEvidenceString, axis=1)
         logging.info(f"{len(evidences)} evidence strings have been generated.")
 
+        # WARNING! Given the explosion of phenotypes, it is necessary to remove redundant evidences
+        #evidences = PanelAppEvidenceGenerator.removeRedundancies(evidences)
+
+        return evidences
+
+    @staticmethod
+    def build_publications(dataframe):
+        '''
+        Populates a dataframe with the publications fetched from the PanelApp API and cleans them to match PubMed IDs.
+
+        Args:
+            dataframe (pd.DataFrame): Initial .tsv data converted to a Pandas dataframe
+        Returns:
+            dataframe (pd.DataFrame): Original dataframe with an additional column: Publications
+        '''
         pass
+
+    @staticmethod 
+    def publicationsFromPanel(panelId):
+        '''
+        Queries the PanelApp API to obtain a list of the publications for every gene within a panelId
+        
+        Args:
+            panelId (str): Panel ID extracted from the "Panel Id" column
+        Returns:
+            response (dict): Response of the API containing all genes related to a panel and their publications
+        '''
+        try:
+            url = f"http://panelapp.genomicsengland.co.uk/api/v1/panels/{panelId}/"
+            res = requests.get(url).json()
+            return res["genes"]
+        except:
+            logging.error("Query of the PanelApp API failed.")
+            return None
     
+    @staticmethod
+    def publicationFromSymbol(symbol, response):
+        '''
+        Returns the list of publications for a given symbol in a PanelApp query response.
+        Args:
+            symbol (str): Gene symbol extracted from the "Symbol" column
+            response (dict): Response of the API containing all genes related to a panel and their publications
+        Returns:
+            publication (list): Array with all publications for a particular gene in the corresponding Panel ID 
+        '''
+        for gene in response:
+            if gene["gene_data"]["gene_symbol"] == symbol:
+                publication = gene["publications"]
+                return publication
+
+
     @staticmethod
     def cleanDataframe(dataframe):
         '''
@@ -124,7 +173,6 @@ class PanelAppEvidenceGenerator():
                         .withColumn("phenotype", stripLambda(col("phenotype")))
 
         return dataframe
-
 
     def diseaseToEfo(self, iterable, dictExport="diseaseToEfo_results.json"):
         '''
@@ -203,45 +251,102 @@ class PanelAppEvidenceGenerator():
         '''
 
         pass
-
-    def parseEvidenceString(self, row):
-        # Association level information
-        self.targetFromSourceId = row["Symbol"]
-        self.diseaseFromSource = row["phenotype"]
-        self.diseaseFromSourceId = row["omimCode"]
-        self.diseaseId = row["ontomaId"]
-        if self.diseaseId is None or self.diseaseId == '':
-            logging.warning(f'No EFO id for association row: {row.name}')
-            return None
-        self.cohortPhenotypes = row["cohortPhenotypes"]
-        # self.mapped_disease = row["ontomaLabel"] This field?
-        self.allelicRequirements = row["Mode of inheritance"]
-        self.confidence = row["List"]
-        self.literature = row["publications"]
-        try:
-            self.targetId = self.genes[self.gene_symbol]
-        except:
-            self.targetId = row["EnsemblId(GRch37)"]
-        self.studyId = row["Panel Id"]
-        self.studyOverview = row["Panel Name"]
-
+    
+    @staticmethod
+    def parseEvidenceString(row):
         try:
             evidence = {
                 "datasourceId" : "genomics_england",
                 "datatypeId" : "genetic_literature",
-                "confidence" : self.confidence,
-                "diseaseFromSource" : self.diseaseFromSource,
-                "diseaseFromSourceId" : self.diseaseFromSourceId,
-                "diseaseId" : self.diseaseId,
-                "cohortPhenotypes" : self.cohortPhenotypes,
-                "targetFromSourceId" : self.targetFromSourceId,
-                "allelicRequirements" : self.allelicRequirements,
-                "studyId" : self.studyId,
-                "studyOverview" : self.studyOverview,
-                "literature" : self.literature,
+                "confidence" : row["List"],
+                "diseaseFromSource" : row["phenotype"],
+                "diseaseFromSourceId" : row["omimCode"],
+                "diseaseFromSourceMappedId" : row["ontomaId"] if row["ontomaId"] else return,
+                "cohortPhenotypes" : row["cohortPhenotypes"],
+                "targetFromSourceId" : row["Symbol"],
+                "allelicRequirements" : row["Mode of inheritance"],
+                "studyId" : row["Panel Id"],
+                "studyOverview" : row["Panel Name"],
+                "literature" : row["publications"]
             }
             return evidence.serialize()
         except Exception as e:
-            print(e)
             logging.error(f'Evidence generation failed for row: {row.name}')
             raise
+    
+    '''
+    @staticmethod
+    def removeRedundancies(evidences):
+        # Parsing data from the evidences object
+        parsed_data = []
+
+        json_data = evidences.apply(lambda x: json.loads(x))
+        for evidence in json_data:
+            parsed_data.append({
+                'target': evidence['target']['id'],
+                'disease': evidence['disease']['id'],
+                'panel_id': evidence['unique_association_fields']['study_id'],
+                'phenotype': evidence['disease']['source_name'],
+                'json_data': evidence
+            })
+        panelapp_df = pd.DataFrame(parsed_data)  
+        
+        # Grouping to make the evidence unique: by target, disease and panel id
+        updated_evidences = []
+        for (target, disease, panel_id), group in panelapp_df.groupby(['target','disease','panel_id']):
+            # Extracting evidence data:
+            data = group["json_data"].tolist()[0]
+            # Update evidence:
+            source_phenotypes = group.phenotype.unique().tolist()
+            data['disease']['source_name'] = choice(source_phenotypes)
+            # Save evidence:
+            updated_evidences.append(data)
+
+        return updated_evidences
+    '''
+
+def main():
+    # Initiating parser
+    parser = argparse.ArgumentParser(description=
+    "This script generates Genomics England PanelApp sourced evidences.")
+
+    parser.add_argument("-i", "--inputFile", required=True, type=str, help="Input .tsv file with the table containing association details.")
+    parser.add_argument("-o", "--outputFile", required=True, type=str, help="Name of the json output file containing the evidence strings.")
+    parser.add_argument("-s", "--schemaVersion", required=True, type=str, help="JSON schema version to use, e.g. 1.6.9. It must be branch or a tag available in https://github.com/opentargets/json_schema.")
+    parser.add_argument("-d", "--mappingsDict", required=False, type=str, help="Path of the dictionary containing the mapped phenotypes.")
+
+    # Parsing parameters
+    args = parser.parse_args()
+
+    dataframe = args.inputFile
+    outputFile = args.outputFile
+    schemaVersion = args.schemaVersion
+
+    # Initialize logging:
+    logging.basicConfig(
+    filename='evidence_builder.log',
+    level=logging.INFO,
+    format='%(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    )
+
+    # Initialize evidence builder object
+    evidenceBuilder = PanelAppEvidenceGenerator(schemaVersion)
+
+    # Import dictionary if present
+    if args.mappingsDict:
+        with open(args.mappingsDict, "r") as f:
+                phenotypesMappings = json.load(f)
+    else:
+        phenotypesMappings = {}
+    
+    # Writing evidence strings into a json file
+    evidences = evidenceBuilder.writeEvidenceFromSource(dataframe, phenotypesMappings)
+
+    with open(outputFile, "wt") as f:
+        evidences.apply(lambda x: f.write(str(x)+'\n'))
+    
+    logging.info(f"Evidence strings saved into {outputFile}. Exiting.")
+
+if __name__ == '__main__':
+    main()
