@@ -10,11 +10,13 @@ import pyspark.sql.functions import col, coalesce, when, udf, explode, regexp_ex
 from pyspark.sql.types import *
 
 class PanelAppEvidenceGenerator():
-    def __init__(self, schemaVersion):
+    def __init__(self, schemaVersion, mappingStep):
         # Build JSON schema url from version
         self.schemaVersion = schemaVersion
         schema_url = f"https://raw.githubusercontent.com/opentargets/json_schema/{self.schemaVersion}/draft4_schemas/opentargets.json" #TODO Update the url 
         logging.info(f"Loading JSON Schema from {schema_url}")
+
+        self.mappingStep = mappingStep
 
         # Create OnToma object
         self.otmap = OnToma()
@@ -331,6 +333,7 @@ def main():
     parser.add_argument("-o", "--outputFile", required=True, type=str, help="Name of the json output file containing the evidence strings.")
     parser.add_argument("-s", "--schemaVersion", required=True, type=str, help="JSON schema version to use, e.g. 1.6.9. It must be branch or a tag available in https://github.com/opentargets/json_schema.")
     parser.add_argument("-d", "--mappingsDict", required=False, type=str, help="Path of the dictionary containing the mapped phenotypes.")
+    parser.add_argument("-m", "--mappingStep", required=True, type=bool, default=True, help="State whether to run the disease to EFO term mapping step or not.")
 
     # Parsing parameters
     args = parser.parse_args()
@@ -338,6 +341,7 @@ def main():
     dataframe = args.inputFile
     outputFile = args.outputFile
     schemaVersion = args.schemaVersion
+    mappingStep = args.mappingStep
 
     # Initialize logging:
     logging.basicConfig(
@@ -348,7 +352,7 @@ def main():
     )
 
     # Initialize evidence builder object
-    evidenceBuilder = PanelAppEvidenceGenerator(schemaVersion)
+    evidenceBuilder = PanelAppEvidenceGenerator(schemaVersion, mappingStep)
 
     # Import dictionary if present
     if args.mappingsDict:
