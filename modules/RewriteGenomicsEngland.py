@@ -6,7 +6,7 @@ import argparse
 import re
 from pyspark import SparkContext
 from pyspark.sql import SparkSession
-import pyspark.sql.functions import col, coalesce, when, udf, explode, regexp_extract, regexp_replace
+from pyspark.sql.functions import *
 from pyspark.sql.types import *
 
 class PanelAppEvidenceGenerator():
