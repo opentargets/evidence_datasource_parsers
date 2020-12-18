@@ -4,6 +4,9 @@ import logging
 import requests
 import argparse
 import re
+from multiprocessing import Pool
+import functools as fn
+import numpy as np
 from pyspark import SparkContext
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import *
@@ -176,10 +179,14 @@ class PanelAppEvidenceGenerator():
         phenotypes = dataframe.select("phenotype").rdd.flatMap(lambda x: x).collect()
         phenotypeCodePairs = list(zip(phenotypes, omimCodes))
 
-        # TODO: Parallelize this process
         if len(self.phenotypesMappings) == 0:
-            # Checks whether the dictionary is not provided as a parameter 
-            self.phenotypesMappings = self.diseaseToEfo(phenotypesDistinct)
+            # Checks whether the dictionary is not provided as a parameter
+            try:
+                pool = Pool(mp.cpu_count())
+                self.phenotypesMappings = pool.map(self.diseaseToEfo, phenotypesDistinct)
+                pool.close()
+            except:
+                self.phenotypesMappings = self.diseaseToEfo(phenotypesDistinct)
             logging.info("Disease mappings completed.")
         else:
             logging.info("Disease mappings imported.")
@@ -193,7 +200,7 @@ class PanelAppEvidenceGenerator():
 
         return dataframe.filter(col("ontomaResult") == "match")
 
-    def diseaseToEfo(self, iterable, dictExport="diseaseToEfo_results.json"):
+    def diseaseToEfo(self, *iterable, dictExport="diseaseToEfo_results.json"):
         '''
         Queries the OnToma utility to map a phenotype to a disease.
         OnToma is used to query the ontology OBO files, the manual mapping file and the Zooma and OLS APIs.
