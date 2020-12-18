@@ -70,7 +70,9 @@ class PanelAppEvidenceGenerator():
             dataframe = self.runMappingStep(dataframe)
 
         # Build evidence strings per row
-        evidences = dataframe.toPandas().apply(PanelAppEvidenceGenerator.parseEvidenceString, axis=1)
+        evidences = dataframe.rdd.map(
+            PanelAppEvidenceGenerator.parseEvidenceString)
+            .collect() # list of dictionaries
         logging.info(f"{len(evidences)} evidence strings have been generated.")
 
         # WARNING! Given the explosion of phenotypes, it is necessary to remove redundant evidences
@@ -141,7 +143,9 @@ class PanelAppEvidenceGenerator():
         # Handling multiple phenotypes column: 
         #   cohortPhenotypes --> original string 
         #   phenotype --> explosion of cohortPhenotypes
-        splitLambda = udf(lambda X: X.split(";"), ArrayType(StringType()))
+        splitLambda = udf(
+            lambda X: X.split(";"),
+            ArrayType(StringType()))
         dataframe = dataframe \
                             .withColumn("phenotype", splitLambda(col("cohortPhenotypes"))) \
                             .withColumn('phenotype', explode('phenotype'))
@@ -149,7 +153,9 @@ class PanelAppEvidenceGenerator():
         # Extracting and cleaning the OMIM codes: 
         #   removal of the OMIM codes in the Phenotypes column and the inclusion in omimCodes
         #   deleting special characters
-        stripLambda = udf(lambda X: X.strip(),StringType())
+        stripLambda = udf(
+            lambda X: X.strip(),
+            StringType())
         dataframe = dataframe \
                         .withColumn("omimCode", regexp_extract(col("phenotype"), "(\d{6})", 1)) \
                         .withColumn("phenotype", regexp_replace(col("phenotype"), "(\d{6})", "")) \
@@ -223,7 +229,7 @@ class PanelAppEvidenceGenerator():
             self.phenotypeCodePairCheck(pheno, code)
 
         # TODO: Add new columns: OnToma Result, OnToma Term, OnToma Label
-        #dataframe = self..buildMappings(dataframe)
+        #dataframe = self.buildMappings(dataframe)
 
         return dataframe.filter(col("ontomaResult") == "match")
 
@@ -283,7 +289,7 @@ class PanelAppEvidenceGenerator():
                 "studyOverview" : row["Panel Name"],
                 "literature" : row["publications"]
             }
-            return evidence.serialize()
+            return evidence
         except Exception as e:
             logging.error(f'Evidence generation failed for row: {row.name}')
             raise
