@@ -183,14 +183,15 @@ class PanelAppEvidenceGenerator():
             # Checks whether the dictionary is not provided as a parameter
             try:
                 pool = Pool(mp.cpu_count())
-                self.phenotypesMappings = pool.map(self.diseaseToEfo, phenotypesDistinct)
+                self.phenotypesMappings = pool.map(self.diseaseToEfo, phenotypesDistinct) # list of dictionaries
+                self.phenotypesMappings = {k:v for dct in self.phenotypesMappings for (k,v) in self.phenotypesMappings.items()}
                 pool.close()
             except:
-                self.phenotypesMappings = self.diseaseToEfo(phenotypesDistinct)
+                self.phenotypesMappings = self.diseaseToEfo(*phenotypesDistinct)
             logging.info("Disease mappings completed.")
         else:
             logging.info("Disease mappings imported.")
-        self.codesMappings = self.diseaseToEfo(omimCodesDistinct) # TODO: add posibility to provide dict
+        self.codesMappings = self.diseaseToEfo(*omimCodesDistinct) # TODO: add posibility to provide dict
 
         for pheno, code in phenotypeCodePairs:
             self.phenotypeCodePairCheck(pheno, code)
