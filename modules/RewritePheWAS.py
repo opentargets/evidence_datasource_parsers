@@ -32,7 +32,7 @@ class phewasEvidenceGenerator():
         '''
         # Read input file + manually mapped terms 
         self.dataframe = self.spark.read.csv("", header=True)
-        self.mappingsFile = "phewascat.mappings.tsv" # TODO : Remove this patch
+        self.mappingsFile = "phewascat.mappings.tsv" # TODO : remote csv bug
         phewasMapping = spark.read.csv(mappingFile, sep=r'\t', header=True)
 
         # Filter out null genes & p-value > 0.05
@@ -47,6 +47,9 @@ class phewasEvidenceGenerator():
                 on=["Phewas_string"],
                 how="inner"
             )
+        # Get functional conseuquence per variant from OT Genetics Portal
+        self.dataframe = enrichVariantData(self.dataframe)
+
         # Build evidence strings per row
         evidences = self.dataframe.rdd.map(
             phewasEvidenceGenerator.parseEvidenceString)
@@ -55,12 +58,18 @@ class phewasEvidenceGenerator():
         pass
 
     def enrichVariantData():
+        self.consequencesFile = "phewas_w_consequences.csv" # TODO : remote csv bug
         phewasWithConsequences = self.spark.read.csv(self.consequencesFile, header=True)
         phewasWithConsequences = phewasWithConsequences \
                                         .withColumnRenamed("rsid", "snp") \
                                         .withColumnRenamed("gene_id", "gene")
 
-
+        self.dataframe = self.dataframe.join(
+            phewasWithConsequences,
+            on=["gene", "snp"],
+            how="inner"
+        )
+        pass
 
     @staticmethod
     def parseEvidenceString(row):
