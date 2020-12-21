@@ -32,7 +32,7 @@ class phewasEvidenceGenerator():
         
         # Read input file + manually mapped terms 
         dataframe = self.spark.read.csv("")
-        mappingFile = "phewascat.mappings.tsv" # TODO : Should be "https://raw.githubusercontent.com/opentargets/mappings/master/phewascat.mappings.tsv" but it is failing
+        self.mappingsFile = "phewascat.mappings.tsv" # TODO : Remove this patch
         phewasMapping = spark.read.csv(mappingFile, sep=r'\t', header=True)
 
         # Filter out null genes & p-value > 0.05
@@ -40,12 +40,13 @@ class phewasEvidenceGenerator():
                         .filter(col("gene").isNull() == False) \
                         .filter(col("p") < 0.05)
 
-        # Join mappings data
-        dataframe = dataframe.join(
-            phewasMapping,
-            on=["Phewas_string"],
-            how="inner"
-         )
+        # Mapping step
+        if self.mappingStep:
+            dataframe = dataframe.join(
+                phewasMapping,
+                on=["Phewas_string"],
+                how="inner"
+            )
         # Build evidence strings per row
         evidences = dataframe.rdd.map(
             phewasEvidenceGenerator.parseEvidenceString)
@@ -79,7 +80,7 @@ def main():
     parser = argparse.ArgumentParser(description=
     "This script generates evidences from the PheWAS Catalog data source.")
 
-    parser.add_argument("-i", "--inputFile", required=True, type=str, help="Input .tsv file with the table containing association details.")
+    parser.add_argument("-i", "--inputFile", required=True, type=str, help="Input .csv file with the table containing association details.")
     parser.add_argument("-o", "--outputFile", required=True, type=str, help="Name of the json output file containing the evidence strings.")
     parser.add_argument("-s", "--schemaVersion", required=True, type=str, help="JSON schema version to use, e.g. 1.6.9. It must be branch or a tag available in https://github.com/opentargets/json_schema.")
     parser.add_argument("-m", "--mappingStep", required=True, type=bool, default=True, help="State whether to run the disease to EFO term mapping step or not.")
@@ -92,4 +93,24 @@ def main():
     schemaVersion = args.schemaVersion
     mappingStep = args.mappingStep
 
+    # Initialize logging:
+    logging.basicConfig(
+    filename='evidence_builder.log',E
+    level=logging.INFO,
+    format='%(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    )
+
+    # Initialize evidence builder object
+    evidenceBuilder = phewasEvidenceGenerator(schemaVersion, mappingStep)
+
+    # Writing evidence strings into a json file
+    evidences = evidenceBuilder.writeEvidenceFromSource(dataframe)
+
+    with open(outputFile, "wt") as f:
+        evidences.apply(lambda x: f.write(str(x)+'\n'))
+    logging.info(f"Evidence strings saved into {outputFile}. Exiting.")
+
+if __name__ == '__main__':
+    main()
     pass
