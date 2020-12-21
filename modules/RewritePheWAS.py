@@ -6,7 +6,7 @@ from pyspark.sql.functions import *
 from pyspark.sql.types import *
 
 class phewasEvidenceGenerator():
-    def __init__(self, schemaVersion, mappingStep):
+    def __init__(self, inputFile, mappingStep, schemaVersion):
         # Build JSON schema url from version
         self.schemaVersion = schemaVersion
         schema_url = f"https://raw.githubusercontent.com/opentargets/json_schema/{self.schemaVersion}/draft4_schemas/opentargets.json" #TODO Update the url 
@@ -16,44 +16,52 @@ class phewasEvidenceGenerator():
         self.mappingStep = mappingStep
         self.mappingsFile = "https://raw.githubusercontent.com/opentargets/mappings/master/phewascat.mappings.tsv" 
 
+        # Initialize input files
+        self.dataframe = inputFile
+        self.consequencesFile = "https://storage.googleapis.com/otar000-evidence_input/PheWAS/data_files/phewas_w_consequences.csv"
         # Create spark session     
         self.spark = SparkSession.builder \
                 .appName('evidence_builder') \
                 .getOrCreate()
 
-    def writeEvidenceFromSource(self, dataframe):
+    def writeEvidenceFromSource(self):
         '''
         Processing of the dataframe to build all the evidences from its data
-        Args:
-            dataframe (.csv): Source file containing all data from PheWAS
         Returns:
-            evidences (array): Object with all the generated evidences strings
+            evidences (array): Object with all the generated evidences strings from source file
         '''
-        
         # Read input file + manually mapped terms 
-        dataframe = self.spark.read.csv("")
+        self.dataframe = self.spark.read.csv("", header=True)
         self.mappingsFile = "phewascat.mappings.tsv" # TODO : Remove this patch
         phewasMapping = spark.read.csv(mappingFile, sep=r'\t', header=True)
 
         # Filter out null genes & p-value > 0.05
-        dataframe = dataframe \
+        self.dataframe = self.dataframe \
                         .filter(col("gene").isNull() == False) \
                         .filter(col("p") < 0.05)
 
         # Mapping step
         if self.mappingStep:
-            dataframe = dataframe.join(
+            self.dataframe = self.dataframe.join(
                 phewasMapping,
                 on=["Phewas_string"],
                 how="inner"
             )
         # Build evidence strings per row
-        evidences = dataframe.rdd.map(
+        evidences = self.dataframe.rdd.map(
             phewasEvidenceGenerator.parseEvidenceString)
             .collect() # list of dictionaries
         
         pass
-    
+
+    def enrichVariantData():
+        phewasWithConsequences = self.spark.read.csv(self.consequencesFile, header=True)
+        phewasWithConsequences = phewasWithConsequences \
+                                        .withColumnRenamed("rsid", "snp") \
+                                        .withColumnRenamed("gene_id", "gene")
+
+
+
     @staticmethod
     def parseEvidenceString(row):
         try:
@@ -102,7 +110,7 @@ def main():
     )
 
     # Initialize evidence builder object
-    evidenceBuilder = phewasEvidenceGenerator(schemaVersion, mappingStep)
+    evidenceBuilder = phewasEvidenceGenerator(dataframe, mappingStep, schemaVersion)
 
     # Writing evidence strings into a json file
     evidences = evidenceBuilder.writeEvidenceFromSource(dataframe)
