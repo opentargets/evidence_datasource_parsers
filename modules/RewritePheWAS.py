@@ -38,14 +38,33 @@ class phewasEvidenceGenerator():
         # Filter out null genes & p-value > 0.05
         dataframe = dataframe \
                         .filter(col("gene").isNull() == False) \
-                        .filter((col("p") < 0.05)
+                        .filter(col("p") < 0.05)
 
         # Join mappings data
-         dataframe = dataframe.join(
+        dataframe = dataframe.join(
             phewasMapping,
             on=["Phewas_string"],
             how="inner"
          )
 
         pass
-        
+
+    def parseEvidenceString(row):
+        try:
+            evidence = {
+                datasourceId : "phewas_catalog",
+                datatypeId : "genetic_association",
+                diseaseFromSource : row["phewas_string"],
+                diseaseFromSourceId : row["phewas_code"],
+                diseaseFromSourceMappedId : row["EFO_id"].split("/")[-1],
+                oddsRatio : row["odds_ratio"],
+                resourceScore : row["p"],
+                studyCases : row["cases"],
+                targetFromSourceId : row["gene"].strip("*"),
+                variantFunctionalConsequenceId : "", # TODO : Merge this data coming from OTG
+                variantId : "", # TODO 
+                variantRsId : row["snp"]
+            }
+            return evidence
+        except Exception as e:
+            raise        
