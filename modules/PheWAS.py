@@ -96,16 +96,11 @@ def make_variant2disease(pval, odds_ratio, cases):
     return variant2disease
 
 def ensgid_from_gene(gene, ensgid):
-
     ## find ENSGID ##
     gene = gene.strip("*")
     if gene not in ensgid:
         #__log__.debug("Skipping unmapped target %s",gene)
         #skipped_unmapped_target_cnt += 1
-        return np.nan
-    if not len(gene) or not len(ensgid[gene]):
-        #__log__.debug("Skipping zero length gene name")
-        #skipped_zero_length_cnt += 1
         return np.nan
     return ensgid[gene]
 
