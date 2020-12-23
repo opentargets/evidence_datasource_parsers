@@ -179,7 +179,7 @@ def main():
                     odds_ratio = row['odds_ratio']
                     cases = row['cases']
                     variant_id = row['variant_id']
-                    if row["consequence_link"] is None or pd.isna(row["consequence_link"]):
+                    if pd.isna(row["consequence_link"]):
                         consequence_link = "http://purl.obolibrary.org/obo/SO_0001060"
                         functional_csq = "sequence_variant"
                     else:
