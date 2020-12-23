@@ -171,8 +171,6 @@ def main():
 
                 # Only use data with p-value<0.05
                 if float(row['p']) < 0.05:
-                    if row['gene'] is None:
-                        continue
                     gene = row["gene"]
                     phewas_string = row['phewas_string'].strip()
                     phewas_code = row['phewas_code'].strip()
