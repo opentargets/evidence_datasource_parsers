@@ -106,16 +106,13 @@ def ensgid_from_gene(gene, ensgid):
 
 
 def write_variant_id(row, one2many_variants):
-    try:
-        if row["snp"] not in one2many_variants:
-            variant_id = "{}_{}_{}_{}".format(row["chrom"], int(row["pos"]), row["ref"], row["alt"])
-            return variant_id
-    except Exception as e:
-        print(e)
+    if row["snp"] not in one2many_variants:
+        variant_id = "{}_{}_{}_{}".format(row["chrom"], int(row["pos"]), row["ref"], row["alt"])
+        return variant_id
+    else:
         return np.nan
 
 def main():
-
     ## load prepared mappings
     mappings = {}
     if mapping_on_github('phewascat'):
