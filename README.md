@@ -76,11 +76,41 @@ The parser requires three parameters:
 - `-i`, `--input_file`: Name of csv file downloaded from https://search.clinicalgenome.org/kb/gene-validity
 - `-o`, `--output_file`: Name of evidence JSON file
 - `-s`, `--schema_version`: JSON schema version to use, e.g. 1.6.8. It must be branch or a tag available in https://github.com/opentargets/json_schema
+
+There is also an optional parameter to save the unmapped diseases to a file:
 - `-u`, `--unmapped_diseases_file`: If specified, the diseases not mapped to EFO will be stored in this file'
 
 To use the parser configure the python environment and run it as follows:
 ```bash
-(venv)$ python3 ../evidence_datasource_parsers/modules/ClinGen.py -i ClinGen-Gene-Disease-Summary-2020-08-04.csv -o clingen_2020-08-04.json -s 1.6.9 -u unmapped_diseases_clingen.tsv
+(venv)$ python3 modules/ClinGen.py -i ClinGen-Gene-Disease-Summary-2020-08-04.csv -o clingen_2020-08-04.json -s 1.6.9 -u unmapped_diseases_clingen.tsv
+```
+
+### Gene2Phenotype
+The Gene2Phenotype parser processes the four gene panels (Developmental Disorders - DD, eye disorders, skin disorders and cancer) that can be downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads/.
+
+The mapping of the diseases, i.e. the "disease name" column, is done on the fly using [OnToma](https://pypi.org/project/ontoma/):
+- Exact matches to EFO are used directly.
+- If the match comes from HP or ORDO the disease is searched in MONDO and if there is an exact match it is used. If not the HP or ORDO term is used.
+- If OnToma returns a fuzzy match it is ignore and MONDO is searched for exact matches.
+- When no exact matches are found the disease is considered unmapped and it's saved to a file (see the `-u`/ `--unmapped_disease_file` option below).
+
+The parser requires two parameters to run:
+- `-s`, `--schema_version`: JSON schema version to use, e.g. 1.6.8. It must be branch or a tag available in https://github.com/opentargets/json_schema.
+- `-v`, `--g2p_version`: Version of the Gene2Phenotype data used. If not available please use the date in which the data was downloaded in YYYY-MM-DD format.
+
+There are also a number of optional parameters to specify the name of the input and out files:
+- `-d`, `--dd_panel`: Name of Developmental Disorders (DD) panel file. It uses the value of G2P_DD_FILENAME in setting.py if not specified.
+- `-e`, `--eye_panel`: Name of eye panel file. It uses the value of G2P_eye_FILENAME in setting.py if not specified.
+- `-k`, `--skin_panel`: Name of skin panel. It uses the value of G2P_skin_FILENAME in setting.py if not specified.
+- `-c`, `--cancer_panel`: Name of cancer panel file. It uses the value of G2P_cancer_FILENAME in setting.py if not specified.
+- `-o`, `--output_file`: Name of output evidence file. It uses the value of G2P_EVIDENCE_FILENAME in setting.py if not specified.
+- `-u`, `--unmapped_diseases_file`: If specified, the diseases not mapped to EFO will be stored in this file.
+
+Note that when using the default file names, the input files have to exist in the working directory or in the _resources_ directory:
+
+To use the parser configure the python environment and run it as follows:
+```bash
+(venv)$ python3 modules/Gene2Phenotype.py -s 1.7.1 -v 2020-08-19 -d DDG2P_19_8_2020.csv.gz -e EyeG2P_19_8_2020.csv.gz -k SkinG2P_19_8_2020.csv.gz -c CancerG2P_19_8_2020.csv.gz -o gene2phenotype-19-08-2020.json -u gene2phenotype-19-08-2020_unmapped_diseases.txt 
 ```
 
 ### IntOGen
@@ -97,6 +127,28 @@ The `PheWAS.py` script parses the PheWAS Catalog CSV file specified as `PHEWAS_C
 
 ```sh
 (venv)$ python3 modules/PheWAS.py
+```
+
+### CRISPR
+
+The CRISPR parser processes three files available in the `resources` directory:
+
+- _crispr_evidence.tsv_: Main file that contains the prioritisation score as well as target, disease and publication information. It was adapted from supplementary table 6 in the [Behan et al. 2019](https://www.nature.com/articles/s41586-019-1103-9) paper.
+- _crispr_descriptions.tsv_: File used to extract the number of targets prioritised per cancer types as well as to retrieve the cell lines from the next file.
+- _crispr_cell_lines.tsv_: It contains three columns with the cell line, tissue and the cancer type information. It is used to extract the cell lines in which the target has been identified as essential. The file has been adapted from the supplementary table 1 in the [Behan et al. 2019](https://www.nature.com/articles/s41586-019-1103-9) paper.
+
+The parser has five parameters but only two of them are compulsory, the other three have defaults specified in the `settings.py`:
+
+- `-i`, `--input_file`: Name or full path for _crispr_evidence.tsv_. The default value is taken from the `CRISPR_FILENAME1` variable in `settings.py`.
+- `-d`, `--description_file`: Name or full path for the _crispr_descriptions.tsv_ file. The default value is taken from the `CRISPR_FILENAME2` variable in `settings.py`.
+- `-c`, `--cell_types_file`: Name or full path for _crispr_cell_lines.tsv_. There is no default value, it **must** be specified.
+- `-o`, `--output_file`:  Name of the evidence JSON file. The default value is taken from the `CRISPR_EVIDENCE_FILENAME` variable in `settings.py`.
+- `-s`, `--schema_version`:  JSON schema version to use, e.g. 1.7.5. It must be branch or a tag available in https://github.com/opentargets/json_schema. There is no default value, it **must** be specified.
+
+This is how it is run only specifying the required parameters:
+
+```sh
+(venv)$ ppython3 modules/CRISPR.py -s 1.7.5 -c crispr_cell_lines.tsv -o crispr-18-11-2020.json
 ```
 
 ### PhenoDigm - What version should I run?

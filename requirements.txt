@@ -11,7 +11,7 @@ git+https://github.com/opentargets/ontology-utils.git@febf619222f49e83468516a4a8
 
 #undocumented transitive requirement of ontoma
 pathlib
-ontoma
+ontoma>=0.0.16
 requests
 urllib3
 iso8601

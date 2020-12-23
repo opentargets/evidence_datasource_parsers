@@ -6,9 +6,7 @@ import python_jsonschema_objects as pjo
 
 import logging
 import pandas as pd
-import gzip
 import requests
-import datetime
 import argparse
 
 __copyright__  = "Copyright 2014-2020, Open Targets"
@@ -21,11 +19,11 @@ __status__     = "Prototype"
 
 ClinGen_classification2score = {
     "Definitive": 1,
-    "Strong": 0.75,
+    "Strong": 1,
     "Moderate": 0.5,
-    "Limited": 0.25,
-    "Disputed": 0.1,
-    "Refuted": 0.05,
+    "Limited": 0.01,
+    "Disputed": 0.01,
+    "Refuted": 0.01,
     "No Reported Evidence": 0.01,
 }
 
@@ -90,8 +88,6 @@ class ClinGen():
             self.write_unmapped_diseases(unmapped_diseases_filename)
 
     def generate_evidence_strings(self, filename):
-
-        total_efo = 0
 
         # When reading csv file first extract date from second row and the skip header lines that don't contain column names
         # CLINGEN GENE VALIDITY CURATIONS
@@ -209,7 +205,7 @@ class ClinGen():
                     linkout = [
                         {
                             'url' : report_url,
-                            'nice_name' : 'Gene Validit Curation: {} - {} report'.format(gene_symbol, disease_name)
+                            'nice_name' : 'Gene Validity Curations: {} - {} report'.format(gene_symbol, disease_name)
                         }
                     ]
 
@@ -244,7 +240,7 @@ class ClinGen():
                         )
                         self.evidence_strings.append(evidence)
                     except:
-                        self._logger.warning('Evidence generation failed for row: {}'.format(c))
+                        self._logger.warning('Evidence generation failed for row: {}'.format(index))
                         raise
 
     def write_evidence_strings(self, filename):
@@ -252,7 +248,6 @@ class ClinGen():
         with open(filename, 'w') as tp_file:
             for evidence_string in self.evidence_strings:
                 tp_file.write(evidence_string.serialize() + "\n")
-        tp_file.close()
 
     def write_unmapped_diseases(self, filename):
         self._logger.info("Writing ClinGen diseases not mapped to EFO to %s", filename)

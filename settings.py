@@ -66,8 +66,8 @@ class Config:
     SYSBIO_EVIDENCE_FILENAME = 'sysbio-29-01-2019.json'
 
     # CRISPR
-    CRISPR_FILENAME1 = file_or_resource('crispr_evidence-2019-08-22.tsv')
-    CRISPR_FILENAME2 = file_or_resource('crispr_descriptions-2019-03-26.tsv')
+    CRISPR_FILENAME1 = file_or_resource('crispr_evidence.tsv')
+    CRISPR_FILENAME2 = file_or_resource('crispr_descriptions.tsv')
     CRISPR_EVIDENCE_FILENAME = 'crispr-21-08-2019.json'
 
     # PheWAS catalog
@@ -77,8 +77,12 @@ class Config:
 
     # Gene2Phenotype
     #G2P_FILENAME = 'DDG2P.csv.gz'
-    G2P_FILENAME = file_or_resource('DDG2P_19_8_2019.csv.gz')
+    G2P_DD_FILENAME = file_or_resource('DDG2P_2_4_2020.csv.gz')
+    G2P_eye_FILENAME = file_or_resource('EyeG2P_26_3_2020.csv.gz')
+    G2P_skin_FILENAME = file_or_resource('SkinG2P_26_3_2020.csv.gz')
+    G2P_cancer_FILENAME = file_or_resource('CancerG2P_26_3_2020.csv.gz')
     G2P_EVIDENCE_FILENAME = 'gene2phenotype-19-08-2019.json'
+
 
     # Genomics England
     GE_PANEL_MAPPING_FILENAME = file_or_resource('genomicsenglandpanelapp_panelmapping.csv')

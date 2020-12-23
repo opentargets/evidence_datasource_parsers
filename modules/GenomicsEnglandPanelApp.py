@@ -1,706 +1,521 @@
-from collections import OrderedDict
-import opentargets.model.core as opentargets
-import opentargets.model.bioentity as bioentity
-import opentargets.model.evidence.core as evidence_core
-import opentargets.model.evidence.linkout as evidence_linkout
-import opentargets.model.evidence.association_score as association_score
-from ontologyutils.rdf_utils import OntologyClassReader
-from common.RareDiseasesUtils import RareDiseaseMapper
-import logging
-import datetime
-import csv
-import re
-import requests
-import urllib.request
-import json
-import hashlib
-from common.HGNCParser import GeneParser
-import urllib.parse
 from settings import Config
+from common.HGNCParser import GeneParser
+import python_jsonschema_objects as pjo
+import pandas as pd
+pd.options.mode.chained_assignment = None  # TODO: to remove
+from ontoma import OnToma
+from datetime import datetime
+from random import choice
+import logging
+import requests
+import json
+import argparse
+import re
 
-class GE(RareDiseaseMapper):
 
-    def __init__(self):
+PanelApp_classification2score = {
+    "green": 1,
+    "amber": 0.5,
+}
 
-        super(GE, self).__init__()
-        #setup logging
-        self._logger = logging.getLogger(__name__+".GE")
-        self._logger.debug("GE init")
+class PanelAppEvidenceGenerator():
+    def __init__(self, schema_version=Config.VALIDATED_AGAINST_SCHEMA_VERSION):
+        # Build JSON schema url from version
+        self.schema_version = schema_version
+        schema_url = f"https://raw.githubusercontent.com/opentargets/json_schema/{self.schema_version}/draft4_schemas/opentargets.json"
+        logging.info(f"Loading JSON Schema from {schema_url}")
 
-        self.lookup_data = None
-        self.hashkeys = OrderedDict()
-        self.efo = OntologyClassReader()
-        self.hpo = OntologyClassReader()
-        self.hpo_labels = OrderedDict()
-        self.efo_labels = OrderedDict()
-        self.ols_synonyms = OrderedDict()
-        self.not_ols_synonyms = set()
-        self.panel_app_info = list()
-        self.panel_app_id_map = OrderedDict()
-        self.high_confidence_mappings = OrderedDict()
-        self.genes = None
-        self.other_zooma_mappings = OrderedDict()
-        self.phenotype_set = set()
-        self.evidence_strings = list()
-        self.map_omim = OrderedDict()
-        self.fh_zooma_high = None
-        self.fh_zooma_low = None
-        self.map_strings = OrderedDict()
+        # Initialize JSON Schema builder
+        try:
+            r = requests.get(schema_url)
+            r.raise_for_status()
+            json_schema = r.json()
+            self.builder = pjo.ObjectBuilder(json_schema)
+            self.evidence_builder = self.builder.build_classes()
+        except requests.exceptions.HTTPError as e:
+            logging.error("Invalid JSON schema version")
+            raise e
 
-    def download_all_panels(self, filename):
-        self.download_all_ge(filename)
+        # Create OnToma object
+        self.otmap = OnToma()
 
-    def process_all(self, filename):
-        self._logger.warning("Process all")
-
-        self.get_panel_code_mapping()
-
+        # Parse Gene Symbol to EnsEMBL ID
         gene_parser = GeneParser()
         gene_parser._get_hgnc_data_from_json()
         self.genes = gene_parser.genes
 
-        # Get EFO labels
-        self._logger.warning("Get EFO")
-        self.efo.load_efo_classes()
-        for k, v in self.efo.current_classes.items():
-            self.efo_labels[v.lower()] = k
-        # Get HPO labels
-        self._logger.warning("Get HPO")
-        self.hpo.load_hpo_classes()
-        for k, v in self.hpo.current_classes.items():
-            self.hpo_labels[v.lower()] = k
+    @staticmethod
+    def build_publications(dataframe):
+        '''
+        Populates a dataframe with the publications fetched from the PanelApp API and cleans them to match PubMed IDs.
 
-        self.get_omim_to_efo_mappings()
-        self.get_opentargets_zooma_to_efo_mappings()
+        Args:
+            dataframe (pd.DataFrame): Initial .tsv data converted to a Pandas dataframe
+        Returns:
+            dataframe (pd.DataFrame): Original dataframe with an additional column: Publications
+        '''
+        populated_groups = []
 
-        self.execute_ge_request(filename)
-        self.use_zooma()
-        self.process_panel_app_file()
-        self.write_evidence_strings(Config.GE_EVIDENCE_FILENAME)
+        for (PanelId), group in dataframe.groupby("Panel Id"):
+            request = PanelAppEvidenceGenerator.publications_from_panel(PanelId)
+            group["Publications"] = group.apply(lambda X: publication_from_symbol(X.Symbol, request), axis=1)
+            populated_groups.append(group)
+        
+        dataframe = pd.concat(populated_groups, ignore_index=True, sort=False)
 
-    # Originally GEL used hexademial panel identifiers. More recently, they have integer panel identifiers,
-    # and the hex ones have been mapped to the integer ones. However, in some cases, the hex still lingers
-    # when we want the ints. So we have an external file that manually maps between them.
-    # For new panels, the int code is used everywhere. So this file should never need further updates.
+        cleaned_publication = []
+        for row in dataframe["Publications"].to_list():
+            try:
+                tmp = [re.match(r"(\d{8})", e)[0] for e in row]
+                cleaned_publication.append(list(set(tmp))) # Removing duplicated publications
+            except Exception as e:
+                cleaned_publication.append([])
+                continue
 
-    def get_panel_code_mapping(self, filename=Config.GE_PANEL_MAPPING_FILENAME):
-        # read from file
-        with open(filename, mode='rt') as fh:
-            reader = csv.reader(fh, delimiter=',', quotechar='"')
-            c = 0
-            # use ordered dict for consistency
-            self.panel_app_id_map = OrderedDict()
-            for row in reader:
-                c += 1
-                if c > 1:
-                    # old panel id, new panel id"
-                    (old_panel_id, new_panel_id) = row
-                    self._logger.debug("%s => %s", old_panel_id, new_panel_id)
-                    self.panel_app_id_map[old_panel_id] = new_panel_id
+        dataframe["Publications"] = cleaned_publication
 
-        if not len(self.panel_app_id_map):
-            raise ValueError("Unable to find legacy panel id mappings in "+filename)
-        return self.panel_app_id_map
+        return dataframe
+
+    @staticmethod 
+    def publications_from_panel(panel_id):
+        '''
+        Queries the PanelApp API to obtain a list of the publications for every gene within a panel_id
+        
+        Args:
+            panel_id (str): Panel ID extracted from the "Panel Id" column
+        Returns:
+            response (dict): Response of the API containing all genes related to a panel and their publications
+        '''
+        try:
+            url = f"http://panelapp.genomicsengland.co.uk/api/v1/panels/{panel_id}/"
+            res = requests.get(url).json()
+            return res["genes"]
+        except:
+            logging.error("Query of the PanelApp API failed.")
+            return None
+    
+    @staticmethod
+    def publication_from_symbol(symbol, response):
+        '''
+        Returns the list of publications for a given symbol in a PanelApp query response.
+        Args:
+            symbol (str): Gene symbol extracted from the "Symbol" column
+            response (dict): Response of the API containing all genes related to a panel and their publications
+        Returns:
+            publication (list): Array with all publications for a particular gene in the corresponding Panel ID 
+        '''
+        for gene in response:
+            if gene["gene_data"]["gene_symbol"] == symbol:
+                publication = gene["publications"]
+                return publication
 
     @staticmethod
-    def request_panel_list():
+    def clean_dataframe(dataframe):
         '''
-        Makes a request to panel app to get the list of all panels
-        :return: tuple of list of panel name and panel id's
+        Args:
+            dataframe (pd.DataFrame): Initial .tsv data converted to a Pandas dataframe
+        Returns:
+            dataframe (pd.DataFrame): Original dataframe cleaned
         '''
-        r = requests.get('https://panelapp.genomicsengland.co.uk/WebServices/list_panels', params={})
-        results = r.json()
+        # NaNs and "No OMIM phenotype" in "Phenotypes" column --> Assignment of Pannel Name
+        dataframe.loc[(dataframe["Phenotypes"] == "No OMIM phenotype") | (dataframe["Phenotypes"].isna()), "Phenotypes"] = dataframe["Panel Name"]
 
-        for item in results['result']:
-            yield (item['Name'], item['Panel_Id'], item["CurrentVersion"], item["DiseaseGroup"], item["DiseaseSubGroup"])
+        # Handling multiple phenotypes column: Phenotypes exploded and phenotype_list with the original string
+        dataframe["phenotype_list"] = dataframe["Phenotypes"]
+        dataframe["Phenotype"] = dataframe["Phenotypes"].apply(lambda X: X.split(";"))
+        dataframe = dataframe.explode("Phenotype")
 
-    def download_all_ge(self, filename):
+        # Extracting and cleaning the OMIM codes: 
+        #   removal of the OMIM codes in the Phenotypes column and the inclusion of these in a Codes column
+        #   deleting special characters
+        dataframe["OMIM_code"] = dataframe["Phenotype"].str.extract(r"(\d{6})")
+        dataframe["Phenotype"] = dataframe["Phenotype"].replace("(\d{6})", "", regex=True)
+
+        #dataframe["Phenotype"] = dataframe["Phenotype"].str.replace("-", " ", regex=False) 
+        dataframe["Phenotype"] = dataframe["Phenotype"].str.replace("[^0-9a-zA-Z *]", "", regex=True)
+        dataframe["Phenotype"] = dataframe["Phenotype"].apply(lambda X: X.strip())
+
+        dataframe.reset_index(inplace=True)
+
+        return dataframe
+
+    def ontoma_query(self, iterable, dict_name="ontoma_queries.json"):
         '''
-        Download all Genomics England Panel App gene panels
-        :return: All GE panels in a file with added GE panel info
+        Queries the OnToma utility to map a phenotype to a disease.
+        OnToma is used to query the ontology OBO files, the manual mapping file and the Zooma and OLS APIs.
+
+        Args:
+            iterable (array): Array or column of a dataframe containing the strings to query
+            dict_name (str): Name of the output file where the OnToma queries will be saved
+        Returns:
+            mappings (dict): Output file. Keys: queried term (phenotype or OMIM code), Values: OnToma output
         '''
-        self._logger.warning("Downloading all panels from GE into %s as jsonlines...", filename)
-
-        with open(filename,"w") as f:
-            for nb_panels, (panel_name, panel_id, panel_version, panel_diseasegroup, panel_diseasesubgroup) in enumerate(self.request_panel_list(),start=1):
-                self._logger.warning("reading panel %s %s %s %s %s %d", panel_name, panel_id, panel_version, panel_diseasegroup, panel_diseasesubgroup, nb_panels)
-                # Retrieve all genes for current panel
-                url = 'https://panelapp.genomicsengland.co.uk/WebServices/search_genes/all/'
-                r = requests.get(url, params={"panel_name": panel_name}, timeout=60)
-                results = r.json()
-                # Add info for current panel (the response does not contain any info about the panel)
-                results['gene_panel_info']={}
-                results['gene_panel_info']['panel_name'] = panel_name
-                results['gene_panel_info']['panel_id'] = panel_id
-                results['gene_panel_info']['panel_version'] = panel_version
-                results['gene_panel_info']['panel_diseasegroup'] = panel_diseasegroup
-                results['gene_panel_info']['panel_diseasesubgroup'] = panel_diseasesubgroup
-                results['gene_panel_info']['nb_panels'] = nb_panels
-                # Write panel JSON string into file
-                f.write(json.dumps(results) + '\n')
-
-    def execute_ge_request(self, filename):
-        '''
-        Create panel app info list and phenotype set
-        :return: Unique phenotype list
-        '''
-        self._logger.warning("execute_ge_request...")
-        phenotype_list = []
-        nb_panels = 0
-        print("*** Read GE panel app file ***")
-        with open(filename, mode='r') as f:
-            # For each disease panel:
-            for line in f:
-                results = json.loads(line)
-                #print(results)
-                panel_name = results['gene_panel_info']['panel_name']
-                panel_id = results['gene_panel_info']['panel_id']
-                panel_version = results['gene_panel_info']['panel_version']
-                panel_diseasegroup = results['gene_panel_info']['panel_diseasegroup']
-                panel_diseasesubgroup = results['gene_panel_info']['panel_diseasesubgroup']
-
-                print(results['gene_panel_info']['nb_panels'])
-                print(panel_name)
-                # For each genen in the current disease panel:
-                for item in results['results']:
-                    ensembl_gene_id = self.genes.get(item['GeneSymbol'])
-                    if not ensembl_gene_id:
-                        self._logger.error("%s is not found in Ensembl" % item['GeneSymbol'])
-                        continue
-
-                    ensembl_iri = "http://identifiers.org/ensembl/" + ensembl_gene_id
-                    self._logger.warning("Gene %s %s" % (item['GeneSymbol'], ensembl_iri))
-                    # If the current gene could be mapped to an Ensembl ID, has phenotypes and a high level of confidence:
-                    # 1) check whether phenotypes have omim ids
-                    # 2) check
-                    if ensembl_iri and item['EnsembleGeneIds'] and item['Phenotypes'] and item['LevelOfConfidence'] == 'HighEvidence':
-                        for element in item['Phenotypes']:
-
-                            element = element.rstrip().lstrip().rstrip("?")
-                            if len(element) > 0:
-                                # First check whether it's an OMIM identifier
-                                match_omim = re.match('^(\d{6,})$', element)
-                                match_omim2 = re.match('^\s*OMIM:?[#\s]*(\d{6,})$', element)
-                                if match_omim or match_omim2:
-                                    if match_omim:
-                                        omim_id = match_omim.groups()[0]
-                                    elif match_omim2:
-                                        omim_id = match_omim2.groups()[0]
-                                    self._logger.info("Found OMIM ID: %s" % (omim_id))
-                                    if omim_id in self.omim_to_efo_map:
-                                        self._logger.info("Maps to EFO")
-                                        for mapping in self.omim_to_efo_map[omim_id]:
-                                            disease_label = mapping['efo_label']
-                                            disease_uri = mapping['efo_uri']
-                                            self.panel_app_info.append([panel_name,
-                                                                        panel_id,
-                                                                        panel_version,
-                                                                        panel_diseasegroup,
-                                                                        panel_diseasesubgroup,
-                                                                        item['GeneSymbol'],
-                                                                        item['EnsembleGeneIds'][0],
-                                                                        ensembl_iri,
-                                                                        item['LevelOfConfidence'],
-                                                                        element,
-                                                                        omim_id,
-                                                                        item['Publications'],
-                                                                        item['Evidences'],
-                                                                        [omim_id],
-                                                                        disease_uri,
-                                                                        disease_label,
-                                                                        "OMIM MAPPING"
-                                                                        ])
-                                    self.map_strings = "%s\t%s\t%s\t%s\t%s\t%s"%(panel_name, item['GeneSymbol'], item['LevelOfConfidence'], element, disease_uri, disease_label)
-                                else:
-                                    # if there is already an OMIM xref to EFO/Orphanet, no need to map
-                                    disease_uri = None
-                                    disease_label = None
-                                    is_hpo = False
-                                    is_efo = False
-                                    omim_ids = []
-
-                                    #/s  matches any whitespace character
-                                    # Further matching for OMIM or HPO IDs
-                                    match_hpo_id                           = re.match('^(.+)\s+(HP:\d+)$',       element)
-                                    match_curly_brackets_omim              = re.match('^{([^\}]+)},\s+(\d+)',    element)
-                                    match_no_curly_brackets_omim           = re.match('^(.+),\s+(\d{6,})$',      element)
-                                    match_no_curly_brackets_omim_continued = re.match('^(.+),\s+(\d{6,})\s+.*$', element)
-                                    # Myopathy, early-onset, with fatal cardiomyopathy 611705
-                                    match_no_curly_brackets_no_comma_omim  = re.match('^(.+)\s+(\d{6,})\s*$', element)
-                                    # Check whether the current phenotypes matches an existing label:
-                                    # 1. efo
-                                    # 2. hpo
-                                    # 3. ols request
-                                    # 4.-7. omim mapping
-                                    # else: strip string for general mapping
-                                    if element.lower() in self.efo_labels:
-                                        disease_uri = self.efo_labels[element.lower()]
-                                        disease_label = element
-                                        phenotype_label = disease_label
-                                        is_efo = True
-                                        mapping_type = "EFO MAPPING"
-                                    elif element.lower() in self.hpo_labels:
-                                        disease_uri = self.hpo_labels[element.lower()]
-                                        disease_label = self.hpo.current_classes[disease_uri]
-                                        phenotype_label = disease_label
-                                        is_hpo = True
-                                        mapping_type = "HPO MAPPING (in HPO labels)"
-                                    elif match_hpo_id:
-                                        # Ichthyosis HP:64
-                                        disease_label = match_hpo_id.groups()[0]
-                                        phenotype_label = disease_label
-                                        phenotype_id = match_hpo_id.groups()[1]
-                                        disease_uri = "http://purl.obolibrary.org/obo/" + phenotype_id.replace(":", "_")
-                                        if disease_uri in self.hpo.current_classes:
-                                            disease_label = self.hpo.current_classes[disease_uri]
-                                            is_hpo = True
-                                        mapping_type = "HPO MAPPING (match HPO id)"
-                                    elif self.search_request_to_ols(query=element) is True:
-                                        disease_uri = self.ols_synonyms[element]["iri"]
-                                        disease_label = self.ols_synonyms[element]["label"]
-                                        phenotype_label = disease_label
-                                        is_hpo = True
-                                        mapping_type = "HPO MAPPING (request to OLS)"
-                                    elif match_curly_brackets_omim:
-                                        #[{Pancreatitis, idiopathic}, 167800]
-                                        phenotype_label = match_curly_brackets_omim.groups()[0]
-                                        omim_ids.append(match_curly_brackets_omim.groups()[1])
-                                        mapping_type = "OMIM MAPPING"
-                                    elif match_no_curly_brackets_omim:
-                                        #[{Pancreatitis, idiopathic}, 167800]
-                                        phenotype_label = match_no_curly_brackets_omim.groups()[0]
-                                        omim_ids.append(match_no_curly_brackets_omim.groups()[1])
-                                        mapping_type = "OMIM MAPPING"
-                                    elif match_no_curly_brackets_omim_continued:
-                                        #[{Pancreatitis, idiopathic}, 167800]
-                                        phenotype_label = match_no_curly_brackets_omim_continued.groups()[0]
-                                        omim_ids.append(match_no_curly_brackets_omim_continued.groups()[1])
-                                        mapping_type = "OMIM MAPPING"
-                                    elif match_no_curly_brackets_no_comma_omim:
-                                        #[{Pancreatitis, idiopathic}, 167800]
-                                        phenotype_label = match_no_curly_brackets_no_comma_omim.groups()[0]
-                                        omim_ids.append(match_no_curly_brackets_no_comma_omim.groups()[1])
-                                        mapping_type = "OMIM MAPPING"
-                                    else:
-                                        phenotype_label = element.strip()
-                                        phenotype_label = re.sub(r"\#", "", phenotype_label)
-                                        phenotype_label = re.sub(r"\t", "", phenotype_label)
-                                        omim_ids = re.findall(r"\d{5}",phenotype_label)
-                                        phenotype_label = re.sub(r"\d{5}", "", phenotype_label)
-                                        phenotype_label = re.sub(r"\{", "", phenotype_label)
-                                        phenotype_label = re.sub(r"\}", "", phenotype_label)
-                                        mapping_type = "GENERAL MAPPING"
-
-                                    self._logger.info("[%s] => [%s]" % (element, phenotype_label))
-
-                                    if omim_ids is None:
-                                        omim_ids = []
-
-                                    self.map_omim[phenotype_label] = omim_ids
-
-                                    if not is_hpo and not is_efo and all(l not in self.omim_to_efo_map for l in omim_ids) and phenotype_label.lower() not in self.zooma_to_efo_map:
-                                        self._logger.info("Unknown term '%s' with unknown OMIM ID(s): %s"%(phenotype_label, ";".join(omim_ids)))
-                                        phenotype_list.append(phenotype_label)
-
-                                        self.panel_app_info.append([panel_name,
-                                                                    panel_id,
-                                                                    panel_version, panel_diseasegroup, panel_diseasesubgroup,
-                                                                    item['GeneSymbol'],
-                                                                    item['EnsembleGeneIds'][0],
-                                                                    ensembl_iri,
-                                                                    item['LevelOfConfidence'],
-                                                                    element,
-                                                                    phenotype_label,
-                                                                    item['Publications'],
-                                                                    item['Evidences'],
-                                                                    omim_ids,
-                                                                    disease_uri,
-                                                                    disease_label,
-                                                                    mapping_type])
-
-                                    else:
-                                        self._logger.info("THERE IS A MATCH")
-
-                                        if is_hpo or is_efo:
-                                            self.panel_app_info.append([panel_name,
-                                                                        panel_id,
-                                                                        panel_version, panel_diseasegroup,
-                                                                        panel_diseasesubgroup,
-                                                                        item['GeneSymbol'],
-                                                                        item['EnsembleGeneIds'][0],
-                                                                        ensembl_iri,
-                                                                        item['LevelOfConfidence'],
-                                                                        element,
-                                                                        phenotype_label,
-                                                                        item['Publications'],
-                                                                        item['Evidences'],
-                                                                        omim_ids,
-                                                                        disease_uri,
-                                                                        disease_label,
-                                                                        mapping_type])
-
-                                        elif omim_ids and any(l  in self.omim_to_efo_map for l in omim_ids):
-                                            for omim_id in omim_ids:
-                                                if omim_id in self.omim_to_efo_map:
-                                                    for mapping in self.omim_to_efo_map[omim_id]:
-                                                        disease_label = mapping['efo_label']
-                                                        disease_uri = mapping['efo_uri']
-
-                                                        self.panel_app_info.append([panel_name,
-                                                                                    panel_id,
-                                                                                    panel_version, panel_diseasegroup,
-                                                                                    panel_diseasesubgroup,
-                                                                                    item['GeneSymbol'],
-                                                                                    item['EnsembleGeneIds'][0],
-                                                                                    ensembl_iri,
-                                                                                    item['LevelOfConfidence'],
-                                                                                    element,
-                                                                                    phenotype_label,
-                                                                                    item['Publications'],
-                                                                                    item['Evidences'],
-                                                                                    omim_ids,
-                                                                                    disease_uri,
-                                                                                    disease_label,
-                                                                                    mapping_type])
-
-                                        elif phenotype_label.lower() in self.zooma_to_efo_map:
-                                            for mapping in self.zooma_to_efo_map[phenotype_label.lower()]:
-
-                                                disease_label = mapping['efo_label']
-                                                disease_uri = mapping['efo_uri']
-
-                                                self.panel_app_info.append([panel_name,
-                                                                            panel_id,
-                                                                            panel_version, panel_diseasegroup,
-                                                                            panel_diseasesubgroup,
-                                                                            item['GeneSymbol'],
-                                                                            item['EnsembleGeneIds'][0],
-                                                                            ensembl_iri,
-                                                                            item['LevelOfConfidence'],
-                                                                            element,
-                                                                            phenotype_label,
-                                                                            item['Publications'],
-                                                                            item['Evidences'],
-                                                                            omim_ids,
-                                                                            disease_uri,
-                                                                            disease_label,
-                                                                            mapping_type])
-
-                                    self.map_strings = "%s\t%s\t%s\t%s\t%s\t%s" % (
-                                    panel_name, item['GeneSymbol'], item['LevelOfConfidence'], element, disease_uri,
-                                    disease_label)
-                self.phenotype_set = set(phenotype_list)
-        return self.phenotype_set
-
-
-    def search_request_to_ols(self, query=None, ontology='efo', type='class'):
-        in_ols = False
-        if query in self.ols_synonyms:
-            return True
-        elif query in self.not_ols_synonyms:
-            return False
-        else:
-            self._logger.debug("Requesting '%s' as synonym to OLS", query)
-            r = requests.get(
-                'http://www.ebi.ac.uk/ols/api/search',
-                params={'q': query, 'queryFields': 'synonym', 'exact': 'true', 'ontology': 'efo,ordo,hpo'})
-            results = r.json()
-            if results["response"]["numFound"] > 0:
-                in_ols = True
-                docs = results["response"]["docs"]
-                for doc in docs:
-                    if doc["ontology_name"] == 'efo':
-                        self.ols_synonyms[query] = { "iri" : doc["iri"], "label" : doc["label"], "ontology_name" : doc["ontology_name"] }
-                        return True
-                for doc in docs:
-                    if doc["ontology_name"] == 'hpo':
-                        self.ols_synonyms[query] = { "iri" : doc["iri"], "label" : doc["label"], "ontology_name" : doc["ontology_name"] }
-                        return True
-                for doc in docs:
-                    if doc["ontology_name"] == 'ordo':
-                        self.ols_synonyms[query] = { "iri" : doc["iri"], "label" : doc["label"], "ontology_name" : doc["ontology_name"] }
-                        return True
-            else:
-                self.not_ols_synonyms.add(query)
-        return in_ols
-
-    def request_to_zooma(self, property_value=None):
-        '''
-        Make a request to Zooma to get correct phenotype mapping and disease label
-        :param property_value: Phenotype name from Genomics England
-        :return: High confidence mappings.  Writes the output in the input file
-        see docs: http://www.ebi.ac.uk/spot/zooma/docs/api.html
-        '''
-        self._logger.debug("Requesting '%s' to ZOOMA", property_value)
-        r = requests.get('https://www.ebi.ac.uk/spot/zooma/v2/api/services/annotate',
-                             params={'propertyValue': property_value, 'propertyType': 'phenotype'})
-        print(property_value)
-        print(r)
-        print(r.status_code)
-
-        if r:
-            results = r.json()
-            for item in results:
-                if item['confidence'] == "HIGH":
-                    self.high_confidence_mappings[property_value] = {
-                        'uri': item['_links']['olslinks'][0]['semanticTag'],
-                        'label': item['derivedFrom']['annotatedProperty']['propertyValue'],
-                        'omim_id': self.map_omim[property_value]
-                    }
-
+        mappings = dict()
+        for e in iterable:
+            try:
+                tmp = self.otmap.find_term(e, verbose=True)
+                if tmp != None:
+                    mappings[e] = tmp
                 else:
-                    self.other_zooma_mappings[property_value] = {
-                        'uri': item['_links']['olslinks'][0]['semanticTag'],
-                        'label': item['derivedFrom']['annotatedProperty']['propertyValue'],
-                        'omim_id': self.map_omim[property_value]
+                    mappings[e] = {
+                    'term': None,
+                     'label': None,
+                     'source': None,
+                     'quality': None,
+                     'action': None
+                    }
+            except Exception as error:
+                logging.error(f"{e} mapping has failed.")
+                continue
+        
+        with open(dict_name, "w") as outfile:  
+            json.dump(mappings, outfile)
+
+        return mappings
+
+    @staticmethod
+    def OMIM_phenotype_xref(phenotype, code, mappings_dict, codes_dict):
+        '''
+        Among the Fuzzy results of a phenotype query, it checks if the phenotype and the respective code points to the same EFO term
+
+        Args:
+            phenotype (str): Phenotype of each phenotype-OMIM code pair
+            code (str): Code of each phenotype-OMIM code pair
+            mappings_dict (dict): All mapping results for every phenotype
+            codes_dict (dict): All mapping results for every OMIM code
+        '''
+        try:
+            if phenotype == "":
+                return
+            phenotype_result = mappings_dict[phenotype]
+            if phenotype_result == None:
+                return
+
+            if phenotype_result["quality"] == "fuzzy":
+                code_result = codes_dict[code]
+                if code_result == None:
+                    return
+
+                if code_result["term"] == phenotype_result["term"]:
+                    # If both EFO terms coincide, the phenotype in mappings_dict becomes a match
+                    mappings_dict[phenotype]["quality"] = "match"
+                    mappings_dict[phenotype]["action"] = "checked"
+        except Exception as e:
+            logging.error(f'No OMIM code for phenotype: {phenotype}')
+
+    @staticmethod
+    def build_mappings(mappings_dict, dataframe):
+        '''
+        Populates the dataframe with the mappings resulted from OnToma.
+
+        Args:
+            mappings_dict (dict): All mapping results for every phenotype
+            dataframe (pd.DataFrame): DataFrame with transformed PanelApp data
+        Return:
+            dataframe (pd.DataFrame): DataFrame with new columns corresponding to the OnToma result
+        '''
+        # Splitting dictionaries between fuzzies and matches
+        fuzzy = {}
+        match = {}
+
+        for i in mappings_dict.keys():
+            if mappings_dict[i]["quality"] == "fuzzy":
+                fuzzy[i] = mappings_dict[i]
+            elif mappings_dict[i]["quality"] == "match":
+                match[i] = mappings_dict[i]
+
+        # Creating the corresponding OnToma result for each phenotype
+        # New columns: OnToma Result, OnToma Source, OnToma Term, OnToma Label
+        for phenotype in match.keys():
+            dataframe.loc[dataframe["Phenotype"] == phenotype, "OnToma Result"] = "match"
+            dataframe.loc[dataframe["Phenotype"] == phenotype, "OnToma Action"] = match[phenotype]["action"]
+            dataframe.loc[dataframe["Phenotype"] == phenotype, "OnToma Term"] = match[phenotype]["term"]
+            dataframe.loc[dataframe["Phenotype"] == phenotype, "OnToma Label"] = match[phenotype]["label"]
+ 
+        for phenotype in fuzzy.keys():
+            dataframe.loc[dataframe["Phenotype"] == phenotype, "OnToma Result"] = "fuzzy"
+            dataframe.loc[dataframe["Phenotype"] == phenotype, "OnToma Action"] = fuzzy[phenotype]["action"]
+            dataframe.loc[dataframe["Phenotype"] == phenotype, "OnToma Term"] = fuzzy[phenotype]["term"]
+            dataframe.loc[dataframe["Phenotype"] == phenotype, "OnToma Label"] = fuzzy[phenotype]["label"]
+
+        return dataframe
+
+    def build_pub_array(self):
+        '''
+        Takes a list of PMIDs and returns a list of reference dictionaries
+
+        Returns:
+            pub_array (array): List of objects with the reference link to every publication    
+        '''
+        pub_array = []
+
+        if len(self.publication) != 0:
+            for pub in self.publication:
+                pub_dict = {
+                    "lit_id": f"http://europepmc.org/abstract/MED/{pub}"
+                }
+                pub_array.append(pub_dict)
+        else:
+            # If there were no pubmed ids there is one empty item in the array
+            pub_dict = {
+                "lit_id": None
+            }
+            pub_array.append(pub_dict)
+        return pub_array
+    
+
+    def get_evidence_string(self, row):
+        # Association level information:
+        self.gene_symbol = row["Symbol"]
+        self.mapped_disease = row["OnToma Label"]
+        self.mapped_id = row["OnToma Term"]
+        self.phenotypes_array = row["phenotype_list"].split(";")
+        self.source_name = row["Phenotype"]
+        self.mode_of_inheritance = row["Mode of inheritance"]
+        self.evidence_classification = row["List"]
+        self.sources = row["Sources"]
+        self.publication = row["Publications"]
+        try:
+            self.ensembl_iri = "http://identifiers.org/ensembl/" + self.genes[self.gene_symbol]
+        except:
+            self.ensembl_iri = "http://identifiers.org/ensembl/" + row["EnsemblId(GRch37)"]
+
+        # Panel level information:
+        self.panel_id = row["Panel Id"]
+        self.panel_name = row["Panel Name"]
+        self.panel_version = row["Panel Version"]
+        self.panel_type = row["Panel Types"]
+        self.super_panel_id = row["Super Panel Id"]
+        self.super_panel_name = row["Super Panel Name"]
+        self.super_panel_version = row["Super Panel Version"]
+
+        # If the association has no EFO attached:
+        if self.mapped_id is None or self.mapped_id == '':
+            logging.warning(f'No EFO id for association row: {row.name}')
+            return None
+
+        target_field = {
+                'id' : self.ensembl_iri,
+                'activity' : "http://identifiers.org/cttv.activity/unknown",
+                'target_type' : "http://identifiers.org/cttv.target/gene_evidence",
+                'target_name' : self.gene_symbol
+        }
+
+        provenance_type = {
+                        'database' : {
+                            'id' : "Genomics England PanelApp",
+                            'version' : datetime.now().isoformat(),
+                            'dbxref' : {
+                                'id' : "Genomics England PanelApp",
+                                'url': "https://panelapp.genomicsengland.co.uk/",
+                                'version' : datetime.now().isoformat() # Config.GE_PANEL_VERSION
+                                        }
+                                    }
+                        }
+        # literature field only shown when the publication array is not empty
+        if len(self.publication) != 0:
+            provenance_type["literature"] = {
+                            'references': self.build_pub_array()
+                        }
+
+        resource_score = {
+                        'method': {
+                            'description': "Further details in the Genomics England PanelApp.",
+                            'url': 'https://panelapp.genomicsengland.co.uk'
+                            },
+                        'type': "probability",
+                        'value': PanelApp_classification2score[self.evidence_classification]
+                    }
+        
+        urls = [
+                {
+                'nice_name' : f'Further details in the Genomics England PanelApp for panel {self.panel_id} and gene {self.gene_symbol}',
+                'url' : f"https://panelapp.genomicsengland.co.uk/panels/{self.panel_id}/{self.gene_symbol}"
+                }
+            ]
+
+        evidence_field = {
+                    'date_asserted' : datetime.now().isoformat(),
+                    'evidence_codes' : ["http://purl.obolibrary.org/obo/ECO_0000205"],
+                    'is_associated' : True,
+                    'provenance_type' : provenance_type,
+                    'resource_score' : resource_score,
+                    'urls' : urls,
+                    'confidence' : self.evidence_classification,
+                    'study_overview': self.panel_name,
+                    'study_id': self.panel_id,
+                    'study_version': self.panel_version,
+                    'allelic_requirement' : self.mode_of_inheritance,
+                    'phenotypes_array' : self.phenotypes_array
                     }
 
-        return self.high_confidence_mappings
+        target_field = {
+                        'id' : self.ensembl_iri,
+                        'activity' : "http://identifiers.org/cttv.activity/predicted_damaging",
+                        'target_type' : "http://identifiers.org/cttv.target/gene_evidence",
+                        'target_name' : self.gene_symbol
+                    }
 
-    def use_zooma(self):
-        '''
-        Call request to Zooma function
-        :return: None.
-        '''
-        self._logger.info("use Zooma")
-        for phenotype in self.phenotype_set:
-            if phenotype:
-                self._logger.info("Mapping '%s' with zooma..."%(phenotype))
-                self.request_to_zooma(phenotype)
+        disease_field = {
+                        'id': self.mapped_id,
+                        'name' : self.mapped_disease,
+                        'source_name': self.source_name
+                    }
+        
+        unique_association_field = {
+                        'disease_iri': self.mapped_id,
+                        'target_id': self.ensembl_iri,
+                        'study_id': self.panel_id
+                    }
 
-        with open(Config.GE_ZOOMA_DISEASE_MAPPING, 'w') as outfile:
-            tsv_writer = csv.writer(outfile, delimiter='\t')
-            for phenotype, value in self.high_confidence_mappings.items():
-                tsv_writer.writerow([phenotype, value['uri'], value['label'], value['omim_id']])
-
-        with open(Config.GE_ZOOMA_DISEASE_MAPPING_NOT_HIGH_CONFIDENT, 'w') as map_file:
-            csv_writer = csv.writer(map_file, delimiter='\t')
-            for phenotype, value in self.other_zooma_mappings.items():
-                csv_writer.writerow([phenotype, value['uri'], value['label'], value['omim_id']])
-
-    def process_panel_app_file(self):
-        '''
-        Core method to create Evidence strings
-        :return: None
-        '''
-        self._logger.info("Process panel app file")
-        now = datetime.datetime.now()
-
-        with open(Config.GE_ZOOMA_DISEASE_MAPPING, 'w') as outfile:
-            tsv_writer = csv.writer(outfile, delimiter='\t')
-            for phenotype, value in self.high_confidence_mappings.items():
-                tsv_writer.writerow([phenotype, value['uri'], value['label'], value['omim_id']])
-
-        mapping_fh = open("tmp/genomics_england_mapped.txt", 'w')
-        mapping_tsv_writer = csv.writer(mapping_fh, delimiter='\t')
-        unmapped_fh = open("tmp/genomics_england_unmapped.txt", 'w')
-        unmapped_tsv_writer = csv.writer(unmapped_fh, delimiter='\t')
-
-        for row in self.panel_app_info:
-            # encode to UTF8
-            panel_name, panel_id, panel_version, panel_diseasegroup, panel_diseasesubgroup, gene_symbol, ensembl_gene_ids, ensembl_iri, level_of_confidence, original_label, phenotype, publications, evidences, omim_ids, disease_uri, disease_label, mapping_method = row
-            #panel_name = panel_name.encode("UTF-8")
-            #panel_id = panel_id.encode("UTF-8")
-            #original_label = original_label.encode("UTF-8")
-
-            if len(omim_ids) > 0 and disease_uri:
-                self.generate_single_evidence(panel_name, panel_id, panel_version, panel_diseasegroup, panel_diseasesubgroup, gene_symbol, ensembl_gene_ids, ensembl_iri, level_of_confidence,
-                                              original_label, phenotype, publications, evidences, omim_ids, disease_uri, disease_label, now)
-                mapping_tsv_writer.writerow([panel_name, panel_id, gene_symbol, phenotype, disease_uri, disease_label])
-            elif phenotype in self.high_confidence_mappings:
-                disease_label = self.high_confidence_mappings[phenotype]['label']
-                disease_uri = self.high_confidence_mappings[phenotype]['uri']
-                self.generate_single_evidence(panel_name, panel_id, panel_version, panel_diseasegroup, panel_diseasesubgroup, gene_symbol, ensembl_gene_ids, ensembl_iri, level_of_confidence, original_label, phenotype, publications, evidences, omim_ids, disease_uri, disease_label, now)
-                mapping_tsv_writer.writerow([panel_name, panel_id, gene_symbol, phenotype, disease_uri, disease_label])
-            elif phenotype.lower() in self.zooma_to_efo_map:
-                for item in self.zooma_to_efo_map[phenotype.lower()]:
-                    disease_uri = item['efo_uri']
-                    disease_label = "N/A"
-                    self.generate_single_evidence(panel_name, panel_id, panel_version, panel_diseasegroup, panel_diseasesubgroup, gene_symbol, ensembl_gene_ids, ensembl_iri, level_of_confidence, original_label, phenotype, publications, evidences, omim_ids, disease_uri, disease_label, now)
-                    mapping_tsv_writer.writerow(
-                        [panel_name, panel_id, gene_symbol, phenotype, disease_uri, disease_label])
-            elif disease_uri:
-                self.generate_single_evidence(panel_name, panel_id, panel_version, panel_diseasegroup, panel_diseasesubgroup, gene_symbol, ensembl_gene_ids, ensembl_iri,
-                                              level_of_confidence, original_label, phenotype, publications, evidences, omim_ids,
-                                              disease_uri, disease_label, now)
-                mapping_tsv_writer.writerow(
-                    [panel_name, panel_id, gene_symbol, original_label, disease_uri, disease_label])
-            else:
-                unmapped_tsv_writer.writerow(
-                        [panel_name, panel_id, gene_symbol, original_label])
-
-        mapping_fh.close()
-        unmapped_fh.close()
-
-    def generate_single_evidence(self, panel_name, panel_id, panel_version, panel_diseasegroup, panel_diseasesubgroup, gene_symbol, ensembl_gene_id, ensembl_iri, level_of_confidence, original_label, phenotype, publications, evidences, omim_ids, disease_uri, disease_label, now):
-
-        '''
-        Generate evidence string using the Literature Curated schema
-        :param panel_name:
-        :param panel_id:
-        :param panel_version:
-        :param panel_diseasegroup:
-        :param panel_diseasesubgroup:
-        :param gene_symbol:
-        :param ensembl_gene_id:
-        :param ensembl_iri:
-        :param level_of_confidence:
-        :param original_label:
-        :param phenotype:
-        :param publications:
-        :param evidences:
-        :param omim_ids:
-        :param disease_uri:
-        :param disease_label:
-        :param now:
-        :return:
-        '''
-        '''
-        Create a list of publications
-        '''
-        single_lit_ref_list = list()
-        if publications is not None and len(str(publications).strip()) > 0:
-            publications = re.findall(r"\'(.+?)\'", str(publications))
-            if len(publications) > 0:
-                pset = set()
-                for paper_set in publications:
-                    paper_set = re.findall(r"\d{7,12}", paper_set)
-                    for paper in paper_set:
-                        if paper not in pset:
-                            pset.add(paper)
-                            lit_url = "http://europepmc.org/abstract/MED/" + paper
-                            single_lit_ref_list.append(evidence_core.Single_Lit_Reference(lit_id=lit_url))
-
-        if len(single_lit_ref_list) == 0:
-            self._logger.warning("no publication found for %s %s %s %s",panel_name, gene_symbol, original_label, publications)
-            lit_url = "NA"
-            single_lit_ref_list.append(evidence_core.Single_Lit_Reference(lit_id=lit_url))
-
-        obj = opentargets.Literature_Curated(type='genetic_literature')
-        provenance_type = evidence_core.BaseProvenance_Type(
-            database=evidence_core.BaseDatabase(
-                id="Genomics England PanelApp",
-                version=Config.GE_PANEL_VERSION,
-                dbxref=evidence_core.BaseDbxref(
-                    url="https://panelapp.genomicsengland.co.uk/",
-                    id="Genomics England PanelApp", version=Config.GE_PANEL_VERSION)),
-            literature=evidence_core.BaseLiterature(
-                references=single_lit_ref_list
+        try:
+            evidence = self.evidence_builder.Opentargets5(
+                type = "genetic_literature",
+                access_level = "public",
+                sourceID = "genomics_england",
+                evidence = evidence_field,
+                target = target_field,
+                disease = disease_field,
+                unique_association_fields = unique_association_field,
+                validated_against_schema_version = self.schema_version
             )
-        )
-        obj.access_level = "public"
-        obj.sourceID = "genomics_england"
-        obj.validated_against_schema_version = Config.VALIDATED_AGAINST_SCHEMA_VERSION
+            return evidence.serialize()
+        except Exception as e:
+            print(e)
+            logging.error(f'Evidence generation failed for row: {row.name}')
+            raise
 
-        obj.unique_association_fields = dict(
-            panel_name=panel_name,
-            original_disease_name=disease_label,
-            previous_code=panel_id,
-            panel_id=self.panel_app_id_map.get(panel_id,panel_id),
-            panel_version=panel_version,
-            panel_diseasegroup=panel_diseasegroup,
-            panel_diseasesubgroup=panel_diseasesubgroup,
-            target_id=ensembl_iri,
-            disease_iri=disease_uri)
+    def write_evidence_strings(self, dataframe, mappings_dict):
+        '''
+        Processing of the dataframe to build all the evidences from its data
 
-        #json.dumps(obj.unique_association_fields)
-        #provenance_type.to_JSON()
+        Args:
+            dataframe (pd.DataFrame): Initial .tsv file
+            mappings_dict (dict): All mapping results for every phenotype
+        Returns:
+            evidences (array): Object with all the generated evidences strings
+        '''
 
-        # it's unicode
-        as_str = json.dumps(obj.unique_association_fields)
-        md5 = hashlib.md5(as_str.encode("UTF-8"))
-        hashkey = md5.hexdigest()
-        if hashkey in self.hashkeys:
-            self._logger.warning("Non-unique evidence string for %s",as_str)
+        # Read input file
+        dataframe = pd.read_csv(dataframe, sep='\t')
+
+        # Filtering with green and ambar evidences
+        dataframe = dataframe[((dataframe["List"] == "green") | (dataframe["List"] == "amber")) & (dataframe["Panel Version"] > 1) & (dataframe["Panel Status"] == "PUBLIC")].reset_index(drop=True)
+        dataframe.dropna(axis=1, how="all", inplace=True)
+
+        # Feed the dataframe with publications
+        logging.info("Fetching publications from the API...")
+        dataframe = self.build_publications(dataframe)
+        logging.info("Publications loaded.")
+
+        # Splitting and cleaning the dataframe according to the phenotype string
+        dataframe = PanelAppEvidenceGenerator.clean_dataframe(dataframe)
+
+        # Mapping the phenotypes and OMIM codes to an EFO code
+        codes = dataframe["OMIM_code"].unique()
+        phenotypes = dataframe["Phenotype"].unique()
+
+        if len(mappings_dict) == 0:
+            # Checks whether the dictionary is not provided as a parameter 
+            mappings_dict = self.ontoma_query(phenotypes)
+            logging.info("Disease mappings completed.")
         else:
+            logging.info("Disease mappings imported.")
+        
+        codes_dict = self.ontoma_query(codes)
 
-            self.hashkeys[hashkey] = obj
+        # Cross-referencing the fuzzy results from the phenotype query and the OMIM code query
+        phenotypes_list = dataframe["Phenotype"].to_list()
+        codes_list = dataframe["OMIM_code"].to_list()
+        merged = list(zip(phenotypes_list, codes_list))
 
-            obj.target = bioentity.Target(id=ensembl_iri,
-                                          activity="http://identifiers.org/cttv.activity/predicted_damaging",
-                                          target_type='http://identifiers.org/cttv.target/gene_evidence',
-                                          target_name=gene_symbol)
-            if level_of_confidence == 'LowEvidence':
-                resource_score = association_score.Probability(
-                    type="probability",
-                    method=association_score.Method(
-                        description="Further details in the Genomics England PanelApp.",
-                        #reference="NA",
-                        url="https://panelapp.genomicsengland.co.uk"),
-                value = 0.25)
-            elif level_of_confidence == 'HighEvidence':
-                resource_score = association_score.Probability(
-                    type="probability",
-                    method=association_score.Method(
-                        description="Further details in the Genomics England PanelApp.",
-                        #reference="NA",
-                        url="https://panelapp.genomicsengland.co.uk"),
-                value = 1)
-            else :
-                resource_score = association_score.Probability(
-                    type="probability",
-                    method=association_score.Method(
-                        description="Further details in the Genomics England PanelApp.",
-                        #reference="NA",
-                        url="https://panelapp.genomicsengland.co.uk"),
-                value = 0.5)
+        for pheno, code in merged:
+            PanelAppEvidenceGenerator.OMIM_phenotype_xref(pheno, code, mappings_dict, codes_dict)
 
-            obj.disease = bioentity.Disease(id=disease_uri, source_name=phenotype, name=disease_label)
-            obj.evidence = evidence_core.Literature_Curated()
-            obj.evidence.is_associated = True
-            obj.evidence.evidence_codes = ["http://purl.obolibrary.org/obo/ECO_0000205"]
-            obj.evidence.provenance_type = provenance_type
-            obj.evidence.date_asserted = now.isoformat()
-            obj.evidence.provenance_type = provenance_type
-            obj.evidence.resource_score = resource_score
-            new_panel_id = self.panel_app_id_map.get(panel_id,panel_id)
-            linkout = evidence_linkout.Linkout(
-                url=urllib.parse.urljoin(Config.GE_LINKOUT_URL, "%s/%s"%(new_panel_id, gene_symbol)),
-                nice_name='Further details in the Genomics England PanelApp for panel %s and gene %s '%(new_panel_id, gene_symbol))
-            obj.evidence.urls = [linkout]
-            linkout.to_JSON()
+        # New columns: OnToma Result, OnToma Source, OnToma Term, OnToma Label
+        dataframe = PanelAppEvidenceGenerator.build_mappings(mappings_dict, dataframe)
 
-    def write_evidence_strings(self, filename):
-        '''
-        Validate the evidence string file internally and write it to a file
-        :param filename: name of the empty input file
-        :return: None .  Writes the output in the input file
-        '''
-        self._logger.info("Writing Genomics England evidence strings")
-        with open(filename, 'w') as tp_file:
-            for hashkey, evidence_string in self.hashkeys.items():
-                error = evidence_string.validate(self._logger)
-                if error > 1:
-                    self._logger.error(evidence_string.to_JSON(indentation=4))
-                tp_file.write(evidence_string.to_JSON(indentation=None) + "\n")
+        # Build evidence strings per row
+        dataframe = dataframe[dataframe["OnToma Result"] == "match"]
+        evidences = dataframe.apply(self.get_evidence_string, axis=1)
+        logging.info(f"{len(evidences)} evidence strings have been generated.")
+
+        # WARNING! Given the explosion of phenotypes, it is necessary to removing redundant evidences
+        evidences = PanelAppEvidenceGenerator.removing_redundant_evidences(evidences)
+
+        return evidences
+
+    @staticmethod
+    def removing_redundant_evidences(evidences):
+        # Parsing data from the evidences object
+        parsed_data = []
+
+        json_data = evidences.apply(lambda x: json.loads(x))
+        for evidence in json_data:
+            parsed_data.append({
+                'target': evidence['target']['id'],
+                'disease': evidence['disease']['id'],
+                'panel_id': evidence['unique_association_fields']['study_id'],
+                'phenotype': evidence['disease']['source_name'],
+                'json_data': evidence
+            })
+        panelapp_df = pd.DataFrame(parsed_data)  
+        
+        # Grouping to make the evidence unique: by target, disease and panel id
+        updated_evidences = []
+        for (target, disease, panel_id), group in panelapp_df.groupby(['target','disease','panel_id']):
+            # Extracting evidence data:
+            data = group["json_data"].tolist()[0]
+            # Update evidence:
+            source_phenotypes = group.phenotype.unique().tolist()
+            data['disease']['source_name'] = choice(source_phenotypes)
+            # Save evidence:
+            updated_evidences.append(data)
+
+        return updated_evidences
 
 def main():
-    cmd_doc = """Naval Fate.
+    # Initiating parser
+    parser = argparse.ArgumentParser(description=
+    "This script generates Genomics England PanelApp sourced evidences.")
 
-    Usage:
-      naval_fate.py download <filename>
-      naval_fate.py process <filename>
-      naval_fate.py (-h | --help)
-      naval_fate.py --version
+    parser.add_argument("-i", "--input_file", required=True, type=str, help="Input .tsv file with the table containing association details.")
+    parser.add_argument("-o", "--output_file", required=True, type=str, help="Name of the json output file containing the evidence strings.")
+    parser.add_argument("-s", "--schema_version", required=True, type=str, help="JSON schema version to use, e.g. 1.6.9. It must be branch or a tag available in https://github.com/opentargets/json_schema.")
+    parser.add_argument("-d", "--dictionary", required=False, type=str, help="Path of the dictionary containing the mapped phenotypes.")
 
-    Options:
-      -h --help     Show this screen.
-      --version     Show version.
+    # Parsing parameters
+    args = parser.parse_args()
 
-    """
-    from docopt import docopt
+    dataframe = args.input_file
+    output_file = args.output_file
+    schema_version = args.schema_version
 
-    arguments = docopt(cmd_doc, version='GE Panel up processing')
-    print(arguments)
+    # Initialize logging:
+    logging.basicConfig(
+    filename='evidence_builder.log',
+    level=logging.INFO,
+    format='%(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    )
 
-    if arguments['download']:
-        filename = arguments['<filename>']
-        ge_object = GE()
-        ge_object.download_all_ge(filename)
-    elif arguments['process']:
-        filename = arguments['<filename>']
-        ge_object = GE()
-        ge_object.process_all(filename)
+    # Initialize evidence builder object
+    evidence_builder = PanelAppEvidenceGenerator(schema_version)
 
-if __name__ == "__main__":
+    # Import dictionary if present
+    if args.dictionary:
+        with open(args.dictionary, "r") as f:
+                mappings_dict = json.load(f)
+    else:
+        mappings_dict = {}
+    
+    # Writing evidence strings into a json file
+    evidences = evidence_builder.write_evidence_strings(dataframe, mappings_dict)
+
+    with open(output_file, "wt") as f:
+        evidences.apply(lambda x: f.write(str(x)+'\n'))
+    
+    logging.info(f"Evidence strings saved into {output_file}. Exiting.")
+
+if __name__ == '__main__':
     main()
