@@ -95,12 +95,12 @@ def make_variant2disease(pval, odds_ratio, cases):
     variant2disease['cases'] = cases
     return variant2disease
 
-def ensgid_from_gene(gene, ensgid):
+def ensgid_from_gene(gene, ensgid, skipped_unmapped_target_cnt):
     ## find ENSGID ##
     gene = gene.strip("*")
     if gene not in ensgid:
-        #__log__.debug("Skipping unmapped target %s",gene)
-        #skipped_unmapped_target_cnt += 1
+        __log__.debug("Skipping unmapped target %s",gene)
+        skipped_unmapped_target_cnt += 1
         return np.nan
     return ensgid[gene]
 
@@ -143,7 +143,6 @@ def main():
     built = 0
     skipped_phewas_string_cnt = 0
     skipped_unmapped_target_cnt = 0
-    skipped_zero_length_cnt = 0
     __log__.info('Begin processing phewascatalog evidences..')
     with open(Config.PHEWAS_CATALOG_EVIDENCE_FILENAME, 'w') as outfile:
 
@@ -152,7 +151,7 @@ def main():
             catalog = pd.read_csv(r, dtype={"chromosome":"str", "basepair":"str", "phewas_code": "str", "cases":"Int64", "odds_ratio":"float64", "p":"float64"})
             
             # Parsing genes
-            catalog["gene"] = catalog["gene"].dropna().apply(lambda X: ensgid_from_gene(X, ensgid))
+            catalog["gene"] = catalog["gene"].dropna().apply(lambda X: ensgid_from_gene(X, ensgid, skipped_unmapped_target_cnt))
             catalog.dropna(subset=["gene"], inplace=True)
             # Merging dataframes: more records due to 1:many associations
             enriched_catalog = pd.merge(catalog, phewas_w_consequences, on=["gene", "snp"])
@@ -227,7 +226,7 @@ def main():
             "Built %s evidences. "
             "Skipped %s ",i,built,i-built
             )
-        __log__.debug("Skipped unmapped PheWAS string: {} \n Skipped unmapped targets: {} \n Skipped zero length gene name: {}".format(skipped_phewas_string_cnt, skipped_unmapped_target_cnt, skipped_zero_length_cnt))
+        __log__.debug("Skipped unmapped PheWAS string: {} \n Skipped unmapped targets: {}".format(skipped_phewas_string_cnt, skipped_unmapped_target_cnt))
 
 
 if __name__ == '__main__':
