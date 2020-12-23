@@ -150,7 +150,7 @@ def main():
 
         with open(Config.PHEWAS_CATALOG_FILENAME) as r:
             #catalog = tqdm(csv.DictReader(r), total=TOTAL_NUM_PHEWAS)
-            catalog = pd.read_csv(r, dtype={'basepair': str, 'phewas_code': str})
+            catalog = pd.read_csv(r, dtype={"chromosome":"str", "basepair":"str", "phewas_code": "str", "cases":"Int64", "odds_ratio":"float64", "p":"float64"})
             
             # Parsing genes
             catalog["gene"] = catalog["gene"].dropna().apply(lambda X: ensgid_from_gene(X, ensgid))
