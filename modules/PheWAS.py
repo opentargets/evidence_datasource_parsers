@@ -144,7 +144,6 @@ def main():
     skipped_phewas_string_cnt = 0
     skipped_unmapped_target_cnt = 0
     skipped_zero_length_cnt = 0
-    skipped_non_significant_cnt = 0
     __log__.info('Begin processing phewascatalog evidences..')
     with open(Config.PHEWAS_CATALOG_EVIDENCE_FILENAME, 'w') as outfile:
 
@@ -166,70 +165,69 @@ def main():
             columns = ['chromosome', 'basepair', 'gene','snp', 'phewas_code', 'phewas_string', 'cases', 'odds_ratio','p','chrom','pos','most_severe_csq','consequence_link']
             enriched_catalog.drop_duplicates(subset=columns, inplace=True)
 
+            # Only use data with p-value<0.
+            enriched_catalog = enriched_catalog[enriched_catalog['p'] < 0.05]
+
             for i, row in enriched_catalog.iterrows():
                 __log__.debug(row)
 
-                # Only use data with p-value<0.05
-                if float(row['p']) < 0.05:
-                    gene = row["gene"]
-                    phewas_string = row['phewas_string'].strip()
-                    phewas_code = row['phewas_code'].strip()
-                    snp = row['snp']
-                    row_p = row['p']
-                    odds_ratio = row['odds_ratio']
-                    cases = row['cases']
-                    variant_id = row['variant_id']
-                    if pd.isna(row["consequence_link"]):
-                        consequence_link = "http://purl.obolibrary.org/obo/SO_0001060"
-                        functional_csq = "sequence_variant"
-                    else:
-                        consequence_link = row["consequence_link"]
-                        functional_csq = row["most_severe_csq"]
-                
-
-                    pev = {}
-                    pev['type'] = 'genetic_association'
-                    pev['access_level'] = 'public'
-                    pev['sourceID'] = 'phewas_catalog'
-                    pev['validated_against_schema_version'] = '1.7.5'
-
-
-                    pev['target'] = make_target(gene)
-
-                    pev["variant"]= make_variant(snp, variant_id)
-                    pev["evidence"] = { "variant2disease": make_variant2disease(row_p, odds_ratio, cases),
-                                        "gene2variant": make_gene2variant(consequence_link)}
-
-                    ## find EFO term ##
-                    if phewas_string not in mappings:
-                        __log__.debug("Skipping unmapped disease %s", phewas_string)
-                        skipped_phewas_string_cnt += 1
-                        continue
-                    
-                    for disease in mappings[phewas_string]:
-                        if disease['efo_uri'] != "NEW TERM REQUEST":
-                            pev['disease'] = make_disease(disease, phewas_code)
-
-                            # Evidence strings are unique based on the target, disease EFO term and Phewas string
-                            pev['unique_association_fields'] = {'target_id': gene,
-                                                                'disease_id' : pev['disease']['id'],
-                                                                'phewas_string_and_code' : phewas_string + " [" + phewas_code + "]",
-                                                                'variant_id': variant_id if pd.notna(variant_id) else snp}
-
-                        
-                            outfile.write("%s\n" % json.dumps(pev,
-                                sort_keys=True, separators = (',', ':')))
-
-                    built +=1
-
+                gene = row["gene"]
+                phewas_string = row['phewas_string'].strip()
+                phewas_code = row['phewas_code'].strip()
+                snp = row['snp']
+                row_p = row['p']
+                odds_ratio = row['odds_ratio']
+                cases = row['cases']
+                variant_id = row['variant_id']
+                if pd.isna(row["consequence_link"]):
+                    consequence_link = "http://purl.obolibrary.org/obo/SO_0001060"
+                    functional_csq = "sequence_variant"
                 else:
-                    skipped_non_significant_cnt += 1
+                    consequence_link = row["consequence_link"]
+                    functional_csq = row["most_severe_csq"]
+            
+
+                pev = {}
+                pev['type'] = 'genetic_association'
+                pev['access_level'] = 'public'
+                pev['sourceID'] = 'phewas_catalog'
+                pev['validated_against_schema_version'] = '1.7.5'
+
+
+                pev['target'] = make_target(gene)
+
+                pev["variant"]= make_variant(snp, variant_id)
+                pev["evidence"] = { "variant2disease": make_variant2disease(row_p, odds_ratio, cases),
+                                    "gene2variant": make_gene2variant(consequence_link)}
+
+                ## find EFO term ##
+                if phewas_string not in mappings:
+                    __log__.debug("Skipping unmapped disease %s", phewas_string)
+                    skipped_phewas_string_cnt += 1
+                    continue
+                
+                for disease in mappings[phewas_string]:
+                    if disease['efo_uri'] != "NEW TERM REQUEST":
+                        pev['disease'] = make_disease(disease, phewas_code)
+
+                        # Evidence strings are unique based on the target, disease EFO term and Phewas string
+                        pev['unique_association_fields'] = {'target_id': gene,
+                                                            'disease_id' : pev['disease']['id'],
+                                                            'phewas_string_and_code' : phewas_string + " [" + phewas_code + "]",
+                                                            'variant_id': variant_id if pd.notna(variant_id) else snp}
+
+                    
+                        outfile.write("%s\n" % json.dumps(pev,
+                            sort_keys=True, separators = (',', ':')))
+
+                built +=1
+
 
         __log__.info("Completed. Parsed %s rows. "
             "Built %s evidences. "
             "Skipped %s ",i,built,i-built
             )
-        __log__.debug("Skipped unmapped PheWAS string: {} \n Skipped unmapped targets: {} \n Skipped zero length gene name: {} \n Skipped non-significant association: {}".format(skipped_phewas_string_cnt, skipped_unmapped_target_cnt, skipped_zero_length_cnt, skipped_non_significant_cnt))
+        __log__.debug("Skipped unmapped PheWAS string: {} \n Skipped unmapped targets: {} \n Skipped zero length gene name: {}".format(skipped_phewas_string_cnt, skipped_unmapped_target_cnt, skipped_zero_length_cnt))
 
 
 if __name__ == '__main__':
