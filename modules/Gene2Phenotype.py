@@ -358,10 +358,16 @@ class G2P(RareDiseaseMapper):
                         else:
                             self._logger.error('{} is not a recognised G2P confidence, assigning an score of 0'.format(confidence))
                             score = 0
+
                         resource_score = {
                             'type': "probability",
                             'value': score
                         }
+
+                        # Ignore allelic requirement if it's empty string
+                        if not allelic_requirement:
+                            allelic_requirement = None
+                            self._logger.warn('Empty allelic requirement')
 
                         # Functional consequence based on mutation consequence field
                         if mutation_consequence in G2P_mutationCsq2functionalCsq:
