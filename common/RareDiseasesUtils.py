@@ -27,11 +27,10 @@ class RareDiseaseMapper(object):
             OMIM	efo_uri	efo_label
             '''
             line_count += 1
-            if len(line.strip()) > 0:
-                (omim, efo_uri, efo_label) = line.strip().split("\t")
-                if omim not in self.omim_to_efo_map:
-                    self.omim_to_efo_map[omim] = []
-                self.omim_to_efo_map[omim].append({'efo_uri': efo_uri, 'efo_label': efo_label})
+            (omim, efo_uri, efo_label) = line.split("\t")
+            if omim not in self.omim_to_efo_map:
+                self.omim_to_efo_map[omim] = []
+            self.omim_to_efo_map[omim].append({'efo_uri': efo_uri, 'efo_label': efo_label})
         return line_count
 
     def get_opentargets_zooma_to_efo_mappings(self):

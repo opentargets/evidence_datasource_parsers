@@ -101,5 +101,6 @@ class GeneParser(object):
             if 'prev_symbol' in row:
                 # to handle obsolete gene symbols like EFCAB4B
                 for prev_symbol in row['prev_symbol']:
-                    self.genes[prev_symbol] = ensembl_gene_id
+                    if prev_symbol not in self.genes:
+                        self.genes[prev_symbol] = ensembl_gene_id
         logger.info('All HGNC genes parsed')

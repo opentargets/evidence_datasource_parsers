@@ -12,7 +12,7 @@ git+https://github.com/opentargets/data_model.git@1.2.8#egg=data-model
 
 #undocumented transitive requirement of ontoma
 pathlib
-ontoma
+ontoma>=0.0.16
 requests
 retry
 urllib3
@@ -21,8 +21,12 @@ rdflib
 pysftp
 SPARQLWrapper>=1.7.6
 pytest
-python_jsonschema_objects
 pipdeptree
+pandas
+numpy
+python_jsonschema_objects==0.3.12
+pyarrow
+fastparquet
 
 # Google cloud libraries required by phenoDigm parser
 google-cloud-storage
