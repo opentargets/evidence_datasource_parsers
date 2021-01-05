@@ -164,6 +164,8 @@ def main():
             columns = ['chromosome', 'basepair', 'gene','snp', 'phewas_code', 'phewas_string', 'cases', 'odds_ratio','p','chrom','pos','most_severe_csq','consequence_link']
             enriched_catalog.drop_duplicates(subset=columns, inplace=True)
 
+            # Dropping potential duplicates 
+
             # Only use data with p-value<0.
             enriched_catalog = enriched_catalog[enriched_catalog['p'] < 0.05]
 
