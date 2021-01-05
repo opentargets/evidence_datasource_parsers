@@ -1,6 +1,6 @@
 import logging
 import requests
-from pyspark import SparkContext
+from pyspark import SparkContext, SparkFiles
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import *
 from pyspark.sql.types import *
@@ -14,8 +14,15 @@ class phewasEvidenceGenerator():
 
         # Initialize mapping variables
         self.mappingStep = mappingStep
-        self.mappingsFile = "https://raw.githubusercontent.com/opentargets/mappings/master/phewascat.mappings.tsv" 
+        self.mappingsFile = "https://raw.githubusercontent.com/opentargets/mappings/master/phewascat.mappings.tsv"
 
+        # Data from Varient Index
+        self.consequencesFile = "https://storage.googleapis.com/otar000-evidence_input/PheWAS/data_files/phewas_w_consequences.csv"
+
+        # Adding remote files to Spark Context
+        spark.sparkContext.addFile(self.mappingsFile)
+        spark.sparkContext.addFile(self.consequencesFile)
+    
         # Initialize input files
         self.dataframe = inputFile
         self.consequencesFile = "https://storage.googleapis.com/otar000-evidence_input/PheWAS/data_files/phewas_w_consequences.csv"
@@ -32,8 +39,7 @@ class phewasEvidenceGenerator():
         '''
         # Read input file + manually mapped terms 
         self.dataframe = self.spark.read.csv("", header=True)
-        self.mappingsFile = "phewascat.mappings.tsv" # TODO : remote csv bug
-        phewasMapping = spark.read.csv(mappingFile, sep=r'\t', header=True)
+        phewasMapping = spark.read.csv(SparkFiles.get("phewascat.mappings.tsv"), sep=r'\t', header=True)
 
         # Filter out null genes & p-value > 0.05
         self.dataframe = self.dataframe \
@@ -47,8 +53,9 @@ class phewasEvidenceGenerator():
                 on=["Phewas_string"],
                 how="inner"
             )
-        # Get functional conseuquence per variant from OT Genetics Portal
+        # Get functional consequence per variant from OT Genetics Portal
         self.dataframe = enrichVariantData(self.dataframe)
+        
 
         # Build evidence strings per row
         evidences = self.dataframe.rdd.map(
@@ -57,9 +64,8 @@ class phewasEvidenceGenerator():
         
         pass
 
-    def enrichVariantData():
-        self.consequencesFile = "phewas_w_consequences.csv" # TODO : remote csv bug
-        phewasWithConsequences = self.spark.read.csv(self.consequencesFile, header=True)
+    def enrichVariantData(self):
+        phewasWithConsequences = self.spark.read.csv(SparkFiles.get("phewas_w_consequences.csv"), header=True)
         phewasWithConsequences = phewasWithConsequences \
                                         .withColumnRenamed("rsid", "snp") \
                                         .withColumnRenamed("gene_id", "gene")
@@ -69,7 +75,24 @@ class phewasEvidenceGenerator():
             on=["gene", "snp"],
             how="inner"
         )
+
+        one2manyVariants_df = phewasWithConsequences \
+                                    .groupBy("snp") \
+                                    .agg(count("snp")) \
+                                    .filter(col("count(snp)") > 1)
+        one2manyVariants = list(one2manyVariants_df.toPandas()["snp"])
+
+
+
         pass
+
+    def write_variant_id(self, row, one2many_variants):
+        if row["snp"] not in one2many_variants:
+            variant_id = "{}_{}_{}_{}".format(row["chrom"], int(row["pos"]), row["ref"], row["alt"])
+            return variant_id
+        else:
+            return np.nan
+
 
     @staticmethod
     def parseEvidenceString(row):
