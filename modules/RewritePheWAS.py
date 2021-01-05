@@ -9,7 +9,7 @@ class phewasEvidenceGenerator():
     def __init__(self, inputFile, mappingStep, schemaVersion):
         # Build JSON schema url from version
         self.schemaVersion = schemaVersion
-        schema_url = f"https://raw.githubusercontent.com/opentargets/json_schema/{self.schemaVersion}/draft4_schemas/opentargets.json" #TODO Update the url 
+        schema_url = "https://raw.githubusercontent.com/opentargets/json_schema/ds_1249_new_json_schema/draft4_schemas/opentargets.json" #TODO Update the url 
         logging.info(f"Loading JSON Schema from {schema_url}")
 
         # Initialize mapping variables
