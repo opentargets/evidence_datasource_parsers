@@ -86,6 +86,7 @@ To use the parser configure the python environment and run it as follows:
 ```
 
 ### Gene2Phenotype
+
 The Gene2Phenotype parser processes the four gene panels (Developmental Disorders - DD, eye disorders, skin disorders and cancer) that can be downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads/.
 
 The mapping of the diseases, i.e. the "disease name" column, is done on the fly using [OnToma](https://pypi.org/project/ontoma/):
@@ -111,6 +112,31 @@ Note that when using the default file names, the input files have to exist in th
 To use the parser configure the python environment and run it as follows:
 ```bash
 (venv)$ python3 modules/Gene2Phenotype.py -s 1.7.1 -v 2020-08-19 -d DDG2P_19_8_2020.csv.gz -e EyeG2P_19_8_2020.csv.gz -k SkinG2P_19_8_2020.csv.gz -c CancerG2P_19_8_2020.csv.gz -o gene2phenotype-19-08-2020.json -u gene2phenotype-19-08-2020_unmapped_diseases.txt 
+```
+
+### Genomics England Panel App
+
+The Genomics England parser processes the associations between genes and diseases described in the _Panel Data_ table. This data is provided by Genomics England and can be downloaded from the [Panel App bucket](TODO: link to Google bucket).
+
+The source table is then formatted into a compressed set of JSON lines following the schema of the version to be used.
+
+The mapping of the diseases is done on the fly using [OnToma](https://pypi.org/project/ontoma/):
+1. Exact matches to an EFO term are used directly.
+2. Sometimes an OMIM code can be present in the disease string. OnToma is then queried for both the OMIM code and the respective disease term. If OnToma returns a fuzzy match for both, it is checked whether they both point to the same EFO term. Being this the case, the term is considered as an exact match.
+
+By default the result of the diseases and codes mappings are stored locally as of _disease_queries.json_ and _disease_queries.json_ respectively. This is intended for analysys purposes and to ease up a potential rerun of the parser.
+
+The parser requires three parameters:
+- `-i`, `--input_file`: Name of tsv file located in the [Panel App bucket](TODO: link to Google bucket).
+- `-o`, `--output_file`: Name of evidence JSON file containing the evidence strings.
+- `-s`, `--schema_version`: JSON schema version to use, e.g. 1.7.5. It must be branch or a tag available in https://github.com/opentargets/json_schema.
+  
+There is also an optional parameter to load a dictionary containing the results of querying OnToma with the disease terms:
+- `-d`, `--dictionary`: If specified, the diseases mappings will be imported from this JSON file.'
+
+To use the parser configure the python environment and run it as follows:
+```bash
+(venv)$ python3 modules/GenomicsEnglandPanelApp.py -i All_genes_20200928-1959.tsv -o genomics_england-2021-01-05.json -s 1.7.5 -d disease_queries.json
 ```
 
 ### IntOGen
@@ -193,5 +219,5 @@ python ${repo_directory}/modules/GeneticsPortal.py \
     --cores 32 --sample 1000 --outputFile output.json.gz
 ```
 
-**Important**: to ensure the resulting json shema is valid, we are using the [python_jsonschema_objects](https://pypi.org/project/python-jsonschema-objects/0.0.13/) library, which enforces the proper structure. The only caveat is that the this library uses draft-4 JSON schema, while our JSON schema is written on draft-7. To resolve this discrepancy, our JSON schema repository has a parallel draft-4 compatible branch that we are using for evidence generation.
+**Important**: to ensure the resulting json shema is valid, we are using the [python_jsonschema_objects](https://pypi.org/project/python-jsonschema-objects/0.0.13/) library, which enforces the proper structure. The only caveat is that this library uses draft-4 JSON schema, while our JSON schema is written on draft-7. To resolve this discrepancy, our JSON schema repository has a parallel draft-4 compatible branch that we are using for evidence generation.
 

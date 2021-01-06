@@ -139,7 +139,7 @@ class PanelAppEvidenceGenerator():
 
         return dataframe
 
-    def ontoma_query(self, iterable, dict_name="ontoma_queries.json"):
+    def ontoma_query(self, iterable, dict_export="ontoma_queries.json"):
         '''
         Queries the OnToma utility to map a phenotype to a disease.
         OnToma is used to query the ontology OBO files, the manual mapping file and the Zooma and OLS APIs.
@@ -417,12 +417,12 @@ class PanelAppEvidenceGenerator():
 
         if len(mappings_dict) == 0:
             # Checks whether the dictionary is not provided as a parameter 
-            mappings_dict = self.ontoma_query(phenotypes)
+            mappings_dict = self.ontoma_query(phenotypes, "disease_queries.json")
             logging.info("Disease mappings completed.")
         else:
             logging.info("Disease mappings imported.")
         
-        codes_dict = self.ontoma_query(codes)
+        codes_dict = self.ontoma_query(codes, "codes_queries.json")
 
         # Cross-referencing the fuzzy results from the phenotype query and the OMIM code query
         phenotypes_list = dataframe["Phenotype"].to_list()
