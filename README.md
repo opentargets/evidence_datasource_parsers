@@ -5,9 +5,12 @@ Each folder in module corresponds corresponds to a datasource.
 In each folder we have one or more standalone python scripts.
 
 Generally these scripts:
-1. map the disease terms (if any) to our ontology, sometimes using [OnToma](https://ontoma.readthedocs.io)
-2. save the mappings in https://github.com/opentargets/mappings
-3. Read the **github mappings** to generate evidence objects (JSON strings) according to our JSON schema
+1. map the disease terms (if any) to our ontology in various ways:
+      - by using [OnToma](https://ontoma.readthedocs.io)
+      - by using the [RareDiseasesUtils](https://github.com/opentargets/evidence_datasource_parsers/blob/master/common/RareDiseasesUtils.py) script
+      - by using [Ontology Utils](https://github.com/opentargets/ontology-utils)
+      - by importing manually curated files. Some of these are stored in the [mappings repo](https://github.com/opentargets/mappings)
+2. Once the mapping is handled, evidence objects are generated in the form of JSON strings according to our JSON schema
 
 Code used by more than one script (that does not live in a python package)
 is stored in the `common` folder and imported as follows:
