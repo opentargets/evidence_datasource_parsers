@@ -82,15 +82,6 @@ class Config:
     G2P_cancer_FILENAME = file_or_resource('CancerG2P_26_3_2020.csv.gz')
     G2P_EVIDENCE_FILENAME = 'gene2phenotype-19-08-2019.json'
 
-
-    # Genomics England
-    GE_PANEL_MAPPING_FILENAME = file_or_resource('genomicsenglandpanelapp_panelmapping.csv')
-    GE_EVIDENCE_FILENAME = 'genomics_england-17-06-2019.json'
-    GE_LINKOUT_URL = 'https://panelapp.genomicsengland.co.uk/panels/'
-    GE_ZOOMA_DISEASE_MAPPING = 'tmp/zooma_disease_mapping.csv'
-    GE_ZOOMA_DISEASE_MAPPING_NOT_HIGH_CONFIDENT = 'tmp/zooma_disease_mapping_low_confidence.csv'
-    GE_PANEL_VERSION = 'v5.7'
-
     # IntoGEN
     INTOGEN_DRIVER_GENES_FILENAME = file_or_resource('intogen_Compendium_Cancer_Genes.tsv')
     INTOGEN_EVIDENCE_FILENAME = 'intogen-02-02-2020.json'
