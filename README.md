@@ -116,7 +116,7 @@ To use the parser configure the python environment and run it as follows:
 
 ### Genomics England Panel App
 
-The Genomics England parser processes the associations between genes and diseases described in the _Panel Data_ table. This data is provided by Genomics England and can be downloaded from the [Panel App bucket](TODO: link to Google bucket).
+The Genomics England parser processes the associations between genes and diseases described in the _Gene Panels Data_ table. This data is provided by Genomics England and can be downloaded [here](https://storage.googleapis.com/otar000-evidence_input/PanelApp/20.11/All_genes_20200928-1959.tsv) from the _otar000-evidence_input_ bucket.
 
 The source table is then formatted into a compressed set of JSON lines following the schema of the version to be used.
 
@@ -127,7 +127,7 @@ The mapping of the diseases is done on the fly using [OnToma](https://pypi.org/p
 By default the result of the diseases and codes mappings are stored locally as of _disease_queries.json_ and _disease_queries.json_ respectively. This is intended for analysys purposes and to ease up a potential rerun of the parser.
 
 The parser requires three parameters:
-- `-i`, `--input_file`: Name of tsv file located in the [Panel App bucket](TODO: link to Google bucket).
+- `-i`, `--input_file`: Name of tsv file located in the [Panel App bucket](https://storage.googleapis.com/otar000-evidence_input/PanelApp/20.11/All_genes_20200928-1959.tsv).
 - `-o`, `--output_file`: Name of evidence JSON file containing the evidence strings.
 - `-s`, `--schema_version`: JSON schema version to use, e.g. 1.7.5. It must be branch or a tag available in https://github.com/opentargets/json_schema.
   
