@@ -28,6 +28,21 @@ G2P_confidence2score = {
     'child IF': 1
 }
 
+G2P_mutationCsq2functionalCsq = {
+    'loss of function' : 'SO_0002054', #loss_of_function_variant
+    'all missense/in frame' : 'SO_0001650', #inframe_variant
+    'uncertain' : 'SO_0002220', #function_uncertain_variant
+    'activating' : 'SO_0002053', #gain_of_function_variant
+    'dominant negative' : 'SO_0002052', #dominant_negative_variant
+    '' : None,
+    'gain of function' : 'SO_0002053', #gain_of_function_variant
+    'cis-regulatory or promotor mutation' : 'SO_0001566', #regulatory_region_variant
+    '5_prime or 3_prime UTR mutation' : 'SO_0001622', #UTR_variant
+    'increased gene dosage' : 'SO_0001911', #copy_number_increase
+    'part of contiguous gene duplication' : 'SO_1000173' #tandem_duplication
+}
+
+
 
 class G2P(RareDiseaseMapper):
     def __init__(self, g2p_version, schema_version=Config.VALIDATED_AGAINST_SCHEMA_VERSION):
@@ -343,10 +358,25 @@ class G2P(RareDiseaseMapper):
                         else:
                             self._logger.error('{} is not a recognised G2P confidence, assigning an score of 0'.format(confidence))
                             score = 0
+
                         resource_score = {
                             'type': "probability",
                             'value': score
                         }
+
+                        # Ignore allelic requirement if it's empty string
+                        if not allelic_requirement:
+                            allelic_requirement = None
+                            self._logger.warn('Empty allelic requirement')
+
+                        # Functional consequence based on mutation consequence field
+                        if mutation_consequence in G2P_mutationCsq2functionalCsq:
+                            functional_consequence = G2P_mutationCsq2functionalCsq[mutation_consequence]
+                        else:
+                            self._logger.error(
+                                '{} is not a recognised G2P mutation consequence, ignoring the value'.format(mutation_consequence))
+                            functional_consequence = None
+
 
                         # Linkout
                         linkout = [
@@ -360,7 +390,7 @@ class G2P(RareDiseaseMapper):
                             'is_associated' : True,
                             'confidence' : confidence,
                             'allelic_requirement' : allelic_requirement,
-                            'mutation_consequence' : mutation_consequence,
+                            'functional_consequence' : functional_consequence,
                             'evidence_codes' : ["http://purl.obolibrary.org/obo/ECO_0000204"],
                             'provenance_type' : provenance_type,
                             'date_asserted' : date,
