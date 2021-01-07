@@ -1,7 +1,6 @@
 # General settings that all parsers can share
 
 import os
-from pathlib import Path
 import pkg_resources as res
 from datetime import datetime
 
