@@ -156,7 +156,7 @@ class PanelAppEvidenceGenerator():
             try:
                 tmp = self.otmap.find_term(e, verbose=True)
                 if tmp != None:
-                    dct[e] = tmp
+                    mappings[e] = tmp
                 else:
                     mappings[e] = {
                     'term': None,
