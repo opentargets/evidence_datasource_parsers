@@ -1,3 +1,4 @@
+from common.HGNCParser import GeneParser
 import logging
 import requests
 from pyspark import SparkContext, SparkFiles
@@ -16,7 +17,7 @@ class phewasEvidenceGenerator():
         self.mappingStep = mappingStep
         self.mappingsFile = "https://raw.githubusercontent.com/opentargets/mappings/master/phewascat.mappings.tsv"
 
-        # Data from Varient Index
+        # Data extracted from Varient Index
         self.consequencesFile = "https://storage.googleapis.com/otar000-evidence_input/PheWAS/data_files/phewas_w_consequences.csv"
 
         # Adding remote files to Spark Context
@@ -30,6 +31,11 @@ class phewasEvidenceGenerator():
         self.spark = SparkSession.builder \
                 .appName('evidence_builder') \
                 .getOrCreate()
+        
+        # Initialize gene parser
+        gene_parser = GeneParser()
+        gene_parser._get_hgnc_data_from_json()
+        self.genes = gene_parser.genes
 
     def writeEvidenceFromSource(self):
         '''
@@ -37,25 +43,34 @@ class phewasEvidenceGenerator():
         Returns:
             evidences (array): Object with all the generated evidences strings from source file
         '''
-        # Read input file + manually mapped terms 
+        # Read input file
         self.dataframe = self.spark.read.csv("", header=True)
-        phewasMapping = spark.read.csv(SparkFiles.get("phewascat.mappings.tsv"), sep=r'\t', header=True)
 
         # Filter out null genes & p-value > 0.05
         self.dataframe = self.dataframe \
-                        .filter(col("gene").isNull() == False) \
+                        .filter(col("gene").isNotNull()) \
                         .filter(col("p") < 0.05)
 
         # Mapping step
         if self.mappingStep:
+            phewasMapping = spark.read.csv(SparkFiles.get("phewascat.mappings.tsv"), sep=r'\t', header=True)
             self.dataframe = self.dataframe.join(
                 phewasMapping,
                 on=["Phewas_string"],
                 how="inner"
             )
+        
+        # Parsing Gene Symbol to EnsEMBL ID
+        udfGeneParser = udf(
+            lambda X: self.gene[X.strip("*")],
+            ArrayType(StringType()))
+        self.dataframe = self.dataframe.withColumn(
+            "gene",
+            udfGeneParser(col("gene"))
+        )
+
         # Get functional consequence per variant from OT Genetics Portal
         self.dataframe = enrichVariantData(self.dataframe)
-        
 
         # Build evidence strings per row
         evidences = self.dataframe.rdd.map(
@@ -70,6 +85,7 @@ class phewasEvidenceGenerator():
                                         .withColumnRenamed("rsid", "snp") \
                                         .withColumnRenamed("gene_id", "gene")
 
+        # Enriching dataframe with consequences --> more records due to 1:many associations
         self.dataframe = self.dataframe.join(
             phewasWithConsequences,
             on=["gene", "snp"],
@@ -86,7 +102,7 @@ class phewasEvidenceGenerator():
 
         pass
 
-    def write_variant_id(self, row, one2many_variants):
+    def writeVariantId(self, row, one2many_variants):
         if row["snp"] not in one2many_variants:
             variant_id = "{}_{}_{}_{}".format(row["chrom"], int(row["pos"]), row["ref"], row["alt"])
             return variant_id
