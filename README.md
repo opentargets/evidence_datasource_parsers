@@ -152,7 +152,7 @@ The intOGen parser generates evidence strings from three files that need to be i
 
 ### PheWAS catalog
 
-The `PheWAS.py` script parses the PheWAS Catalog CSV file specified as `PHEWAS_CATALOG_FILENAME` in `settings.py` and that should be located either in the working directory or the `resources` folder. The mappings between the Phecodes and EFO are read from the [phewascat.mappings.tsv](https://raw.githubusercontent.com/opentargets/mappings/master/phewascat.mappings.tsv) file in the `mappings` repository.
+The `PheWAS.py` script parses the PheWAS Catalog CSV file specified as `PHEWAS_CATALOG_FILENAME` in `settings.py` and that should be located either in the working directory or the `resources` folder. This file can be downloaded [here](https://storage.googleapis.com/otar000-evidence_input/PheWAS/data_files/phewas-catalog-19-10-2018.csv). The mappings between the Phecodes and EFO are read from the [phewascat.mappings.tsv](https://raw.githubusercontent.com/opentargets/mappings/master/phewascat.mappings.tsv) file in the `mappings` repository. In addition, the data is enriched with information gathered from the Variant Index. The file is imported as `PHEWAS_CATALOG_W_CONSEQUENCES` and located [here](https://storage.googleapis.com/otar000-evidence_input/PheWAS/data_files/phewas_w_consequences.csv). This data is then joined with the PheWAS variants at the gene, variant level.  
 
 ```sh
 (venv)$ python3 modules/PheWAS.py
@@ -177,19 +177,65 @@ The parser has five parameters but only two of them are compulsory, the other th
 This is how it is run only specifying the required parameters:
 
 ```sh
-(venv)$ ppython3 modules/CRISPR.py -s 1.7.5 -c crispr_cell_lines.tsv -o crispr-18-11-2020.json
+(venv)$ python3 modules/CRISPR.py -s 1.7.5 -c crispr_cell_lines.tsv -o crispr-18-11-2020.json
 ```
 
-### PhenoDigm - What version should I run?
-The PhenoDigm parser used to generate the 19.04 release data is the [solr_phenodigm_1904](https://github.com/opentargets/evidence_datasource_parsers/tree/solr_phenodigm_1904) branch.
+### PhenoDigm
 
-The version in _master_ is an older version (October 2018) that **DOES NOT** call the IMPC SOLR API and it is **unlikely to work** but it has not been tested.
+Generates target-disease evidence querying the IMPC SOLR API.
 
-[solr_phenodigm](https://github.com/opentargets/evidence_datasource_parsers/tree/solr_phenodigm) is the version that Gautier handed over to the OT data team in February 2019. It *DOES* call the IMPC SOLR API but it has a number of bugs and **DOES NOT WORK**.
+#### System requirements and running time
+The PhenoDigm parser has been run both in a MacBook Pro and a Google Cloud machine. The current version is very memory greedy, using up to 60 GB. 
 
-**TODO**
-- [ ] map `intergenic` rsIDs to genes (~900k evidences)
-- [ ] improve mappings with manual curation
+* MacBook Pro: It takes around 8 hours to run in a 16 GB laptop.
+* Google Cloud Machine: It runs in around 2 hours in a 60 GB machine (_n1-standard-16_). There used to be such a machine set up but now one called _ag-ubuntu-20-04-lts_ in _open-targets-eu-dev_ can be used instead (see below). This machine has specs higher than needed (32 vCPU and 208 GB memory).
+
+#### Installation
+Before the parser can be run there is one dependency that needs to be installed manually:
+
+```sh
+# Create and activate virtual environment (requires python3)
+virtualenv -p python3 phenodigm_venv
+source phenodigm_venv/bin/activate
+
+# Install dependencies
+pip3 install -r requirements.txt
+
+# Manually download and install ontology-utils as it requires specific tag
+wget https://github.com/opentargets/ontology-utils/archive/bff0f189a4c6e8613e99a5d47e9ad4ceb6a375fc.zip
+pip3 install bff0f189a4c6e8613e99a5d47e9ad4ceb6a375fc.zip
+
+# Set environment variables
+export PYTHONPATH=.
+```
+Additionally, the parser needs access to Google Cloud, which requires downloading a key JSON file and setting the `GOOGLE_APPLICATION_CREDENTIALS` variable. Ask someone from the back-end team about it.
+
+#### Running MouseModels in a Google Cloud virtual machine
+
+Start the machine and connect to it via SSH. When you are ready set-up the environment and run the parser:
+
+```sh
+# Move to installation directory
+cd opentargets/evidence_datasource_parsers/
+
+# Activate virtual environment
+. phenodigm_venv/bin/activate
+
+# Set up PYTHONPATH AND GOOGLE_APPLICATION_CREDENTIALS environment variables
+. phenodigm_venv/bin/set_env_variables.sh
+
+# Update cache
+# NOTE: This is only required once per release, i.e. is not needed if PhenoDigm is
+# rerun multiple times in a short period of time
+python3 modules/MouseModels.py --update-cache
+
+# Run PhenoDigm parser
+python3 modules/MouseModels.py 
+
+# Upload the evidence file to Google Cloud Storage
+python3 modules/MouseModels.py -w
+```
+**NOTE:** Remember to stop the machine once you are done as it costs money to have it on! 
 
 ### Open Targets Genetics Portal
 
@@ -222,5 +268,5 @@ python ${repo_directory}/modules/GeneticsPortal.py \
     --cores 32 --sample 1000 --outputFile output.json.gz
 ```
 
-**Important**: to ensure the resulting json shema is valid, we are using the [python_jsonschema_objects](https://pypi.org/project/python-jsonschema-objects/0.0.13/) library, which enforces the proper structure. The only caveat is that this library uses draft-4 JSON schema, while our JSON schema is written on draft-7. To resolve this discrepancy, our JSON schema repository has a parallel draft-4 compatible branch that we are using for evidence generation.
+**Important**: to ensure the resulting json schema is valid, we are using the [python_jsonschema_objects](https://pypi.org/project/python-jsonschema-objects/0.0.13/) library, which enforces the proper structure. The only caveat is that the this library uses draft-4 JSON schema, while our JSON schema is written on draft-7. To resolve this discrepancy, our JSON schema repository has a parallel draft-4 compatible branch that we are using for evidence generation.
 
