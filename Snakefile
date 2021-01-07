@@ -17,14 +17,14 @@ rule copyGeneticsStudyFile:
         source=config['GeneticsPortal']['study'],
         output_folder='/temp/genetics/'
     shell:
-        'gsutils cp -r {source} {output}'
+        'gsutils cp -r {params.source} {params.output}'
 
 rule copyGeneticsVariantIndexFile:
     params:
         source=config['GeneticsPortal']['variantIndex'],
         output_folder='/temp/genetics/'
     shell:
-        'gsutils cp -r {source} {output}'
+        'gsutils cp -r {params.source} {params.output}'
 
 
 rule copyGeneticsToplociFile:
@@ -32,21 +32,21 @@ rule copyGeneticsToplociFile:
         source=config['GeneticsPortal']['toploci'],
         output_folder='/temp/genetics/'
     shell:
-        'gsutils cp -r {source} {output}'
+        'gsutils cp -r {params.source} {params.output}'
 
 rule copyGeneticsLocus2geneFile:
     params:
         source=config['GeneticsPortal']['locus2gene'],
         output_folder='/temp/genetics/'
     shell:
-        'gsutils cp -r {source} {output}'
+        'gsutils cp -r {params.source} {params.output}'
 
 rule copyGeneticsEcoCodesFile:
     params:
         source=config['GeneticsPortal']['ecoCodes'],
         output_folder='/temp/genetics/'
     shell:
-        'gsutils cp -r {source} {output}'
+        'gsutils cp -r {params.source} {params.output}'
 
 ## Running genetics portal evidence generation. 
 ## * input files under opentargets-genetics project area
