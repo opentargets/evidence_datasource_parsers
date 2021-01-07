@@ -3,6 +3,7 @@
 import os
 from pathlib import Path
 import pkg_resources as res
+from datetime import datetime
 
 # from envparse import env, ConfigurationError
 
@@ -109,7 +110,7 @@ class Config:
     MOUSEMODELS_PHENODIGM_SOLR = 'http://www.ebi.ac.uk/mi/impc'
     # write to the cloud direcly
     MOUSEMODELS_CACHE_DIRECTORY = 'PhenoDigm/phenodigmcache'
-    MOUSEMODELS_EVIDENCE_FILENAME = 'phenodigm-4-4-2019.json'
+    MOUSEMODELS_EVIDENCE_FILENAME = f"phenodigm-{datetime.today().strftime('%Y-%m-%d')}.json"
 
     # Configuration for genetics portal evidences:
     ACTIVITY_URL = 'http://identifiers.org/cttv.activity'

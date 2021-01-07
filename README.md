@@ -183,13 +183,8 @@ Additionally, the parser needs access to Google Cloud, which requires downloadin
 
 #### Running MouseModels in a Google Cloud virtual machine
 
-Start the machine and connect to it via SSH.
+Start the machine and connect to it via SSH. When you are ready set-up the environment and run the parser:
 
-Before you start you may want to change the name of the output JSON by editing `MOUSEMODELS_EVIDENCE_FILENAME` variable in [settings.py](https://github.com/opentargets/evidence_datasource_parsers/blob/solr_phenodigm_1904/settings.py):
-```python3
-MOUSEMODELS_EVIDENCE_FILENAME = 'phenodigm-4-4-2019.json.gz'
-```
-When you are ready follow these steps:
 ```sh
 # Move to installation directory
 cd opentargets/evidence_datasource_parsers/
