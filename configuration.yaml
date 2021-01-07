@@ -1,3 +1,6 @@
+global:
+  schema_file: 'https://raw.githubusercontent.com/opentargets/json_schema/ds_1249_new_json_schema/opentargets.json'
+
 # Parameters for OT Gentics Portal evidence generation:
 GeneticsPortal:
   locus2gene: gs://genetics-portal-data/l2g/200127
