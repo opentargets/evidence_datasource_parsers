@@ -128,7 +128,7 @@ class phewasEvidenceGenerator():
                 resourceScore : row["p"],
                 studyCases : row["cases"],
                 targetFromSourceId : row["gene"].strip("*"),
-                variantFunctionalConsequenceId : "", # TODO : Merge this data coming from OTG
+                variantFunctionalConsequenceId : row["consequence_link"].split("/")[-1] if row["consequence_link"] else "SO_0001060",
                 variantId : row["variantId"],
                 variantRsId : row["snp"]
             }
