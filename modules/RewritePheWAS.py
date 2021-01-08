@@ -37,6 +37,9 @@ class phewasEvidenceGenerator():
         gene_parser._get_hgnc_data_from_json()
         self.genes = gene_parser.genes
 
+        self.enrichedDataframe = None
+        self.one2manyVariants = None
+        
     def writeEvidenceFromSource(self):
         '''
         Processing of the dataframe to build all the evidences from its data
@@ -70,7 +73,7 @@ class phewasEvidenceGenerator():
         )
 
         # Get functional consequence per variant from OT Genetics Portal
-        self.dataframe = enrichVariantData(self.dataframe)
+        self.enrichedDataframe = enrichVariantData(self.dataframe)
 
         # Build evidence strings per row
         evidences = self.dataframe.rdd.map(
@@ -98,13 +101,14 @@ class phewasEvidenceGenerator():
                                     .groupBy("snp") \
                                     .agg(count("snp")) \
                                     .filter(col("count(snp)") > 1)
-        one2manyVariants = list(one2manyVariants_df.toPandas()["snp"])
-
-        pass
+        self.one2manyVariants = list(one2manyVariants_df.toPandas()["snp"])
+        self.enrichedDataframe = self.dataframe.rdd.map(writeVariantId).toDF()
+        
+        return self.enrichedDataframe
 
     def writeVariantId(row):
         rd = row.asDict()
-        if row["snp"] not in one2many_variants:
+        if row["snp"] not in one2manyVariants:
             rd["variantId"] = "{}_{}_{}_{}".format(row["chrom"], row["pos"], row["ref"], row["alt"])
         else:
             rd["variantId"] = None
