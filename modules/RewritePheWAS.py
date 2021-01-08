@@ -2,7 +2,7 @@ from common.HGNCParser import GeneParser
 import logging
 import requests
 from pyspark import SparkContext, SparkFiles
-from pyspark.sql import SparkSession
+from pyspark.sql import SparkSession, Row
 from pyspark.sql.functions import *
 from pyspark.sql.types import *
 
@@ -92,23 +92,24 @@ class phewasEvidenceGenerator():
             how="inner"
         )
 
+        # Building variantId: "chrom_pos_ref_alt" of the respective rsId
+        # If one rsId has several variants, variantId = none
         one2manyVariants_df = phewasWithConsequences \
                                     .groupBy("snp") \
                                     .agg(count("snp")) \
                                     .filter(col("count(snp)") > 1)
         one2manyVariants = list(one2manyVariants_df.toPandas()["snp"])
 
-
-
         pass
 
-    def writeVariantId(self, row, one2many_variants):
+    def writeVariantId(row):
+        rd = row.asDict()
         if row["snp"] not in one2many_variants:
-            variant_id = "{}_{}_{}_{}".format(row["chrom"], int(row["pos"]), row["ref"], row["alt"])
-            return variant_id
+            rd["variantId"] = "{}_{}_{}_{}".format(row["chrom"], row["pos"], row["ref"], row["alt"])
         else:
-            return np.nan
-
+            rd["variantId"] = None
+        new_row = Row(**rd)
+        return new_row
 
     @staticmethod
     def parseEvidenceString(row):
