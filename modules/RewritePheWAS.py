@@ -79,8 +79,6 @@ class phewasEvidenceGenerator():
         evidences = self.dataframe.rdd.map(
             phewasEvidenceGenerator.parseEvidenceString)
             .collect() # list of dictionaries
-        
-        pass
 
     def enrichVariantData(self):
         phewasWithConsequences = self.spark.read.csv(SparkFiles.get("phewas_w_consequences.csv"), header=True)
@@ -169,9 +167,11 @@ def main():
     evidences = evidenceBuilder.writeEvidenceFromSource(dataframe)
 
     with open(outputFile, "wt") as f:
-        evidences.apply(lambda x: f.write(str(x)+'\n'))
+        for evidence in evidences:
+            json.dump(evidence, f)
+            f.write('\n')
     logging.info(f"Evidence strings saved into {outputFile}. Exiting.")
 
 if __name__ == '__main__':
     main()
-    pass
+    
