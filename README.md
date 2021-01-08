@@ -5,9 +5,12 @@ Each folder in module corresponds corresponds to a datasource.
 In each folder we have one or more standalone python scripts.
 
 Generally these scripts:
-1. map the disease terms (if any) to our ontology, sometimes using [OnToma](https://ontoma.readthedocs.io)
-2. save the mappings in https://github.com/opentargets/mappings
-3. Read the **github mappings** to generate evidence objects (JSON strings) according to our JSON schema
+1. map the disease terms (if any) to our ontology in various ways:
+      - by using [OnToma](https://ontoma.readthedocs.io)
+      - by using the [RareDiseasesUtils](https://github.com/opentargets/evidence_datasource_parsers/blob/master/common/RareDiseasesUtils.py) script
+      - by using [Ontology Utils](https://github.com/opentargets/ontology-utils)
+      - by importing manually curated files. Some of these are stored in the [mappings repo](https://github.com/opentargets/mappings)
+2. Once the mapping is handled, evidence objects are generated in the form of JSON strings according to our JSON schema
 
 Code used by more than one script (that does not live in a python package)
 is stored in the `common` folder and imported as follows:
@@ -86,6 +89,7 @@ To use the parser configure the python environment and run it as follows:
 ```
 
 ### Gene2Phenotype
+
 The Gene2Phenotype parser processes the four gene panels (Developmental Disorders - DD, eye disorders, skin disorders and cancer) that can be downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads/.
 
 The mapping of the diseases, i.e. the "disease name" column, is done on the fly using [OnToma](https://pypi.org/project/ontoma/):
@@ -113,6 +117,31 @@ To use the parser configure the python environment and run it as follows:
 (venv)$ python3 modules/Gene2Phenotype.py -s 1.7.1 -v 2020-08-19 -d DDG2P_19_8_2020.csv.gz -e EyeG2P_19_8_2020.csv.gz -k SkinG2P_19_8_2020.csv.gz -c CancerG2P_19_8_2020.csv.gz -o gene2phenotype-19-08-2020.json -u gene2phenotype-19-08-2020_unmapped_diseases.txt 
 ```
 
+### Genomics England Panel App
+
+The Genomics England parser processes the associations between genes and diseases described in the _Gene Panels Data_ table. This data is provided by Genomics England and can be downloaded [here](https://storage.googleapis.com/otar000-evidence_input/PanelApp/20.11/All_genes_20200928-1959.tsv) from the _otar000-evidence_input_ bucket.
+
+The source table is then formatted into a compressed set of JSON lines following the schema of the version to be used.
+
+The mapping of the diseases is done on the fly using [OnToma](https://pypi.org/project/ontoma/):
+1. Exact matches to an EFO term are used directly.
+2. Sometimes an OMIM code can be present in the disease string. OnToma is then queried for both the OMIM code and the respective disease term. If OnToma returns a fuzzy match for both, it is checked whether they both point to the same EFO term. Being this the case, the term is considered as an exact match.
+
+By default the result of the diseases and codes mappings are stored locally as of _disease_queries.json_ and _disease_queries.json_ respectively. This is intended for analysys purposes and to ease up a potential rerun of the parser.
+
+The parser requires three parameters:
+- `-i`, `--input_file`: Name of tsv file located in the [Panel App bucket](https://storage.googleapis.com/otar000-evidence_input/PanelApp/20.11/All_genes_20200928-1959.tsv).
+- `-o`, `--output_file`: Name of evidence JSON file containing the evidence strings.
+- `-s`, `--schema_version`: JSON schema version to use, e.g. 1.7.5. It must be branch or a tag available in https://github.com/opentargets/json_schema.
+  
+There is also an optional parameter to load a dictionary containing the results of querying OnToma with the disease terms:
+- `-d`, `--dictionary`: If specified, the diseases mappings will be imported from this JSON file.'
+
+To use the parser configure the python environment and run it as follows:
+```bash
+(venv)$ python3 modules/GenomicsEnglandPanelApp.py -i All_genes_20200928-1959.tsv -o genomics_england-2021-01-05.json -s 1.7.5 -d disease_queries.json
+```
+
 ### IntOGen
 
 The intOGen parser generates evidence strings from three files that need to be in the working directory or in the _resources_ directory:
@@ -123,7 +152,7 @@ The intOGen parser generates evidence strings from three files that need to be i
 
 ### PheWAS catalog
 
-The `PheWAS.py` script parses the PheWAS Catalog CSV file specified as `PHEWAS_CATALOG_FILENAME` in `settings.py` and that should be located either in the working directory or the `resources` folder. The mappings between the Phecodes and EFO are read from the [phewascat.mappings.tsv](https://raw.githubusercontent.com/opentargets/mappings/master/phewascat.mappings.tsv) file in the `mappings` repository.
+The `PheWAS.py` script parses the PheWAS Catalog CSV file specified as `PHEWAS_CATALOG_FILENAME` in `settings.py` and that should be located either in the working directory or the `resources` folder. This file can be downloaded [here](https://storage.googleapis.com/otar000-evidence_input/PheWAS/data_files/phewas-catalog-19-10-2018.csv). The mappings between the Phecodes and EFO are read from the [phewascat.mappings.tsv](https://raw.githubusercontent.com/opentargets/mappings/master/phewascat.mappings.tsv) file in the `mappings` repository. In addition, the data is enriched with information gathered from the Variant Index. The file is imported as `PHEWAS_CATALOG_W_CONSEQUENCES` and located [here](https://storage.googleapis.com/otar000-evidence_input/PheWAS/data_files/phewas_w_consequences.csv). This data is then joined with the PheWAS variants at the gene, variant level.  
 
 ```sh
 (venv)$ python3 modules/PheWAS.py
@@ -148,19 +177,65 @@ The parser has five parameters but only two of them are compulsory, the other th
 This is how it is run only specifying the required parameters:
 
 ```sh
-(venv)$ ppython3 modules/CRISPR.py -s 1.7.5 -c crispr_cell_lines.tsv -o crispr-18-11-2020.json
+(venv)$ python3 modules/CRISPR.py -s 1.7.5 -c crispr_cell_lines.tsv -o crispr-18-11-2020.json
 ```
 
-### PhenoDigm - What version should I run?
-The PhenoDigm parser used to generate the 19.04 release data is the [solr_phenodigm_1904](https://github.com/opentargets/evidence_datasource_parsers/tree/solr_phenodigm_1904) branch.
+### PhenoDigm
 
-The version in _master_ is an older version (October 2018) that **DOES NOT** call the IMPC SOLR API and it is **unlikely to work** but it has not been tested.
+Generates target-disease evidence querying the IMPC SOLR API.
 
-[solr_phenodigm](https://github.com/opentargets/evidence_datasource_parsers/tree/solr_phenodigm) is the version that Gautier handed over to the OT data team in February 2019. It *DOES* call the IMPC SOLR API but it has a number of bugs and **DOES NOT WORK**.
+#### System requirements and running time
+The PhenoDigm parser has been run both in a MacBook Pro and a Google Cloud machine. The current version is very memory greedy, using up to 60 GB. 
 
-**TODO**
-- [ ] map `intergenic` rsIDs to genes (~900k evidences)
-- [ ] improve mappings with manual curation
+* MacBook Pro: It takes around 8 hours to run in a 16 GB laptop.
+* Google Cloud Machine: It runs in around 2 hours in a 60 GB machine (_n1-standard-16_). There used to be such a machine set up but now one called _ag-ubuntu-20-04-lts_ in _open-targets-eu-dev_ can be used instead (see below). This machine has specs higher than needed (32 vCPU and 208 GB memory).
+
+#### Installation
+Before the parser can be run there is one dependency that needs to be installed manually:
+
+```sh
+# Create and activate virtual environment (requires python3)
+virtualenv -p python3 phenodigm_venv
+source phenodigm_venv/bin/activate
+
+# Install dependencies
+pip3 install -r requirements.txt
+
+# Manually download and install ontology-utils as it requires specific tag
+wget https://github.com/opentargets/ontology-utils/archive/bff0f189a4c6e8613e99a5d47e9ad4ceb6a375fc.zip
+pip3 install bff0f189a4c6e8613e99a5d47e9ad4ceb6a375fc.zip
+
+# Set environment variables
+export PYTHONPATH=.
+```
+Additionally, the parser needs access to Google Cloud, which requires downloading a key JSON file and setting the `GOOGLE_APPLICATION_CREDENTIALS` variable. Ask someone from the back-end team about it.
+
+#### Running MouseModels in a Google Cloud virtual machine
+
+Start the machine and connect to it via SSH. When you are ready set-up the environment and run the parser:
+
+```sh
+# Move to installation directory
+cd opentargets/evidence_datasource_parsers/
+
+# Activate virtual environment
+. phenodigm_venv/bin/activate
+
+# Set up PYTHONPATH AND GOOGLE_APPLICATION_CREDENTIALS environment variables
+. phenodigm_venv/bin/set_env_variables.sh
+
+# Update cache
+# NOTE: This is only required once per release, i.e. is not needed if PhenoDigm is
+# rerun multiple times in a short period of time
+python3 modules/MouseModels.py --update-cache
+
+# Run PhenoDigm parser
+python3 modules/MouseModels.py 
+
+# Upload the evidence file to Google Cloud Storage
+python3 modules/MouseModels.py -w
+```
+**NOTE:** Remember to stop the machine once you are done as it costs money to have it on! 
 
 ### Open Targets Genetics Portal
 
@@ -193,5 +268,5 @@ python ${repo_directory}/modules/GeneticsPortal.py \
     --cores 32 --sample 1000 --outputFile output.json.gz
 ```
 
-**Important**: to ensure the resulting json shema is valid, we are using the [python_jsonschema_objects](https://pypi.org/project/python-jsonschema-objects/0.0.13/) library, which enforces the proper structure. The only caveat is that the this library uses draft-4 JSON schema, while our JSON schema is written on draft-7. To resolve this discrepancy, our JSON schema repository has a parallel draft-4 compatible branch that we are using for evidence generation.
+**Important**: to ensure the resulting json schema is valid, we are using the [python_jsonschema_objects](https://pypi.org/project/python-jsonschema-objects/0.0.13/) library, which enforces the proper structure. The only caveat is that the this library uses draft-4 JSON schema, while our JSON schema is written on draft-7. To resolve this discrepancy, our JSON schema repository has a parallel draft-4 compatible branch that we are using for evidence generation.
 

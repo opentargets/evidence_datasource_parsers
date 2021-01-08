@@ -19,7 +19,9 @@ PanelApp_classification2score = {
 }
 
 class PanelAppEvidenceGenerator():
+
     def __init__(self, schema_version=Config.VALIDATED_AGAINST_SCHEMA_VERSION):
+
         # Build JSON schema url from version
         self.schema_version = schema_version
         schema_url = f"https://raw.githubusercontent.com/opentargets/json_schema/{self.schema_version}/draft4_schemas/opentargets.json"
@@ -48,17 +50,15 @@ class PanelAppEvidenceGenerator():
     def build_publications(dataframe):
         '''
         Populates a dataframe with the publications fetched from the PanelApp API and cleans them to match PubMed IDs.
-
         Args:
             dataframe (pd.DataFrame): Initial .tsv data converted to a Pandas dataframe
         Returns:
             dataframe (pd.DataFrame): Original dataframe with an additional column: Publications
         '''
         populated_groups = []
-
         for (PanelId), group in dataframe.groupby("Panel Id"):
             request = PanelAppEvidenceGenerator.publications_from_panel(PanelId)
-            group["Publications"] = group.apply(lambda X: publication_from_symbol(X.Symbol, request), axis=1)
+            group["Publications"] = group.apply(lambda X: PanelAppEvidenceGenerator.publication_from_symbol(X.Symbol, request), axis=1)
             populated_groups.append(group)
         
         dataframe = pd.concat(populated_groups, ignore_index=True, sort=False)
@@ -80,7 +80,7 @@ class PanelAppEvidenceGenerator():
     def publications_from_panel(panel_id):
         '''
         Queries the PanelApp API to obtain a list of the publications for every gene within a panel_id
-        
+
         Args:
             panel_id (str): Panel ID extracted from the "Panel Id" column
         Returns:
@@ -97,7 +97,8 @@ class PanelAppEvidenceGenerator():
     @staticmethod
     def publication_from_symbol(symbol, response):
         '''
-        Returns the list of publications for a given symbol in a PanelApp query response.
+        Returns the list of publications for a given symbol in a PanelApp query response
+
         Args:
             symbol (str): Gene symbol extracted from the "Symbol" column
             response (dict): Response of the API containing all genes related to a panel and their publications
@@ -141,7 +142,6 @@ class PanelAppEvidenceGenerator():
 
     def ontoma_query(self, iterable, dict_name="ontoma_queries.json"):
         '''
-        Queries the OnToma utility to map a phenotype to a disease.
         OnToma is used to query the ontology OBO files, the manual mapping file and the Zooma and OLS APIs.
 
         Args:
@@ -151,6 +151,7 @@ class PanelAppEvidenceGenerator():
             mappings (dict): Output file. Keys: queried term (phenotype or OMIM code), Values: OnToma output
         '''
         mappings = dict()
+
         for e in iterable:
             try:
                 tmp = self.otmap.find_term(e, verbose=True)
@@ -207,7 +208,6 @@ class PanelAppEvidenceGenerator():
     def build_mappings(mappings_dict, dataframe):
         '''
         Populates the dataframe with the mappings resulted from OnToma.
-
         Args:
             mappings_dict (dict): All mapping results for every phenotype
             dataframe (pd.DataFrame): DataFrame with transformed PanelApp data
@@ -231,7 +231,7 @@ class PanelAppEvidenceGenerator():
             dataframe.loc[dataframe["Phenotype"] == phenotype, "OnToma Action"] = match[phenotype]["action"]
             dataframe.loc[dataframe["Phenotype"] == phenotype, "OnToma Term"] = match[phenotype]["term"]
             dataframe.loc[dataframe["Phenotype"] == phenotype, "OnToma Label"] = match[phenotype]["label"]
- 
+            
         for phenotype in fuzzy.keys():
             dataframe.loc[dataframe["Phenotype"] == phenotype, "OnToma Result"] = "fuzzy"
             dataframe.loc[dataframe["Phenotype"] == phenotype, "OnToma Action"] = fuzzy[phenotype]["action"]
@@ -243,9 +243,8 @@ class PanelAppEvidenceGenerator():
     def build_pub_array(self):
         '''
         Takes a list of PMIDs and returns a list of reference dictionaries
-
         Returns:
-            pub_array (array): List of objects with the reference link to every publication    
+            pub_array (array): List of objects with the reference link to every publication   
         '''
         pub_array = []
 
@@ -381,21 +380,18 @@ class PanelAppEvidenceGenerator():
             )
             return evidence.serialize()
         except Exception as e:
-            print(e)
             logging.error(f'Evidence generation failed for row: {row.name}')
             raise
 
     def write_evidence_strings(self, dataframe, mappings_dict):
         '''
         Processing of the dataframe to build all the evidences from its data
-
         Args:
             dataframe (pd.DataFrame): Initial .tsv file
             mappings_dict (dict): All mapping results for every phenotype
         Returns:
             evidences (array): Object with all the generated evidences strings
         '''
-
         # Read input file
         dataframe = pd.read_csv(dataframe, sep='\t')
 
@@ -417,12 +413,12 @@ class PanelAppEvidenceGenerator():
 
         if len(mappings_dict) == 0:
             # Checks whether the dictionary is not provided as a parameter 
-            mappings_dict = self.ontoma_query(phenotypes)
+            mappings_dict = self.ontoma_query(phenotypes, dict_name="phenotypes_mapping.json")
             logging.info("Disease mappings completed.")
         else:
             logging.info("Disease mappings imported.")
         
-        codes_dict = self.ontoma_query(codes)
+        codes_dict = self.ontoma_query(codes, dict_name="codes_mapping.json")
 
         # Cross-referencing the fuzzy results from the phenotype query and the OMIM code query
         phenotypes_list = dataframe["Phenotype"].to_list()
@@ -460,9 +456,9 @@ class PanelAppEvidenceGenerator():
                 'json_data': evidence
             })
         panelapp_df = pd.DataFrame(parsed_data)  
-        
+
         # Grouping to make the evidence unique: by target, disease and panel id
-        updated_evidences = []
+        updated_evidences = []  
         for (target, disease, panel_id), group in panelapp_df.groupby(['target','disease','panel_id']):
             # Extracting evidence data:
             data = group["json_data"].tolist()[0]
@@ -508,12 +504,15 @@ def main():
                 mappings_dict = json.load(f)
     else:
         mappings_dict = {}
-    
+
     # Writing evidence strings into a json file
     evidences = evidence_builder.write_evidence_strings(dataframe, mappings_dict)
-
+   
+    # Exporting the outfile
     with open(output_file, "wt") as f:
-        evidences.apply(lambda x: f.write(str(x)+'\n'))
+        for evidence in evidences:
+            json.dump(evidence, f)
+            f.write('\n')
     
     logging.info(f"Evidence strings saved into {output_file}. Exiting.")
 
