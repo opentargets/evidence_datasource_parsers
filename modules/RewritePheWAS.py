@@ -129,7 +129,7 @@ class phewasEvidenceGenerator():
                 studyCases : row["cases"],
                 targetFromSourceId : row["gene"].strip("*"),
                 variantFunctionalConsequenceId : "", # TODO : Merge this data coming from OTG
-                variantId : row["variantId"] if row["variantId"] else row["snp"]},
+                variantId : row["variantId"],
                 variantRsId : row["snp"]
             }
             return evidence
