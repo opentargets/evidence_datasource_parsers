@@ -8,7 +8,7 @@ from pyspark.sql.types import *
 
 class phewasEvidenceGenerator():
     def __init__(self, inputFile, mappingStep, schemaVersion):
-        # Build JSON schema url from version
+        # Build JSON schema url from version # TODO: Remove reference to schema
         self.schemaVersion = schemaVersion
         schema_url = "https://raw.githubusercontent.com/opentargets/json_schema/ds_1249_new_json_schema/draft4_schemas/opentargets.json" #TODO Update the url 
         logging.info(f"Loading JSON Schema from {schema_url}")
@@ -25,8 +25,8 @@ class phewasEvidenceGenerator():
         spark.sparkContext.addFile(self.consequencesFile)
     
         # Initialize input files
-        self.dataframe = inputFile
-        self.consequencesFile = "https://storage.googleapis.com/otar000-evidence_input/PheWAS/data_files/phewas_w_consequences.csv"
+        self.inputFile = inputFile
+
         # Create spark session     
         self.spark = SparkSession.builder \
                 .appName('evidence_builder') \
@@ -37,6 +37,7 @@ class phewasEvidenceGenerator():
         gene_parser._get_hgnc_data_from_json()
         self.genes = gene_parser.genes
 
+        self.dataframe = None
         self.enrichedDataframe = None
         self.one2manyVariants = None
         
@@ -47,7 +48,7 @@ class phewasEvidenceGenerator():
             evidences (array): Object with all the generated evidences strings from source file
         '''
         # Read input file
-        self.dataframe = self.spark.read.csv("", header=True)
+        self.dataframe = self.spark.read.csv(self.inputFile, header=True)
 
         # Filter out null genes & p-value > 0.05
         self.dataframe = self.dataframe \
@@ -76,8 +77,8 @@ class phewasEvidenceGenerator():
         self.enrichedDataframe = enrichVariantData(self.dataframe)
 
         # Build evidence strings per row
-        evidences = self.dataframe.rdd.map(
-            phewasEvidenceGenerator.parseEvidenceString)
+        evidences = self.dataframe.rdd \
+            .map(phewasEvidenceGenerator.parseEvidenceString) \
             .collect() # list of dictionaries
 
     def enrichVariantData(self):
@@ -142,7 +143,7 @@ def main():
     parser.add_argument("-i", "--inputFile", required=True, type=str, help="Input .csv file with the table containing association details.")
     parser.add_argument("-o", "--outputFile", required=True, type=str, help="Name of the json output file containing the evidence strings.")
     parser.add_argument("-s", "--schemaVersion", required=True, type=str, help="JSON schema version to use, e.g. 1.6.9. It must be branch or a tag available in https://github.com/opentargets/json_schema.")
-    parser.add_argument("-m", "--mappingStep", required=True, type=bool, default=True, help="State whether to run the disease to EFO term mapping step or not.")
+    parser.add_argument("-m", "--mappingStep", required=False, type=bool, default=True, help="State whether to run the disease to EFO term mapping step or not.")
 
     # Parsing parameters
     args = parser.parse_args()
