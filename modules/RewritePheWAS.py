@@ -103,8 +103,7 @@ class phewasEvidenceGenerator():
                                     .agg(count("snp")) \
                                     .filter(col("count(snp)") > 1)
         self.one2manyVariants = list(one2manyVariants_df.toPandas()["snp"])
-        variantIdReference = self.writeVariantId
-        self.enrichedDataframe = self.dataframe.rdd.map(variantIdReference).toDF()
+        self.enrichedDataframe = self.dataframe.rdd.map(self.writeVariantId).toDF()
         
         return self.enrichedDataframe
 
