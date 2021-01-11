@@ -746,6 +746,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
         logger.info("Exported %i evidence" % (countExported))
 
     def write_to_cloud(self, filename):
+        # TODO: Take into account that filename at this step may not match the one saved because time stamp is automatic
 
         # The name of the blob. This corresponds to the unique path of the object in the bucket.
         # Uploading the file to otar000-evidence_input/PhenoDigm/json
