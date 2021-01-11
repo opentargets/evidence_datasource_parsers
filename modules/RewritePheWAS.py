@@ -16,10 +16,6 @@ class phewasEvidenceGenerator():
                 .appName('evidence_builder') \
                 .getOrCreate()
 
-        # Build JSON schema url from version # TODO: Remove reference to schema
-        schema_url = "https://raw.githubusercontent.com/opentargets/json_schema/ds_1249_new_json_schema/draft4_schemas/opentargets.json" #TODO Update the url 
-        logging.info(f"Loading JSON Schema from {schema_url}")
-
         # Initialize mapping variables
         self.mappingStep = mappingStep
         self.mappingsFile = "https://raw.githubusercontent.com/opentargets/mappings/master/phewascat.mappings.tsv"
