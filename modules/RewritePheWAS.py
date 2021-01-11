@@ -36,15 +36,16 @@ class phewasEvidenceGenerator():
         # Initialize gene parser
         gene_parser = GeneParser()
         gene_parser._get_hgnc_data_from_json()
+        self.genes = gene_parser.genes
         self.udfGeneParser = udf(
-            lambda X: gene_parser.genes[X.strip("*")],
+            lambda X: self.geneParser(X),
             StringType()
         )
 
         self.dataframe = None
         self.enrichedDataframe = None
         self.one2manyVariants = None
-        
+
     def writeEvidenceFromSource(self):
         '''
         Processing of the dataframe to build all the evidences from its data
@@ -101,10 +102,18 @@ class phewasEvidenceGenerator():
                                     .agg(count("snp")) \
                                     .filter(col("count(snp)") > 1)
         self.one2manyVariants = list(one2manyVariants_df.toPandas()["snp"])
-        self.enrichedDataframe = self.dataframe.rdd.map(self.writeVariantId).toDF()
+        self.enrichedDataframe = self.dataframe.rdd.map(phewasEvidenceGenerator.writeVariantId).toDF()
         
         return self.enrichedDataframe
+    
+    def geneParser(self, gene):
+        ## find ENSGID ##
+        gene = gene.strip("*")
+        if gene not in self.genes:
+            return np.nan
+        return self.genes[gene] 
 
+    @staticmethod
     def writeVariantId(row):
         rd = row.asDict()
         if row["snp"] not in one2manyVariants:
