@@ -7,6 +7,7 @@ from pyspark.sql.functions import *
 from pyspark.sql.types import *
 import argparse
 import numpy as np
+import pandas as pd
 
 class phewasEvidenceGenerator():
     def __init__(self, inputFile, mappingStep, schemaVersion):
@@ -37,7 +38,6 @@ class phewasEvidenceGenerator():
         # Initialize gene parser
         gene_parser = GeneParser()
         gene_parser._get_hgnc_data_from_json()
-        #self.genes = gene_parser.genes
         self.udfGeneParser = udf(
             lambda X: gene_parser.genes.get(X.strip("*"), np.nan),
             StringType()
@@ -45,7 +45,6 @@ class phewasEvidenceGenerator():
 
         self.dataframe = None
         self.enrichedDataframe = None
-        self.one2manyVariants = None
 
     def writeEvidenceFromSource(self):
         '''
@@ -102,14 +101,27 @@ class phewasEvidenceGenerator():
                                     .groupBy("snp") \
                                     .agg(count("snp")) \
                                     .filter(col("count(snp)") > 1)
-        self.one2manyVariants = list(one2manyVariants_df.toPandas()["snp"])
-        self.enrichedDataframe = self.dataframe.rdd.map(self.writeVariantId).toDF()
-        
+        one2manyVariants = list(one2manyVariants_df.toPandas()["snp"])
+        self.enrichedDataframe = self.dataframe.rdd.map(lambda X: phewasEvidenceGenerator.writeVariantId(X, one2manyVariants)).toDF()
+        '''df_ref = self.dataframe
+        oldSchema = self.dataframe.schema
+        newSchema = oldSchema.add("variantId", StringType(), True)
+        enrichedDataframe = df_ref.mapInPandas(phewasEvidenceGenerator.writeVariantId, schema=newSchema)
+        '''
         return self.enrichedDataframe
+    
+        '''@staticmethod
+        def writeVariantIdPandas( pdf: pd.DataFrame) -> pd.DataFrame:
+            if pdf["snp"] not in one2manyVariants:
+                variantId = "{}_{}_{}_{}".format(pdf["chrom"], pdf["pos"], pdf["ref"], pdf["alt"])
+            else:
+                variantId = None
+            return pdf.assign(variantId = variantId)'''
 
-    def writeVariantId(self, row):
+    @staticmethod
+    def writeVariantId(row, one2manyVariants):
         rd = row.asDict()
-        if row["snp"] not in self.one2manyVariants:
+        if row["snp"] not in one2manyVariants:
             rd["variantId"] = "{}_{}_{}_{}".format(row["chrom"], row["pos"], row["ref"], row["alt"])
         else:
             rd["variantId"] = None
@@ -120,18 +132,18 @@ class phewasEvidenceGenerator():
     def parseEvidenceString(row):
         try:
             evidence = {
-                datasourceId : "phewas_catalog",
-                datatypeId : "genetic_association",
-                diseaseFromSource : row["phewas_string"],
-                diseaseFromSourceId : row["phewas_code"],
-                diseaseFromSourceMappedId : row["EFO_id"].split("/")[-1],
-                oddsRatio : row["odds_ratio"],
-                resourceScore : row["p"],
-                studyCases : row["cases"],
-                targetFromSourceId : row["gene"].strip("*"),
-                variantFunctionalConsequenceId : row["consequence_link"].split("/")[-1] if row["consequence_link"] else "SO_0001060",
-                variantId : row["variantId"],
-                variantRsId : row["snp"]
+                "datasourceId" : "phewas_catalog",
+                "datatypeId" : "genetic_association",
+                "diseaseFromSource" : row["phewas_string"],
+                "diseaseFromSourceId" : row["phewas_code"],
+                "diseaseFromSourceMappedId" : row["EFO_id"].split("/")[-1],
+                "oddsRatio" : row["odds_ratio"],
+                "resourceScore" : row["p"],
+                "studyCases" : row["cases"],
+                "targetFromSourceId" : row["gene"].strip("*"),
+                "variantFunctionalConsequenceId" : row["consequence_link"].split("/")[-1] if row["consequence_link"] else "SO_0001060",
+                "variantId" : row["variantId"],
+                "variantRsId" : row["snp"]
             }
             return evidence
         except Exception as e:
