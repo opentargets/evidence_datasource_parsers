@@ -98,20 +98,13 @@ class phewasEvidenceGenerator():
                                     .filter(col("count(snp)") > 1)
         one2manyVariants = list(one2manyVariants_df.toPandas()["snp"])
         self.enrichedDataframe = self.dataframe.rdd.map(lambda X: phewasEvidenceGenerator.writeVariantId(X, one2manyVariants)).toDF()
+
         '''df_ref = self.dataframe
         oldSchema = self.dataframe.schema
         newSchema = oldSchema.add("variantId", StringType(), True)
         enrichedDataframe = df_ref.mapInPandas(phewasEvidenceGenerator.writeVariantId, schema=newSchema)
         '''
         return self.enrichedDataframe
-    
-        '''@staticmethod
-        def writeVariantIdPandas( pdf: pd.DataFrame) -> pd.DataFrame:
-            if pdf["snp"] not in one2manyVariants:
-                variantId = "{}_{}_{}_{}".format(pdf["chrom"], pdf["pos"], pdf["ref"], pdf["alt"])
-            else:
-                variantId = None
-            return pdf.assign(variantId = variantId)'''
 
     @staticmethod
     def writeVariantId(row, one2manyVariants):
