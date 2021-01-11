@@ -13,12 +13,7 @@ from pyspark.sql.functions import *
 from pyspark.sql.types import *
 
 class PanelAppEvidenceGenerator():
-    def __init__(self, schemaVersion, mappingStep, mappingsDict):
-        # Build JSON schema url from version
-        self.schemaVersion = schemaVersion
-        schema_url = f"https://raw.githubusercontent.com/opentargets/json_schema/{self.schemaVersion}/draft4_schemas/opentargets.json" #TODO Update the url 
-        logging.info(f"Loading JSON Schema from {schema_url}")
-
+    def __init__(self, mappingStep, mappingsDict):
         # Initialize mapping variables
         self.mappingStep = mappingStep
         self.phenotypesMappings = mappingsDict
@@ -334,7 +329,6 @@ def main():
 
     parser.add_argument("-i", "--inputFile", required=True, type=str, help="Input .tsv file with the table containing association details.")
     parser.add_argument("-o", "--outputFile", required=True, type=str, help="Name of the json output file containing the evidence strings.")
-    parser.add_argument("-s", "--schemaVersion", required=True, type=str, help="JSON schema version to use, e.g. 1.6.9. It must be branch or a tag available in https://github.com/opentargets/json_schema.")
     parser.add_argument("-d", "--mappingsDict", required=False, type=str, help="Path of the dictionary containing the mapped phenotypes.")
     parser.add_argument("-m", "--mappingStep", required=True, type=bool, default=True, help="State whether to run the disease to EFO term mapping step or not.")
 
@@ -343,7 +337,6 @@ def main():
 
     dataframe = args.inputFile
     outputFile = args.outputFile
-    schemaVersion = args.schemaVersion
     mappingStep = args.mappingStep
     mappingsDict = args.mappingsDict
 
@@ -356,7 +349,7 @@ def main():
     )
 
     # Initialize evidence builder object
-    evidenceBuilder = PanelAppEvidenceGenerator(schemaVersion, mappingStep, mappingsDict)
+    evidenceBuilder = PanelAppEvidenceGenerator(mappingStep, mappingsDict)
 
     # Import dictionary if present
     if mappingsDict:
