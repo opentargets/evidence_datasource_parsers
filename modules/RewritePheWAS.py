@@ -36,9 +36,8 @@ class phewasEvidenceGenerator():
         # Initialize gene parser
         gene_parser = GeneParser()
         gene_parser._get_hgnc_data_from_json()
-        genes = gene_parser.genes
         self.udfGeneParser = udf(
-            lambda X: genes[X.strip("*")],
+            lambda X: gene_parser.genes[X.strip("*")],
             StringType()
         )
 
@@ -75,7 +74,7 @@ class phewasEvidenceGenerator():
         )
 
         # Get functional consequence per variant from OT Genetics Portal
-        self.enrichedDataframe = enrichVariantData(self.dataframe)
+        self.enrichedDataframe = self.enrichVariantData()
 
         # Build evidence strings per row
         evidences = self.dataframe.rdd \
@@ -102,7 +101,7 @@ class phewasEvidenceGenerator():
                                     .agg(count("snp")) \
                                     .filter(col("count(snp)") > 1)
         self.one2manyVariants = list(one2manyVariants_df.toPandas()["snp"])
-        self.enrichedDataframe = self.dataframe.rdd.map(writeVariantId).toDF()
+        self.enrichedDataframe = self.dataframe.rdd.map(self.writeVariantId).toDF()
         
         return self.enrichedDataframe
 
