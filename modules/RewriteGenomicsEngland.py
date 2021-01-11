@@ -170,10 +170,10 @@ class PanelAppEvidenceGenerator():
         # Mapping the phenotypes and OMIM codes to an EFO code - 2 steps:
         #   Querying OnToma with all distinch codes and phenotypes
         #   Xref between the results of every phenotype/OMIM code pair for a better coverage
-        omimCodesDistinct = self.dataframe.select("omimCode").distinct().rdd.flatMap(lambda x: x).collect()
-        phenotypesDistinct = self.dataframe.select("phenotype").distinct().rdd.flatMap(lambda x: x).collect()
-        omimCodes = self.dataframe.select("omimCode").rdd.flatMap(lambda x: x).collect()
-        phenotypes = self.dataframe.select("phenotype").rdd.flatMap(lambda x: x).collect()
+        omimCodesDistinct = list(self.dataframe.select("omimCode").distinct().toPandas()["omimCode"])
+        phenotypesDistinct = list(self.dataframe.select("phenotype").distinct().toPandas()["omimCode"])
+        omimCodes = list(self.dataframe.toPandas()["omimCode"])
+        phenotypes = list(self.dataframe.toPandas()["phenotype"])
         phenotypeCodePairs = list(zip(phenotypes, omimCodes))
 
         if len(self.phenotypesMappings) == 0:
