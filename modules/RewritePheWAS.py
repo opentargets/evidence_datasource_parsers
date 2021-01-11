@@ -5,9 +5,15 @@ from pyspark import SparkContext, SparkFiles
 from pyspark.sql import SparkSession, Row
 from pyspark.sql.functions import *
 from pyspark.sql.types import *
+import argparse
 
 class phewasEvidenceGenerator():
     def __init__(self, inputFile, mappingStep, schemaVersion):
+        # Create spark session     
+        self.spark = SparkSession.builder \
+                .appName('evidence_builder') \
+                .getOrCreate()
+
         # Build JSON schema url from version # TODO: Remove reference to schema
         self.schemaVersion = schemaVersion
         schema_url = "https://raw.githubusercontent.com/opentargets/json_schema/ds_1249_new_json_schema/draft4_schemas/opentargets.json" #TODO Update the url 
@@ -21,21 +27,20 @@ class phewasEvidenceGenerator():
         self.consequencesFile = "https://storage.googleapis.com/otar000-evidence_input/PheWAS/data_files/phewas_w_consequences.csv"
 
         # Adding remote files to Spark Context
-        spark.sparkContext.addFile(self.mappingsFile)
-        spark.sparkContext.addFile(self.consequencesFile)
+        self.spark.sparkContext.addFile(self.mappingsFile)
+        self.spark.sparkContext.addFile(self.consequencesFile)
     
         # Initialize input files
         self.inputFile = inputFile
-
-        # Create spark session     
-        self.spark = SparkSession.builder \
-                .appName('evidence_builder') \
-                .getOrCreate()
         
         # Initialize gene parser
         gene_parser = GeneParser()
         gene_parser._get_hgnc_data_from_json()
-        self.genes = gene_parser.genes
+        genes = gene_parser.genes
+        self.udfGeneParser = udf(
+            lambda X: genes[X.strip("*")],
+            StringType()
+        )
 
         self.dataframe = None
         self.enrichedDataframe = None
@@ -57,20 +62,16 @@ class phewasEvidenceGenerator():
 
         # Mapping step
         if self.mappingStep:
-            phewasMapping = spark.read.csv(SparkFiles.get("phewascat.mappings.tsv"), sep=r'\t', header=True)
+            phewasMapping = self.spark.read.csv(SparkFiles.get("phewascat.mappings.tsv"), sep=r'\t', header=True)
             self.dataframe = self.dataframe.join(
                 phewasMapping,
                 on=["Phewas_string"],
                 how="inner"
             )
         
-        # Parsing Gene Symbol to EnsEMBL ID
-        udfGeneParser = udf(
-            lambda X: self.gene[X.strip("*")],
-            ArrayType(StringType()))
         self.dataframe = self.dataframe.withColumn(
             "gene",
-            udfGeneParser(col("gene"))
+            self.udfGeneParser(col("gene"))
         )
 
         # Get functional consequence per variant from OT Genetics Portal
@@ -155,7 +156,7 @@ def main():
 
     # Initialize logging:
     logging.basicConfig(
-    filename='evidence_builder.log',E
+    filename='evidence_builder.log',
     level=logging.INFO,
     format='%(name)s - %(levelname)s - %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S',
@@ -165,7 +166,7 @@ def main():
     evidenceBuilder = phewasEvidenceGenerator(dataframe, mappingStep, schemaVersion)
 
     # Writing evidence strings into a json file
-    evidences = evidenceBuilder.writeEvidenceFromSource(dataframe)
+    evidences = evidenceBuilder.writeEvidenceFromSource()
 
     with open(outputFile, "wt") as f:
         for evidence in evidences:
