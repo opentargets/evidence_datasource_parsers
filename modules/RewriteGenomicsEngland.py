@@ -13,7 +13,7 @@ from pyspark.sql.functions import *
 from pyspark.sql.types import *
 
 class PanelAppEvidenceGenerator():
-    def __init__(self, mappingStep, mappingsDict):
+    def __init__(self, dataframe, mappingStep, mappingsDict):
         # Initialize mapping variables
         self.mappingStep = mappingStep
         self.phenotypesMappings = mappingsDict
@@ -27,7 +27,9 @@ class PanelAppEvidenceGenerator():
                 .appName('evidence_builder') \
                 .getOrCreate()
 
-    def writeEvidenceFromSource(self, dataframe):
+        self.dataframe = dataframe
+
+    def writeEvidenceFromSource(self):
         '''
         Processing of the dataframe to build all the evidences from its data
 
@@ -38,10 +40,10 @@ class PanelAppEvidenceGenerator():
         '''
 
         # Read input file
-        dataframe = self.spark.read.csv(dataframe, sep=r'\t', header=True)
+        self.dataframe = self.spark.read.csv(self.dataframe, sep=r'\t', header=True)
 
         # Filtering with green and ambar evidences
-        dataframe = dataframe.filter(
+        self.dataframe = self.dataframe.filter(
                                 ((col("List") == "green" ) | (col("List") == "amber"))
                                                             &
                                 (col("Panel Version") > 1)
@@ -55,11 +57,11 @@ class PanelAppEvidenceGenerator():
         logging.info("Publications loaded.")
 
         # Splitting and cleaning the dataframe according to the phenotype string
-        dataframe = PanelAppEvidenceGenerator.cleanDataframe(dataframe)
+        self.dataframe = PanelAppEvidenceGenerator.cleanDataframe(self.dataframe)
 
         # Map the diseases to an EFO term if necessary
         if self.mappingStep:
-            dataframe = self.runMappingStep(dataframe)
+            self.dataframe = self.runMappingStep()
 
         # Build evidence strings per row
         evidences = dataframe.rdd.map(
@@ -72,7 +74,7 @@ class PanelAppEvidenceGenerator():
 
         return evidences
 
-    def buildPublications(self, dataframe):
+    def buildPublications(self):
         '''
         Populates a dataframe with the publications fetched from the PanelApp API and cleans them to match PubMed IDs.
 
@@ -156,7 +158,7 @@ class PanelAppEvidenceGenerator():
 
         return dataframe
     
-    def runMappingStep(self, dataframe):
+    def runMappingStep(self):
         '''
         Builds the mapping logic into the dataframe
 
@@ -168,10 +170,10 @@ class PanelAppEvidenceGenerator():
         # Mapping the phenotypes and OMIM codes to an EFO code - 2 steps:
         #   Querying OnToma with all distinch codes and phenotypes
         #   Xref between the results of every phenotype/OMIM code pair for a better coverage
-        omimCodesDistinct = dataframe.select("omimCode").distinct().rdd.flatMap(lambda x: x).collect()
-        phenotypesDistinct = dataframe.select("phenotype").distinct().rdd.flatMap(lambda x: x).collect()
-        omimCodes = dataframe.select("omimCode").rdd.flatMap(lambda x: x).collect()
-        phenotypes = dataframe.select("phenotype").rdd.flatMap(lambda x: x).collect()
+        omimCodesDistinct = self.dataframe.select("omimCode").distinct().rdd.flatMap(lambda x: x).collect()
+        phenotypesDistinct = self.dataframe.select("phenotype").distinct().rdd.flatMap(lambda x: x).collect()
+        omimCodes = self.dataframe.select("omimCode").rdd.flatMap(lambda x: x).collect()
+        phenotypes = self.dataframe.select("phenotype").rdd.flatMap(lambda x: x).collect()
         phenotypeCodePairs = list(zip(phenotypes, omimCodes))
 
         if len(self.phenotypesMappings) == 0:
@@ -192,9 +194,9 @@ class PanelAppEvidenceGenerator():
             self.phenotypeCodePairCheck(pheno, code)
 
         # TODO: Add new columns: OnToma Result, OnToma Term, OnToma Label
-        #dataframe = self.buildMappings(dataframe)
+        #self.dataframe = self.buildMappings()
 
-        return dataframe.filter(col("ontomaResult") == "match")
+        return self.dataframe.filter(col("ontomaResult") == "match")
 
     def diseaseToEfo(self, *iterable, dictExport="diseaseToEfo_results.json"):
         '''
@@ -349,7 +351,7 @@ def main():
     )
 
     # Initialize evidence builder object
-    evidenceBuilder = PanelAppEvidenceGenerator(mappingStep, mappingsDict)
+    evidenceBuilder = PanelAppEvidenceGenerator(dataframe, mappingStep, mappingsDict)
 
     # Import dictionary if present
     if mappingsDict:
@@ -359,7 +361,7 @@ def main():
         phenotypesMappings = {}
     
     # Writing evidence strings into a json file
-    evidences = evidenceBuilder.writeEvidenceFromSource(dataframe, phenotypesMappings)
+    evidences = evidenceBuilder.writeEvidenceFromSource()
 
     with open(outputFile, "wt") as f:
         evidences.apply(lambda x: f.write(str(x)+'\n'))
