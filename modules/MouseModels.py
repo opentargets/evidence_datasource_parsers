@@ -27,12 +27,12 @@ import opentargets.model.evidence.association_score as association_score
 logging.basicConfig(filename='phenodigm.log', filemode='w', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-__copyright__ = "Copyright 2014-2019, Open Targets"
-__credits__ = ["Gautier Koscielny", "Damian Smedley"]
+__copyright__ = "Copyright 2014-2021, Open Targets"
+__credits__ = ["Gautier Koscielny", "Damian Smedley", "Asier Gonzalez"]
 __license__ = "Apache 2.0"
 __version__ = Config.VALIDATED_AGAINST_SCHEMA_VERSION
-__maintainer__ = "Gautier Koscielny"
-__email__ = "gautierk@opentargets.org"
+__maintainer__ = "Open Targets Data Team"
+__email__ = ["data@opentargets.org"]
 __status__ = "Production"
 
 class Phenodigm(RareDiseaseMapper, GCSBucketManager):
