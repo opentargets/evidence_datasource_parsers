@@ -10,14 +10,13 @@ import numpy as np
 import pandas as pd
 
 class phewasEvidenceGenerator():
-    def __init__(self, inputFile, mappingStep, schemaVersion):
+    def __init__(self, inputFile, mappingStep):
         # Create spark session     
         self.spark = SparkSession.builder \
                 .appName('evidence_builder') \
                 .getOrCreate()
 
         # Build JSON schema url from version # TODO: Remove reference to schema
-        self.schemaVersion = schemaVersion
         schema_url = "https://raw.githubusercontent.com/opentargets/json_schema/ds_1249_new_json_schema/draft4_schemas/opentargets.json" #TODO Update the url 
         logging.info(f"Loading JSON Schema from {schema_url}")
 
@@ -156,7 +155,6 @@ def main():
 
     parser.add_argument("-i", "--inputFile", required=True, type=str, help="Input .csv file with the table containing association details.")
     parser.add_argument("-o", "--outputFile", required=True, type=str, help="Name of the json output file containing the evidence strings.")
-    parser.add_argument("-s", "--schemaVersion", required=True, type=str, help="JSON schema version to use, e.g. 1.6.9. It must be branch or a tag available in https://github.com/opentargets/json_schema.")
     parser.add_argument("-m", "--mappingStep", required=False, type=bool, default=True, help="State whether to run the disease to EFO term mapping step or not.")
 
     # Parsing parameters
@@ -164,7 +162,6 @@ def main():
 
     dataframe = args.inputFile
     outputFile = args.outputFile
-    schemaVersion = args.schemaVersion
     mappingStep = args.mappingStep
 
     # Initialize logging:
@@ -176,7 +173,7 @@ def main():
     )
 
     # Initialize evidence builder object
-    evidenceBuilder = phewasEvidenceGenerator(dataframe, mappingStep, schemaVersion)
+    evidenceBuilder = phewasEvidenceGenerator(dataframe, mappingStep)
 
     # Writing evidence strings into a json file
     evidences = evidenceBuilder.writeEvidenceFromSource()
