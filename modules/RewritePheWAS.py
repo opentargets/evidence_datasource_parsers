@@ -6,6 +6,7 @@ from pyspark.sql import SparkSession, Row
 from pyspark.sql.functions import *
 from pyspark.sql.types import *
 import argparse
+import numpy as np
 
 class phewasEvidenceGenerator():
     def __init__(self, inputFile, mappingStep, schemaVersion):
@@ -36,9 +37,9 @@ class phewasEvidenceGenerator():
         # Initialize gene parser
         gene_parser = GeneParser()
         gene_parser._get_hgnc_data_from_json()
-        self.genes = gene_parser.genes
+        #self.genes = gene_parser.genes
         self.udfGeneParser = udf(
-            lambda X: self.geneParser(X),
+            lambda X: gene_parser.genes.get(X.strip("*"), np.nan),
             StringType()
         )
 
@@ -102,21 +103,14 @@ class phewasEvidenceGenerator():
                                     .agg(count("snp")) \
                                     .filter(col("count(snp)") > 1)
         self.one2manyVariants = list(one2manyVariants_df.toPandas()["snp"])
-        self.enrichedDataframe = self.dataframe.rdd.map(phewasEvidenceGenerator.writeVariantId).toDF()
+        variantIdReference = self.writeVariantId
+        self.enrichedDataframe = self.dataframe.rdd.map(variantIdReference).toDF()
         
         return self.enrichedDataframe
-    
-    def geneParser(self, gene):
-        ## find ENSGID ##
-        gene = gene.strip("*")
-        if gene not in self.genes:
-            return np.nan
-        return self.genes[gene] 
 
-    @staticmethod
-    def writeVariantId(row):
+    def writeVariantId(self, row):
         rd = row.asDict()
-        if row["snp"] not in one2manyVariants:
+        if row["snp"] not in self.one2manyVariants:
             rd["variantId"] = "{}_{}_{}_{}".format(row["chrom"], row["pos"], row["ref"], row["alt"])
         else:
             rd["variantId"] = None
