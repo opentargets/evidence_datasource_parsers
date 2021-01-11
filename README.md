@@ -235,7 +235,9 @@ python3 modules/MouseModels.py
 # Upload the evidence file to Google Cloud Storage
 python3 modules/MouseModels.py -w
 ```
-**NOTE:** Remember to stop the machine once you are done as it costs money to have it on! 
+**CAVEAT:** The last step (`-w`) tries to upload a file with the current date in the name, which may not work if the parser was run on another day, which would be the date on the filename.
+
+**REMINDER:** Remember to stop the machine once you are done as it costs money to have it on! 
 
 ### Open Targets Genetics Portal
 
