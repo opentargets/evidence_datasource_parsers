@@ -140,7 +140,7 @@ def main():
     "This script generates evidences from the PheWAS Catalog data source.")
 
     parser.add_argument("-i", "--inputFile", required=True, type=str, help="Input .csv file with the table containing association details.")
-    parser.add_argument("-o", "--outputFile", required=True, type=str, help="Name of the json output file containing the evidence strings.")
+    parser.add_argument("-o", "--outputFile", required=True, type=str, help="Name of the compressed json.gz output file containing the evidence strings.")
     parser.add_argument("-m", "--mappingStep", required=False, type=bool, default=True, help="State whether to run the disease to EFO term mapping step or not.")
 
     # Parsing parameters
@@ -164,7 +164,7 @@ def main():
     # Writing evidence strings into a json file
     evidences = evidenceBuilder.writeEvidenceFromSource()
 
-    with open(outputFile, "wt") as f: # TO-DO: export in .gz
+    with gzip.open(outputFile, "wt") as f:
         for evidence in evidences:
             json.dump(evidence, f)
             f.write('\n')
