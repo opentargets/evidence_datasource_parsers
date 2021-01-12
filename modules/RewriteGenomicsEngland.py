@@ -53,7 +53,8 @@ class PanelAppEvidenceGenerator():
 
         # TODO: Feed the dataframe with publications
         logging.info("Fetching publications from the API...")
-        #dataframe = self.buildPublications(dataframe)
+        pdf = PanelAppEvidenceGenerator.buildPublications(self.dataframe.toPandas())
+        self.dataframe = self.spark.createDataFrame(pdf)
         logging.info("Publications loaded.")
 
         # Splitting and cleaning the dataframe according to the phenotype string
@@ -74,7 +75,8 @@ class PanelAppEvidenceGenerator():
 
         return evidences
 
-    def buildPublications(self):
+    @staticmethod
+    def buildPublications(pdf):
         '''
         Populates a dataframe with the publications fetched from the PanelApp API and cleans them to match PubMed IDs.
 
@@ -83,7 +85,27 @@ class PanelAppEvidenceGenerator():
         Returns:
             dataframe (pyspark.DataFrame): DataFrame with an additional column: Publications
         '''
-        pass
+        populated_groups = []
+
+        for (PanelId), group in pdf.groupby("Panel Id"):
+            request = PanelAppEvidenceGenerator.publications_from_panel(PanelId)
+            group["Publications"] = group.apply(lambda X: publication_from_symbol(X.Symbol, request), axis=1)
+            populated_groups.append(group)
+        
+        pdf = pd.concat(populated_groups, ignore_index=True, sort=False)
+
+        cleaned_publication = []
+        for row in pdf["Publications"].to_list():
+            try:
+                tmp = [re.match(r"(\d{8})", e)[0] for e in row]
+                cleaned_publication.append(list(set(tmp))) # Removing duplicated publications
+            except Exception as e:
+                cleaned_publication.append([])
+                continue
+
+        pdf["Publications"] = cleaned_publication
+
+        return pdf
 
     @staticmethod 
     def publicationsFromPanel(panelId):
@@ -363,8 +385,11 @@ def main():
     # Writing evidence strings into a json file
     evidences = evidenceBuilder.writeEvidenceFromSource()
 
-    with open(outputFile, "wt") as f:
-        evidences.apply(lambda x: f.write(str(x)+'\n'))
+    # Exporting the outfile
+    with open(output_file, "wt") as f:
+        for evidence in evidences:
+            json.dump(evidence, f)
+            f.write('\n')
     
     logging.info(f"Evidence strings saved into {outputFile}. Exiting.")
 
