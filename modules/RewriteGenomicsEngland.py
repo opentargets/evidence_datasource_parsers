@@ -5,9 +5,11 @@ import requests
 import argparse
 import re
 import gzip
-from multiprocessing import Pool
+import json
+import multiprocessing as mp # from multiprocessing import Pool
 from itertools import chain
 import numpy as np
+import pandas as pd
 from pyspark import SparkContext
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import *
@@ -67,7 +69,7 @@ class PanelAppEvidenceGenerator():
 
         # Build evidence strings per row
         evidences = dataframe.rdd.map(
-            PanelAppEvidenceGenerator.parseEvidenceString)
+            PanelAppEvidenceGenerator.parseEvidenceString) \
             .collect() # list of dictionaries
         logging.info(f"{len(evidences)} evidence strings have been generated.")
 
@@ -89,8 +91,8 @@ class PanelAppEvidenceGenerator():
         populated_groups = []
 
         for (PanelId), group in pdf.groupby("Panel Id"):
-            request = PanelAppEvidenceGenerator.publications_from_panel(PanelId)
-            group["Publications"] = group.apply(lambda X: publication_from_symbol(X.Symbol, request), axis=1)
+            request = PanelAppEvidenceGenerator.publicationsFromPanel(PanelId)
+            group["Publications"] = group.apply(lambda X: PanelAppEvidenceGenerator.publicationFromSymbol(X.Symbol, request), axis=1)
             populated_groups.append(group)
         
         pdf = pd.concat(populated_groups, ignore_index=True, sort=False)
@@ -194,15 +196,15 @@ class PanelAppEvidenceGenerator():
         #   Querying OnToma with all distinch codes and phenotypes
         #   Xref between the results of every phenotype/OMIM code pair for a better coverage
         omimCodesDistinct = list(self.dataframe.select("omimCode").distinct().toPandas()["omimCode"])
-        phenotypesDistinct = list(self.dataframe.select("phenotype").distinct().toPandas()["omimCode"])
+        phenotypesDistinct = list(self.dataframe.select("phenotype").distinct().toPandas()["phenotype"])
         omimCodes = list(self.dataframe.toPandas()["omimCode"])
         phenotypes = list(self.dataframe.toPandas()["phenotype"])
         phenotypeCodePairs = list(zip(phenotypes, omimCodes))
 
-        if len(self.phenotypesMappings) == 0:
+        if self.phenotypesMappings is None:
             # Checks whether the dictionary is not provided as a parameter
             try:
-                pool = Pool(mp.cpu_count())
+                pool = mp.Pool(mp.cpu_count())
                 self.phenotypesMappings = pool.map(self.diseaseToEfo, phenotypesDistinct) # list of dictionaries
                 self.phenotypesMappings = {k:v for dct in self.phenotypesMappings for (k,v) in self.phenotypesMappings.items()}
                 pool.close()
@@ -300,7 +302,7 @@ class PanelAppEvidenceGenerator():
             ontomaUrl = self.phenotypesMappings[phenotype]["term"]
             ontomaLabel = self.phenotypesMappings[phenotype]["label"]
 
-            return ontomaResult, ontomaUrl, ontomaLabel # TO-DO: implement this # https://stackoverflow.com/questions/42980704/pyspark-create-new-column-with-mapping-from-a-dict
+            return ontomaResult, ontomaUrl, ontomaLabel # TO-DO: implement this https://stackoverflow.com/questions/42980704/pyspark-create-new-column-with-mapping-from-a-dict
 
     @staticmethod
     def parseEvidenceString(row):
@@ -311,7 +313,7 @@ class PanelAppEvidenceGenerator():
                 "confidence" : row["List"],
                 "diseaseFromSource" : row["phenotype"],
                 "diseaseFromSourceId" : row["omimCode"],
-                "diseaseFromSourceMappedId" : row["ontomaId"] if row["ontomaId"] else return,
+                "diseaseFromSourceMappedId" : row["ontomaUrl"], # if row["ontomaUrl"] else return
                 "cohortPhenotypes" : row["cohortPhenotypes"],
                 "targetFromSourceId" : row["Symbol"],
                 "allelicRequirements" : row["Mode of inheritance"],
