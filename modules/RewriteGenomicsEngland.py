@@ -6,6 +6,7 @@ import argparse
 import re
 from multiprocessing import Pool
 import functools as fn
+from itertools import chain
 import numpy as np
 from pyspark import SparkContext
 from pyspark.sql import SparkSession
@@ -281,7 +282,7 @@ class PanelAppEvidenceGenerator():
         except Exception as e:
             logging.error(f'No OMIM code for phenotype: {phenotype}')
 
-    def buildMappings(dataframe):
+    def buildMappings(self):
         '''
         Populates the dataframe with the mappings resulted from OnToma.
 
@@ -290,7 +291,13 @@ class PanelAppEvidenceGenerator():
         Return:
             dataframe (pyspark.DataFrame): DataFrame with new columns corresponding to the OnToma result
         '''
+        self.dataframe = self.dataframe \
+            .withColumn(
+                "ontomaResult",
+                when()
+            )
 
+        # https://stackoverflow.com/questions/42980704/pyspark-create-new-column-with-mapping-from-a-dict
         pass
     
     @staticmethod
