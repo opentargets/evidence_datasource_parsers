@@ -1,13 +1,14 @@
 from common.HGNCParser import GeneParser
 import logging
 import requests
+import argparse
+import json
+import numpy as np
+import gzip
 from pyspark import SparkContext, SparkFiles
 from pyspark.sql import SparkSession, Row
 from pyspark.sql.functions import *
 from pyspark.sql.types import *
-import argparse
-import numpy as np
-import pandas as pd
 
 class phewasEvidenceGenerator():
     def __init__(self, inputFile, mappingStep):
@@ -73,9 +74,11 @@ class phewasEvidenceGenerator():
         self.enrichedDataframe = self.enrichVariantData()
 
         # Build evidence strings per row
-        evidences = self.dataframe.rdd \
+        evidences = self.enrichedDataframe.rdd \
             .map(phewasEvidenceGenerator.parseEvidenceString) \
             .collect() # list of dictionaries
+        
+        return evidences
 
     def enrichVariantData(self):
         phewasWithConsequences = self.spark.read.csv(SparkFiles.get("phewas_w_consequences.csv"), header=True)
@@ -98,19 +101,13 @@ class phewasEvidenceGenerator():
                                     .filter(col("count(snp)") > 1)
         one2manyVariants = list(one2manyVariants_df.toPandas()["snp"])
         self.enrichedDataframe = self.dataframe.rdd.map(lambda X: phewasEvidenceGenerator.writeVariantId(X, one2manyVariants)).toDF()
-
-        '''df_ref = self.dataframe
-        oldSchema = self.dataframe.schema
-        newSchema = oldSchema.add("variantId", StringType(), True)
-        enrichedDataframe = df_ref.mapInPandas(phewasEvidenceGenerator.writeVariantId, schema=newSchema)
-        '''
         return self.enrichedDataframe
 
     @staticmethod
     def writeVariantId(row, one2manyVariants):
         rd = row.asDict()
         if row["snp"] not in one2manyVariants:
-            rd["variantId"] = "{}_{}_{}_{}".format(row["chrom"], row["pos"], row["ref"], row["alt"])
+            rd["variantId"] = "{}_{}_{}_{}".format(row["chrom"], row["pos"], row["ref"], row["alt"]) # TO-DO: fix pos casting
         else:
             rd["variantId"] = None
         new_row = Row(**rd)
@@ -167,7 +164,7 @@ def main():
     # Writing evidence strings into a json file
     evidences = evidenceBuilder.writeEvidenceFromSource()
 
-    with open(outputFile, "wt") as f:
+    with open(outputFile, "wt") as f: # TO-DO: export in .gz
         for evidence in evidences:
             json.dump(evidence, f)
             f.write('\n')
