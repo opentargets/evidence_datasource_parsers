@@ -4,8 +4,8 @@ import logging
 import requests
 import argparse
 import re
+import gzip
 from multiprocessing import Pool
-import functools as fn
 from itertools import chain
 import numpy as np
 from pyspark import SparkContext
@@ -216,8 +216,14 @@ class PanelAppEvidenceGenerator():
         for pheno, code in phenotypeCodePairs:
             self.phenotypeCodePairCheck(pheno, code)
 
-        # TODO: Add new columns: OnToma Result, OnToma Term, OnToma Label
-        #self.dataframe = self.buildMappings()
+        # Add new columns: ontomaResult, ontomaUrl, ontomaLabel
+        udfBuildMapping = udf(
+            lambda X: self.buildMapping(X),
+            ArrayType(StringType()))
+        self.dataframe = self.dataframe \
+            .withColumn("ontomaResult", udfBuildMapping(col("phenotype"))[0]) \
+            .withColumn("ontomaUrl", udfBuildMapping(col("phenotype"))[1]) \
+            .withColumn("ontomaLabel", udfBuildMapping(col("phenotype"))[1])
 
         return self.dataframe.filter(col("ontomaResult") == "match")
 
@@ -281,25 +287,21 @@ class PanelAppEvidenceGenerator():
                     self.phenotypesMappings[phenotype]["action"] = "checked"
         except Exception as e:
             logging.error(f'No OMIM code for phenotype: {phenotype}')
-
-    def buildMappings(self):
-        '''
-        Populates the dataframe with the mappings resulted from OnToma.
-
-        Args:
-            dataframe (pyspark.DataFrame): DataFrame with transformed PanelApp data
-        Return:
-            dataframe (pyspark.DataFrame): DataFrame with new columns corresponding to the OnToma result
-        '''
-        self.dataframe = self.dataframe \
-            .withColumn(
-                "ontomaResult",
-                when()
-            )
-
-        # https://stackoverflow.com/questions/42980704/pyspark-create-new-column-with-mapping-from-a-dict
-        pass
     
+    def buildMapping(self, phenotype):
+
+        '''newSchema = self.dataframe.schema \
+                        .add("ontomaResult", StringType(), True) \
+                        .add("ontomaUrl", StringType(), True) \
+                        .add("ontomaLabel", StringType(), True)'''
+                        
+        if phenotype in self.phenotypesMappings.keys():
+            ontomaResult = self.phenotypesMappings[phenotype]["quality"]
+            ontomaUrl = self.phenotypesMappings[phenotype]["term"]
+            ontomaLabel = self.phenotypesMappings[phenotype]["label"]
+
+            return ontomaResult, ontomaUrl, ontomaLabel # TO-DO: implement this # https://stackoverflow.com/questions/42980704/pyspark-create-new-column-with-mapping-from-a-dict
+
     @staticmethod
     def parseEvidenceString(row):
         try:
