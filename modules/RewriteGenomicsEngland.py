@@ -359,7 +359,7 @@ def main():
     "This script generates Genomics England PanelApp sourced evidences.")
 
     parser.add_argument("-i", "--inputFile", required=True, type=str, help="Input .tsv file with the table containing association details.")
-    parser.add_argument("-o", "--outputFile", required=True, type=str, help="Name of the json output file containing the evidence strings.")
+    parser.add_argument("-o", "--outputFile", required=True, type=str, help="Name of the compressed json.gz output file containing the evidence strings.")
     parser.add_argument("-d", "--mappingsDict", required=False, type=str, help="Path of the dictionary containing the mapped phenotypes.")
     parser.add_argument("-m", "--mappingStep", required=False, type=bool, default=True, help="State whether to run the disease to EFO term mapping step or not.")
 
@@ -393,7 +393,7 @@ def main():
     evidences = evidenceBuilder.writeEvidenceFromSource()
 
     # Exporting the outfile
-    with open(output_file, "wt") as f:
+    with gzip.open(output_file, "wt") as f:
         for evidence in evidences:
             json.dump(evidence, f)
             f.write('\n')
