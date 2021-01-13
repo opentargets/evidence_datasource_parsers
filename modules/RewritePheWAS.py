@@ -163,6 +163,7 @@ def main():
 
     # Writing evidence strings into a json file
     evidences = evidenceBuilder.writeEvidenceFromSource()
+    evidences = [i for n, i in enumerate(evidences) if i not in evidences[n + 1:]] 
 
     with gzip.open(outputFile, "wt") as f:
         for evidence in evidences:
