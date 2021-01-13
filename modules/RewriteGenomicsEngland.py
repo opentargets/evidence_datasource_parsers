@@ -7,7 +7,6 @@ import re
 import gzip
 import json
 import multiprocessing as mp # from multiprocessing import Pool
-from itertools import chain
 import numpy as np
 import pandas as pd
 from pyspark import SparkContext
@@ -57,6 +56,7 @@ class PanelAppEvidenceGenerator():
         # TODO: Feed the dataframe with publications
         logging.info("Fetching publications from the API...")
         pdf = PanelAppEvidenceGenerator.buildPublications(self.dataframe.toPandas())
+        pdf.dropna(axis=1, how='all', inplace=True) # Drops columns with all NA values
         self.dataframe = self.spark.createDataFrame(pdf)
         logging.info("Publications loaded.")
 
@@ -68,7 +68,7 @@ class PanelAppEvidenceGenerator():
             self.dataframe = self.runMappingStep()
 
         # Build evidence strings per row
-        evidences = dataframe.rdd.map(
+        evidences = self.dataframe.rdd.map(
             PanelAppEvidenceGenerator.parseEvidenceString) \
             .collect() # list of dictionaries
         logging.info(f"{len(evidences)} evidence strings have been generated.")
@@ -106,7 +106,7 @@ class PanelAppEvidenceGenerator():
                 cleaned_publication.append([])
                 continue
 
-        pdf["Publications"] = cleaned_publication
+        pdf["publications"] = cleaned_publication
 
         return pdf
 
@@ -175,6 +175,7 @@ class PanelAppEvidenceGenerator():
         stripLambda = udf(
             lambda X: X.strip(),
             StringType())
+        # TO-DO: Remove removal of "-"
         dataframe = dataframe \
                         .withColumn("omimCode", regexp_extract(col("phenotype"), "(\d{6})", 1)) \
                         .withColumn("phenotype", regexp_replace(col("phenotype"), "(\d{6})", "")) \
@@ -219,8 +220,9 @@ class PanelAppEvidenceGenerator():
             self.phenotypeCodePairCheck(pheno, code)
 
         # Add new columns: ontomaResult, ontomaUrl, ontomaLabel
+        phenotypesMappings = self.phenotypesMappings # TO-DO: refactor this workaround to avoid SparkContext error
         udfBuildMapping = udf(
-            lambda X: self.buildMapping(X),
+            lambda X: PanelAppEvidenceGenerator.buildMapping(X, phenotypesMappings),
             ArrayType(StringType()))
         self.dataframe = self.dataframe \
             .withColumn("ontomaResult", udfBuildMapping(col("phenotype"))[0]) \
@@ -290,17 +292,17 @@ class PanelAppEvidenceGenerator():
         except Exception as e:
             logging.error(f'No OMIM code for phenotype: {phenotype}')
     
-    def buildMapping(self, phenotype):
+    def buildMapping(phenotype, phenotypesMappings):
 
         '''newSchema = self.dataframe.schema \
                         .add("ontomaResult", StringType(), True) \
                         .add("ontomaUrl", StringType(), True) \
                         .add("ontomaLabel", StringType(), True)'''
                         
-        if phenotype in self.phenotypesMappings.keys():
-            ontomaResult = self.phenotypesMappings[phenotype]["quality"]
-            ontomaUrl = self.phenotypesMappings[phenotype]["term"]
-            ontomaLabel = self.phenotypesMappings[phenotype]["label"]
+        if phenotype in phenotypesMappings.keys():
+            ontomaResult = phenotypesMappings[phenotype]["quality"]
+            ontomaUrl = phenotypesMappings[phenotype]["term"]
+            ontomaLabel = phenotypesMappings[phenotype]["label"]
 
             return ontomaResult, ontomaUrl, ontomaLabel # TO-DO: implement this https://stackoverflow.com/questions/42980704/pyspark-create-new-column-with-mapping-from-a-dict
 
@@ -313,7 +315,7 @@ class PanelAppEvidenceGenerator():
                 "confidence" : row["List"],
                 "diseaseFromSource" : row["phenotype"],
                 "diseaseFromSourceId" : row["omimCode"],
-                "diseaseFromSourceMappedId" : row["ontomaUrl"], # if row["ontomaUrl"] else return
+                "diseaseFromSourceMappedId" : row["ontomaUrl"].split("/")[-1], # if row["ontomaUrl"] else return
                 "cohortPhenotypes" : row["cohortPhenotypes"],
                 "targetFromSourceId" : row["Symbol"],
                 "allelicRequirements" : row["Mode of inheritance"],
@@ -323,7 +325,7 @@ class PanelAppEvidenceGenerator():
             }
             return evidence
         except Exception as e:
-            logging.error(f'Evidence generation failed for row: {row.name}')
+            logging.error(f'Evidence generation failed for row: {"row"}')
             raise
     
     '''
@@ -397,7 +399,7 @@ def main():
     evidences = evidenceBuilder.writeEvidenceFromSource()
 
     # Exporting the outfile
-    with gzip.open(output_file, "wt") as f:
+    with gzip.open(outputFile, "wt") as f:
         for evidence in evidences:
             json.dump(evidence, f)
             f.write('\n')
