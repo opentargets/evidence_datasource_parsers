@@ -71,7 +71,9 @@ class phewasEvidenceGenerator():
         )
 
         # Get functional consequence per variant from OT Genetics Portal
-        self.enrichedDataframe = self.enrichVariantData()
+        cols = ["phewas_string", "phewas_code", "EFO_id", "odds_ratio", "p", "cases", "gene", "consequence_link", "variantId", "snp"]
+        self.enrichedDataframe = self.enrichVariantData() \
+                                        .dropDuplicates(cols)
 
         # Build evidence strings per row
         evidences = self.enrichedDataframe.rdd \
@@ -163,8 +165,7 @@ def main():
 
     # Writing evidence strings into a json file
     evidences = evidenceBuilder.writeEvidenceFromSource()
-    evidences = [i for n, i in enumerate(evidences) if i not in evidences[n + 1:]] 
-
+        
     with gzip.open(outputFile, "wt") as f:
         for evidence in evidences:
             json.dump(evidence, f)
