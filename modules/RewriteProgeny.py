@@ -48,6 +48,7 @@ PATHWAY_TARGET_MAP = {
 # === Pathway -> Reactome Pathway ID ===
 #TODO: 1. For Hypoxia and Trail pathway mapping to be established and description to be updated
 #TODO: 2. Androgen, Estrogen and WNT pathways should be referenced with https://www.biorxiv.org/content/10.1101/532739v1
+#TODO: 3. MAPK and p53 are mapped to the same pathway ID
 PATHWAY_REACTOME_MAP = {
     'Androgen': 'R-HSA-8940973:RUNX2 regulates osteoblast differentiation',
     'EGFR': 'R-HSA-8856828:Clathrin-mediated endocytosis',
