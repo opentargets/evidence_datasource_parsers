@@ -1,6 +1,12 @@
 import pandas as pd
-import json
 import argparse
+import gzip
+import logging
+import json
+from pyspark import SparkContext, SparkFiles
+from pyspark.sql import SparkSession, Row
+from pyspark.sql.functions import *
+from pyspark.sql.types import *
 
 # === TCGA -> EFO mapping ===
 TUMOR_TYPE_EFO_MAP = {
@@ -79,10 +85,6 @@ class progenyEvidenceGenerator():
         # Initialize mapping variables
         self.mappingStep = mappingStep
     
-        # Adding remote files to Spark Context
-        self.spark.sparkContext.addFile(self.mappingsFile)
-        self.spark.sparkContext.addFile(self.consequencesFile)
-    
         # Initialize input files
         self.inputFile = inputFile
         self.dataframe = None
@@ -94,15 +96,13 @@ class progenyEvidenceGenerator():
             evidences (array): Object with all the generated evidences strings from source file
         '''
         # Read input file
-        self.dataframe = spark.read
+        self.dataframe = self.spark.read \
                                 .option("header", "true") \
                                 .option("delimiter", "\t") \
                                 .option("inferSchema", "true") \
-                                .csv("progeny_normalVStumor_opentargets.txt")
+                                .csv(self.inputFile)
 
-        # Mapping step
-        if self.mappingStep:
-            # TO-DO 
+        # TO-DO: Implement Mapping step once I have the table
 
         # Build evidence strings per row
         evidences = self.dataframe.rdd \
@@ -122,7 +122,7 @@ class progenyEvidenceGenerator():
                 "resourceScore" : row["P.Value"],
                 "pathwayName" : PATHWAY_REACTOME_MAP[row["Pathway"]].split(":")[1],
                 "pathwayId" : PATHWAY_REACTOME_MAP[row["Pathway"]].split(":")[0],
-                "targetFromSourceId" : PATHWAY_TARGET_MAP[row["Pathway"]] 
+                "targetFromSourceId" : PATHWAY_TARGET_MAP[row["Pathway"]] # TO-DO: Explode this list
             }
             return evidence
         except Exception as e:
@@ -158,7 +158,7 @@ def main():
     # Writing evidence strings into a json file
     evidences = evidenceBuilder.writeEvidenceFromSource()
 
-    with open(outputFile, "wt") as f: # TO-DO: export in .gz
+    with gzip.open(outputFile, "wt") as f: # TO-DO: export in .gz
         for evidence in evidences:
             json.dump(evidence, f)
             f.write('\n')
