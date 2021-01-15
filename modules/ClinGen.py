@@ -50,15 +50,7 @@ class ClinGen():
 
     def generate_evidence_strings(self, filename):
 
-        # When reading csv file first extract date from second row and the skip header lines that don't contain column names
-
-        # Read first two rows of file to extract date
-        with open(filename) as f:
-            f.readline() # Don't do anything with first row
-            second_row = f.readline()
-            file_created_date = second_row.split(": ")[1].strip() # Extract date and clean it
-
-
+        # When reading csv file skip header lines that don't contain column names
         gene_validity_curation_df = pd.read_csv(filename, skiprows= [0,1,2,3,5], quotechar='"')
         for index, row in gene_validity_curation_df.iterrows():
             print("{} - {}".format(row["GENE SYMBOL"], row["DISEASE LABEL"]))
