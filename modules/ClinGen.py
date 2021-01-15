@@ -19,7 +19,7 @@ ClinGen_classification2score = {
 }
 
 class ClinGen():
-    def __init__(self, schema_version=Config.VALIDATED_AGAINST_SCHEMA_VERSION):
+    def __init__(self):
 
         self.evidence_strings = list()
         self.unmapped_diseases = set()
@@ -41,23 +41,6 @@ class ClinGen():
 
         # Add ch to handler
         self._logger.addHandler(ch)
-
-        # Build JSON schema url from version
-        self.schema_version = schema_version
-        schema_url = "https://raw.githubusercontent.com/opentargets/json_schema/" + self.schema_version + "/draft4_schemas/opentargets.json"
-        self._logger.info('Loading JSON schema at {}'.format(schema_url))
-
-        # Initialize json builder based on the schema:
-        try:
-            r = requests.get(schema_url)
-            r.raise_for_status()
-            json_schema = r.json()
-            self.builder = pjo.ObjectBuilder(json_schema)
-            self.evidence_builder = self.builder.build_classes()
-            self.schema_version = schema_version
-        except requests.exceptions.HTTPError as e:
-            self._logger.error('Invalid JSON schema version')
-            raise e
 
         # Create OnToma object
         self.ontoma = ontoma.interface.OnToma()
