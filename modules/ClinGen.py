@@ -8,14 +8,6 @@ import pandas as pd
 import requests
 import argparse
 
-__copyright__  = "Copyright 2014-2020, Open Targets"
-__credits__    = ["Asier Gonzalez" ]
-__license__    = "Apache 2.0"
-__version__    = "0.0.1"
-__maintainer__ = "Open Targets Data Team"
-__email__      = ["data@opentargets.org"]
-__status__     = "Prototype"
-
 ClinGen_classification2score = {
     "Definitive": 1,
     "Strong": 1,
