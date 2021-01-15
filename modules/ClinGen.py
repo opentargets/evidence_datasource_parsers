@@ -28,7 +28,7 @@ ClinGen_classification2score = {
 
 class ClinGen():
     def __init__(self, schema_version=Config.VALIDATED_AGAINST_SCHEMA_VERSION):
-        self.genes = None
+
         self.evidence_strings = list()
         self.unmapped_diseases = set()
 
