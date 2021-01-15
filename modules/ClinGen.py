@@ -118,12 +118,10 @@ class ClinGen():
 
             for efo_mapping in efo_mappings:
 
-                # *** Disease info ***
-                disease_info = {
-                    'id': ontoma.interface.make_uri(efo_mapping['id']),
-                    'name' : efo_mapping['name'],
-                    'source_name': disease_name
-                }
+                # *** Disease fields ***
+                disease_from_source = disease_name
+                disease_from_source_id = disease_id
+                disease_from_source_mapped_id = efo_mapping['id']
 
                 type = "genetic_literature"
 
