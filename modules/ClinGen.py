@@ -1,11 +1,7 @@
-from settings import Config
 import ontoma
-
-import python_jsonschema_objects as pjo
 
 import logging
 import pandas as pd
-import requests
 import argparse
 
 
