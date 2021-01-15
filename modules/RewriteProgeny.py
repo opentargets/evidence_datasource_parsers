@@ -10,8 +10,8 @@ from pyspark.sql.types import *
 
 # === TCGA -> EFO mapping ===
 TUMOR_TYPE_EFO_MAP = {
-    'BLCA': "EFO_0000292",
-    'BRCA': "EFO_0000305",
+    'BLCA': "EFO_0000292", # Maybe MONDO_0004163 Bladder Urothelial Carcinoma
+    'BRCA': "EFO_0000305", # EFO_1000307 
     'HNSC': "EFO_0000181",
     'KIRC': "EFO_0000349",
     'LIHC': "EFO_0000182",
@@ -23,7 +23,7 @@ TUMOR_TYPE_EFO_MAP = {
     'UCEC': "EFO_1000233",
     'KICH': "EFO_0000335",
     'KIRP': "EFO_0000640",
-    'COREAD': "EFO_0005406"
+    'COREAD': "EFO_0005406" # EFO_0000365 Adenoma to adenocarcinoma
 }
 
 # Pathway -> Perturbed Targets
@@ -123,7 +123,7 @@ class progenyEvidenceGenerator():
                 "resourceScore" : row["P.Value"],
                 "pathwayName" : PATHWAY_REACTOME_MAP[row["Pathway"]].split(":")[1],
                 "pathwayId" : PATHWAY_REACTOME_MAP[row["Pathway"]].split(":")[0],
-                "targetFromSourceId" : PATHWAY_TARGET_MAP[row["Pathway"]] # TO-DO: Explode this list
+                "targetFromSourceId" : PATHWAY_TARGET_MAP[row["Pathway"]] # TO-DO: Explode this list AND correct mapping with PROGENY_SYMBOL_MAPPING
             }
             return evidence
         except Exception as e:
