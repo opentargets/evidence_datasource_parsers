@@ -72,7 +72,7 @@ class ClinGen():
             gene_symbol = row["GENE SYMBOL"]
             disease_name = row["DISEASE LABEL"]
             disease_id = row["DISEASE ID (MONDO)"]
-            mode_of_inheritancr = row["MOI"]
+            mode_of_inheritance = row["MOI"]
             classification = row["CLASSIFICATION"]
             date = row["CLASSIFICATION DATE"]
             report_url = row["ONLINE REPORT"]
@@ -109,20 +109,6 @@ class ClinGen():
 
             for efo_mapping in efo_mappings:
 
-                # *** Disease fields ***
-                disease_from_source = disease_name
-                disease_from_source_id = disease_id
-                disease_from_source_mapped_id = efo_mapping['id']
-
-                type = "genetic_literature"
-
-                # *** General properties ***
-                sourceID = "clingen"
-
-                # *** Target fields ***
-                target_from_source_id = gene_symbol
-
-
                 # FIXME: Store report URL in field designed for ChEMBL clinical trials URLs
                 linkout = [
                     {
@@ -132,32 +118,19 @@ class ClinGen():
                 ]
 
                 evidence = {
-                    'is_associated' : True,
-                    'confidence' : classification,
-                    'allelic_requirement' : mode_of_inheritancr,
-                    'evidence_codes' : ["http://purl.obolibrary.org/obo/ECO_0000204"],
-                    'provenance_type' : provenance_type,
-                    'date_asserted' : date,
-                    'resource_score' : resource_score,
-                    'urls' : linkout
+                    'datasourceId' : 'clingen',
+                    'datatypeId' : 'genetic_literature',
+                    'targetFromSourceId' : gene_symbol,
+                    'diseaseFromSource': disease_name,
+                    'diseaseFromSourceId': disease_id,
+                    'diseaseFromSourceMappedId': efo_mapping['id'],
+                    'allelicRequirements': mode_of_inheritance,
+                    'confidence': classification,
+                    'studyId': '',
+                    'clinicalUrls': linkout
                 }
 
-
-                try:
-                    evidence = self.evidence_builder.Opentargets(
-                        type = type,
-                        access_level = access_level,
-                        sourceID = sourceID,
-                        evidence = evidence,
-                        target = target,
-                        disease = disease_info,
-                        unique_association_fields = unique_association_fields,
-                        validated_against_schema_version = validated_against_schema_version
-                    )
-                    self.evidence_strings.append(evidence)
-                except:
-                    self._logger.warning('Evidence generation failed for row: {}'.format(index))
-                    raise
+                self.evidence_strings.append(evidence)
 
     def write_evidence_strings(self, filename):
         self._logger.info("Writing ClinGen evidence strings to %s", filename)
