@@ -125,23 +125,8 @@ class ClinGen():
 
                 type = "genetic_literature"
 
-                provenance_type = {
-                    'database' : {
-                        'id' : "ClinGen - Gene Validity Curations",
-                        'version' : file_created_date,
-                        'dbxref' : {
-                            'url': "https://search.clinicalgenome.org/kb/gene-validity",
-                            'id' : "ClinGen - Gene Validity Curations",
-                            'version' : file_created_date
-
-                        }
-                    }
-                }
-
                 # *** General properties ***
-                access_level = "public"
                 sourceID = "clingen"
-                validated_against_schema_version = self.schema_version
 
                 # *** Target info ***
                 target = {
