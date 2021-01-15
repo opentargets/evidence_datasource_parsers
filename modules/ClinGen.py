@@ -128,14 +128,8 @@ class ClinGen():
                 # *** General properties ***
                 sourceID = "clingen"
 
-                # *** Target info ***
-                target = {
-                    'id' : ensembl_iri,
-                    'activity' : "http://identifiers.org/cttv.activity/unknown",
-                    'target_type' : "http://identifiers.org/cttv.target/gene_evidence",
-                    'target_name' : gene_symbol
-                }
-                # http://www.ontobee.org/ontology/ECO?iri=http://purl.obolibrary.org/obo/ECO_0000204 -- An evidence type that is based on an assertion by the author of a paper, which is read by a curator.
+                # *** Target fields ***
+                target_from_source_id = gene_symbol
 
                 # *** Evidence info ***
                 # Score based on disease confidence/ classification
