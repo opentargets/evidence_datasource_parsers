@@ -60,7 +60,7 @@ class ClinGen():
             disease_id = row["DISEASE ID (MONDO)"]
             mode_of_inheritance = row["MOI"]
             classification = row["CLASSIFICATION"]
-            date = row["CLASSIFICATION DATE"]
+            expert_panel_name = row["GCEP"]
             report_url = row["ONLINE REPORT"]
 
             gene_symbol.rstrip()
@@ -112,7 +112,7 @@ class ClinGen():
                     'diseaseFromSourceMappedId': efo_mapping['id'],
                     'allelicRequirements': mode_of_inheritance,
                     'confidence': classification,
-                    'studyId': '',
+                    'studyId': expert_panel_name,
                     'clinicalUrls': linkout
                 }
 
