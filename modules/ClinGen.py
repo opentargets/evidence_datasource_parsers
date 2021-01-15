@@ -123,7 +123,7 @@ class ClinGen():
                 target_from_source_id = gene_symbol
 
 
-                # Linkout
+                # FIXME: Store report URL in field designed for ChEMBL clinical trials URLs
                 linkout = [
                     {
                         'url' : report_url,
