@@ -138,9 +138,6 @@ def main():
     parser.add_argument('-o', '--output_file',
                         help='Name of evidence file',
                         type=str, required=True)
-    parser.add_argument('-s', '--schema_version',
-                        help='JSON schema version to use, e.g. 1.6.8. It must be branch or a tag available in https://github.com/opentargets/json_schema',
-                        type=str, required=True)
     parser.add_argument('-u', '--unmapped_diseases_file',
                         help='If specified, the diseases not mapped to EFO will be stored in this file',
                         type=str, default=False)
@@ -149,10 +146,9 @@ def main():
     # Get parameters
     infile = args.input_file
     outfile = args.output_file
-    schema_version = args.schema_version
     unmapped_diseases_file = args.unmapped_diseases_file
 
-    clingen = ClinGen(schema_version=schema_version)
+    clingen = ClinGen()
     clingen.process_gene_validity_curations(infile, outfile, unmapped_diseases_file)
 
 if __name__ == "__main__":
