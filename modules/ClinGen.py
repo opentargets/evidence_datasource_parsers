@@ -51,12 +51,6 @@ class ClinGen():
     def generate_evidence_strings(self, filename):
 
         # When reading csv file first extract date from second row and the skip header lines that don't contain column names
-        # CLINGEN GENE VALIDITY CURATIONS
-        # FILE CREATED: 2020-07-16
-        # WEBPAGE: https://search.clinicalgenome.org/kb/gene-validity
-        # +++++++++++,++++++++++++++,+++++++++++++,++++++++++++++++++,+++++++++,+++++++++,++++++++++++++,+++++++++++++,+++++++++++++++++++
-        # GENE SYMBOL,GENE ID (HGNC),DISEASE LABEL,DISEASE ID (MONDO),MOI,SOP,CLASSIFICATION,ONLINE REPORT,CLASSIFICATION DATE
-        # +++++++++++,++++++++++++++,+++++++++++++,++++++++++++++++++,+++++++++,+++++++++,++++++++++++++,+++++++++++++,+++++++++++++++++++
 
         # Read first two rows of file to extract date
         with open(filename) as f:
