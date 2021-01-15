@@ -3,6 +3,7 @@ import ontoma
 import logging
 import pandas as pd
 import argparse
+import json
 
 
 class ClinGen():
@@ -118,7 +119,8 @@ class ClinGen():
         self._logger.info("Writing ClinGen evidence strings to %s", filename)
         with open(filename, 'w') as tp_file:
             for evidence_string in self.evidence_strings:
-                tp_file.write(evidence_string.serialize() + "\n")
+                json.dump(evidence_string, tp_file)
+                tp_file.write("\n")
 
     def write_unmapped_diseases(self, filename):
         self._logger.info("Writing ClinGen diseases not mapped to EFO to %s", filename)
