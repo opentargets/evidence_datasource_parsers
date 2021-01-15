@@ -141,12 +141,6 @@ class ClinGen():
                     'resource_score' : resource_score,
                     'urls' : linkout
                 }
-                # *** unique_association_fields ***
-                unique_association_fields = {
-                    'target_id' : ensembl_iri,
-                    'disease_id' : disease_id,
-                    'report_url' : report_url
-                }
 
 
                 try:
