@@ -106,8 +106,8 @@ class ClinGen():
                     'targetFromSourceId' : gene_symbol,
                     'diseaseFromSource': disease_name,
                     'diseaseFromSourceId': disease_id,
-                    'diseaseFromSourceMappedId': efo_mapping['id'],
-                    'allelicRequirements': mode_of_inheritance,
+                    'diseaseFromSourceMappedId': ontoma.interface.make_uri(efo_mapping['id']).split("/")[-1],
+                    'allelicRequirements': [mode_of_inheritance],
                     'confidence': classification,
                     'studyId': expert_panel_name,
                     'clinicalUrls': linkout
