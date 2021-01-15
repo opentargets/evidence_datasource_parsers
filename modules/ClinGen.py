@@ -8,15 +8,6 @@ import pandas as pd
 import requests
 import argparse
 
-ClinGen_classification2score = {
-    "Definitive": 1,
-    "Strong": 1,
-    "Moderate": 0.5,
-    "Limited": 0.01,
-    "Disputed": 0.01,
-    "Refuted": 0.01,
-    "No Reported Evidence": 0.01,
-}
 
 class ClinGen():
     def __init__(self):
@@ -131,17 +122,6 @@ class ClinGen():
                 # *** Target fields ***
                 target_from_source_id = gene_symbol
 
-                # *** Evidence info ***
-                # Score based on disease confidence/ classification
-                if classification in ClinGen_classification2score:
-                    score = ClinGen_classification2score[classification]
-                else:
-                    self.logger.error('{} is not a recognised ClinGen classification, assigning an score of 0'.format(classification))
-                    score = 0
-                resource_score = {
-                    'type': "probability",
-                    'value': score
-                }
 
                 # Linkout
                 linkout = [
