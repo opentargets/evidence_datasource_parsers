@@ -4,7 +4,7 @@ import gzip
 import logging
 import json
 from pyspark import SparkContext, SparkFiles
-from pyspark.sql import SparkSession, Row
+from pyspark.sql import SparkSession
 from pyspark.sql.functions import *
 from pyspark.sql.types import *
 
@@ -88,6 +88,8 @@ class progenyEvidenceGenerator():
         # Mapping step
         if self.mappingStep:
             self.dataframe = self.cancer2EFO()
+        
+        self.dataframe = self.pathway2Reactome()
 
         # Build evidence strings per row
         evidences = self.dataframe.rdd \
@@ -97,16 +99,33 @@ class progenyEvidenceGenerator():
         return evidences
     
     def cancer2EFO(self):
-        mappingsFile = self.spark \
+        diseaseMappingsFile = self.spark \
                         .read.csv("resources/cancer2EFO_mappings.tsv", sep=r'\t', header=True) \
                         .select("Cancer_type_acronym", "EFO_id") \
                         .withColumnRenamed("Cancer_type_acronym", "Cancer_type")
 
         self.dataframe = self.dataframe.join(
-            mappingsFile,
+            diseaseMappingsFile,
             on="Cancer_type",
             how="inner"
         )
+
+        return self.dataframe
+    
+    def pathway2Reactome(self):
+        pathwayMappingsFile = self.spark \
+                        .read.csv("resources/pathway2Reactome_mappings.tsv", sep=r'\t', header=True) \
+                        .withColumnRenamed("pathway", "Pathway")
+        
+        self.dataframe = self.dataframe \
+                .join(
+                    pathwayMappingsFile,
+                    on="Pathway",
+                    how="inner"
+                )
+        self.dataframe = self.dataframe \
+                .withColumn("target", explode("target"))
+        #print(self.dataframe.first())
 
         return self.dataframe
 
@@ -119,9 +138,9 @@ class progenyEvidenceGenerator():
                 "diseaseFromSource" : row["Cancer_type"],
                 "diseaseFromSourceMappedId" : row["EFO_id"],
                 "resourceScore" : row["P.Value"],
-                "pathwayName" : PATHWAY_REACTOME_MAP[row["Pathway"]].split(":")[1],
-                "pathwayId" : PATHWAY_REACTOME_MAP[row["Pathway"]].split(":")[0],
-                "targetFromSourceId" : PATHWAY_TARGET_MAP[row["Pathway"]] # TO-DO: Explode this list AND correct mapping with PROGENY_SYMBOL_MAPPING
+                "pathwayName" : row["description"],
+                "pathwayId" : row["reactomeId"],
+                "targetFromSourceId" : row["target"] # TO-DO: mapping corrections with PROGENY_SYMBOL_MAPPING
             }
             return evidence
         except Exception as e:
