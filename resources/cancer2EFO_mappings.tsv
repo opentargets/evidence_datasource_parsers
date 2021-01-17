@@ -1,4 +1,4 @@
-Cancer_type_acronyme	Cancer_type_name	EFO_id	EFO_name	Source
+Cancer_type_acronym	Cancer_type_name	EFO_id	EFO_name	Source
 BLCA	Bladder cancer	MONDO_0001187	urinary bladder cancer	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
 BRCA	Breast adenocarcinoma	EFO_0000304	breast adenocarcinoma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
 HNSC	Head and Neck squamous cell carcinoma	EFO_0000181	head and neck squamous cell carcinoma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
@@ -18,8 +18,6 @@ CLL	Chronic lymphoblastic leukemia	EFO_0000095	chronic lymphocytic leukemia	http
 DLBC	Diffuse large B-cell lymphoma	EFO_0000403	diffuse large B-cell lymphoma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
 ESCA	Esophageal cancer	MONDO_0007576	esophageal cancer	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
 GBM	Glioblastoma	EFO_0000519	glioblastoma multiforme	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
-HNSC	Head and Neck squamous cell carcinoma	EFO_0000181		
-KIRC	Kidney renal clear cell carcinoma	EFO_0000349	clear cell renal carcinoma	https://gdc.cancer.gov/resources-tcga-users/tcga-code-tables/tcga-study-abbreviations
 LAML	Acute Myeloid Leukemia	EFO_0000222	acute myeloid leukemia	https://gdc.cancer.gov/resources-tcga-users/tcga-code-tables/tcga-study-abbreviations
 LGG	Lower grade glioma	MONDO_0021637	low grade glioma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
 MB	Medulloblastoma	EFO_0002939	medulloblastoma	https://gdc.cancer.gov/resources-tcga-users/tcga-code-tables/tcga-study-abbreviations

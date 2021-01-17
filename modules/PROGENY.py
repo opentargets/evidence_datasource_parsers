@@ -8,24 +8,6 @@ from pyspark.sql import SparkSession, Row
 from pyspark.sql.functions import *
 from pyspark.sql.types import *
 
-# === TCGA -> EFO mapping ===
-TUMOR_TYPE_EFO_MAP = {
-    'BLCA': "EFO_0000292", # Maybe MONDO_0004163 Bladder Urothelial Carcinoma
-    'BRCA': "EFO_0000305", # EFO_1000307 
-    'HNSC': "EFO_0000181",
-    'KIRC': "EFO_0000349",
-    'LIHC': "EFO_0000182",
-    'LUAD': "EFO_0000571",
-    'LUSC': "EFO_0000708",
-    'PRAD': "EFO_0000673",
-    'STAD': "EFO_0000503",
-    'THCA': "EFO_0002892",
-    'UCEC': "EFO_1000233",
-    'KICH': "EFO_0000335",
-    'KIRP': "EFO_0000640",
-    'COREAD': "EFO_0005406" # EFO_0000365 Adenoma to adenocarcinoma
-}
-
 # Pathway -> Perturbed Targets
 # https://drive.google.com/drive/folders/1L5Y_umEZiccWJnXiiaYMNKUKYTjnp3ZU
 PATHWAY_TARGET_MAP = {
@@ -103,7 +85,9 @@ class progenyEvidenceGenerator():
                                 .option("inferSchema", "true") \
                                 .csv(self.inputFile)
 
-        # TO-DO: Implement Mapping step once I have the table
+        # Mapping step
+        if self.mappingStep:
+            self.dataframe = self.buildMapping()
 
         # Build evidence strings per row
         evidences = self.dataframe.rdd \
@@ -111,6 +95,20 @@ class progenyEvidenceGenerator():
             .collect() # list of dictionaries
         
         return evidences
+    
+    def buildMapping(self):
+        mappingsFile = self.spark \
+                        .read.csv("resources/cancer2EFO_mappings.tsv", sep=r'\t', header=True) \
+                        .select("Cancer_type_acronym", "EFO_id") \
+                        .withColumnRenamed("Cancer_type_acronym", "Cancer_type")
+
+        self.dataframe = self.dataframe.join(
+            mappingsFile,
+            on="Cancer_type",
+            how="inner"
+        )
+
+        return self.dataframe
 
     @staticmethod
     def parseEvidenceString(row):
@@ -119,7 +117,7 @@ class progenyEvidenceGenerator():
                 "datasourceId" : "progeny",
                 "datatypeId" : "affected_pathway",
                 "diseaseFromSource" : row["Cancer_type"],
-                "diseaseFromSourceMappedId" : TUMOR_TYPE_EFO_MAP[row["Cancer_type"]],
+                "diseaseFromSourceMappedId" : row["EFO_id"],
                 "resourceScore" : row["P.Value"],
                 "pathwayName" : PATHWAY_REACTOME_MAP[row["Pathway"]].split(":")[1],
                 "pathwayId" : PATHWAY_REACTOME_MAP[row["Pathway"]].split(":")[0],
