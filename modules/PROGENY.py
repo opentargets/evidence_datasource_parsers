@@ -87,7 +87,7 @@ class progenyEvidenceGenerator():
 
         # Mapping step
         if self.mappingStep:
-            self.dataframe = self.buildMapping()
+            self.dataframe = self.cancer2EFO()
 
         # Build evidence strings per row
         evidences = self.dataframe.rdd \
@@ -96,7 +96,7 @@ class progenyEvidenceGenerator():
         
         return evidences
     
-    def buildMapping(self):
+    def cancer2EFO(self):
         mappingsFile = self.spark \
                         .read.csv("resources/cancer2EFO_mappings.tsv", sep=r'\t', header=True) \
                         .select("Cancer_type_acronym", "EFO_id") \
