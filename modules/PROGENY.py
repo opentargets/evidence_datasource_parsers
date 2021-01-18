@@ -8,56 +8,6 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import *
 from pyspark.sql.types import *
 
-# Pathway -> Perturbed Targets
-# https://drive.google.com/drive/folders/1L5Y_umEZiccWJnXiiaYMNKUKYTjnp3ZU
-PATHWAY_TARGET_MAP = {
-    'Androgen': ['AR'],
-    'EGFR': ['EGFR'],
-    'Estrogen': ['ESR1'],
-    'Hypoxia': ['HIF1A'],
-    'JAK.STAT': ['JAK1', 'JAK2', 'STAT1', 'STAT2'],
-    'MAPK': ['MAPK2K1', 'MAP2K2', 'RAF1'],
-    'NFkB': ['TLR4', 'NKFB1', 'RELA'],
-    'PI3K': ['PIK3CA', 'PI3K(Class1)'],
-    'TGFb': ['TGFBR1', 'TGFBR2'],
-    'TNFa': ['TNFRSF1A'],
-    'Trail': ['TNFSF10', 'BCL2', 'BCL-XL', 'BCL-W', 'MCL1'],
-    'VEGF': ['VEGFR'],
-    'WNT': ['WNT3A', 'GSK3A', 'GSK3B'],
-    'p53': ['TP53']
-}
-
-# === Pathway -> Reactome Pathway ID ===
-#TODO: 1. For Hypoxia and Trail pathway mapping to be established and description to be updated
-#TODO: 2. Androgen, Estrogen and WNT pathways should be referenced with https://www.biorxiv.org/content/10.1101/532739v1
-#TODO: 3. MAPK and p53 are mapped to the same pathway ID
-PATHWAY_REACTOME_MAP = {
-    'Androgen': 'R-HSA-8940973:RUNX2 regulates osteoblast differentiation',
-    'EGFR': 'R-HSA-8856828:Clathrin-mediated endocytosis',
-    'Estrogen': 'R-HSA-8939902:Regulation of RUNX2 expression and activity',
-    'Hypoxia': 'R-HSA-123456:XXX Pathway desc to be updated',
-    'JAK.STAT': 'R-HSA-6785807:Interleukin-4 and 13 signaling',
-    'MAPK': 'R-HSA-2559580:Oxidative Stress Induced Senescence',
-    'NFkB': 'R-HSA-9020702:Interleukin-1 signaling',
-    'PI3K': 'R-HSA-8853659:RET signaling',
-    'TGFb': 'R-HSA-2173788:Downregulation of TGF-beta receptor signaling',
-    'TNFa': 'R-HSA-5357956:TNFR1-induced NFkappaB signaling pathway',
-    'Trail': 'R-HSA-123456:XXX Pathway desc to be updated',
-    'VEGF': 'R-HSA-1234158:Regulation of gene expression by Hypoxia-inducible Factor',
-    'WNT': 'R-HSA-381340:Transcriptional regulation of white adipocyte differentiation',
-    'p53': 'R-HSA-2559580:Oxidative Stress Induced Senescence'
-}
-
-# === These symbols are secondary/generic/typo that need updating ===
-PROGENY_SYMBOL_MAPPING = {
-    'NKFB1': 'NFKB1',
-    'MAPK2K1': 'PRKMK1',
-    'PI3K(Class1)': 'PIK3CA',
-    'VEGFR': 'KDR',
-    'BCL-W': 'BCL2L2',
-    'BCL-XL': 'BCL2L1'
-}
-
 class progenyEvidenceGenerator():
     def __init__(self, inputFile, mappingStep):
         # Create spark session     
@@ -145,7 +95,7 @@ class progenyEvidenceGenerator():
                 "resourceScore" : row["P.Value"],
                 "pathwayName" : row["description"],
                 "pathwayId" : row["reactomeId"],
-                "targetFromSourceId" : row["target"] # TO-DO: mapping corrections with PROGENY_SYMBOL_MAPPING
+                "targetFromSourceId" : row["target"]
             }
             return evidence
         except Exception as e:
@@ -181,7 +131,7 @@ def main():
     # Writing evidence strings into a json file
     evidences = evidenceBuilder.writeEvidenceFromSource()
 
-    with gzip.open(outputFile, "wt") as f: # TO-DO: export in .gz
+    with gzip.open(outputFile, "wt") as f:
         for evidence in evidences:
             json.dump(evidence, f)
             f.write('\n')
