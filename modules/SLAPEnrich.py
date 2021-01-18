@@ -78,7 +78,9 @@ class SLAPEnrichEvidenceGenerator():
                         .read.csv("slapenrich_opentargets.tsv", sep=r'\t', header=True) \
                         .select("ctype", "gene", "pathway", "SLAPEnrichPval") \
                         .withColumnRenamed("ctype", "Cancer_type_acronym") \
-                        .withColumnRenamed("SLAPEnrichPval", "pval")
+                        .withColumnRenamed("SLAPEnrichPval", "pval") \
+                        .withColumn("pathwayId", split(col("pathway"), ": ").getItem(0)) \
+                        .withColumn("pathwayDescription", split(col("pathway"), ": ").getItem(1))
 
         # Mapping step
         if self.mappingStep:
@@ -113,8 +115,8 @@ class SLAPEnrichEvidenceGenerator():
                 "diseaseFromSource" : row["Cancer_type_acronym"],
                 "diseaseFromSourceMappedId" : row["EFO_id"],
                 "resourceScore" : row["pval"],
-                "pathwayName" : row["pathway"], #split pathway
-                "pathwayId" : row["pathway"], #split pathway
+                "pathwayName" : row["pathwayDescription"],
+                "pathwayId" : row["pathwayId"],
                 "targetFromSourceId" : row["gene"]
             }
             return evidence
