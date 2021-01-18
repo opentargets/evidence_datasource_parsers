@@ -195,7 +195,7 @@ The PROGENy parser processes three files:
 The source table is then formatted into a compressed set of JSON lines following the schema of the version to be used.
 
 The parser requires three parameters:
-- `-i`, `--inputFile`: Name of tsv file located in the [Panel App bucket](https://storage.googleapis.com/otar000-evidence_input/PanelApp/20.11/All_genes_20200928-1959.tsv).
+- `-i`, `--inputFile`: Name of tsv file located in the [PROGENy bucket](https://storage.googleapis.com/otar000-evidence_input/PROGENy/data_files/progeny_normalVStumor_opentargets.txt).
 - `-o`, `--outputFile`: Name of the evidence compressed JSON file containing the evidence strings.
 - `-s`, `--mappingStep`: State whether to run the disease to EFO term mapping step. It is True by default.
 
