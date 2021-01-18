@@ -92,11 +92,9 @@ class ClinGen():
 
             for efo_mapping in efo_mappings:
 
-                # FIXME: Store report URL in field designed for ChEMBL clinical trials URLs
                 linkout = [
                     {
-                        'url' : report_url,
-                        'nice_name' : 'Gene Validity Curations: {} - {} report'.format(gene_symbol, disease_name)
+                        'url' : report_url
                     }
                 ]
 
@@ -110,7 +108,7 @@ class ClinGen():
                     'allelicRequirements': [mode_of_inheritance],
                     'confidence': classification,
                     'studyId': expert_panel_name,
-                    'clinicalUrls': linkout
+                    'urls': linkout
                 }
 
                 self.evidence_strings.append(evidence)
