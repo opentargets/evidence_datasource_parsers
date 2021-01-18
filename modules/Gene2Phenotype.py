@@ -1,5 +1,4 @@
 from settings import Config
-from common.HGNCParser import GeneParser
 from common.RareDiseasesUtils import RareDiseaseMapper
 import ontoma
 
@@ -39,7 +38,6 @@ G2P_mutationCsq2functionalCsq = {
 class G2P(RareDiseaseMapper):
     def __init__(self, g2p_version, schema_version=Config.VALIDATED_AGAINST_SCHEMA_VERSION):
         super(G2P, self).__init__()
-        self.genes = None
         self.evidence_strings = list()
         self.unmapped_diseases = set()
         self.g2p_version = g2p_version
@@ -232,10 +230,6 @@ class G2P(RareDiseaseMapper):
 
         self.get_omim_to_efo_mappings()
 
-        gene_parser = GeneParser()
-        gene_parser._get_hgnc_data_from_json()
-        self.genes = gene_parser.genes
-
         # Parser DD file
         self._logger.info("Started parsing DD file")
         self.generate_evidence_strings(dd_file)
@@ -291,130 +285,125 @@ class G2P(RareDiseaseMapper):
 
                 gene_symbol.rstrip()
 
-                if gene_symbol in self.genes:
-                    # Map gene symbol to ensembl
-                    target = self.genes[gene_symbol]
-                    ensembl_iri = "http://identifiers.org/ensembl/" + target
+                # Map disease to ontology terms
+                disease_mapping = self.map_disease_name_to_ontology(disease_name, disease_mim)
+                if disease_mapping:
+                    total_efo +=1
 
-                    # Map disease to ontology terms
-                    disease_mapping = self.map_disease_name_to_ontology(disease_name, disease_mim)
-                    if disease_mapping:
-                        total_efo +=1
+                    self._logger.info(f"{gene_symbol}, {target}, '{disease_name}', {disease_mapping['id']}")
 
-                        self._logger.info(f"{gene_symbol}, {target}, '{disease_name}', {disease_mapping['id']}")
+                    type = "genetic_literature"
 
-                        type = "genetic_literature"
-
-                        provenance_type = {
-                            'database' : {
+                    provenance_type = {
+                        'database' : {
+                            'id' : "Gene2Phenotype",
+                            'version' : self.g2p_version,
+                            'dbxref' : {
+                                'url': "http://www.ebi.ac.uk/gene2phenotype",
                                 'id' : "Gene2Phenotype",
-                                'version' : self.g2p_version,
-                                'dbxref' : {
-                                    'url': "http://www.ebi.ac.uk/gene2phenotype",
-                                    'id' : "Gene2Phenotype",
-                                    'version' : self.g2p_version
-                                }
+                                'version' : self.g2p_version
                             }
                         }
+                    }
 
-                        # Add literature provenance if there are PMIDs
-                        if len(pmids) != 0:
-                            provenance_type["literature"] = {
-                                'references' : self.get_pub_array(pmids.split(";"))
-                            }
-
-                        # *** General properties ***
-                        access_level = "public"
-                        sourceID = "gene2phenotype"
-                        validated_against_schema_version = self.schema_version
-
-                        # *** Target info ***
-                        target = {
-                            'id' : ensembl_iri,
-                            'activity' : "http://identifiers.org/cttv.activity/unknown",
-                            'target_type' : "http://identifiers.org/cttv.target/gene_evidence",
-                            'target_name' : gene_symbol
-                        }
-                        # http://www.ontobee.org/ontology/ECO?iri=http://purl.obolibrary.org/obo/ECO_0000204 -- An evidence type that is based on an assertion by the author of a paper, which is read by a curator.
-
-                        # *** Disease info ***
-                        disease_info = {
-                            'id' : disease_mapping['id'],
-                            'name' : disease_mapping['name'],
-                            'source_name' : disease_name
-                        }
-                        # *** Evidence info ***
-                        # Score based on mutational consequence
-                        if confidence in G2P_confidence2score:
-                            score = G2P_confidence2score[confidence]
-                        else:
-                            self._logger.error('{} is not a recognised G2P confidence, assigning an score of 0'.format(confidence))
-                            score = 0
-
-                        resource_score = {
-                            'type': "probability",
-                            'value': score
+                    # Add literature provenance if there are PMIDs
+                    if len(pmids) != 0:
+                        provenance_type["literature"] = {
+                            'references' : self.get_pub_array(pmids.split(";"))
                         }
 
-                        # Ignore allelic requirement if it's empty string
-                        if not allelic_requirement:
-                            allelic_requirement = None
-                            self._logger.warn('Empty allelic requirement')
+                    # *** General properties ***
+                    access_level = "public"
+                    sourceID = "gene2phenotype"
+                    validated_against_schema_version = self.schema_version
 
-                        # Functional consequence based on mutation consequence field
-                        if mutation_consequence in G2P_mutationCsq2functionalCsq:
-                            functional_consequence = G2P_mutationCsq2functionalCsq[mutation_consequence]
-                        else:
-                            self._logger.error(
-                                '{} is not a recognised G2P mutation consequence, ignoring the value'.format(mutation_consequence))
-                            functional_consequence = None
+                    # *** Target info ***
+                    target = {
+                        'id' : ensembl_iri,
+                        'activity' : "http://identifiers.org/cttv.activity/unknown",
+                        'target_type' : "http://identifiers.org/cttv.target/gene_evidence",
+                        'target_name' : gene_symbol
+                    }
+                    # http://www.ontobee.org/ontology/ECO?iri=http://purl.obolibrary.org/obo/ECO_0000204 -- An evidence type that is based on an assertion by the author of a paper, which is read by a curator.
+
+                    # *** Disease info ***
+                    disease_info = {
+                        'id' : disease_mapping['id'],
+                        'name' : disease_mapping['name'],
+                        'source_name' : disease_name
+                    }
+                    # *** Evidence info ***
+                    # Score based on mutational consequence
+                    if confidence in G2P_confidence2score:
+                        score = G2P_confidence2score[confidence]
+                    else:
+                        self._logger.error('{} is not a recognised G2P confidence, assigning an score of 0'.format(confidence))
+                        score = 0
+
+                    resource_score = {
+                        'type': "probability",
+                        'value': score
+                    }
+
+                    # Ignore allelic requirement if it's empty string
+                    if not allelic_requirement:
+                        allelic_requirement = None
+                        self._logger.warn('Empty allelic requirement')
+
+                    # Functional consequence based on mutation consequence field
+                    if mutation_consequence in G2P_mutationCsq2functionalCsq:
+                        functional_consequence = G2P_mutationCsq2functionalCsq[mutation_consequence]
+                    else:
+                        self._logger.error(
+                            '{} is not a recognised G2P mutation consequence, ignoring the value'.format(mutation_consequence))
+                        functional_consequence = None
 
 
-                        # Linkout
-                        linkout = [
-                            {
-                                'url' : 'http://www.ebi.ac.uk/gene2phenotype/search?panel=ALL&search_term=%s' % (gene_symbol,),
-                                'nice_name' : 'Gene2Phenotype%s' % (gene_symbol)
-                            }
-                        ]
-
-                        evidence = {
-                            'is_associated' : True,
-                            'confidence' : confidence,
-                            'allelic_requirement' : allelic_requirement,
-                            'functional_consequence' : functional_consequence,
-                            'evidence_codes' : ["http://purl.obolibrary.org/obo/ECO_0000204"],
-                            'provenance_type' : provenance_type,
-                            'date_asserted' : date,
-                            'resource_score' : resource_score,
-                            'urls' : linkout
+                    # Linkout
+                    linkout = [
+                        {
+                            'url' : 'http://www.ebi.ac.uk/gene2phenotype/search?panel=ALL&search_term=%s' % (gene_symbol,),
+                            'nice_name' : 'Gene2Phenotype%s' % (gene_symbol)
                         }
-                        # *** unique_association_fields ***
-                        unique_association_fields = {
-                            'target_id' : ensembl_iri,
-                            'original_disease_label' : disease_name,
-                            'disease_id' : disease_mapping['id'],
-                            'gene_panel': panel,
-                            "mutation_consequence": mutation_consequence,
-                            "allelic_requirement": allelic_requirement
-                        }
+                    ]
+
+                    evidence = {
+                        'is_associated' : True,
+                        'confidence' : confidence,
+                        'allelic_requirement' : allelic_requirement,
+                        'functional_consequence' : functional_consequence,
+                        'evidence_codes' : ["http://purl.obolibrary.org/obo/ECO_0000204"],
+                        'provenance_type' : provenance_type,
+                        'date_asserted' : date,
+                        'resource_score' : resource_score,
+                        'urls' : linkout
+                    }
+                    # *** unique_association_fields ***
+                    unique_association_fields = {
+                        'target_id' : ensembl_iri,
+                        'original_disease_label' : disease_name,
+                        'disease_id' : disease_mapping['id'],
+                        'gene_panel': panel,
+                        "mutation_consequence": mutation_consequence,
+                        "allelic_requirement": allelic_requirement
+                    }
 
 
-                        try:
-                            evidence = self.evidence_builder.Opentargets(
-                                type = type,
-                                access_level = access_level,
-                                sourceID = sourceID,
-                                evidence = evidence,
-                                target = target,
-                                disease = disease_info,
-                                unique_association_fields = unique_association_fields,
-                                validated_against_schema_version = validated_against_schema_version
-                            )
-                            self.evidence_strings.append(evidence)
-                        except:
-                            self._logger.warning('Evidence generation failed for row: {}'.format(c))
-                            raise
+                    try:
+                        evidence = self.evidence_builder.Opentargets(
+                            type = type,
+                            access_level = access_level,
+                            sourceID = sourceID,
+                            evidence = evidence,
+                            target = target,
+                            disease = disease_info,
+                            unique_association_fields = unique_association_fields,
+                            validated_against_schema_version = validated_against_schema_version
+                        )
+                        self.evidence_strings.append(evidence)
+                    except:
+                        self._logger.warning('Evidence generation failed for row: {}'.format(c))
+                        raise
 
             self._logger.info(f"Processed {c} diseases, mapped {total_efo}\n")
 
