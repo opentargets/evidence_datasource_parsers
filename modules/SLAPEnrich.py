@@ -75,12 +75,15 @@ class SLAPEnrichEvidenceGenerator():
         '''
         # Read input file
         self.dataframe = self.spark \
-                        .read.csv("slapenrich_opentargets.tsv", sep=r'\t', header=True) \
+                        .read.csv("slapenrich_opentargets.tsv", sep=r'\t', header=True, inferSchema=True) \
                         .select("ctype", "gene", "pathway", "SLAPEnrichPval") \
                         .withColumnRenamed("ctype", "Cancer_type_acronym") \
                         .withColumnRenamed("SLAPEnrichPval", "pval") \
                         .withColumn("pathwayId", split(col("pathway"), ": ").getItem(0)) \
                         .withColumn("pathwayDescription", split(col("pathway"), ": ").getItem(1))
+
+        # Filter by p-value
+        self.dataframe = self.dataframe.filter(col("pval") < 1e-4) 
 
         # Mapping step
         if self.mappingStep:
