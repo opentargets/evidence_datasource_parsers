@@ -12,14 +12,6 @@ import requests
 import datetime
 import argparse
 
-__copyright__  = "Copyright 2014-2020, Open Targets"
-__credits__    = ["Gautier Koscielny", "ChuangKee Ong", "Michaela Spitzer", "Asier Gonzalez" ]
-__license__    = "Apache 2.0"
-__version__    = "1.3.0"
-__maintainer__ = "Open Targets Data Team"
-__email__      = ["data@opentargets.org"]
-__status__     = "Production"
-
 G2P_confidence2score = {
     'confirmed' : 1,
     'probable': 0.5,
