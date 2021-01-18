@@ -122,10 +122,15 @@ class progenyEvidenceGenerator():
                     pathwayMappingsFile,
                     on="Pathway",
                     how="inner"
+                ) \
+                .withColumn(
+                    "target",
+                    split(col("target"), ", ") 
+                ) \
+                .withColumn(
+                    "target",
+                    explode("target")
                 )
-        self.dataframe = self.dataframe \
-                .withColumn("target", explode("target"))
-        #print(self.dataframe.first())
 
         return self.dataframe
 
