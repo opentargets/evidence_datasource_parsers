@@ -1,21 +1,11 @@
-from settings import Config
-from common.HGNCParser import GeneParser
-import sys
+import argparse
+import gzip
 import logging
-import datetime
-import opentargets.model.core as opentargets
-import opentargets.model.bioentity as bioentity
-import opentargets.model.evidence.core as evidence_core
-import opentargets.model.evidence.linkout as evidence_linkout
-import opentargets.model.evidence.association_score as association_score
-
-__copyright__ = "Copyright 2014-2019, Open Targets"
-__credits__   = ["Francesco Iorio", "Andrea Pierleoni", "ChuangKee Ong", "Michaela Spitzer"]
-__license__   = "Apache 2.0"
-__version__   = "1.2.7"
-__maintainer__= "Open Targets Data Team"
-__email__     = ["data@opentargets.org"]
-__status__    = "Production"
+import json
+from pyspark import SparkContext, SparkFiles
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import *
+from pyspark.sql.types import *
 
 # *** Tumor acronym map ***
 TUMOR_TYPE_EFO_MAP = {
@@ -121,167 +111,109 @@ SYMBOL_MAPPING = {
     '''
 }
 
-class SLAPEnrich():
-    def __init__(self, es=None, r_server=None):
-        self.evidence_strings = list()
-        self.symbols = {}
-        self.logger = logging.getLogger(__name__)
+class SLAPEnrichEvidenceGenerator():
+    def __init__(self, inputFile, mappingStep):
+        # Create spark session     
+        self.spark = SparkSession.builder \
+                .appName('SLAPEnrich') \
+                .getOrCreate()
 
-    def process_slapenrich(self):
-        gene_parser = GeneParser()
-        gene_parser._get_hgnc_data_from_json()
+        # Initialize mapping variables
+        self.mappingStep = mappingStep
+    
+        # Initialize input files
+        self.inputFile = inputFile
+        self.dataframe = None
 
-        self.symbols = gene_parser.genes
-        self.build_evidence()
-        self.write_evidence()
+    def writeEvidenceFromSource(self):
+        '''
+        Processing of the input file to build all the evidences from its data
+        Returns:
+            evidences (array): Object with all the generated evidences strings from source file
+        '''
+        # Read input file
+        self.dataframe = self.spark \
+                        .read.csv("slapenrich_opentargets.tsv", sep=r'\t', header=True) \
+                        .select("ctype", "gene", "pathway", "SLAPEnrichPval") \
+                        .withColumnRenamed("ctype", "Cancer_type_acronym") \
+                        .withColumnRenamed("SLAPEnrichPval", "pval")
 
-    def build_evidence(self, filename=Config.SLAPENRICH_FILENAME):
+        # Mapping step
+        if self.mappingStep:
+            self.dataframe = self.cancer2EFO()
 
-        now = datetime.datetime.now()
+        # Build evidence strings per row
+        evidences = self.dataframe.rdd \
+            .map(SLAPEnrichEvidenceGenerator.parseEvidenceString) \
+            .collect() # list of dictionaries
+        
+        return evidences
+    
+    def cancer2EFO(self):
+        diseaseMappingsFile = self.spark \
+                        .read.csv("resources/cancer2EFO_mappings.tsv", sep=r'\t', header=True) \
+                        .select("Cancer_type_acronym", "EFO_id") \
 
-        # *** Build evidence.provenance_type object ***
-        provenance_type = evidence_core.BaseProvenance_Type(
-            database=evidence_core.BaseDatabase(
-                id="SLAPEnrich",
-                version='2017.08',
-                dbxref=evidence_core.BaseDbxref(url="https://saezlab.github.io/SLAPenrich/", id="SLAPEnrich analysis of TCGA tumor types", version="2017.08")),
-            literature = evidence_core.BaseLiterature(
-                references = [evidence_core.Single_Lit_Reference(lit_id="http://europepmc.org/abstract/MED/28179366")]
-            )
+        self.dataframe = self.dataframe.join(
+            diseaseMappingsFile,
+            on="Cancer_type_acronym",
+            how="inner"
         )
-        error = provenance_type.validate(logging)
 
-        if error > 0:
-            self.logger.error(provenance_type.to_JSON(indentation=4))
-            sys.exit(1)
+        return self.dataframe
 
-        with open(filename, 'r') as slapenrich_input:
-            n = 0
-
-            for line in slapenrich_input:
-                n +=1
-                if n>1:
-                        # pval    => pvalue of the SLAPenrichment of the pathway indicated in the cancer/tumor type
-                        # fdr     => FDR percentage of the SLAPenrichment of the pathway in the cancer/tumor type
-                        # logOdds => log10 odd ratio (number of patients with mutations in the pathway / number of expected patients with mutations in the pathway)
-                        # exeeco  => exclusive coverage of the pathway = number patients with mutations in exactly 1 gene
-                        #            in the pathway / number of patients with mutations in at least one gene in the pathway.
-                    (tumor_type, gene_symbol, mutFreq_dataset, pathway_id, mutFreq_pathway, pval, fdr, logodds, excco) = tuple(line.rstrip().split('\t'))
-
-                    # Only process rows with p-value < 1e-4. p-values >= 1e-4 are scaled to '0' in the pipeline.
-                    if float(pval) < 1e-4:
-
-                        # p-value indicates a very small p-value. The smallest p-values are 8.51e-18, so these p-values
-                        # will be set to 1e-20. All p-values < 1e-14 are scaled to '1' in the pipeline.
-                        if float(pval) == 0.0:
-                            pval = 1e-20
-
-                        pathway = pathway_id.split(":")
-                        pathway_id = pathway[0].rstrip()
-                        pathway_desc = pathway[1].rstrip()
-
-                        # *** Build evidence.resource_score object ***
-                        resource_score = association_score.Pvalue(
-                            type="pvalue",
-                            method=association_score.Method(
-                                description="SLAPEnrich analysis of TCGA tumor types as described in Brammeld J et al (2017)",
-                                reference  ="http://europepmc.org/abstract/MED/28179366",
-                                url="https://saezlab.github.io/SLAPenrich"
-                            ),
-                            value=float(pval)
-                        )
-                        # *** General properties ***
-                        evidenceString = opentargets.Literature_Curated(
-                            validated_against_schema_version = Config.VALIDATED_AGAINST_SCHEMA_VERSION,
-                            access_level = "public",
-                            type = "affected_pathway",
-                            sourceID = "slapenrich"
-                        )
-
-                        if gene_symbol in SYMBOL_MAPPING:
-                            gene_symbol = SYMBOL_MAPPING[gene_symbol]
-
-                        # *** Build target object ***
-                        # TODO: August 2019 - 27 genes do not return an Ensembl Gene ID - HGNC has been contacted
-                        # Data for these genes does appear in the platform, but the ensembl ids are missing in the evidence strings
-                        # The gene is present in the OT Platform & in HGNC etc.
-                        if gene_symbol in self.symbols:
-                            ensembl_gene_id = self.symbols[gene_symbol]
-
-                            evidenceString.target = bioentity.Target(
-                                id="http://identifiers.org/ensembl/{0}".format(ensembl_gene_id),
-                                target_name=gene_symbol,
-                                #TODO activity is a required field in target object, currently set as unknown
-                                activity="http://identifiers.org/cttv.activity/unknown",
-                                target_type='http://identifiers.org/cttv.target/gene_evidence'
-                            )
-
-                            # *** Build disease object ***
-                            evidenceString.disease = bioentity.Disease(
-                                id=TUMOR_TYPE_EFO_MAP[tumor_type]['uri'],
-                                name=TUMOR_TYPE_EFO_MAP[tumor_type]['label']
-                            )
-
-                            # *** Build evidence object ***
-                            # Build evidence.url object
-                            linkout = evidence_linkout.Linkout(
-                                url='http://www.reactome.org/PathwayBrowser/#%s' % (pathway_id),
-                                nice_name='%s' % (pathway_desc)
-                            )
-                            evidenceString.evidence = evidence_core.Literature_Curated(
-                                date_asserted=now.isoformat(),
-                                is_associated=True,
-                                #TODO check is this the correct evidence code "computational combinatorial evidence"
-                                evidence_codes=["http://purl.obolibrary.org/obo/ECO_0000053"],
-                                provenance_type=provenance_type,
-                                resource_score=resource_score,
-                                urls=[linkout]
-                            )
-
-                            # *** Build unique_association_field object ***
-                            evidenceString.unique_association_fields = {
-                                'target_id': evidenceString.target.id,
-                                'pathway_id': 'http://www.reactome.org/PathwayBrowser/#%s' % (pathway_id),
-                                'disease_id': evidenceString.disease.id
-                            }
-
-                            error = evidenceString.validate(logging)
-
-                            if error > 0:
-                                self.logger.error(evidenceString.to_JSON())
-                                sys.exit(1)
-
-                            self.evidence_strings.append(evidenceString)
-
-                        else:
-                            self.logger.error("%s is not found in Ensembl" % gene_symbol)
-
-            self.logger.info("%s evidence parsed"%(n-1))
-            self.logger.info("%s evidence created"%len(self.evidence_strings))
-
-        slapenrich_input.close()
-
-    def write_evidence(self, filename=Config.SLAPENRICH_EVIDENCE_FILENAME):
-        self.logger.info("Writing SLAPEnrich evidence strings")
-        with open(filename, 'w') as slapenrich_output:
-            n = 0
-            for evidence_string in self.evidence_strings:
-                n += 1
-                self.logger.info(evidence_string.disease.id[0])
-                # get max_phase_for_all_diseases
-                error = evidence_string.validate(logging)
-                if error == 0:
-                    slapenrich_output.write(evidence_string.to_JSON(indentation=None)+"\n")
-                else:
-                    self.logger.error("REPORTING ERROR %i" %n)
-                    self.logger.error(evidence_string.to_JSON(indentation=4))
-            slapenrich_output.close()
-
+    @staticmethod
+    def parseEvidenceString(row):
+        try:
+            evidence = {
+                "datasourceId" : "slapenrich",
+                "datatypeId" : "affected_pathway",
+                "diseaseFromSource" : row["Cancer_type_acronym"],
+                "diseaseFromSourceMappedId" : row["EFO_id"],
+                "resourceScore" : row["pval"],
+                "pathwayName" : row["pathway"], #split pathway
+                "pathwayId" : row["pathway"], #split pathway
+                "targetFromSourceId" : row["gene"]
+            }
+            return evidence
+        except Exception as e:
+            raise        
 
 def main():
-    slap = SLAPEnrich()
-    slap.process_slapenrich()
+    # Initiating parser
+    parser = argparse.ArgumentParser(description=
+    "This script generates evidences for the SLAPEnrich data source.")
 
-if __name__ == "__main__":
+    parser.add_argument("-i", "--inputFile", required=True, type=str, help="Input source .tsv file.")
+    parser.add_argument("-o", "--outputFile", required=True, type=str, help="Name of the evidence compressed JSON file containing the evidence strings.")
+    parser.add_argument("-m", "--mappingStep", required=False, type=bool, default=True, help="State whether to run the disease to EFO term mapping step.")
+
+    # Parsing parameters
+    args = parser.parse_args()
+
+    inputFile = args.inputFile
+    outputFile = args.outputFile
+    mappingStep = args.mappingStep
+
+    # Initialize logging:
+    logging.basicConfig(
+    filename='evidence_builder.log',
+    level=logging.INFO,
+    format='%(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    )
+
+    # Initialize evidence builder object
+    evidenceBuilder = SLAPEnrichEvidenceGenerator(inputFile, mappingStep)
+
+    # Writing evidence strings into a json file
+    evidences = evidenceBuilder.writeEvidenceFromSource()
+
+    with gzip.open(outputFile, "wt") as f:
+        for evidence in evidences:
+            json.dump(evidence, f)
+            f.write('\n')
+    logging.info(f"Evidence strings saved into {outputFile}. Exiting.")
+
+if __name__ == '__main__':
     main()
-

@@ -1,0 +1,75 @@
+Cancer_type_acronym	Cancer_type_name	EFO_id	EFO_name	Source
+BLCA	Bladder cancer	MONDO_0001187	urinary bladder cancer	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+BRCA	Breast adenocarcinoma	EFO_0000304	breast adenocarcinoma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+HNSC	Head and Neck squamous cell carcinoma	EFO_0000181	head and neck squamous cell carcinoma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+KIRC	Kidney renal clear cell carcinoma	EFO_0000349	clear cell renal carcinoma	https://gdc.cancer.gov/resources-tcga-users/tcga-code-tables/tcga-study-abbreviations
+LIHC	Liver hepatocellular carcinoma	EFO_0000182	hepatocellular carcinoma	https://gdc.cancer.gov/resources-tcga-users/tcga-code-tables/tcga-study-abbreviations
+LUAD	Lung adenocarcinoma	EFO_0000571	lung adenocarcinoma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+LUSC	Lung squamous cell carcinoma	EFO_0000708	squamous cell lung carcinoma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+PRAD	Prostate adenocarcinoma	EFO_0000673	prostate adenocarcinoma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+STAD	Stomach adenocarcinoma	EFO_0000503	gastric adenocarcinoma	https://gdc.cancer.gov/resources-tcga-users/tcga-code-tables/tcga-study-abbreviations
+THCA	Thyroid adenocarcinoma	MONDO_0024622	thyroid gland adenocarcinoma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+UCEC	Endometrial cancer	MONDO_0011962	endometrial cancer	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+KICH	Kidney Chromophobe	EFO_0000335	chromophobe renal cell carcinoma	https://gdc.cancer.gov/resources-tcga-users/tcga-code-tables/tcga-study-abbreviations
+KIRP	Kidney renal papillary cell carcinoma	EFO_0000640	papillary renal cell carcinoma	https://gdc.cancer.gov/resources-tcga-users/tcga-code-tables/tcga-study-abbreviations
+COREAD	Colorectal adenocarcinoma	EFO_0000365	colorectal adenocarcinoma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+ALL	Acute lymphoblastic leukemia	EFO_0000220	acute lymphoblastic leukemia	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+CLL	Chronic lymphoblastic leukemia	EFO_0000095	chronic lymphocytic leukemia	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+DLBC	Diffuse large B-cell lymphoma	EFO_0000403	diffuse large B-cell lymphoma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+ESCA	Esophageal cancer	MONDO_0007576	esophageal cancer	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+GBM	Glioblastoma	EFO_0000519	glioblastoma multiforme	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+LAML	Acute Myeloid Leukemia	EFO_0000222	acute myeloid leukemia	https://gdc.cancer.gov/resources-tcga-users/tcga-code-tables/tcga-study-abbreviations
+LGG	Lower grade glioma	MONDO_0021637	low grade glioma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+MB	Medulloblastoma	EFO_0002939	medulloblastoma	https://gdc.cancer.gov/resources-tcga-users/tcga-code-tables/tcga-study-abbreviations
+MM	Multiple myeloma	EFO_0001378	multiple myeloma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+NB	Neuroblastoma	EFO_0000621	neuroblastoma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+OV	Ovary cancer	MONDO_0008170	ovarian cancer	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+PAAD	Pancreas adenocarcinoma	EFO_1000044	pancreatic adenocarcinoma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+SCLC	Small-cell lung cancer	EFO_0000702	small cell lung carcinoma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+SKCM	cutaneous melanoma	EFO_0000389	cutaneous melanoma	https://gdc.cancer.gov/resources-tcga-users/tcga-code-tables/tcga-study-abbreviations
+ACC	Adrenocortical carcinoma	EFO_1000796	adrenal cortex carcinoma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+ACY	Adenoid cystic carcinoma	EFO_0000231 	adenoid cystic carcinoma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+AML	Acute Myeloid Leukemia	EFO_0000222	acute myeloid leukemia	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+AN	Anus cancer	MONDO_0001879	anus cancer	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+ANGS	Angiosarcoma	EFO_0003968	angiosarcoma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+ATRT	Atypical teratoid/rhabdoid tumor	EFO_1002008	atypical teratoid rhabdoid tumor	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+BC	Bowel cancer	EFO_0007330	intestinal cancer	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+BCNET	Small intestine cancer neuroendocrine	EFO_1001928 	small intestine neuroendocrine tumor	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+BLY	Burkitt lymphoma	EFO_0000309	Burkitts lymphoma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+CESC	Cervix squamous cancer	EFO_1000172 	cervical squamous cell carcinoma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+CH	Cholangiocarcinoma	EFO_0005221 	cholangiocarcinoma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+CM	Cutaneous melanoma of the skin	EFO_0000389	cutaneous melanoma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+SSCC	Skin squamous cell carcinoma	MONDO_0002529	skin squamous cell carcinoma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+EPD	Ependymoma	EFO_1000028 	ependymoma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+EWS	Ewing's sarcoma	EFO_0000174	Ewing sarcoma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+HBC	Hepatic blastoma	EFO_1000292 	Hepatoblastoma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+HC	Hepatic cancer	MONDO_0002691 	liver cancer 	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+HGG	High-grade Glioma	MONDO_0015917	malignant glioma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+LEIS	Leiomyosarcoma	EFO_0000564	leiomyosarcoma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+LNET	Lung neuroendocrine cancer	EFO_0005220	pulmonary neuroendocrine tumor	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+LY	Lymphoma	EFO_0000574 	lymphoma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+MBL	Medulloblastoma	EFO_0002939 	medulloblastoma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+MDPS	Myelodysplastic syndrome neoplasm	EFO_0000198	myelodysplastic syndrome	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+MESO	Mesothelioma	EFO_0000588	mesothelioma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+MGCT	Male germ cell tumor	EFO_1000566	Testicular Germ Cell Tumor	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+NHLY	Non-hodking lymphoma	EFO_0005952 	non-Hodgkins lymphoma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+NSCLC	Non small cell lung cancer	EFO_0003060 	non-small cell lung cancer	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+NSPH	Nasopharyngeal cancer	EFO_0004252	nasopharyngeal neoplasm	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+OS	Osteosarcoma	EFO_0000637	osteosarcoma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+PAIS	Pancreatic neuroendocrine cancer	EFO_0007416	pancreatic endocrine carcinoma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+PCPG	Pheochromocytoma and Paraganglioma	Orphanet_573163 	Pheochromocytoma-paraganglioma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+PIA	Pilocityc astrocytoma	EFO_0000272	astrocytoma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+RB	Retinoblastoma	Orphanet_790	Retinoblastoma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+RCCC	Renal clear cell carcinoma	EFO_0000349	clear cell renal carcinoma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+RCH	Chromophobe renal cell carcinoma	EFO_0000335	chromophobe renal cell carcinoma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+RHBDS	Rhabdomyosarcoma	EFO_0002918	rhabdomyosarcoma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+RPC	Renal papillary cell carcinoma	EFO_0000640	papillary renal cell carcinoma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+S	Sarcoma	EFO_0000691	sarcoma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+SBCC	Skin basal cell carcinoma	EFO_0004193	basal cell carcinoma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+SG	Salivary glands cancer	MONDO_0004669	salivary gland cancer	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+ST	Stomach adenocarcinoma	EFO_0000503 	gastric adenocarcinoma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+THYM	Thymic carcinoma	EFO_1000576 	Thymic Carcinoma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+UCS	Uterine carcinosarcoma	EFO_1000613	Uterine Carcinosarcoma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+UVM	Uveal melanoma	EFO_1000616	Uveal Melanoma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+VV	Vulva Cancer	MONDO_0001528	vulva cancer	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
+WT	Wilms tumor	Orphanet_654 	Neprhoblastoma	https://www.intogen.org/download?file=IntOGen-Cohorts-20200201.zip
