@@ -1,6 +1,6 @@
 # OT evidence generators
 
-Each folder in module corresponds corresponds to a datasource.
+Each folder in module corresponds to a datasource.
 
 In each folder we have one or more standalone python scripts.
 
@@ -183,6 +183,26 @@ This is how it is run only specifying the required parameters:
 ### PhenoDigm
 
 Generates target-disease evidence querying the IMPC SOLR API.
+
+### PROGENy
+
+The PROGENy parser processes three files:
+
+- progeny_normalVStumor_opentargets.txt: Main file that contains a systematic comparison of pathway activities between normal and primary TCGA samples in 14 tumor types using PROGENy. This file can be downloaded [here](https://storage.googleapis.com/otar000-evidence_input/PROGENy/data_files/progeny_normalVStumor_opentargets.txt) from the _otar000-evidence_input_ bucket.
+- cancer2EFO_mappings.tsv: File containing the mappings between the acronym of the type of cancer and its respective disease listed in EFO. This file can be found in the `resources` directory.
+- pathway2Reactome_mappings.tsv: File containing the mappings between the analysed pathway and their respective target and ID in Reactome. This file can be found in the `resources` directory.
+
+The source table is then formatted into a compressed set of JSON lines following the schema of the version to be used.
+
+The parser requires three parameters:
+- `-i`, `--inputFile`: Name of tsv file located in the [Panel App bucket](https://storage.googleapis.com/otar000-evidence_input/PanelApp/20.11/All_genes_20200928-1959.tsv).
+- `-o`, `--outputFile`: Name of the evidence compressed JSON file containing the evidence strings.
+- `-s`, `--mappingStep`: State whether to run the disease to EFO term mapping step. It is True by default.
+
+To use the parser configure the python environment and run it as follows:
+```bash
+(venv)$ python3 modules/PROGENY.py -i progeny_normalVStumor_opentargets.txt -o progeny-2021-01-18.json.gz
+```
 
 #### System requirements and running time
 The PhenoDigm parser has been run both in a MacBook Pro and a Google Cloud machine. The current version is very memory greedy, using up to 60 GB. 

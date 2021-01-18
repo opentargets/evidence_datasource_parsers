@@ -106,9 +106,9 @@ def main():
     parser = argparse.ArgumentParser(description=
     "This script generates evidences for the PROGENy data source.")
 
-    parser.add_argument("-i", "--inputFile", required=True, type=str, help="Input .csv file with the table containing association details.")
-    parser.add_argument("-o", "--outputFile", required=True, type=str, help="Name of the json output file containing the evidence strings.")
-    parser.add_argument("-m", "--mappingStep", required=False, type=bool, default=True, help="State whether to run the disease to EFO term mapping step or not.")
+    parser.add_argument("-i", "--inputFile", required=True, type=str, help="Input source .txt file.")
+    parser.add_argument("-o", "--outputFile", required=True, type=str, help="Name of the evidence compressed JSON file containing the evidence strings.")
+    parser.add_argument("-m", "--mappingStep", required=False, type=bool, default=True, help="State whether to run the disease to EFO term mapping step.")
 
     # Parsing parameters
     args = parser.parse_args()
