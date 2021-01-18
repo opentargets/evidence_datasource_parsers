@@ -7,52 +7,6 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import *
 from pyspark.sql.types import *
 
-# *** TO DO: Symbol mapping for genes withouth Ensembl IDs ***
-SYMBOL_MAPPING = {
-    # TODO These symbols do not have Ensembl ID mappings, need alternative mapping
-    '''
-    i.e 'C15orf55': 'NUTM1',
-
-    ADRBK1
-    ADRBK2
-    BRE
-    C10orf2
-    CASC5
-    CECR1
-    CSRP2BP
-    DEFB131
-    ERBB2IP
-    FAM175A
-    FAM175B
-    FIGF
-    FYB
-    GYLTL1B
-    IKBKAP
-    INADL
-    KIAA0101
-    KIRREL
-    MINA
-    MRE11A
-    NGFRAP1
-    PARK2
-    PTRF
-    RQCD1
-    SEPP1
-    SHFM1
-    TCEB1
-    TCEB2
-    TCEB3
-    TCEB3B
-    TCEB3C
-    TCEB3CL
-    UFD1L
-    VPRBP
-    WBSCR17
-    WHSC1
-    WHSC1L1
-    '''
-}
-
 class SLAPEnrichEvidenceGenerator():
     def __init__(self, inputFile, mappingStep):
         # Create spark session     
