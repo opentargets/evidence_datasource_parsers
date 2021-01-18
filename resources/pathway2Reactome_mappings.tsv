@@ -4,12 +4,12 @@ EGFR	EGFR	R-HSA-8856828	Clathrin-mediated endocytosis
 Estrogen	ESR1	R-HSA-8939902	Regulation of RUNX2 expression and activity
 Hypoxia	HIF1A	R-HSA-123456	XXX Pathway desc to be updated
 JAK.STAT	JAK1, JAK2, STAT1, STAT2	R-HSA-6785807	Interleukin-4 and 13 signaling
-MAPK	MAPK2K1, MAP2K2, RAF1	R-HSA-2559580	Oxidative Stress Induced Senescence
-NFkB	NKFB1, TLR4, RELA	R-HSA-9020702	Interleukin-1 signaling
-PI3K	PIK3CA, PI3K(Class1)	R-HSA-8853659	RET signaling
+MAPK	PRKMK1, MAP2K2, RAF1	R-HSA-2559580	Oxidative Stress Induced Senescence
+NFkB	NFKB1, TLR4, RELA	R-HSA-9020702	Interleukin-1 signaling
+PI3K	PIK3CA, PIK3CA	R-HSA-8853659	RET signaling
 TGFb	TGFBR1, TGFBR2	R-HSA-2173788	Down regulation of TGF-beta receptor signaling
 TNFa	TNFRSF1A	R-HSA-5357956	TNFR1-induced NFkappaB signaling pathway
-Trail	TNFSF10, BCL2, BCL-XL, BCL-W, MCL1	R-HSA-123456	XXX Pathway desc to be updated
-VEGF	VEGFR	R-HSA-1234158	Regulation of gene expression by Hypoxia-inducible Factor
+Trail	TNFSF10, BCL2, BCL2L1, BCL2L2, MCL1	R-HSA-123456	XXX Pathway desc to be updated
+VEGF	KDR	R-HSA-1234158	Regulation of gene expression by Hypoxia-inducible Factor
 WNT	WNT3A, GSK3A, GSK3B	R-HSA-381340	Transcriptional regulation of white adipocyte differentiation
 p53	TP53	R-HSA-2559580	Oxidative Stress Induced Senescence
