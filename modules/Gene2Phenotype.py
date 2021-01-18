@@ -36,7 +36,7 @@ G2P_mutationCsq2functionalCsq = {
 
 
 class G2P(RareDiseaseMapper):
-    def __init__(self, g2p_version, schema_version=Config.VALIDATED_AGAINST_SCHEMA_VERSION):
+    def __init__(self, g2p_version):
         super(G2P, self).__init__()
         self.evidence_strings = list()
         self.unmapped_diseases = set()
@@ -59,23 +59,6 @@ class G2P(RareDiseaseMapper):
 
         # Add ch to handler
         self._logger.addHandler(ch)
-
-        # Build JSON schema url from version
-        self.schema_version = schema_version
-        schema_url = "https://raw.githubusercontent.com/opentargets/json_schema/" + self.schema_version + "/draft4_schemas/opentargets.json"
-        self._logger.info('Loading JSON schema at {}'.format(schema_url))
-
-        # Initialize json builder based on the schema:
-        try:
-            r = requests.get(schema_url)
-            r.raise_for_status()
-            json_schema = r.json()
-            self.builder = pjo.ObjectBuilder(json_schema)
-            self.evidence_builder = self.builder.build_classes()
-            self.schema_version = schema_version
-        except requests.exceptions.HTTPError as e:
-            self._logger.error('Invalid JSON schema version')
-            raise e
 
         # Create OnToma object
         self.ontoma = ontoma.interface.OnToma()
@@ -428,9 +411,6 @@ def main():
 
     # Parse CLI arguments
     parser = argparse.ArgumentParser(description='Parse Gene2Phenotype gene-disease files downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads/')
-    parser.add_argument('-s', '--schema_version',
-                        help='JSON schema version to use, e.g. 1.6.8. It must be branch or a tag available in https://github.com/opentargets/json_schema',
-                        type=str, required=True)
     parser.add_argument('-d', '--dd_panel',
                         help='DD panel file downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads',
                         type=str, default=Config.G2P_DD_FILENAME)
@@ -455,7 +435,6 @@ def main():
 
     args = parser.parse_args()
     # Get parameters
-    schema_version = args.schema_version
     dd_file = args.dd_panel
     eye_file = args.eye_panel
     skin_file = args.skin_panel
@@ -464,7 +443,7 @@ def main():
     unmapped_diseases_file = args.unmapped_diseases_file
     g2p_version = args.g2p_version
 
-    g2p = G2P(schema_version=schema_version, g2p_version=g2p_version)
+    g2p = G2P(g2p_version=g2p_version)
     g2p.process_g2p(dd_file, eye_file, skin_file, cancer_file, outfile, unmapped_diseases_file)
 
 if __name__ == "__main__":
