@@ -75,17 +75,16 @@ The mapping of the diseases is done on the fly as a three step process:
 
 The unmapped diseases are saved to a file called `unmapped_diseases.tsv` so that they can be reported to [EFO](https://github.com/EBISPOT/efo/issues/).
 
-The parser requires three parameters:
+The parser requires two parameters:
 - `-i`, `--input_file`: Name of csv file downloaded from https://search.clinicalgenome.org/kb/gene-validity
 - `-o`, `--output_file`: Name of evidence JSON file
-- `-s`, `--schema_version`: JSON schema version to use, e.g. 1.6.8. It must be branch or a tag available in https://github.com/opentargets/json_schema
 
 There is also an optional parameter to save the unmapped diseases to a file:
 - `-u`, `--unmapped_diseases_file`: If specified, the diseases not mapped to EFO will be stored in this file'
 
 To use the parser configure the python environment and run it as follows:
 ```bash
-(venv)$ python3 modules/ClinGen.py -i ClinGen-Gene-Disease-Summary-2020-08-04.csv -o clingen_2020-08-04.json -s 1.6.9 -u unmapped_diseases_clingen.tsv
+(venv)$ python3 modules/ClinGen.py -i ClinGen-Gene-Disease-Summary-2020-08-04.csv -o clingen_2020-08-04.json -u unmapped_diseases_clingen.tsv
 ```
 
 ### Gene2Phenotype
