@@ -3,10 +3,10 @@ global:
 
 # Parameters for OT Gentics Portal evidence generation:
 GeneticsPortal:
-  locus2gene: gs://genetics-portal-data/l2g/200127
-  toploci: gs://genetics-portal-data/v2d/200207/toploci.parquet 
-  study: gs://genetics-portal-data/v2d/200207/studies.parquet
-  variantIndex: gs://genetics-portal-data/variant-annotation/190129/variant-annotation.parquet
-  ecoCodes: gs://genetics-portal-data/lut/vep_consequences.tsv
+  locus2gene: gs://genetics-portal-data/l2g/200127 # 110MB
+  toploci: gs://genetics-portal-data/v2d/200207/toploci.parquet  # ~4.9 MB
+  study: gs://genetics-portal-data/v2d/200207/studies.parquet # ~1MB
+  variantIndex: gs://genetics-portal-data/variant-annotation/190129/variant-annotation.parquet # ~13GB
+  ecoCodes: gs://genetics-portal-data/lut/vep_consequences.tsv # 1kb
   outputFile: gs://genetics-portal-analysis/l2g-platform-export/data/geneticsPortal_%s.json.gz
   threshold: 0.05

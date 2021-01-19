@@ -3,7 +3,7 @@ from datetime import datetime
 # Current time in YYYY-MM-DD-hh-mm format:
 timeStamp = datetime.now().strftime("%Y-%m-%d-%H-%M")
 
-# Configuration is read from the config yaml:
+# Configuration is read from the config yaml::
 configfile: 'configuration.yaml'
 
 # schema version is now hardcoded, version will be read from the command line later:
@@ -13,11 +13,12 @@ schema_file = config['global']['schema_file']
 ## Copy all imput files from google buckets to the VM:
 ##
 rule copyGeneticsStudyFile:
-    params:
-        source=config['GeneticsPortal']['study'],
-        output_folder='/tmp/genetics/'
+    input:
+        config['GeneticsPortal']['study']
+    output:
+        '/tmp/genetics/'+config['GeneticsPortal']['study'].split('/')[-1]
     shell:
-        'gsutil cp -r {params.source} {params.output_folder}'
+        'gsutil cp -r {input} {output}'
 
 rule copyGeneticsVariantIndexFile:
     params:
@@ -53,11 +54,11 @@ rule copyGeneticsEcoCodesFile:
 ## * output is generated in opentargets-platform bucket.    
 rule GeneticsPortal:
     params:
-        locus2gene='/temp/genetics/' + config['GeneticsPortal']['locus2gene'].split('/')[0],
-        toploci='/temp/genetics/' + config['GeneticsPortal']['toploci'].split('/')[0],
-        study='/temp/genetics/' + config['GeneticsPortal']['study'].split('/')[0],
-        variantIndex='/temp/genetics/' + config['GeneticsPortal']['variantIndex'].split('/')[0],
-        ecoCodes='/temp/genetics/' + config['GeneticsPortal']['ecoCodes'].split('/')[0],
+        locus2gene='/temp/genetics/' + config['GeneticsPortal']['locus2gene'].split('/')[-1],
+        toploci='/temp/genetics/' + config['GeneticsPortal']['toploci'].split('/')[-1],
+        study='/temp/genetics/' + config['GeneticsPortal']['study'].split('/')[-1],
+        variantIndex='/temp/genetics/' + config['GeneticsPortal']['variantIndex'].split('/')[-1],
+        ecoCodes='/temp/genetics/' + config['GeneticsPortal']['ecoCodes'].split('/')[-1],
         outputFile=config['GeneticsPortal']['outputFile'],
         threshold=config['GeneticsPortal']['threshold']
     output:

@@ -32,6 +32,7 @@ import sys
 import pyspark.sql
 from pyspark.sql.types import *
 from pyspark.sql.functions import *
+import logging
 
 def load_eco_dict(inf):
     '''
