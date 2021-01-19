@@ -1,6 +1,6 @@
 # OT evidence generators
 
-Each folder in module corresponds corresponds to a datasource.
+Each folder in module corresponds to a datasource.
 
 In each folder we have one or more standalone python scripts.
 
