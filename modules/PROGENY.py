@@ -21,7 +21,7 @@ class progenyEvidenceGenerator():
         self.inputFile = inputFile
         self.dataframe = None
 
-    def writeEvidenceFromSource(self):
+    def generateEvidenceFromSource(self):
         '''
         Processing of the input file to build all the evidences from its data
         Returns:
@@ -128,7 +128,7 @@ def main():
     evidenceBuilder = progenyEvidenceGenerator(inputFile, mappingStep)
 
     # Writing evidence strings into a json file
-    evidences = evidenceBuilder.writeEvidenceFromSource()
+    evidences = evidenceBuilder.generateEvidenceFromSource()
 
     with gzip.open(outputFile, "wt") as f:
         for evidence in evidences:
