@@ -57,15 +57,14 @@ Further development of this repository should follow the next premises:
 1. Containerization - Dockerize
 
 ### ClinGen
-The ClinGen parser processes the _Gene Validity Curations_ table that can be downloaded from https://search.clinicalgenome.org/kb/gene-validity. At the time the parser was written (August 2020), the downloadable file contained six header lines that look as follows:
+The ClinGen parser processes the _Gene Validity Curations_ table that can be downloaded from https://search.clinicalgenome.org/kb/gene-validity. As of January 2021 the downloadable file contains six header lines that look as follows:
 ```tsv
 CLINGEN GENE VALIDITY CURATIONS
-FILE CREATED: 2020-08-04
+FILE CREATED: 2021-01-18
 WEBPAGE: https://search.clinicalgenome.org/kb/gene-validity
-+++++++++++,++++++++++++++,+++++++++++++,++++++++++++++++++,+++++++++,+++++++++,++++++++++++++,+++++++++++++,+++++++++++++++++++
-GENE SYMBOL,GENE ID (HGNC),DISEASE LABEL,DISEASE ID (MONDO),MOI,SOP,CLASSIFICATION,ONLINE REPORT,CLASSIFICATION DATE
-+++++++++++,++++++++++++++,+++++++++++++,++++++++++++++++++,+++++++++,+++++++++,++++++++++++++,+++++++++++++,+++++++++++++++++++
-
+++++++++++,++++++++++++++,+++++++++++++,++++++++++++++++++,+++++++++,+++++++++,+++++++++,++++++++++++++,+++++++++++++,+++++++++++++++++++
+GENE SYMBOL,GENE ID (HGNC),DISEASE LABEL,DISEASE ID (MONDO),MOI,SOP,CLASSIFICATION,ONLINE REPORT,CLASSIFICATION DATE,GCEP
++++++++++++,++++++++++++++,+++++++++++++,++++++++++++++++++,+++++++++,+++++++++,+++++++++,++++++++++++++,+++++++++++++,+++++++++++++++++++
 ```
 
 The mapping of the diseases is done on the fly as a three step process:
