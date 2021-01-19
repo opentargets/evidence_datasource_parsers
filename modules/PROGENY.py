@@ -11,7 +11,7 @@ class progenyEvidenceGenerator():
     def __init__(self, inputFile, mappingStep):
         # Create spark session     
         self.spark = SparkSession.builder \
-                .appName('evidence_builder') \
+                .appName('progeny') \
                 .getOrCreate()
 
         # Initialize mapping variables
