@@ -57,15 +57,14 @@ Further development of this repository should follow the next premises:
 1. Containerization - Dockerize
 
 ### ClinGen
-The ClinGen parser processes the _Gene Validity Curations_ table that can be downloaded from https://search.clinicalgenome.org/kb/gene-validity. At the time the parser was written (August 2020), the downloadable file contained six header lines that look as follows:
+The ClinGen parser processes the _Gene Validity Curations_ table that can be downloaded from https://search.clinicalgenome.org/kb/gene-validity. As of January 2021 the downloadable file contains six header lines that look as follows:
 ```tsv
 CLINGEN GENE VALIDITY CURATIONS
-FILE CREATED: 2020-08-04
+FILE CREATED: 2021-01-18
 WEBPAGE: https://search.clinicalgenome.org/kb/gene-validity
-+++++++++++,++++++++++++++,+++++++++++++,++++++++++++++++++,+++++++++,+++++++++,++++++++++++++,+++++++++++++,+++++++++++++++++++
-GENE SYMBOL,GENE ID (HGNC),DISEASE LABEL,DISEASE ID (MONDO),MOI,SOP,CLASSIFICATION,ONLINE REPORT,CLASSIFICATION DATE
-+++++++++++,++++++++++++++,+++++++++++++,++++++++++++++++++,+++++++++,+++++++++,++++++++++++++,+++++++++++++,+++++++++++++++++++
-
+++++++++++,++++++++++++++,+++++++++++++,++++++++++++++++++,+++++++++,+++++++++,+++++++++,++++++++++++++,+++++++++++++,+++++++++++++++++++
+GENE SYMBOL,GENE ID (HGNC),DISEASE LABEL,DISEASE ID (MONDO),MOI,SOP,CLASSIFICATION,ONLINE REPORT,CLASSIFICATION DATE,GCEP
++++++++++++,++++++++++++++,+++++++++++++,++++++++++++++++++,+++++++++,+++++++++,+++++++++,++++++++++++++,+++++++++++++,+++++++++++++++++++
 ```
 
 The mapping of the diseases is done on the fly as a three step process:
@@ -75,17 +74,16 @@ The mapping of the diseases is done on the fly as a three step process:
 
 The unmapped diseases are saved to a file called `unmapped_diseases.tsv` so that they can be reported to [EFO](https://github.com/EBISPOT/efo/issues/).
 
-The parser requires three parameters:
+The parser requires two parameters:
 - `-i`, `--input_file`: Name of csv file downloaded from https://search.clinicalgenome.org/kb/gene-validity
 - `-o`, `--output_file`: Name of evidence JSON file
-- `-s`, `--schema_version`: JSON schema version to use, e.g. 1.6.8. It must be branch or a tag available in https://github.com/opentargets/json_schema
 
 There is also an optional parameter to save the unmapped diseases to a file:
 - `-u`, `--unmapped_diseases_file`: If specified, the diseases not mapped to EFO will be stored in this file'
 
 To use the parser configure the python environment and run it as follows:
 ```bash
-(venv)$ python3 modules/ClinGen.py -i ClinGen-Gene-Disease-Summary-2020-08-04.csv -o clingen_2020-08-04.json -s 1.6.9 -u unmapped_diseases_clingen.tsv
+(venv)$ python3 modules/ClinGen.py -i ClinGen-Gene-Disease-Summary-2020-08-04.csv -o clingen_2020-08-04.json -u unmapped_diseases_clingen.tsv
 ```
 
 ### Gene2Phenotype

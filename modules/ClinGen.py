@@ -50,7 +50,7 @@ class ClinGen():
         # When reading csv file skip header lines that don't contain column names
         gene_validity_curation_df = pd.read_csv(filename, skiprows= [0,1,2,3,5], quotechar='"')
         for index, row in gene_validity_curation_df.iterrows():
-            print("{} - {}".format(row["GENE SYMBOL"], row["DISEASE LABEL"]))
+            self._logger.info("{} - {}".format(row["GENE SYMBOL"], row["DISEASE LABEL"]))
 
             gene_symbol = row["GENE SYMBOL"]
             disease_name = row["DISEASE LABEL"]
