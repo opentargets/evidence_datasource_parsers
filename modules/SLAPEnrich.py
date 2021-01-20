@@ -17,7 +17,7 @@ class SLAPEnrichEvidenceGenerator():
         # Initialize source table
         self.dataframe = None
 
-    def writeEvidenceFromSource(self, inputFile, mappingStep):
+    def generateEvidenceFromSource(self, inputFile, mappingStep):
         '''
         Processing of the input file to build all the evidences from its data
         Returns:
@@ -105,7 +105,7 @@ def main():
     evidenceBuilder = SLAPEnrichEvidenceGenerator()
 
     # Writing evidence strings into a json file
-    evidences = evidenceBuilder.writeEvidenceFromSource(inputFile, mappingStep)
+    evidences = evidenceBuilder.generateEvidenceFromSource(inputFile, mappingStep)
 
     with gzip.open(outputFile, "wt") as f:
         for evidence in evidences:
