@@ -86,7 +86,7 @@ class progenyEvidenceGenerator():
                 "datasourceId" : "progeny",
                 "datatypeId" : "affected_pathway",
                 "diseaseFromSource" : row["Cancer_type"],
-                "diseaseFromSourceMappedId" : row["EFO_id"],
+                "diseaseFromSourceMappedId" : row["EFO_id"] if row["EFO_id"] else None,
                 "resourceScore" : row["P.Value"],
                 "pathwayName" : row["description"],
                 "pathwayId" : row["reactomeId"],
