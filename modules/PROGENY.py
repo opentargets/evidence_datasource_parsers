@@ -8,20 +8,16 @@ from pyspark.sql.functions import *
 from pyspark.sql.types import *
 
 class progenyEvidenceGenerator():
-    def __init__(self, inputFile, mappingStep):
+    def __init__(self):
         # Create spark session     
         self.spark = SparkSession.builder \
                 .appName('progeny') \
                 .getOrCreate()
-
-        # Initialize mapping variables
-        self.mappingStep = mappingStep
     
-        # Initialize input files
-        self.inputFile = inputFile
+        # Initialize source table
         self.dataframe = None
 
-    def generateEvidenceFromSource(self):
+    def generateEvidenceFromSource(self, inputFile, mappingStep):
         '''
         Processing of the input file to build all the evidences from its data
         Returns:
@@ -32,10 +28,10 @@ class progenyEvidenceGenerator():
                                 .option("header", "true") \
                                 .option("delimiter", "\t") \
                                 .option("inferSchema", "true") \
-                                .csv(self.inputFile)
+                                .csv(inputFile)
 
         # Mapping step
-        if self.mappingStep:
+        if mappingStep:
             self.dataframe = self.cancer2EFO()
         
         self.dataframe = self.pathway2Reactome()
@@ -125,10 +121,10 @@ def main():
     )
 
     # Initialize evidence builder object
-    evidenceBuilder = progenyEvidenceGenerator(inputFile, mappingStep)
+    evidenceBuilder = progenyEvidenceGenerator()
 
     # Writing evidence strings into a json file
-    evidences = evidenceBuilder.generateEvidenceFromSource()
+    evidences = evidenceBuilder.generateEvidenceFromSource(inputFile, mappingStep)
 
     with gzip.open(outputFile, "wt") as f:
         for evidence in evidences:
