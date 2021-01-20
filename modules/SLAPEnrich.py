@@ -66,12 +66,13 @@ class SLAPEnrichEvidenceGenerator():
                 "datasourceId" : "slapenrich",
                 "datatypeId" : "affected_pathway",
                 "diseaseFromSource" : row["Cancer_type_acronym"],
-                "diseaseFromSourceMappedId" : row["EFO_id"],
+                "diseaseFromSourceMappedId" if row["EFO_id"] else None : row["EFO_id"],
                 "resourceScore" : row["pval"],
                 "pathwayName" : row["pathwayDescription"],
                 "pathwayId" : row["pathwayId"],
                 "targetFromSourceId" : row["gene"]
             }
+            evidence.pop(None, None)
             return evidence
         except Exception as e:
             raise        
