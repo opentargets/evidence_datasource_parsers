@@ -8,20 +8,16 @@ from pyspark.sql.functions import *
 from pyspark.sql.types import *
 
 class SLAPEnrichEvidenceGenerator():
-    def __init__(self, inputFile, mappingStep):
+    def __init__(self):
         # Create spark session     
         self.spark = SparkSession.builder \
                 .appName('SLAPEnrich') \
                 .getOrCreate()
-
-        # Initialize mapping variables
-        self.mappingStep = mappingStep
     
-        # Initialize input files
-        self.inputFile = inputFile
+        # Initialize source table
         self.dataframe = None
 
-    def writeEvidenceFromSource(self):
+    def writeEvidenceFromSource(self, inputFile, mappingStep):
         '''
         Processing of the input file to build all the evidences from its data
         Returns:
@@ -29,7 +25,7 @@ class SLAPEnrichEvidenceGenerator():
         '''
         # Read input file
         self.dataframe = self.spark \
-                        .read.csv("slapenrich_opentargets.tsv", sep=r'\t', header=True, inferSchema=True) \
+                        .read.csv(inputFile, sep=r'\t', header=True, inferSchema=True) \
                         .select("ctype", "gene", "pathway", "SLAPEnrichPval") \
                         .withColumnRenamed("ctype", "Cancer_type_acronym") \
                         .withColumnRenamed("SLAPEnrichPval", "pval") \
@@ -40,7 +36,7 @@ class SLAPEnrichEvidenceGenerator():
         self.dataframe = self.dataframe.filter(col("pval") < 1e-4) 
 
         # Mapping step
-        if self.mappingStep:
+        if mappingStep:
             self.dataframe = self.cancer2EFO()
 
         # Build evidence strings per row
@@ -105,10 +101,10 @@ def main():
     )
 
     # Initialize evidence builder object
-    evidenceBuilder = SLAPEnrichEvidenceGenerator(inputFile, mappingStep)
+    evidenceBuilder = SLAPEnrichEvidenceGenerator()
 
     # Writing evidence strings into a json file
-    evidences = evidenceBuilder.writeEvidenceFromSource()
+    evidences = evidenceBuilder.writeEvidenceFromSource(inputFile, mappingStep)
 
     with gzip.open(outputFile, "wt") as f:
         for evidence in evidences:
