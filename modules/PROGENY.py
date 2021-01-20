@@ -86,12 +86,13 @@ class progenyEvidenceGenerator():
                 "datasourceId" : "progeny",
                 "datatypeId" : "affected_pathway",
                 "diseaseFromSource" : row["Cancer_type"],
-                "diseaseFromSourceMappedId" : row["EFO_id"] if row["EFO_id"] else None,
                 "resourceScore" : row["P.Value"],
                 "pathwayName" : row["description"],
                 "pathwayId" : row["reactomeId"],
                 "targetFromSourceId" : row["target"]
             }
+            if row["EFO_id"] is not None:
+                evidence["diseaseFromSourceMappedId"] = row["EFO_id"]
             return evidence
         except Exception as e:
             raise        
