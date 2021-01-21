@@ -17,7 +17,7 @@ class progenyEvidenceGenerator():
         # Initialize source table
         self.dataframe = None
 
-    def generateEvidenceFromSource(self, inputFile, mappingStep):
+    def generateEvidenceFromSource(self, inputFile, skipMapping):
         '''
         Processing of the input file to build all the evidences from its data
         Returns:
@@ -31,7 +31,7 @@ class progenyEvidenceGenerator():
                                 .csv(inputFile)
 
         # Mapping step
-        if mappingStep:
+        if not skipMapping:
             self.dataframe = self.cancer2EFO()
         
         self.dataframe = self.pathway2Reactome()
@@ -104,14 +104,14 @@ def main():
 
     parser.add_argument("-i", "--inputFile", required=True, type=str, help="Input source .txt file.")
     parser.add_argument("-o", "--outputFile", required=True, type=str, help="Name of the evidence compressed JSON file containing the evidence strings.")
-    parser.add_argument("-m", "--mappingStep", required=False, type=bool, default=True, help="State whether to run the disease to EFO term mapping step.")
+    parser.add_argument("-m", "--skipMapping", required=False, type=bool, action="store_true", help="State whether to skip the disease to EFO mapping step.")
 
     # Parsing parameters
     args = parser.parse_args()
 
     inputFile = args.inputFile
     outputFile = args.outputFile
-    mappingStep = args.mappingStep
+    skipMapping = args.skipMapping
 
     # Initialize logging:
     logging.basicConfig(
@@ -125,7 +125,7 @@ def main():
     evidenceBuilder = progenyEvidenceGenerator()
 
     # Writing evidence strings into a json file
-    evidences = evidenceBuilder.generateEvidenceFromSource(inputFile, mappingStep)
+    evidences = evidenceBuilder.generateEvidenceFromSource(inputFile, skipMapping)
 
     with gzip.open(outputFile, "wt") as f:
         for evidence in evidences:
