@@ -276,15 +276,6 @@ class G2P(RareDiseaseMapper):
                             '{} is not a recognised G2P mutation consequence, ignoring the value'.format(mutation_consequence))
                         functional_consequence = None
 
-
-                    # Linkout
-                    linkout = [
-                        {
-                            'url' : 'http://www.ebi.ac.uk/gene2phenotype/search?panel=ALL&search_term=%s' % (gene_symbol,),
-                            'nice_name' : 'Gene2Phenotype%s' % (gene_symbol)
-                        }
-                    ]
-
                     evidence = {
                         'datasourceId': 'gene2phenotype',
                         'datatypeId': 'genetic_literature',
