@@ -173,33 +173,6 @@ class G2P(RareDiseaseMapper):
                 self._logger.info(f"No match for '{disease_name}' in MONDO")
                 return
 
-    def get_pub_array(self, pub_list):
-        '''
-        Takes a list of PMIDs and returns a list of reference dictionaries
-
-        Args:
-            pub_list (list): List of PMIDs extracted from the "pmids column"
-
-        Returns:
-            list: List of dictionaries containing the URL to the PubMed abstract
-        '''
-
-        pub_array = []
-
-        # If there were no pubmed ids there is one empty iten in the array
-        for publication in pub_list:
-            if len(publication) == 0:
-                pub_dict = {
-                    "lit_id": None
-                }
-                pub_array.append(pub_dict)
-            else:
-                pub_dict = {
-                    "lit_id": f"http://europepmc.org/abstract/MED/{publication}"
-                }
-                pub_array.append(pub_dict)
-        return pub_array
-
     def process_g2p(self, dd_file, eye_file, skin_file, cancer_file, evidence_file, unmapped_diseases_filename):
 
         self.get_omim_to_efo_mappings()
@@ -257,12 +230,6 @@ class G2P(RareDiseaseMapper):
 
                     self._logger.info(f"{gene_symbol}, {target}, '{disease_name}', {disease_mapping['id']}")
 
-                    # Add literature provenance if there are PMIDs
-                    if len(pmids) != 0:
-                        provenance_type["literature"] = {
-                            'references' : self.get_pub_array(pmids.split(";"))
-                        }
-
                     # Ignore allelic requirement if it's empty string
                     if not allelic_requirement:
                         allelic_requirement = None
@@ -285,9 +252,12 @@ class G2P(RareDiseaseMapper):
                         'diseaseFromSourceMappedId': ontoma.interface.make_uri(disease_mapping['id']).split("/")[-1],
                         'allelicRequirements': [mode_of_inheritance],
                         'confidence': confidence,
-                        'literature': ,
                         'studyId': expert_panel_name
                     }
+
+                    # Add literature provenance if there are PMIDs
+                    if len(pmids) != 0:
+                        evidence['literature'] = pmids.split(";")
 
             self._logger.info(f"Processed {c} diseases, mapped {total_efo}\n")
 
