@@ -86,11 +86,11 @@ class progenyEvidenceGenerator():
             evidence = {
                 "datasourceId" : "progeny",
                 "datatypeId" : "affected_pathway",
-                "diseaseFromSource" : row["Cancer_type"],
                 "resourceScore" : row["P.Value"],
                 "pathwayName" : row["description"],
                 "pathwayId" : row["reactomeId"],
-                "targetFromSourceId" : row["target"]
+                "targetFromSourceId" : row["target"],
+                "diseaseFromSource" : row["Cancer_type"]
             }
             if "EFO_id" in row:
                 evidence["diseaseFromSourceMappedId"] = row["EFO_id"]
