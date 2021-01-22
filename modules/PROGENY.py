@@ -86,15 +86,15 @@ class progenyEvidenceGenerator():
                 "datasourceId" : "progeny",
                 "datatypeId" : "affected_pathway",
                 "diseaseFromSource" : row["Cancer_type"],
-                "diseaseFromSourceMappedId" if row["EFO_id"] else None : row["EFO_id"],
                 "resourceScore" : row["P.Value"],
                 "pathwayName" : row["description"],
                 "pathwayId" : row["reactomeId"],
                 "targetFromSourceId" : row["target"]
             }
-            evidence.pop(None, None)
+            if row["EFO_id"]:
+                evidence["diseaseFromSourceMappedId"] = row["EFO_id"]
             return evidence
-        except Exception as e:
+        except Exception:
             raise        
 
 def main():
@@ -104,7 +104,7 @@ def main():
 
     parser.add_argument("-i", "--inputFile", required=True, type=str, help="Input source .txt file.")
     parser.add_argument("-o", "--outputFile", required=True, type=str, help="Name of the evidence compressed JSON file containing the evidence strings.")
-    parser.add_argument("-m", "--skipMapping", required=False, type=bool, action="store_true", help="State whether to skip the disease to EFO mapping step.")
+    parser.add_argument("-s", "--skipMapping", required=False, action="store_true", help="State whether to skip the disease to EFO mapping step.")
 
     # Parsing parameters
     args = parser.parse_args()
@@ -131,7 +131,7 @@ def main():
         for evidence in evidences:
             json.dump(evidence, f)
             f.write('\n')
-    logging.info(f"Evidence strings saved into {outputFile}. Exiting.")
+    logging.info(f"{len(evidences)} evidence strings saved into {outputFile}. Exiting.")
 
 if __name__ == '__main__':
     main()
