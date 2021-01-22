@@ -351,42 +351,17 @@ class G2P(RareDiseaseMapper):
                     ]
 
                     evidence = {
-                        'is_associated' : True,
-                        'confidence' : confidence,
-                        'allelic_requirement' : allelic_requirement,
-                        'functional_consequence' : functional_consequence,
-                        'evidence_codes' : ["http://purl.obolibrary.org/obo/ECO_0000204"],
-                        'provenance_type' : provenance_type,
-                        'date_asserted' : date,
-                        'resource_score' : resource_score,
-                        'urls' : linkout
+                        'datasourceId': 'gene2phenotype',
+                        'datatypeId': 'genetic_literature',
+                        'targetFromSourceId': gene_symbol,
+                        'diseaseFromSource': disease_name,
+                        'diseaseFromSourceId': disease_id,
+                        'diseaseFromSourceMappedId': ontoma.interface.make_uri(efo_mapping['id']).split("/")[-1],
+                        'allelicRequirements': [mode_of_inheritance],
+                        'confidence': classification,
+                        'literature': ,
+                        'studyId': expert_panel_name
                     }
-                    # *** unique_association_fields ***
-                    unique_association_fields = {
-                        'target_id' : ensembl_iri,
-                        'original_disease_label' : disease_name,
-                        'disease_id' : disease_mapping['id'],
-                        'gene_panel': panel,
-                        "mutation_consequence": mutation_consequence,
-                        "allelic_requirement": allelic_requirement
-                    }
-
-
-                    try:
-                        evidence = self.evidence_builder.Opentargets(
-                            type = type,
-                            access_level = access_level,
-                            sourceID = sourceID,
-                            evidence = evidence,
-                            target = target,
-                            disease = disease_info,
-                            unique_association_fields = unique_association_fields,
-                            validated_against_schema_version = validated_against_schema_version
-                        )
-                        self.evidence_strings.append(evidence)
-                    except:
-                        self._logger.warning('Evidence generation failed for row: {}'.format(c))
-                        raise
 
             self._logger.info(f"Processed {c} diseases, mapped {total_efo}\n")
 
