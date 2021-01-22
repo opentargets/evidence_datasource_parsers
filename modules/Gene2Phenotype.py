@@ -1,5 +1,4 @@
 from settings import Config
-from common.RareDiseasesUtils import RareDiseaseMapper
 import ontoma
 
 import python_jsonschema_objects as pjo
@@ -27,7 +26,7 @@ G2P_mutationCsq2functionalCsq = {
 
 
 
-class G2P(RareDiseaseMapper):
+class G2P():
     def __init__(self, g2p_version):
         super(G2P, self).__init__()
         self.evidence_strings = list()
@@ -175,8 +174,6 @@ class G2P(RareDiseaseMapper):
                 return
 
     def process_g2p(self, dd_file, eye_file, skin_file, cancer_file, evidence_file, unmapped_diseases_filename):
-
-        self.get_omim_to_efo_mappings()
 
         # Parser DD file
         self._logger.info("Started parsing DD file")
