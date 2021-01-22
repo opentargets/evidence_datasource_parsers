@@ -10,14 +10,6 @@ import gzip
 import requests
 import argparse
 
-G2P_confidence2score = {
-    'confirmed' : 1,
-    'probable': 0.5,
-    'possible' : 0.25,
-    'both RD and IF' : 1,
-    'child IF': 1
-}
-
 G2P_mutationCsq2functionalCsq = {
     'loss of function' : 'SO_0002054', #loss_of_function_variant
     'all missense/in frame' : 'SO_0001650', #inframe_variant
@@ -271,19 +263,6 @@ class G2P(RareDiseaseMapper):
                             'references' : self.get_pub_array(pmids.split(";"))
                         }
 
-                    # *** Evidence info ***
-                    # Score based on mutational consequence
-                    if confidence in G2P_confidence2score:
-                        score = G2P_confidence2score[confidence]
-                    else:
-                        self._logger.error('{} is not a recognised G2P confidence, assigning an score of 0'.format(confidence))
-                        score = 0
-
-                    resource_score = {
-                        'type': "probability",
-                        'value': score
-                    }
-
                     # Ignore allelic requirement if it's empty string
                     if not allelic_requirement:
                         allelic_requirement = None
@@ -314,7 +293,7 @@ class G2P(RareDiseaseMapper):
                         'diseaseFromSourceId': disease_mim,
                         'diseaseFromSourceMappedId': ontoma.interface.make_uri(disease_mapping['id']).split("/")[-1],
                         'allelicRequirements': [mode_of_inheritance],
-                        'confidence': classification,
+                        'confidence': confidence,
                         'literature': ,
                         'studyId': expert_panel_name
                     }
