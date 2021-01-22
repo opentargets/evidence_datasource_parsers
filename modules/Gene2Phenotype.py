@@ -230,19 +230,6 @@ class G2P(RareDiseaseMapper):
 
                     self._logger.info(f"{gene_symbol}, {target}, '{disease_name}', {disease_mapping['id']}")
 
-                    # Ignore allelic requirement if it's empty string
-                    if not allelic_requirement:
-                        allelic_requirement = None
-                        self._logger.warn('Empty allelic requirement')
-
-                    # Functional consequence based on mutation consequence field
-                    if mutation_consequence in G2P_mutationCsq2functionalCsq:
-                        functional_consequence = G2P_mutationCsq2functionalCsq[mutation_consequence]
-                    else:
-                        self._logger.error(
-                            '{} is not a recognised G2P mutation consequence, ignoring the value'.format(mutation_consequence))
-                        functional_consequence = None
-
                     evidence = {
                         'datasourceId': 'gene2phenotype',
                         'datatypeId': 'genetic_literature',
@@ -250,7 +237,6 @@ class G2P(RareDiseaseMapper):
                         'diseaseFromSource': disease_name,
                         'diseaseFromSourceId': disease_mim,
                         'diseaseFromSourceMappedId': ontoma.interface.make_uri(disease_mapping['id']).split("/")[-1],
-                        'allelicRequirements': [mode_of_inheritance],
                         'confidence': confidence,
                         'studyId': expert_panel_name
                     }
@@ -258,6 +244,15 @@ class G2P(RareDiseaseMapper):
                     # Add literature provenance if there are PMIDs
                     if len(pmids) != 0:
                         evidence['literature'] = pmids.split(";")
+
+                    # Ignore allelic requirement if it's empty string
+                    evidence['allelicRequirements'] = [allelic_requirement] if allelic_requirement else self._logger.warn('Empty allelic requirement, ignoring the value')
+
+                    # Assign SO code based on mutation consequence field
+                    if mutation_consequence in G2P_mutationCsq2functionalCsq:
+                        evidence['variantFunctionalConsequenceId'] = G2P_mutationCsq2functionalCsq[mutation_consequence]
+                    else:
+                        self._logger.error( '{} is not a recognised G2P mutation consequence, ignoring the value'.format(mutation_consequence))
 
             self._logger.info(f"Processed {c} diseases, mapped {total_efo}\n")
 
