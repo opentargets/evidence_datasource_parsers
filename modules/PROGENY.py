@@ -10,9 +10,9 @@ from pyspark.sql.types import *
 class progenyEvidenceGenerator():
     def __init__(self):
         # Create spark session     
-        self.spark = SparkSession.builder \
-                .appName('progeny') \
-                .getOrCreate()
+        self.spark = (SparkSession.builder
+                .appName('progeny')
+                .getOrCreate())
     
         # Initialize source table
         self.dataframe = None
@@ -24,11 +24,11 @@ class progenyEvidenceGenerator():
             evidences (array): Object with all the generated evidences strings from source file
         '''
         # Read input file
-        self.dataframe = self.spark.read \
-                                .option("header", "true") \
-                                .option("delimiter", "\t") \
-                                .option("inferSchema", "true") \
-                                .csv(inputFile)
+        self.dataframe = (self.spark.read
+                                .option("header", "true")
+                                .option("delimiter", "\t")
+                                .option("inferSchema", "true")
+                                .csv(inputFile))
 
         # Mapping step
         if not skipMapping:
@@ -37,45 +37,46 @@ class progenyEvidenceGenerator():
         self.dataframe = self.pathway2Reactome()
 
         # Build evidence strings per row
-        evidences = self.dataframe.rdd \
-            .map(progenyEvidenceGenerator.parseEvidenceString) \
+        evidences = (self.dataframe.rdd
+            .map(progenyEvidenceGenerator.parseEvidenceString)
             .collect() # list of dictionaries
+            )
         
         return evidences
     
     def cancer2EFO(self):
-        diseaseMappingsFile = self.spark \
-                        .read.csv("resources/cancer2EFO_mappings.tsv", sep=r'\t', header=True) \
-                        .select("Cancer_type_acronym", "EFO_id") \
-                        .withColumnRenamed("Cancer_type_acronym", "Cancer_type")
+        diseaseMappingsFile = (self.spark
+                        .read.csv("resources/cancer2EFO_mappings.tsv", sep=r'\t', header=True)
+                        .select("Cancer_type_acronym", "EFO_id")
+                        .withColumnRenamed("Cancer_type_acronym", "Cancer_type"))
 
         self.dataframe = self.dataframe.join(
             diseaseMappingsFile,
             on="Cancer_type",
             how="inner"
-        )
+)
 
         return self.dataframe
     
     def pathway2Reactome(self):
-        pathwayMappingsFile = self.spark \
-                        .read.csv("resources/pathway2Reactome_mappings.tsv", sep=r'\t', header=True) \
-                        .withColumnRenamed("pathway", "Pathway")
+        pathwayMappingsFile = (self.spark
+                        .read.csv("resources/pathway2Reactome_mappings.tsv", sep=r'\t', header=True)
+                        .withColumnRenamed("pathway", "Pathway"))
         
-        self.dataframe = self.dataframe \
+        self.dataframe = (self.dataframe
                 .join(
                     pathwayMappingsFile,
                     on="Pathway",
                     how="inner"
-                ) \
+                )
                 .withColumn(
                     "target",
                     split(col("target"), ", ") 
-                ) \
+                )
                 .withColumn(
                     "target",
                     explode("target")
-                )
+                ))
 
         return self.dataframe
 
