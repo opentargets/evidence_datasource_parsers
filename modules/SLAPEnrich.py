@@ -95,7 +95,6 @@ def main():
     inputFile = args.inputFile
     outputFile = args.outputFile
     skipMapping = args.skipMapping
-    logFile = args.logFile 
 
     # Initialize logging:
     logging.basicConfig(
