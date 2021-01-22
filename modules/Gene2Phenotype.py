@@ -238,7 +238,7 @@ class G2P(RareDiseaseMapper):
                         'diseaseFromSourceId': disease_mim,
                         'diseaseFromSourceMappedId': ontoma.interface.make_uri(disease_mapping['id']).split("/")[-1],
                         'confidence': confidence,
-                        'studyId': expert_panel_name
+                        'studyId': panel
                     }
 
                     # Add literature provenance if there are PMIDs
