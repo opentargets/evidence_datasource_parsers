@@ -244,7 +244,10 @@ class G2P():
 
                     # Assign SO code based on mutation consequence field
                     if mutation_consequence in G2P_mutationCsq2functionalCsq:
-                        evidence['variantFunctionalConsequenceId'] = G2P_mutationCsq2functionalCsq[mutation_consequence]
+                        if G2P_mutationCsq2functionalCsq[mutation_consequence]:
+                            evidence['variantFunctionalConsequenceId'] = G2P_mutationCsq2functionalCsq[mutation_consequence]
+                        else:
+                            self._logger.error('Ignoring empty mutation consequence'.format(mutation_consequence))
                     else:
                         self._logger.error( '{} is not a recognised G2P mutation consequence, ignoring the value'.format(mutation_consequence))
 
