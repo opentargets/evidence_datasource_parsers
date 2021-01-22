@@ -91,7 +91,7 @@ class progenyEvidenceGenerator():
                 "pathwayId" : row["reactomeId"],
                 "targetFromSourceId" : row["target"]
             }
-            if row["EFO_id"]:
+            if "EFO_id" in row:
                 evidence["diseaseFromSourceMappedId"] = row["EFO_id"]
             return evidence
         except Exception:
