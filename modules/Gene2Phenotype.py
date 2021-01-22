@@ -8,7 +8,6 @@ import logging
 import csv
 import gzip
 import requests
-import datetime
 import argparse
 
 G2P_confidence2score = {
@@ -257,14 +256,6 @@ class G2P(RareDiseaseMapper):
                 confidence = row["DDD category"]
                 pmids = row["pmids"]
                 panel = row["panel"]
-
-                date = row["gene disease pair entry date"]
-                # Handle missing dates ("No date" in file)
-                try:
-                    date = datetime.datetime.strptime(date, "%Y-%m-%d %H:%M:%S").isoformat()
-                except ValueError:
-                    date = None
-
 
                 gene_symbol.rstrip()
 
