@@ -9,6 +9,7 @@ import csv
 import gzip
 import requests
 import argparse
+import json
 
 G2P_mutationCsq2functionalCsq = {
     'loss of function' : 'SO_0002054', #loss_of_function_variant
@@ -254,6 +255,8 @@ class G2P(RareDiseaseMapper):
                     else:
                         self._logger.error( '{} is not a recognised G2P mutation consequence, ignoring the value'.format(mutation_consequence))
 
+                    self.evidence_strings.append(evidence)
+
             self._logger.info(f"Processed {c} diseases, mapped {total_efo}\n")
 
     def write_evidence_strings(self, filename):
@@ -262,7 +265,8 @@ class G2P(RareDiseaseMapper):
             n = 0
             for evidence_string in self.evidence_strings:
                 n += 1
-                tp_file.write(evidence_string.serialize() + "\n")
+                json.dump(evidence_string, tp_file)
+                tp_file.write("\n")
             self._logger.info(f"{n} evidence strings saved.\n")
 
     def write_unmapped_diseases(self, filename):
