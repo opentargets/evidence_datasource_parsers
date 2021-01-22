@@ -24,11 +24,10 @@ G2P_mutationCsq2functionalCsq = {
 
 
 class G2P():
-    def __init__(self, g2p_version):
+    def __init__(self):
         super(G2P, self).__init__()
         self.evidence_strings = list()
         self.unmapped_diseases = set()
-        self.g2p_version = g2p_version
 
         # Configure logging
         # Create logger
@@ -293,9 +292,6 @@ def main():
     parser.add_argument('-u', '--unmapped_diseases_file',
                         help='If specified, the diseases not mapped to EFO will be stored in this file',
                         type=str, default=False)
-    parser.add_argument('-v', '--g2p_version',
-                        help='Version of the Gene2Phenotype data used. If not available please use the date in which the data was downloaded in YYYY-MM-DD format',
-                        type=str, required=True)
 
     args = parser.parse_args()
     # Get parameters
@@ -305,9 +301,8 @@ def main():
     cancer_file = args.cancer_panel
     outfile = args.output_file
     unmapped_diseases_file = args.unmapped_diseases_file
-    g2p_version = args.g2p_version
 
-    g2p = G2P(g2p_version=g2p_version)
+    g2p = G2P()
     g2p.process_g2p(dd_file, eye_file, skin_file, cancer_file, outfile, unmapped_diseases_file)
 
 if __name__ == "__main__":
