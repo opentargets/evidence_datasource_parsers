@@ -1,12 +1,9 @@
 from settings import Config
 import ontoma
 
-import python_jsonschema_objects as pjo
-
 import logging
 import csv
 import gzip
-import requests
 import argparse
 import json
 
