@@ -266,30 +266,11 @@ class G2P(RareDiseaseMapper):
 
                     self._logger.info(f"{gene_symbol}, {target}, '{disease_name}', {disease_mapping['id']}")
 
-                    type = "genetic_literature"
-
-                    provenance_type = {
-                        'database' : {
-                            'id' : "Gene2Phenotype",
-                            'version' : self.g2p_version,
-                            'dbxref' : {
-                                'url': "http://www.ebi.ac.uk/gene2phenotype",
-                                'id' : "Gene2Phenotype",
-                                'version' : self.g2p_version
-                            }
-                        }
-                    }
-
                     # Add literature provenance if there are PMIDs
                     if len(pmids) != 0:
                         provenance_type["literature"] = {
                             'references' : self.get_pub_array(pmids.split(";"))
                         }
-
-                    # *** General properties ***
-                    access_level = "public"
-                    sourceID = "gene2phenotype"
-                    validated_against_schema_version = self.schema_version
 
                     # *** Target info ***
                     target = {
