@@ -222,7 +222,7 @@ class G2P():
                 if disease_mapping:
                     total_efo +=1
 
-                    self._logger.info(f"{gene_symbol}, {target}, '{disease_name}', {disease_mapping['id']}")
+                    self._logger.info(f"{gene_symbol}, {gene_symbol}, '{disease_name}', {disease_mapping['id']}")
 
                     evidence = {
                         'datasourceId': 'gene2phenotype',
