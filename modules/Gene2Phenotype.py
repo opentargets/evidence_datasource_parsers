@@ -257,7 +257,6 @@ class G2P(RareDiseaseMapper):
                 pmids = row["pmids"]
                 panel = row["panel"]
 
-                gene_symbol.rstrip()
 
                 # Map disease to ontology terms
                 disease_mapping = self.map_disease_name_to_ontology(disease_name, disease_mim)
@@ -271,15 +270,6 @@ class G2P(RareDiseaseMapper):
                         provenance_type["literature"] = {
                             'references' : self.get_pub_array(pmids.split(";"))
                         }
-
-                    # *** Target info ***
-                    target = {
-                        'id' : ensembl_iri,
-                        'activity' : "http://identifiers.org/cttv.activity/unknown",
-                        'target_type' : "http://identifiers.org/cttv.target/gene_evidence",
-                        'target_name' : gene_symbol
-                    }
-                    # http://www.ontobee.org/ontology/ECO?iri=http://purl.obolibrary.org/obo/ECO_0000204 -- An evidence type that is based on an assertion by the author of a paper, which is read by a curator.
 
                     # *** Disease info ***
                     disease_info = {
@@ -325,7 +315,7 @@ class G2P(RareDiseaseMapper):
                     evidence = {
                         'datasourceId': 'gene2phenotype',
                         'datatypeId': 'genetic_literature',
-                        'targetFromSourceId': gene_symbol,
+                        'targetFromSourceId': gene_symbol.rstrip(),
                         'diseaseFromSource': disease_name,
                         'diseaseFromSourceId': disease_id,
                         'diseaseFromSourceMappedId': ontoma.interface.make_uri(efo_mapping['id']).split("/")[-1],
