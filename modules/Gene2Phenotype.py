@@ -271,12 +271,6 @@ class G2P(RareDiseaseMapper):
                             'references' : self.get_pub_array(pmids.split(";"))
                         }
 
-                    # *** Disease info ***
-                    disease_info = {
-                        'id' : disease_mapping['id'],
-                        'name' : disease_mapping['name'],
-                        'source_name' : disease_name
-                    }
                     # *** Evidence info ***
                     # Score based on mutational consequence
                     if confidence in G2P_confidence2score:
@@ -317,8 +311,8 @@ class G2P(RareDiseaseMapper):
                         'datatypeId': 'genetic_literature',
                         'targetFromSourceId': gene_symbol.rstrip(),
                         'diseaseFromSource': disease_name,
-                        'diseaseFromSourceId': disease_id,
-                        'diseaseFromSourceMappedId': ontoma.interface.make_uri(efo_mapping['id']).split("/")[-1],
+                        'diseaseFromSourceId': disease_mim,
+                        'diseaseFromSourceMappedId': ontoma.interface.make_uri(disease_mapping['id']).split("/")[-1],
                         'allelicRequirements': [mode_of_inheritance],
                         'confidence': classification,
                         'literature': ,
