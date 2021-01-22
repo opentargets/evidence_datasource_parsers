@@ -10,9 +10,9 @@ from pyspark.sql.types import *
 class SLAPEnrichEvidenceGenerator():
     def __init__(self):
         # Create spark session     
-        self.spark = SparkSession.builder \
-                .appName('SLAPEnrich') \
-                .getOrCreate()
+        self.spark = (SparkSession.builder
+                .appName('SLAPEnrich')
+                .getOrCreate())
     
         # Initialize source table
         self.dataframe = None
@@ -24,13 +24,13 @@ class SLAPEnrichEvidenceGenerator():
             evidences (array): Object with all the generated evidences strings from source file
         '''
         # Read input file
-        self.dataframe = self.spark \
-                        .read.csv(inputFile, sep=r'\t', header=True, inferSchema=True) \
-                        .select("ctype", "gene", "pathway", "SLAPEnrichPval") \
-                        .withColumnRenamed("ctype", "Cancer_type_acronym") \
-                        .withColumnRenamed("SLAPEnrichPval", "pval") \
-                        .withColumn("pathwayId", split(col("pathway"), ": ").getItem(0)) \
-                        .withColumn("pathwayDescription", split(col("pathway"), ": ").getItem(1))
+        self.dataframe = (self.spark
+                        .read.csv(inputFile, sep=r'\t', header=True, inferSchema=True)
+                        .select("ctype", "gene", "pathway", "SLAPEnrichPval")
+                        .withColumnRenamed("ctype", "Cancer_type_acronym")
+                        .withColumnRenamed("SLAPEnrichPval", "pval")
+                        .withColumn("pathwayId", split(col("pathway"), ": ").getItem(0))
+                        .withColumn("pathwayDescription", split(col("pathway"), ": ").getItem(1)))
 
         # Filter by p-value
         self.dataframe = self.dataframe.filter(col("pval") < 1e-4) 
@@ -40,16 +40,16 @@ class SLAPEnrichEvidenceGenerator():
             self.dataframe = self.cancer2EFO()
 
         # Build evidence strings per row
-        evidences = self.dataframe.rdd \
-            .map(SLAPEnrichEvidenceGenerator.parseEvidenceString) \
-            .collect() # list of dictionaries
+        evidences = (self.dataframe.rdd
+            .map(SLAPEnrichEvidenceGenerator.parseEvidenceString)
+            .collect()) # list of dictionaries
         
         return evidences
     
     def cancer2EFO(self):
-        diseaseMappingsFile = self.spark \
-                        .read.csv("resources/cancer2EFO_mappings.tsv", sep=r'\t', header=True) \
-                        .select("Cancer_type_acronym", "EFO_id") \
+        diseaseMappingsFile = (self.spark
+                        .read.csv("resources/cancer2EFO_mappings.tsv", sep=r'\t', header=True)
+                        .select("Cancer_type_acronym", "EFO_id"))
 
         self.dataframe = self.dataframe.join(
             diseaseMappingsFile,
@@ -111,7 +111,7 @@ def main():
         for evidence in evidences:
             json.dump(evidence, f)
             f.write('\n')
-    logging.info(f"Evidence strings saved into {outputFile}. Exiting.")
+    logging.info(f"{len(evidences)} evidence strings saved into {outputFile}. Exiting.")
 
 if __name__ == '__main__':
     main()
