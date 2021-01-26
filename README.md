@@ -96,9 +96,6 @@ The mapping of the diseases, i.e. the "disease name" column, is done on the fly 
 - If OnToma returns a fuzzy match it is ignore and MONDO is searched for exact matches.
 - When no exact matches are found the disease is considered unmapped and it's saved to a file (see the `-u`/ `--unmapped_disease_file` option below).
 
-The parser requires two parameters to run:
-- `-s`, `--schema_version`: JSON schema version to use, e.g. 1.6.8. It must be branch or a tag available in https://github.com/opentargets/json_schema.
-- `-v`, `--g2p_version`: Version of the Gene2Phenotype data used. If not available please use the date in which the data was downloaded in YYYY-MM-DD format.
 
 There are also a number of optional parameters to specify the name of the input and out files:
 - `-d`, `--dd_panel`: Name of Developmental Disorders (DD) panel file. It uses the value of G2P_DD_FILENAME in setting.py if not specified.
@@ -112,7 +109,7 @@ Note that when using the default file names, the input files have to exist in th
 
 To use the parser configure the python environment and run it as follows:
 ```bash
-(venv)$ python3 modules/Gene2Phenotype.py -s 1.7.1 -v 2020-08-19 -d DDG2P_19_8_2020.csv.gz -e EyeG2P_19_8_2020.csv.gz -k SkinG2P_19_8_2020.csv.gz -c CancerG2P_19_8_2020.csv.gz -o gene2phenotype-19-08-2020.json -u gene2phenotype-19-08-2020_unmapped_diseases.txt 
+(venv)$ python3 modules/Gene2Phenotype.py -d DDG2P_19_8_2020.csv.gz -e EyeG2P_19_8_2020.csv.gz -k SkinG2P_19_8_2020.csv.gz -c CancerG2P_19_8_2020.csv.gz -o gene2phenotype-19-08-2020.json -u gene2phenotype-19-08-2020_unmapped_diseases.txt 
 ```
 
 ### Genomics England Panel App
