@@ -78,13 +78,6 @@ class Config:
     PHEWAS_CATALOG_EVIDENCE_FILENAME = f"phewas_catalog-{datetime.today().strftime('%Y-%m-%d')}.json"
     PHEWAS_CATALOG_W_CONSEQUENCES = 'https://storage.googleapis.com/otar000-evidence_input/PheWAS/data_files/phewas_w_consequences.csv'
 
-    # Gene2Phenotype
-    #G2P_FILENAME = 'DDG2P.csv.gz'
-    G2P_DD_FILENAME = file_or_resource('DDG2P_2_4_2020.csv.gz')
-    G2P_eye_FILENAME = file_or_resource('EyeG2P_26_3_2020.csv.gz')
-    G2P_skin_FILENAME = file_or_resource('SkinG2P_26_3_2020.csv.gz')
-    G2P_cancer_FILENAME = file_or_resource('CancerG2P_26_3_2020.csv.gz')
-    G2P_EVIDENCE_FILENAME = 'gene2phenotype-19-08-2019.json'
 
     # IntoGEN
     INTOGEN_DRIVER_GENES_FILENAME = file_or_resource('intogen_Compendium_Cancer_Genes.tsv')

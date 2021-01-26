@@ -279,19 +279,19 @@ def main():
     parser = argparse.ArgumentParser(description='Parse Gene2Phenotype gene-disease files downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads/')
     parser.add_argument('-d', '--dd_panel',
                         help='DD panel file downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads',
-                        type=str, default=Config.G2P_DD_FILENAME)
+                        type=str)
     parser.add_argument('-e', '--eye_panel',
                         help='Eye panel file downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads',
-                        type=str, default=Config.G2P_eye_FILENAME)
+                        type=str)
     parser.add_argument('-k', '--skin_panel',
                         help='Skin panel file downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads',
-                        type=str, default=Config.G2P_skin_FILENAME)
+                        type=str)
     parser.add_argument('-c', '--cancer_panel',
                         help='Cancer panel file downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads',
-                        type=str, default=Config.G2P_cancer_FILENAME)
+                        type=str)
     parser.add_argument('-o', '--output_file',
                         help='Name of evidence file. It uses the value of G2P_EVIDENCE_FILENAME in setting.py if not specified',
-                        type=str, default=Config.G2P_EVIDENCE_FILENAME)
+                        type=str)
     parser.add_argument('-u', '--unmapped_diseases_file',
                         help='If specified, the diseases not mapped to EFO will be stored in this file',
                         type=str, default=False)
