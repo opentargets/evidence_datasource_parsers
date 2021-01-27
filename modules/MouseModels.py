@@ -1,7 +1,7 @@
 import requests
 import collections
 from tqdm import tqdm
-import optparse
+import argparse
 import logging
 import os
 import sys
@@ -24,16 +24,8 @@ import opentargets.model.evidence.phenotype as evidence_phenotype
 import opentargets.model.evidence.core as evidence_core
 import opentargets.model.evidence.association_score as association_score
 
-logging.basicConfig(filename='phenodigm.log', filemode='w', level=logging.INFO)
-logger = logging.getLogger(__name__)
 
-__copyright__ = "Copyright 2014-2021, Open Targets"
-__credits__ = ["Gautier Koscielny", "Damian Smedley", "Asier Gonzalez"]
-__license__ = "Apache 2.0"
-__version__ = Config.VALIDATED_AGAINST_SCHEMA_VERSION
-__maintainer__ = "Open Targets Data Team"
-__email__ = ["data@opentargets.org"]
-__status__ = "Production"
+
 
 class Phenodigm(RareDiseaseMapper, GCSBucketManager):
 
@@ -834,18 +826,35 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
 
 def main():
 
-    parser = optparse.OptionParser()
-    parser.add_option("-u", '--update-cache', action="store_true", dest="update_cache", default=False)
-    parser.add_option("-w", '--write-evidence-to-cloud', action="store_true", dest="write2cloud", default=False)
-    options, args = parser.parse_args()
+    parser = argparse.ArgumentParser(description='Evidence parser for animal models sources from PhenoDigm')
 
-    # -u and -w options are mutually exclusuve
-    if options.update_cache and options.write2cloud:
-        parser.error("Options -u and -w are mutually exclusive, please use one only")
+    # Two of the flags are mutually exclusive:
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("-u", '--update-cache', help='To use cached data instead of fetching from IUPMC solr', 
+        action="store_true", dest="update_cache", default=False)
+    group.add_argument("-w", '--write-evidence-to-cloud', help='If the file is expected ot be uploaded to the cloud right a way',
+        action="store_true", dest="write2cloud", default=False)
+
+    # log file is optional:
+    parser.add_argument("-l", '--log-file', help='Optional filename for logfile.', required=False)
+    args = parser.parse_args()
+
+    # Initialize logger:
+    # Initialize logger based on the provided logfile. 
+    # If no logfile is specified, logs are written to stderr 
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s %(levelname)s %(module)s - %(funcName)s: %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S',
+    )
+    if args.logFile:
+        logging.config.fileConfig(filename=args.logFile)
+    else:
+        logging.StreamHandler(sys.stderr)
 
     ph = Phenodigm()
     #ph.process_ontologies()
-    ph.process_all(update_cache=options.update_cache, write2cloud=options.write2cloud)
+    ph.process_all(update_cache=args.update_cache, write2cloud=args.write2cloud)
 
 if __name__ == "__main__":
     main()
