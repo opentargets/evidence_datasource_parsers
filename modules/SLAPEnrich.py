@@ -5,7 +5,6 @@ import argparse
 import gzip
 import logging
 import json
-from pyspark import SparkContext
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import *
 from pyspark.sql.types import *

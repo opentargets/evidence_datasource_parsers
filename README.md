@@ -195,7 +195,7 @@ The source table is then formatted into a compressed set of JSON lines following
 The parser requires three parameters:
 - `-i`, `--inputFile`: Name of tsv file located in the [SLAPEnrich bucket](https://storage.googleapis.com/otar000-evidence_input/SLAPEnrich/data_file/slapenrich_opentargets-21-12-2017.tsv).
 - `-o`, `--outputFile`: Name of the evidence compressed JSON file containing the evidence strings.
-- `-s`, `--mappingStep`: State whether to run the disease to EFO term mapping step. It is True by default.
+- `-s`, `--skipMapping`: State whether to skip the disease to EFO term mapping step. If not used, this step
 
 To use the parser configure the python environment and run it as follows:
 ```bash
