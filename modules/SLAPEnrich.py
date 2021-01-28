@@ -45,6 +45,12 @@ class SLAPEnrichEvidenceGenerator():
                 logging.info("Disease mappings have been imported.")
             except Exception as e:
                 logging.error(f"An error occurred while importing disease mappings: \n{e}.")
+        else:
+            logging.info("Disease mapping has been skipped.")
+            self.dataframe = self.dataframe.withColumn(
+                "EFO_id",
+                lit(None)
+            )
 
         # Build evidence strings per row
         logging.info("Generating evidence:")
@@ -52,6 +58,11 @@ class SLAPEnrichEvidenceGenerator():
             .map(SLAPEnrichEvidenceGenerator.parseEvidenceString)
             .collect()) # list of dictionaries
         
+        if skipMapping:
+            # Delete empty keys if mapping is skipped
+            for evidence in evidences:
+                del evidence["diseaseFromSourceMappedId"]
+
         return evidences
     
     def cancer2EFO(self, mapping2EFO):
@@ -73,17 +84,16 @@ class SLAPEnrichEvidenceGenerator():
             evidence = {
                 "datasourceId" : "slapenrich",
                 "datatypeId" : "affected_pathway",
+                "diseaseFromSourceMappedId" : row["EFO_id"],
                 "resourceScore" : row["pval"],
                 "pathwayName" : row["pathwayDescription"],
                 "pathwayId" : row["pathwayId"],
                 "targetFromSourceId" : row["gene"],
                 "diseaseFromSource" : row["Cancer_type_acronym"]
             }
-            if "EFO_id" in row:
-                evidence["diseaseFromSourceMappedId"] = row["EFO_id"]
             return evidence
         except Exception as e:
-            raise        
+            raise
 
 def main():
     # Initiating parser
