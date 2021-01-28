@@ -194,10 +194,10 @@ The source table is then formatted into a compressed set of JSON lines following
 
 The parser requires three parameters:
 - `-i`, `--inputFile`: Name of tsv file located in the [SLAPEnrich bucket](https://storage.googleapis.com/otar000-evidence_input/SLAPEnrich/data_file/slapenrich_opentargets-21-12-2017.tsv).
-- `-m`, `--mapping2EFO`: Input look-up table containing the cancer type mappings to an EFO ID.
-- `-s`, `--skipMapping`: State whether to skip the disease to EFO term mapping step. Optional; if used this step is not performed.
+- `-m`, `--mapping2EFO`: optional; input look-up table containing the cancer type mappings to an EFO ID.
+- `-s`, `--skipMapping`: optional; state whether to skip the disease to EFO term mapping step. If used this step is not performed.
 - `-o`, `--outputFile`: Gzipped JSON file containing the evidence strings.
-- `-l`, `--logFile`: optional. If not specified, logs are written to standard error.
+- `-l`, `--logFile`: optional; if not specified, logs are written to standard error.
 
 To use the parser configure the python environment and run it as follows:
 ```bash
