@@ -173,7 +173,7 @@ python GeneticsPortal.py \
     --study gs://genetics-portal-data/v2d/200207/studies.parquet \
     --variantIndex gs://genetics-portal-data/variant-annotation/190129/variant-annotation.parquet \
     --ecoCodes gs://genetics-portal-data/lut/vep_consequences.tsv \
-    --output gentics-portal-evidence.json.gz \
+    --outputFile gentics-portal-evidence.json.gz \
     --logFile gentics-portal-evidence.log \
     --threshold 0.05
 ```

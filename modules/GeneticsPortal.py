@@ -132,10 +132,10 @@ def main():
             'trait_efos',
             col('n_initial').alias('sample_size') # Rename to sample size
         )
-                
+
         # Warning! Not all studies have an EFO annotated. Also, some have
         # multiple EFOs! We need to decide a strategy to deal with these.
-        
+
         # # For example, only keep studies with 1 efo:
         # .filter(size(col('trait_efos')) == 1)
         # .withColumn('efo', col('trait_efos').getItem(0))
@@ -144,7 +144,6 @@ def main():
         # Or, drop rows with no EFO and then explode array to multiple rows
         .withColumn('trait_efos', when(col('trait_efos').isNotNull(),
                                        expr('filter(trait_efos, t -> length(t) > 0)')))
-        .filter(col('trait_efos').isNotNull() & (size(col('trait_efos')) > 0))
         .withColumn('efo', explode(col('trait_efos')))
         .drop('trait_efos')
     )
