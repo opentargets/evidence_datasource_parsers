@@ -79,7 +79,6 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
             if c>1:
                 a = line.rstrip().split("\t")
 
-
     def load_mouse_genes(self):
 
         raw = self.download_blob_as_string(filename=Config.MOUSEMODELS_CACHE_DIRECTORY + "/mmGenes.json")
@@ -128,7 +127,6 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                                          Config.MOUSEMODELS_CACHE_DIRECTORY + "/mmGenes.json")
             self.upload_blob_from_string(json.dumps(self.hsGenes, sort_keys=True, indent=2),
                                          Config.MOUSEMODELS_CACHE_DIRECTORY + "/hsGenes.json")
-
 
     def access_solr(self, mode='update_cache'):
 
@@ -192,7 +190,6 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
         r.raise_for_status()
         rsp = r.json()
         return rsp
-
 
     def request_genes(self, buffer, default_species='homo_sapiens'):
         g = self.hsGenes
@@ -336,7 +333,6 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                     self._logger.error("KeyError \n", ke)
                     self._logger.error(json.dumps(doc))
                     break
-
 
     def generate_phenodigm_evidence_strings(self, upper_limit=0):
         '''
@@ -720,6 +716,36 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                                             #self._logger.error("hs_symbol in disease_gene_locus[disease_id]: {0}".format(not disease_term_uris == None and disease_id in self.disease_gene_locus and hgnc_gene_id in self.disease_gene_locus[disease_id]))
                                             #self._logger.error("marker_symbol in disease_gene_locus[disease_id][hgnc_gene_id]): {0}".format(disease_term_uris is not None and disease_id in self.disease_gene_locus and marker_symbol in self.disease_gene_locus[disease_id][hgnc_gene_id]))
 
+    def convert_evidence(self, evidenceString):
+        '''
+        This function maps the old evidence structure into the new json schema.
+
+        Args:
+            evidenceString (dict): old PhenoDigm evidence string
+        Returns:
+            dict: dictionary for the new evidence if all fields could be successfully mapped. 
+        '''
+
+        try:
+            return collections.OrderedDict({
+            'targetFromSourceId' : data['target']['id'].split('/')[-1],
+            'diseaseFromSourceMappedId': data['disease']['id'].split('/')[-1],
+            'resourceScore': data['unique_association_fields']['score'],
+            'datasourceId': 'phenodigm',
+            'datatypeId': data['type'],
+            'diseaseFromSource': data['disease']['source_name'],
+            'targetInModel': data['unique_association_fields']['model_gene_id'].split('/')[-1],
+            'diseaseFromSourceId': data['unique_association_fields']['disease_phenodigm_id'],
+            'biologicalModelAllelicComposition': data['unique_association_fields']['model_description'],
+            'biologicalModelGeneticBackground': data['unique_association_fields']['model_genetic_background'],
+            'diseaseModelAssociatedModelPhenotypes': [{'id': p['id'], 'label': p['label']} for p in data['evidence']['disease_model_association']['model_phenotypes']],
+            'diseaseModelAssociatedHumanPhenotypes': [{'id': p['id'], 'label': p['label']} for p in data['evidence']['disease_model_association']['human_phenotypes']],
+            'biologicalModelId': data['evidence']['disease_model_association']['model_id'].split('#')[0]
+            })
+        except:
+            self._logger.warning(f'The following evidence could not be mapped to the new schema:\n{data}')
+            return None
+
     def write_evidence_strings(self, filename):
 
         countExported = 0
@@ -732,8 +758,10 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                 error = evidenceString.validate(self._logger)
                 score = evidenceString.evidence.disease_model_association.resource_score.value
                 if error == 0 and score >= 0.9:
-                    tp_file.write(evidenceString.to_JSON(indentation=None) + "\n")
-                    countExported+=1
+                    new_evidnce = self.convert_evidence(evidenceString)
+                    if new_evidnce:
+                        tp_file.write(new_evidnce.to_JSON(indentation=None) + "\n")
+                        countExported+=1
 
         logger.info("Exported %i evidence" % (countExported))
 
@@ -780,7 +808,6 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
         #self.omim_to_efo_map["OMIM:300494"] = ["http://www.ebi.ac.uk/efo/EFO_0003757"]
         bar.update()
 
-
     def process_all(self, update_cache=False, write2cloud=False):
 
         if update_cache == True:
@@ -824,6 +851,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
         #bar.update()
         return
 
+
 def main():
 
     parser = argparse.ArgumentParser(description='Evidence parser for animal models sources from PhenoDigm')
@@ -853,6 +881,7 @@ def main():
         logging.StreamHandler(sys.stderr)
 
     ph = Phenodigm()
+
     #ph.process_ontologies()
     ph.process_all(update_cache=args.update_cache, write2cloud=args.write2cloud)
 
