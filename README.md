@@ -196,12 +196,19 @@ The source table is then formatted into a compressed set of JSON lines following
 
 The parser requires three parameters:
 - `-i`, `--inputFile`: Name of tsv file located in the [PROGENy bucket](https://storage.googleapis.com/otar000-evidence_input/PROGENy/data_files/progeny_normalVStumor_opentargets.txt).
-- `-o`, `--outputFile`: Name of the evidence compressed JSON file containing the evidence strings.
-- `-s`, `--mappingStep`: State whether to run the disease to EFO term mapping step. It is True by default.
+- `-d`, `--diseaseMapping`: optional; input look-up table containing the cancer type mappings to an EFO ID.
+- `-s`, `--skipMapping`: optional; state whether to skip the disease to EFO term mapping step. If used this step is not performed.
+- `-p`, `--pathwayMapping`: Input look-up table containing the pathway mappings to a respective target and ID in Reactome.
+- `-o`, `--outputFile`: Gzipped JSON file containing the evidence strings.
+
 
 To use the parser configure the python environment and run it as follows:
 ```bash
-(venv)$ python3 modules/PROGENY.py -i progeny_normalVStumor_opentargets.txt -o progeny-2021-01-18.json.gz
+python modules/PROGENY.py \
+    --inputFile progeny_normalVStumor_opentargets.txt \
+    --diseaseMapping resources/cancer2EFO_mappings.tsv \
+    --pathwayMapping resources/pathway2Reactome_mappings.tsv \
+    --outputFile progeny-2021-01-18.json.gz
 ```
 
 #### System requirements and running time
