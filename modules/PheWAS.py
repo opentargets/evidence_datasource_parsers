@@ -2,6 +2,7 @@ from common.HGNCParser import GeneParser
 import logging
 import requests
 import argparse
+import sys
 import json
 import numpy as np
 import gzip
@@ -90,11 +91,21 @@ class phewasEvidenceGenerator():
 
     def enrichVariantData(self, consequencesFile):
         self.spark.sparkContext.addFile(consequencesFile)
-        phewasWithConsequences = self.spark.read.csv(SparkFiles.get("phewas_w_consequences.csv"), header=True)
-        phewasWithConsequences = (phewasWithConsequences
-                                        .withColumnRenamed("rsid", "snp")
-                                        .withColumnRenamed("gene_id", "gene"))
-
+        phewasWithConsequences = (
+            self.spark.read.csv(SparkFiles.get("phewas_w_consequences.csv"), header=True)
+            .select(
+                col("rsid").alias("snp"),
+                col("gene_id").alias("gene"), 
+                col("pos").cast(IntegerType()),
+                "chrom", "ref", "alt",
+                "consequence_link"
+            )
+            .withColumn(
+                "consequence_id",
+                element_at(split(col("consequence_link"), "/"), -1)
+            )
+        )
+        
         # Enriching dataframe with consequences --> more records due to 1:many associations
         self.dataframe = self.dataframe.join(
             phewasWithConsequences,
@@ -135,7 +146,7 @@ class phewasEvidenceGenerator():
                 "resourceScore" : row["p"],
                 "studyCases" : row["cases"],
                 "targetFromSourceId" : row["gene"].strip("*"),
-                "variantFunctionalConsequenceId" : row["consequence_link"].split("/")[-1] if row["consequence_link"] else "SO_0001060",
+                "variantFunctionalConsequenceId" : row["consequence_id"] if row["consequence_id"] else "SO_0001060",
                 "variantId" : row["variantId"],
                 "variantRsId" : row["snp"]
             }
@@ -166,7 +177,6 @@ def main():
 
     # Initialize logging:
     logging.basicConfig(
-    filename='evidence_builder.log',
     level=logging.INFO,
     format='%(name)s - %(levelname)s - %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S',
