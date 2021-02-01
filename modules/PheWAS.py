@@ -11,7 +11,7 @@ from pyspark.sql.functions import *
 from pyspark.sql.types import *
 
 class phewasEvidenceGenerator():
-    def __init__(self, inputFile, mappingStep):
+    def __init__(self):
         # Create spark session     
         self.spark = SparkSession.builder \
                 .appName('phewas') \
@@ -25,7 +25,6 @@ class phewasEvidenceGenerator():
         self.consequencesFile = "https://storage.googleapis.com/otar000-evidence_input/PheWAS/data_files/phewas_w_consequences.csv"
 
         # Adding remote files to Spark Context
-        self.spark.sparkContext.addFile(self.mappingsFile)
         self.spark.sparkContext.addFile(self.consequencesFile)
     
         # Initialize input files
@@ -42,7 +41,7 @@ class phewasEvidenceGenerator():
         self.dataframe = None
         self.enrichedDataframe = None
 
-    def writeEvidenceFromSource(self):
+    def writeEvidenceFromSource(self, inputFile, diseaseMapping, skipMapping):
         '''
         Processing of the dataframe to build all the evidences from its data
         Returns:
@@ -57,7 +56,8 @@ class phewasEvidenceGenerator():
                         .filter(col("p") < 0.05)
 
         # Mapping step
-        if self.mappingStep:
+        if not skipMapping:
+            self.spark.sparkContext.addFile(diseaseMapping)
             phewasMapping = self.spark.read.csv(SparkFiles.get("phewascat.mappings.tsv"), sep=r'\t', header=True)
             self.dataframe = self.dataframe.join(
                 phewasMapping,
@@ -142,13 +142,14 @@ def main():
     "This script generates evidences from the PheWAS Catalog data source.")
 
     parser.add_argument("-i", "--inputFile", required=True, type=str, help="Input .csv file with the table containing association details.")
+    parser.add_argument("-d", "--diseaseMapping", required=False, type=str, help="Input look-up table containing the phenotype mappings to an EFO ID.")
     parser.add_argument("-o", "--outputFile", required=True, type=str, help="Name of the compressed json.gz output file containing the evidence strings.")
     parser.add_argument("-m", "--mappingStep", required=False, type=bool, default=True, help="State whether to run the disease to EFO term mapping step or not.")
 
     # Parsing parameters
     args = parser.parse_args()
 
-    dataframe = args.inputFile
+    inputFile = args.inputFile
     outputFile = args.outputFile
     mappingStep = args.mappingStep
 
