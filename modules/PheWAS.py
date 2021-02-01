@@ -80,7 +80,7 @@ class phewasEvidenceGenerator():
         )
 
         # Get functional consequence per variant from OT Genetics Portal
-        cols = ["phewas_string", "phewas_code", "EFO_id", "odds_ratio", "p", "cases", "gene", "consequence_link", "variantId", "snp"]
+        cols = ["phewas_string", "phewas_code", "EFO_id", "odds_ratio", "p", "cases", "gene", "consequence_id", "variantId", "snp"]
         self.enrichedDataframe = (self.enrichVariantData(consequencesFile)
                                         .dropDuplicates(cols))
         logging.info("Functional consequences have been imported.")
@@ -122,22 +122,28 @@ class phewasEvidenceGenerator():
             how="inner"
         )
 
-        # Building variantId: "chrom_pos_ref_alt" of the respective rsId
-        # If one rsId has several variants, variantId = none
-        one2manyVariants_df = (phewasWithConsequences
+        # We want to list all the SNPs associated with many variants
+        one2manyVariants = (phewasWithConsequences
                                     .groupBy("snp")
                                     .agg(count("snp"))
-                                    .filter(col("count(snp)") > 1))
-        one2manyVariants = list(one2manyVariants_df.toPandas()["snp"])
-        self.enrichedDataframe = self.dataframe.rdd.map(lambda X: phewasEvidenceGenerator.writeVariantId(X, one2manyVariants)).toDF()
+                                    .filter(col("count(snp)") > 1)
+                                    .toPandas()["snp"]
+                                    .tolist()
+        )
+
+        # Building variantId: "chrom_pos_ref_alt" of the respective rsId
+        newSchema = (self.dataframe.schema
+                        .add("variantId", StringType(), True))
+        self.enrichedDataframe = self.dataframe.rdd.map(lambda X: phewasEvidenceGenerator.writeVariantId(X, one2manyVariants)).toDF(schema=newSchema)
         return self.enrichedDataframe
 
     @staticmethod
     def writeVariantId(row, one2manyVariants):
         rd = row.asDict()
         if row["snp"] not in one2manyVariants:
-            rd["variantId"] = "{}_{}_{}_{}".format(row["chrom"], row["pos"], row["ref"], row["alt"]) # TO-DO: fix pos casting
+            rd["variantId"] = "{}_{}_{}_{}".format(row["chrom"], row["pos"], row["ref"], row["alt"])
         else:
+            # If one rsId has several variants, variantId = none
             rd["variantId"] = None
         new_row = Row(**rd)
         return new_row
