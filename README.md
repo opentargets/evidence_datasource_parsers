@@ -57,15 +57,14 @@ Further development of this repository should follow the next premises:
 1. Containerization - Dockerize
 
 ### ClinGen
-The ClinGen parser processes the _Gene Validity Curations_ table that can be downloaded from https://search.clinicalgenome.org/kb/gene-validity. At the time the parser was written (August 2020), the downloadable file contained six header lines that look as follows:
+The ClinGen parser processes the _Gene Validity Curations_ table that can be downloaded from https://search.clinicalgenome.org/kb/gene-validity. As of January 2021 the downloadable file contains six header lines that look as follows:
 ```tsv
 CLINGEN GENE VALIDITY CURATIONS
-FILE CREATED: 2020-08-04
+FILE CREATED: 2021-01-18
 WEBPAGE: https://search.clinicalgenome.org/kb/gene-validity
-+++++++++++,++++++++++++++,+++++++++++++,++++++++++++++++++,+++++++++,+++++++++,++++++++++++++,+++++++++++++,+++++++++++++++++++
-GENE SYMBOL,GENE ID (HGNC),DISEASE LABEL,DISEASE ID (MONDO),MOI,SOP,CLASSIFICATION,ONLINE REPORT,CLASSIFICATION DATE
-+++++++++++,++++++++++++++,+++++++++++++,++++++++++++++++++,+++++++++,+++++++++,++++++++++++++,+++++++++++++,+++++++++++++++++++
-
+++++++++++,++++++++++++++,+++++++++++++,++++++++++++++++++,+++++++++,+++++++++,+++++++++,++++++++++++++,+++++++++++++,+++++++++++++++++++
+GENE SYMBOL,GENE ID (HGNC),DISEASE LABEL,DISEASE ID (MONDO),MOI,SOP,CLASSIFICATION,ONLINE REPORT,CLASSIFICATION DATE,GCEP
++++++++++++,++++++++++++++,+++++++++++++,++++++++++++++++++,+++++++++,+++++++++,+++++++++,++++++++++++++,+++++++++++++,+++++++++++++++++++
 ```
 
 The mapping of the diseases is done on the fly as a three step process:
@@ -75,17 +74,16 @@ The mapping of the diseases is done on the fly as a three step process:
 
 The unmapped diseases are saved to a file called `unmapped_diseases.tsv` so that they can be reported to [EFO](https://github.com/EBISPOT/efo/issues/).
 
-The parser requires three parameters:
+The parser requires two parameters:
 - `-i`, `--input_file`: Name of csv file downloaded from https://search.clinicalgenome.org/kb/gene-validity
 - `-o`, `--output_file`: Name of evidence JSON file
-- `-s`, `--schema_version`: JSON schema version to use, e.g. 1.6.8. It must be branch or a tag available in https://github.com/opentargets/json_schema
 
 There is also an optional parameter to save the unmapped diseases to a file:
 - `-u`, `--unmapped_diseases_file`: If specified, the diseases not mapped to EFO will be stored in this file'
 
 To use the parser configure the python environment and run it as follows:
 ```bash
-(venv)$ python3 modules/ClinGen.py -i ClinGen-Gene-Disease-Summary-2020-08-04.csv -o clingen_2020-08-04.json -s 1.6.9 -u unmapped_diseases_clingen.tsv
+(venv)$ python3 modules/ClinGen.py -i ClinGen-Gene-Disease-Summary-2020-08-04.csv -o clingen_2020-08-04.json -u unmapped_diseases_clingen.tsv
 ```
 
 ### Gene2Phenotype
@@ -98,9 +96,6 @@ The mapping of the diseases, i.e. the "disease name" column, is done on the fly 
 - If OnToma returns a fuzzy match it is ignore and MONDO is searched for exact matches.
 - When no exact matches are found the disease is considered unmapped and it's saved to a file (see the `-u`/ `--unmapped_disease_file` option below).
 
-The parser requires two parameters to run:
-- `-s`, `--schema_version`: JSON schema version to use, e.g. 1.6.8. It must be branch or a tag available in https://github.com/opentargets/json_schema.
-- `-v`, `--g2p_version`: Version of the Gene2Phenotype data used. If not available please use the date in which the data was downloaded in YYYY-MM-DD format.
 
 There are also a number of optional parameters to specify the name of the input and out files:
 - `-d`, `--dd_panel`: Name of Developmental Disorders (DD) panel file. It uses the value of G2P_DD_FILENAME in setting.py if not specified.
@@ -114,7 +109,7 @@ Note that when using the default file names, the input files have to exist in th
 
 To use the parser configure the python environment and run it as follows:
 ```bash
-(venv)$ python3 modules/Gene2Phenotype.py -s 1.7.1 -v 2020-08-19 -d DDG2P_19_8_2020.csv.gz -e EyeG2P_19_8_2020.csv.gz -k SkinG2P_19_8_2020.csv.gz -c CancerG2P_19_8_2020.csv.gz -o gene2phenotype-19-08-2020.json -u gene2phenotype-19-08-2020_unmapped_diseases.txt 
+(venv)$ python3 modules/Gene2Phenotype.py -d DDG2P_19_8_2020.csv.gz -e EyeG2P_19_8_2020.csv.gz -k SkinG2P_19_8_2020.csv.gz -c CancerG2P_19_8_2020.csv.gz -o gene2phenotype-19-08-2020.json -u gene2phenotype-19-08-2020_unmapped_diseases.txt 
 ```
 
 ### Genomics England Panel App
@@ -180,10 +175,6 @@ This is how it is run only specifying the required parameters:
 (venv)$ python3 modules/CRISPR.py -s 1.7.5 -c crispr_cell_lines.tsv -o crispr-18-11-2020.json
 ```
 
-### PhenoDigm
-
-Generates target-disease evidence querying the IMPC SOLR API.
-
 ### PROGENy
 
 The PROGENy parser processes three files:
@@ -192,9 +183,6 @@ The PROGENy parser processes three files:
 - cancer2EFO_mappings.tsv: File containing the mappings between the acronym of the type of cancer and its respective disease listed in EFO. This file can be found in the `resources` directory.
 - pathway2Reactome_mappings.tsv: File containing the mappings between the analysed pathway and their respective target and ID in Reactome. This file can be found in the `resources` directory.
 
-The source table is then formatted into a compressed set of JSON lines following the schema of the version to be used.
-
-The parser requires three parameters:
 - `-i`, `--inputFile`: Name of tsv file located in the [PROGENy bucket](https://storage.googleapis.com/otar000-evidence_input/PROGENy/data_files/progeny_normalVStumor_opentargets.txt).
 - `-d`, `--diseaseMapping`: optional; input look-up table containing the cancer type mappings to an EFO ID.
 - `-s`, `--skipMapping`: optional; state whether to skip the disease to EFO term mapping step. If used this step is not performed.
@@ -210,6 +198,34 @@ python modules/PROGENY.py \
     --pathwayMapping resources/pathway2Reactome_mappings.tsv \
     --outputFile progeny-2021-01-18.json.gz
 ```
+
+### SLAPenrich
+The SLAPenrich parser processes twofiles:
+
+- `slapenrich_opentargets.tsv`: Main file that contains a systematic comparison of on somatic mutations from TCGA across 25 different cancer types and a collection of pathway gene sets from Reactome. This file can be downloaded [here](https://storage.googleapis.com/otar000-evidence_input/SLAPEnrich/data_file/slapenrich_opentargets-21-12-2017.tsv) from the _otar000-evidence_input_ bucket.
+- `cancer2EFO_mappings.tsv`: File containing the mappings between the acronym of the type of cancer and its respective disease listed in EFO. This file can be found in the `resources` directory.
+
+The source table is then formatted into a compressed set of JSON lines following the schema of the version to be used.
+
+The parser uses the following parameters:
+
+- `-i`, `--inputFile`: Name of tsv file located in the [SLAPEnrich bucket](https://storage.googleapis.com/otar000-evidence_input/SLAPEnrich/data_file/slapenrich_opentargets-21-12-2017.tsv).
+- `-d`, `--diseaseMapping`: optional; input look-up table containing the cancer type mappings to an EFO ID.
+- `-s`, `--skipMapping`: optional; state whether to skip the disease to EFO term mapping step. If used this step is not performed.
+- `-o`, `--outputFile`: Gzipped JSON file containing the evidence strings.
+- `-l`, `--logFile`: optional; if not specified, logs are written to standard error.
+
+To use the parser configure the python environment and run it as follows:
+```bash
+python modules/SLAPEnrich.py \
+    --inputFile slapenrich_opentargets.tsv \
+    --diseaseMapping resources/cancer2EFO_mappings.tsv \
+    --outputFile slapenrich-2021-01-18.json.gz
+```
+
+### PhenoDigm
+
+Generates target-disease evidence querying the IMPC SOLR API.
 
 #### System requirements and running time
 The PhenoDigm parser has been run both in a MacBook Pro and a Google Cloud machine. The current version is very memory greedy, using up to 60 GB. 

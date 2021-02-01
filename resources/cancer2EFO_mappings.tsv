@@ -18,9 +18,9 @@ CLL	Chronic lymphoblastic leukemia	EFO_0000095	chronic lymphocytic leukemia	Data
 DLBC	Diffuse large B-cell lymphoma	EFO_0000403	diffuse large B-cell lymphoma	Dataset from intOGen
 ESCA	Esophageal cancer	MONDO_0007576	esophageal cancer	Dataset from intOGen
 GBM	Glioblastoma	EFO_0000519	glioblastoma multiforme	Dataset from intOGen
-LAML	Acute Myeloid Leukemia	EFO_0000222	acute myeloid leukemia	TCGA study abbreviations
+LAML	Acute Myeloid Leukemia	EFO_0000222	acute myeloid leukemia	TCGA study abbreviations table
 LGG	Lower grade glioma	MONDO_0021637	low grade glioma	Dataset from intOGen
-MB	Medulloblastoma	EFO_0002939	medulloblastoma	TCGA study abbreviations
+MB	Medulloblastoma	EFO_0002939	medulloblastoma	TCGA study abbreviations table
 MM	Multiple myeloma	EFO_0001378	multiple myeloma	Dataset from intOGen
 NB	Neuroblastoma	EFO_0000621	neuroblastoma	Dataset from intOGen
 OV	Ovary cancer	MONDO_0008170	ovarian cancer	Dataset from intOGen
