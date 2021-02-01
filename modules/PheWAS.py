@@ -115,13 +115,6 @@ class phewasEvidenceGenerator():
             )
         )
 
-        # Enriching dataframe with consequences --> more records due to 1:many associations
-        self.dataframe = self.dataframe.join(
-            phewasWithConsequences,
-            on=["gene", "snp"],
-            how="inner"
-        )
-
         # We want to list all the SNPs associated with many variants
         one2manyVariants = (phewasWithConsequences
                                     .groupBy("snp")
@@ -130,12 +123,39 @@ class phewasEvidenceGenerator():
                                     .toPandas()["snp"]
                                     .tolist()
         )
+        phewasWithConsequences = phewasWithConsequences.filter(
+            ~col("snp").isin(one2manyVariants)
+        )
+
+        # Enriching dataframe with consequences --> more records due to 1:many associations
+        self.dataframe = self.dataframe.join(
+            phewasWithConsequences,
+            on=["gene", "snp"],
+            how="left"
+        )
+
+        self.dataframe = (self.dataframe.select(
+            "*",
+            concat(
+                col("chrom"),
+                lit("_"),
+                col("pos"),
+                lit("_"),
+                col("ref"),
+                lit("_"),
+                col("alt")
+            )
+            .alias("variantId2")
+        ))
 
         # Building variantId: "chrom_pos_ref_alt" of the respective rsId
+        # IDEA : remove variants present in one2manyVariants and build variantId with select
         newSchema = (self.dataframe.schema
                         .add("variantId", StringType(), True))
-        self.enrichedDataframe = self.dataframe.rdd.map(lambda X: phewasEvidenceGenerator.writeVariantId(X, one2manyVariants)).toDF(schema=newSchema)
-        return self.enrichedDataframe
+        self.dataframe = self.dataframe.rdd.map(lambda X: phewasEvidenceGenerator.writeVariantId(X, one2manyVariants)).toDF(schema=newSchema)
+
+        print(self.dataframe.first())
+        return self.dataframe
 
     @staticmethod
     def writeVariantId(row, one2manyVariants):
@@ -162,7 +182,7 @@ class phewasEvidenceGenerator():
                 "studyCases" : row["cases"],
                 "targetFromSourceId" : row["gene"].strip("*"),
                 "variantFunctionalConsequenceId" : row["consequence_id"] if row["consequence_id"] else "SO_0001060",
-                "variantId" : row["variantId"],
+                "variantId" : row["variantId2"],
                 "variantRsId" : row["snp"]
             }
             return evidence
