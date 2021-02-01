@@ -59,10 +59,6 @@ class Config:
     UKBIOBANK_FILENAME = file_or_resource('ukbiobank.txt')
     UKBIOBANK_EVIDENCE_FILENAME = 'ukbiobank-30-04-2018.json'
 
-    # SLAPEnrich
-    SLAPENRICH_FILENAME = file_or_resource('slapenrich_opentargets.tsv')
-    SLAPENRICH_EVIDENCE_FILENAME = 'otar001_slapenrich-19-12-2017.json'
-
     # SYSBIO
     SYSBIO_FILENAME1 = file_or_resource('sysbio_evidence-31-01-2019.tsv')
     SYSBIO_FILENAME2 = file_or_resource('sysbio_publication_info_nov2018.tsv')
