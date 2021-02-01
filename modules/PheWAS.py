@@ -48,7 +48,16 @@ class phewasEvidenceGenerator():
         if not skipMapping:
             try:
                 self.spark.sparkContext.addFile(diseaseMapping)
-                phewasMapping = self.spark.read.csv(SparkFiles.get("phewascat.mappings.tsv"), sep=r'\t', header=True)
+                phewasMapping = (
+                    self.spark.read.csv(SparkFiles.get("phewascat.mappings.tsv"), sep=r'\t', header=True)
+                    .select(
+                        "Phewas_string", col("EFO_id").alias("EFO_link")
+                    )
+                    .withColumn(
+                        "EFO_id",
+                        element_at(split(col("EFO_link"), "/"), -1)
+                    )
+                )
                 self.dataframe = self.dataframe.join(
                     phewasMapping,
                     on=["Phewas_string"],
@@ -105,7 +114,7 @@ class phewasEvidenceGenerator():
                 element_at(split(col("consequence_link"), "/"), -1)
             )
         )
-        
+
         # Enriching dataframe with consequences --> more records due to 1:many associations
         self.dataframe = self.dataframe.join(
             phewasWithConsequences,
@@ -141,7 +150,7 @@ class phewasEvidenceGenerator():
                 "datatypeId" : "genetic_association",
                 "diseaseFromSource" : row["phewas_string"],
                 "diseaseFromSourceId" : row["phewas_code"],
-                "diseaseFromSourceMappedId" : row["EFO_id"].split("/")[-1],
+                "diseaseFromSourceMappedId" : row["EFO_id"],
                 "oddsRatio" : row["odds_ratio"],
                 "resourceScore" : row["p"],
                 "studyCases" : row["cases"],
