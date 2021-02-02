@@ -183,7 +183,10 @@ The PROGENy parser processes three files:
 - cancer2EFO_mappings.tsv: File containing the mappings between the acronym of the type of cancer and its respective disease listed in EFO. This file can be found in the `resources` directory.
 - pathway2Reactome_mappings.tsv: File containing the mappings between the analysed pathway and their respective target and ID in Reactome. This file can be found in the `resources` directory.
 
-- `-i`, `--inputFile`: Name of tsv file located in the [PROGENy bucket](https://storage.googleapis.com/otar000-evidence_input/PROGENy/data_files/progeny_normalVStumor_opentargets.txt).
+The source table is then formatted into a compressed set of JSON lines following the schema of the version to be used.
+
+The parser uses the following parameters:
+- `-i`, `--inputFile`: Main tsv file.
 - `-d`, `--diseaseMapping`: optional; input look-up table containing the cancer type mappings to an EFO ID.
 - `-s`, `--skipMapping`: optional; state whether to skip the disease to EFO term mapping step. If used this step is not performed.
 - `-p`, `--pathwayMapping`: Input look-up table containing the pathway mappings to a respective target and ID in Reactome.
