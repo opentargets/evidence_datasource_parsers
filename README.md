@@ -167,7 +167,7 @@ The version in _master_ is an older version (October 2018) that **DOES NOT** cal
 Genetics portal evidence generation is done by calling this Python script:
 
 ```bash
-python GeneticsPortal.py \
+python modules/GeneticsPortal.py \
     --locus2gene gs://genetics-portal-data/l2g/200127 \
     --toploci gs://genetics-portal-data/v2d/200207/toploci.parquet \
     --study gs://genetics-portal-data/v2d/200207/studies.parquet \
@@ -180,7 +180,7 @@ python GeneticsPortal.py \
 
 **Where:**
 
-* `threshold` is required. It provides a lower locus to gene score cutoff.
-* `logFile` is optional. If not specified, logs are written to standard error.
+* `--threshold` is required. It provides a lower locus to gene score cutoff.
+* `--logFile` is optional. If not specified, logs are written to standard error.
 
 
