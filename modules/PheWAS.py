@@ -74,9 +74,13 @@ class phewasEvidenceGenerator():
             )
         
         # Parse gene symbols to ENSID to join with the consequences table
-        self.dataframe = self.dataframe.withColumn(
-            "gene",
-            self.udfGeneParser(col("gene"))
+        self.dataframe = (self.dataframe
+            .withColumn(
+                "gene",
+                self.udfGeneParser(col("gene"))
+            )
+            # Remove rows where the target is not valid
+            .filter(col("gene") != "NaN")
         )
 
         # Get functional consequence per variant from OT Genetics Portal
@@ -115,7 +119,7 @@ class phewasEvidenceGenerator():
             )
         )
 
-        # We want to list all the SNPs associated with many variants
+        # We want to remove all the SNPs associated with many variants
         one2manyVariants = (phewasWithConsequences
                                     .groupBy("snp")
                                     .agg(count("snp"))
