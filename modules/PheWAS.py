@@ -37,12 +37,18 @@ class phewasEvidenceGenerator():
             evidences (array): Object with all the generated evidences strings from source file
         '''
         # Read input file
-        self.dataframe = self.spark.read.csv(inputFile, header=True)
-
-        # Filter out null genes & p-value > 0.05
-        self.dataframe = self.dataframe \
-                        .filter(col("gene").isNotNull()) \
-                        .filter(col("p") < 0.05)
+        self.dataframe = (self.spark
+                            .read.csv(inputFile, header=True)
+                            .select(
+                                "gene", "snp", "phewas_code", "phewas_string",
+                                col("cases").cast(IntegerType()),
+                                col("odds_ratio").cast(DoubleType()),
+                                col("p").cast(DoubleType())
+                            )
+                            # Filter out null genes & p-value > 0.05
+                            .filter(col("gene").isNotNull())
+                            .filter(col("p") < 0.05)
+        )
 
         # Mapping step
         if not skipMapping:
@@ -84,7 +90,7 @@ class phewasEvidenceGenerator():
         )
 
         # Get functional consequence per variant from OT Genetics Portal
-        cols = ["phewas_string", "phewas_code", "EFO_id", "odds_ratio", "p", "cases", "gene", "consequence_id", "variantId", "snp"]
+        cols = ["phewas_string", "phewas_code", "EFO_id", "odds_ratio", "p", "cases", "ens_id", "consequence_id", "variantId", "snp"]
         self.enrichedDataframe = (self.enrichVariantData(consequencesFile)
                                         .dropDuplicates(cols))
         logging.info("Functional consequences have been imported.")
