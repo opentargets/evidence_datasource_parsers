@@ -157,6 +157,8 @@ The PheWAS parser processes three files:
 - phewas_w_consequences.csv: File containing PheWAS data enriched with data from the Genetics Portal on the variant and its functional consequence. This file is located in the [PheWAS bucket](https://storage.googleapis.com/otar000-evidence_input/PheWAS/data_files/phewas_w_consequences.csv).
 - phewascat.mappings.tsv: File containing the mappings between the phenotypes provided by PheWAS and its respective disease listed in EFO. This file is located in [our mappings repo](https://raw.githubusercontent.com/opentargets/mappings/master/phewascat.mappings.tsv).
 
+The source table is then formatted into a compressed set of JSON lines following the schema of the version to be used.
+
 The parser uses the following parameters:
 - `-i`, `--inputFile`: Main tsv file coming from PheWAS.
 - `-c`, `--consequencesFile`: Input look-up table containing the variant data and consequences coming from the Variant Index.
