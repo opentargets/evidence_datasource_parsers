@@ -76,11 +76,11 @@ class phewasEvidenceGenerator():
         # Parse gene symbols to ENSID to join with the consequences table
         self.dataframe = (self.dataframe
             .withColumn(
-                "gene",
+                "ens_id",
                 self.udfGeneParser(col("gene"))
             )
             # Remove rows where the target is not valid
-            .filter(col("gene") != "NaN")
+            .filter(col("ens_id") != "NaN")
         )
 
         # Get functional consequence per variant from OT Genetics Portal
@@ -108,7 +108,7 @@ class phewasEvidenceGenerator():
             self.spark.read.csv(SparkFiles.get("phewas_w_consequences.csv"), header=True)
             .select(
                 col("rsid").alias("snp"),
-                col("gene_id").alias("gene"), 
+                col("gene_id").alias("ens_id"), 
                 col("pos").cast(IntegerType()),
                 "chrom", "ref", "alt",
                 "consequence_link"
@@ -134,7 +134,7 @@ class phewasEvidenceGenerator():
         # Enriching dataframe with consequences --> more records due to 1:many associations
         self.dataframe = self.dataframe.join(
             phewasWithConsequences,
-            on=["gene", "snp"],
+            on=["ens_id", "snp"],
             how="left"
         )
 
@@ -167,7 +167,8 @@ class phewasEvidenceGenerator():
                 "oddsRatio" : row["odds_ratio"],
                 "resourceScore" : row["p"],
                 "studyCases" : row["cases"],
-                "targetFromSourceId" : row["gene"].strip("*"),
+                "targetFromSource" : row["gene"].strip("*"),
+                "targetFromSourceId" : row["ens_id"],
                 "variantFunctionalConsequenceId" : row["consequence_id"] if row["consequence_id"] else "SO_0001060",
                 "variantId" : row["variantId"],
                 "variantRsId" : row["snp"]
