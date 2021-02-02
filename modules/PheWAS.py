@@ -101,11 +101,14 @@ class phewasEvidenceGenerator():
             .map(phewasEvidenceGenerator.parseEvidenceString)
             .collect()) # list of dictionaries
         
-        if skipMapping:
-            # Delete empty keys if mapping is skipped
-            for evidence in evidences:
+        for evidence in evidences:
+            if skipMapping:
+                # Delete empty keys if mapping is skipped
                 del evidence["diseaseFromSourceMappedId"]
-        
+            elif not evidence["variantId"]:
+                # Delete empty variantId
+                del evidence["variantId"]
+
         return evidences
 
     def enrichVariantData(self, consequencesFile):
