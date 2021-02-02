@@ -138,6 +138,7 @@ class phewasEvidenceGenerator():
             how="left"
         )
 
+        # Building variantId: "chrom_pos_ref_alt" of the respective rsId
         self.dataframe = (self.dataframe.select(
             "*",
             concat(
@@ -149,28 +150,10 @@ class phewasEvidenceGenerator():
                 lit("_"),
                 col("alt")
             )
-            .alias("variantId2")
+            .alias("variantId")
         ))
 
-        # Building variantId: "chrom_pos_ref_alt" of the respective rsId
-        # IDEA : remove variants present in one2manyVariants and build variantId with select
-        newSchema = (self.dataframe.schema
-                        .add("variantId", StringType(), True))
-        self.dataframe = self.dataframe.rdd.map(lambda X: phewasEvidenceGenerator.writeVariantId(X, one2manyVariants)).toDF(schema=newSchema)
-
-        print(self.dataframe.first())
         return self.dataframe
-
-    @staticmethod
-    def writeVariantId(row, one2manyVariants):
-        rd = row.asDict()
-        if row["snp"] not in one2manyVariants:
-            rd["variantId"] = "{}_{}_{}_{}".format(row["chrom"], row["pos"], row["ref"], row["alt"])
-        else:
-            # If one rsId has several variants, variantId = none
-            rd["variantId"] = None
-        new_row = Row(**rd)
-        return new_row
 
     @staticmethod
     def parseEvidenceString(row):
@@ -186,7 +169,7 @@ class phewasEvidenceGenerator():
                 "studyCases" : row["cases"],
                 "targetFromSourceId" : row["gene"].strip("*"),
                 "variantFunctionalConsequenceId" : row["consequence_id"] if row["consequence_id"] else "SO_0001060",
-                "variantId" : row["variantId2"],
+                "variantId" : row["variantId"],
                 "variantRsId" : row["snp"]
             }
             return evidence
