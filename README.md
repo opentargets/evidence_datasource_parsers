@@ -175,19 +175,43 @@ This is how it is run only specifying the required parameters:
 (venv)$ python3 modules/CRISPR.py -s 1.7.5 -c crispr_cell_lines.tsv -o crispr-18-11-2020.json
 ```
 
-### PhenoDigm
+### PROGENy
 
-Generates target-disease evidence querying the IMPC SOLR API.
+The PROGENy parser processes three files:
 
-### SLAPenrich
-The SLAPenrich parser processes three files:
-
-- slapenrich_opentargets.tsv: Main file that contains a systematic comparison of on somatic mutations from TCGA across 25 different cancer types and a collection of pathway gene sets from Reactome. This file can be downloaded [here](https://storage.googleapis.com/otar000-evidence_input/SLAPEnrich/data_file/slapenrich_opentargets-21-12-2017.tsv) from the _otar000-evidence_input_ bucket.
+- progeny_normalVStumor_opentargets.txt: Main file that contains a systematic comparison of pathway activities between normal and primary TCGA samples in 14 tumor types using PROGENy. This file can be downloaded [here](https://storage.googleapis.com/otar000-evidence_input/PROGENy/data_files/progeny_normalVStumor_opentargets.txt) from the _otar000-evidence_input_ bucket.
 - cancer2EFO_mappings.tsv: File containing the mappings between the acronym of the type of cancer and its respective disease listed in EFO. This file can be found in the `resources` directory.
+- pathway2Reactome_mappings.tsv: File containing the mappings between the analysed pathway and their respective target and ID in Reactome. This file can be found in the `resources` directory.
 
 The source table is then formatted into a compressed set of JSON lines following the schema of the version to be used.
 
-The parser requires three parameters:
+The parser uses the following parameters:
+- `-i`, `--inputFile`: Main tsv file.
+- `-d`, `--diseaseMapping`: optional; input look-up table containing the cancer type mappings to an EFO ID.
+- `-s`, `--skipMapping`: optional; state whether to skip the disease to EFO term mapping step. If used this step is not performed.
+- `-p`, `--pathwayMapping`: Input look-up table containing the pathway mappings to a respective target and ID in Reactome.
+- `-o`, `--outputFile`: Gzipped JSON file containing the evidence strings.
+
+
+To use the parser configure the python environment and run it as follows:
+```bash
+python modules/PROGENY.py \
+    --inputFile progeny_normalVStumor_opentargets.txt \
+    --diseaseMapping resources/cancer2EFO_mappings.tsv \
+    --pathwayMapping resources/pathway2Reactome_mappings.tsv \
+    --outputFile progeny-2021-01-18.json.gz
+```
+
+### SLAPenrich
+The SLAPenrich parser processes twofiles:
+
+- `slapenrich_opentargets.tsv`: Main file that contains a systematic comparison of on somatic mutations from TCGA across 25 different cancer types and a collection of pathway gene sets from Reactome. This file can be downloaded [here](https://storage.googleapis.com/otar000-evidence_input/SLAPEnrich/data_file/slapenrich_opentargets-21-12-2017.tsv) from the _otar000-evidence_input_ bucket.
+- `cancer2EFO_mappings.tsv`: File containing the mappings between the acronym of the type of cancer and its respective disease listed in EFO. This file can be found in the `resources` directory.
+
+The source table is then formatted into a compressed set of JSON lines following the schema of the version to be used.
+
+The parser uses the following parameters:
+
 - `-i`, `--inputFile`: Name of tsv file located in the [SLAPEnrich bucket](https://storage.googleapis.com/otar000-evidence_input/SLAPEnrich/data_file/slapenrich_opentargets-21-12-2017.tsv).
 - `-d`, `--diseaseMapping`: optional; input look-up table containing the cancer type mappings to an EFO ID.
 - `-s`, `--skipMapping`: optional; state whether to skip the disease to EFO term mapping step. If used this step is not performed.
@@ -202,6 +226,9 @@ python modules/SLAPEnrich.py \
     --outputFile slapenrich-2021-01-18.json.gz
 ```
 
+### PhenoDigm
+
+Generates target-disease evidence querying the IMPC SOLR API.
 
 #### System requirements and running time
 The PhenoDigm parser has been run both in a MacBook Pro and a Google Cloud machine. The current version is very memory greedy, using up to 60 GB. 

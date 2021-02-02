@@ -51,10 +51,6 @@ class Config:
     # HGNC
     GENES_HGNC = 'http://ftp.ebi.ac.uk/pub/databases/genenames/new/json/hgnc_complete_set.json'
 
-    # PROGENY
-    PROGENY_FILENAME = file_or_resource('progeny_normalVStumor_opentargets.txt')
-    PROGENY_EVIDENCE_FILENAME = 'progeny-20-05-2018.json'
-
     # UKBIOBANK
     UKBIOBANK_FILENAME = file_or_resource('ukbiobank.txt')
     UKBIOBANK_EVIDENCE_FILENAME = 'ukbiobank-30-04-2018.json'

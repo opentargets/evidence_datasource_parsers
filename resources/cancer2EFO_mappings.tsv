@@ -2,16 +2,16 @@ Cancer_type_acronym	Cancer_type_name	EFO_id	EFO_name	Source
 BLCA	Bladder cancer	MONDO_0001187	urinary bladder cancer	Dataset from intOGen
 BRCA	Breast adenocarcinoma	EFO_0000304	breast adenocarcinoma	Dataset from intOGen
 HNSC	Head and Neck squamous cell carcinoma	EFO_0000181	head and neck squamous cell carcinoma	Dataset from intOGen
-KIRC	Kidney renal clear cell carcinoma	EFO_0000349	clear cell renal carcinoma	TCGA study abbreviations table
-LIHC	Liver hepatocellular carcinoma	EFO_0000182	hepatocellular carcinoma	TCGA study abbreviations table
+KIRC	Kidney renal clear cell carcinoma	EFO_0000349	clear cell renal carcinoma	TCGA study abbreviations
+LIHC	Liver hepatocellular carcinoma	EFO_0000182	hepatocellular carcinoma	TCGA study abbreviations
 LUAD	Lung adenocarcinoma	EFO_0000571	lung adenocarcinoma	Dataset from intOGen
 LUSC	Lung squamous cell carcinoma	EFO_0000708	squamous cell lung carcinoma	Dataset from intOGen
 PRAD	Prostate adenocarcinoma	EFO_0000673	prostate adenocarcinoma	Dataset from intOGen
-STAD	Stomach adenocarcinoma	EFO_0000503	gastric adenocarcinoma	TCGA study abbreviations table
+STAD	Stomach adenocarcinoma	EFO_0000503	gastric adenocarcinoma	TCGA study abbreviations
 THCA	Thyroid adenocarcinoma	MONDO_0024622	thyroid gland adenocarcinoma	Dataset from intOGen
 UCEC	Endometrial cancer	MONDO_0011962	endometrial cancer	Dataset from intOGen
-KICH	Kidney Chromophobe	EFO_0000335	chromophobe renal cell carcinoma	TCGA study abbreviations table
-KIRP	Kidney renal papillary cell carcinoma	EFO_0000640	papillary renal cell carcinoma	TCGA study abbreviations table
+KICH	Kidney Chromophobe	EFO_0000335	chromophobe renal cell carcinoma	TCGA study abbreviations
+KIRP	Kidney renal papillary cell carcinoma	EFO_0000640	papillary renal cell carcinoma	TCGA study abbreviations
 COREAD	Colorectal adenocarcinoma	EFO_0000365	colorectal adenocarcinoma	Dataset from intOGen
 ALL	Acute lymphoblastic leukemia	EFO_0000220	acute lymphoblastic leukemia	Dataset from intOGen
 CLL	Chronic lymphoblastic leukemia	EFO_0000095	chronic lymphocytic leukemia	Dataset from intOGen
@@ -26,7 +26,7 @@ NB	Neuroblastoma	EFO_0000621	neuroblastoma	Dataset from intOGen
 OV	Ovary cancer	MONDO_0008170	ovarian cancer	Dataset from intOGen
 PAAD	Pancreas adenocarcinoma	EFO_1000044	pancreatic adenocarcinoma	Dataset from intOGen
 SCLC	Small-cell lung cancer	EFO_0000702	small cell lung carcinoma	Dataset from intOGen
-SKCM	cutaneous melanoma	EFO_0000389	cutaneous melanoma	TCGA study abbreviations table
+SKCM	cutaneous melanoma	EFO_0000389	cutaneous melanoma	TCGA study abbreviations
 ACC	Adrenocortical carcinoma	EFO_1000796	adrenal cortex carcinoma	Dataset from intOGen
 ACY	Adenoid cystic carcinoma	EFO_0000231 	adenoid cystic carcinoma	Dataset from intOGen
 AML	Acute Myeloid Leukemia	EFO_0000222	acute myeloid leukemia	Dataset from intOGen
