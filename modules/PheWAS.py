@@ -79,6 +79,10 @@ class phewasEvidenceGenerator():
                 lit(None)
             )
         
+        # Filter out invalid disease IDs: MPATH_579, CHEBI_36047
+        pattern = "(^NCIT_C\d+$|^Orphanet_\d+$|^GO_\d+$|^HP_\d+$|^EFO_\d+$|^MONDO_\d+$|^DOID_\d+$|^MP_\d+$)"
+        self.dataframe = self.dataframe.filter(col("EFO_id").rlike(pattern))
+
         # Parse gene symbols to ENSID to join with the consequences table
         self.dataframe = (self.dataframe
             .withColumn(
@@ -172,7 +176,7 @@ class phewasEvidenceGenerator():
                 "datatypeId" : "genetic_association",
                 "diseaseFromSource" : row["phewas_string"],
                 "diseaseFromSourceId" : row["phewas_code"],
-                "diseaseFromSourceMappedId" : row["EFO_id"],
+                "diseaseFromSourceMappedId" : row["EFO_id"].strip(),
                 "oddsRatio" : row["odds_ratio"],
                 "resourceScore" : row["p"],
                 "studyCases" : row["cases"],
