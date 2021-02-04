@@ -161,19 +161,17 @@ The CRISPR parser processes three files available in the `resources` directory:
 - _crispr_descriptions.tsv_: File used to extract the number of targets prioritised per cancer types as well as to retrieve the cell lines from the next file.
 - _crispr_cell_lines.tsv_: It contains three columns with the cell line, tissue and the cancer type information. It is used to extract the cell lines in which the target has been identified as essential. The file has been adapted from the supplementary table 1 in the [Behan et al. 2019](https://www.nature.com/articles/s41586-019-1103-9) paper.
 
-The parser has five parameters but only two of them are compulsory, the other three have defaults specified in the `settings.py`:
-
-- `-i`, `--input_file`: Name or full path for _crispr_evidence.tsv_. The default value is taken from the `CRISPR_FILENAME1` variable in `settings.py`.
-- `-d`, `--description_file`: Name or full path for the _crispr_descriptions.tsv_ file. The default value is taken from the `CRISPR_FILENAME2` variable in `settings.py`.
-- `-c`, `--cell_types_file`: Name or full path for _crispr_cell_lines.tsv_. There is no default value, it **must** be specified.
-- `-o`, `--output_file`:  Name of the evidence JSON file. The default value is taken from the `CRISPR_EVIDENCE_FILENAME` variable in `settings.py`.
-- `-s`, `--schema_version`:  JSON schema version to use, e.g. 1.7.5. It must be branch or a tag available in https://github.com/opentargets/json_schema. There is no default value, it **must** be specified.
-
-This is how it is run only specifying the required parameters:
+*Usage:*
 
 ```sh
-(venv)$ python3 modules/CRISPR.py -s 1.7.5 -c crispr_cell_lines.tsv -o crispr-18-11-2020.json
+(venv)$ python3 modules/CRISPR.py -e <evidence_file> -d <description_file> -c <cell_line_file> -o <output_file> -l <log_file>
 ```
+
+- `-e`, `--evidence_file`: name or full path for _crispr_evidence.tsv_.
+- `-d`, `--descriptions_file`: name or full path for the _crispr_descriptions.tsv_ file.
+- `-c`, `--cell_types_file`: name or full path for _crispr_cell_lines.tsv_.
+- `-o`, `--output_file`: output is a gzipped JSON.
+- `-l`, `--log_file`:  optional parameter. If not provided, logs are written to the standard error.
 
 ### PROGENy
 
@@ -189,8 +187,8 @@ The parser uses the following parameters:
 - `-i`, `--inputFile`: Main tsv file.
 - `-d`, `--diseaseMapping`: optional; input look-up table containing the cancer type mappings to an EFO ID.
 - `-s`, `--skipMapping`: optional; state whether to skip the disease to EFO term mapping step. If used this step is not performed.
-- `-p`, `--pathwayMapping`: Input look-up table containing the pathway mappings to a respective target and ID in Reactome.
-- `-o`, `--outputFile`: Gzipped JSON file containing the evidence strings.
+- `-p`, `--pathwayMapping`: input look-up table containing the pathway mappings to a respective target and ID in Reactome.
+- `-o`, `--outputFile`: gzipped JSON file containing the evidence strings.
 
 
 To use the parser configure the python environment and run it as follows:
@@ -203,6 +201,7 @@ python modules/PROGENY.py \
 ```
 
 ### SLAPenrich
+
 The SLAPenrich parser processes twofiles:
 
 - `slapenrich_opentargets.tsv`: Main file that contains a systematic comparison of on somatic mutations from TCGA across 25 different cancer types and a collection of pathway gene sets from Reactome. This file can be downloaded [here](https://storage.googleapis.com/otar000-evidence_input/SLAPEnrich/data_file/slapenrich_opentargets-21-12-2017.tsv) from the _otar000-evidence_input_ bucket.
@@ -215,7 +214,7 @@ The parser uses the following parameters:
 - `-i`, `--inputFile`: Name of tsv file located in the [SLAPEnrich bucket](https://storage.googleapis.com/otar000-evidence_input/SLAPEnrich/data_file/slapenrich_opentargets-21-12-2017.tsv).
 - `-d`, `--diseaseMapping`: optional; input look-up table containing the cancer type mappings to an EFO ID.
 - `-s`, `--skipMapping`: optional; state whether to skip the disease to EFO term mapping step. If used this step is not performed.
-- `-o`, `--outputFile`: Gzipped JSON file containing the evidence strings.
+- `-o`, `--outputFile`: gzipped JSON file containing the evidence strings.
 - `-l`, `--logFile`: optional; if not specified, logs are written to standard error.
 
 To use the parser configure the python environment and run it as follows:
@@ -225,6 +224,7 @@ python modules/SLAPEnrich.py \
     --diseaseMapping resources/cancer2EFO_mappings.tsv \
     --outputFile slapenrich-2021-01-18.json.gz
 ```
+
 
 ### PhenoDigm
 
