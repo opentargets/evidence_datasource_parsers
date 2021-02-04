@@ -60,11 +60,6 @@ class Config:
     SYSBIO_FILENAME2 = file_or_resource('sysbio_publication_info_nov2018.tsv')
     SYSBIO_EVIDENCE_FILENAME = 'sysbio-29-01-2019.json'
 
-    # CRISPR
-    CRISPR_FILENAME1 = file_or_resource('crispr_evidence.tsv')
-    CRISPR_FILENAME2 = file_or_resource('crispr_descriptions.tsv')
-    CRISPR_EVIDENCE_FILENAME = 'crispr-21-08-2019.json'
-
     # PheWAS catalog
     PHEWAS_CATALOG_FILENAME = file_or_resource('phewas-catalog-19-10-2018.csv')
     PHEWAS_CATALOG_EVIDENCE_FILENAME = f"phewas_catalog-{datetime.today().strftime('%Y-%m-%d')}.json"
