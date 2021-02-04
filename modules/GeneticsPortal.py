@@ -7,6 +7,7 @@ from pyspark.sql.types import *
 from pyspark.sql.functions import *
 import logging
 
+
 def load_eco_dict(inf):
     '''
     Loads the csq to eco scores into a dict
@@ -27,6 +28,7 @@ def load_eco_dict(inf):
         eco_link_dict[row.Term] = row.Accession
     
     return (eco_dict,eco_link_dict)
+
 
 def main():
 

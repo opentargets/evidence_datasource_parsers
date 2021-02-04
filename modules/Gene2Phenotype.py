@@ -1,41 +1,33 @@
 from settings import Config
-from common.HGNCParser import GeneParser
-from common.RareDiseasesUtils import RareDiseaseMapper
 import ontoma
-
-import python_jsonschema_objects as pjo
 
 import logging
 import csv
 import gzip
-import requests
-import datetime
 import argparse
+import json
 
-__copyright__  = "Copyright 2014-2020, Open Targets"
-__credits__    = ["Gautier Koscielny", "ChuangKee Ong", "Michaela Spitzer", "Asier Gonzalez" ]
-__license__    = "Apache 2.0"
-__version__    = "1.3.0"
-__maintainer__ = "Open Targets Data Team"
-__email__      = ["data@opentargets.org"]
-__status__     = "Production"
-
-G2P_confidence2score = {
-    'confirmed' : 1,
-    'probable': 0.5,
-    'possible' : 0.25,
-    'both RD and IF' : 1,
-    'child IF': 1
+G2P_mutationCsq2functionalCsq = {
+    'loss of function' : 'SO_0002054', #loss_of_function_variant
+    'all missense/in frame' : 'SO_0001650', #inframe_variant
+    'uncertain' : 'SO_0002220', #function_uncertain_variant
+    'activating' : 'SO_0002053', #gain_of_function_variant
+    'dominant negative' : 'SO_0002052', #dominant_negative_variant
+    '' : None,
+    'gain of function' : 'SO_0002053', #gain_of_function_variant
+    'cis-regulatory or promotor mutation' : 'SO_0001566', #regulatory_region_variant
+    '5_prime or 3_prime UTR mutation' : 'SO_0001622', #UTR_variant
+    'increased gene dosage' : 'SO_0001911', #copy_number_increase
+    'part of contiguous gene duplication' : 'SO_1000173' #tandem_duplication
 }
 
 
-class G2P(RareDiseaseMapper):
-    def __init__(self, g2p_version, schema_version=Config.VALIDATED_AGAINST_SCHEMA_VERSION):
+
+class G2P():
+    def __init__(self):
         super(G2P, self).__init__()
-        self.genes = None
         self.evidence_strings = list()
         self.unmapped_diseases = set()
-        self.g2p_version = g2p_version
 
         # Configure logging
         # Create logger
@@ -54,23 +46,6 @@ class G2P(RareDiseaseMapper):
 
         # Add ch to handler
         self._logger.addHandler(ch)
-
-        # Build JSON schema url from version
-        self.schema_version = schema_version
-        schema_url = "https://raw.githubusercontent.com/opentargets/json_schema/" + self.schema_version + "/draft4_schemas/opentargets.json"
-        self._logger.info('Loading JSON schema at {}'.format(schema_url))
-
-        # Initialize json builder based on the schema:
-        try:
-            r = requests.get(schema_url)
-            r.raise_for_status()
-            json_schema = r.json()
-            self.builder = pjo.ObjectBuilder(json_schema)
-            self.evidence_builder = self.builder.build_classes()
-            self.schema_version = schema_version
-        except requests.exceptions.HTTPError as e:
-            self._logger.error('Invalid JSON schema version')
-            raise e
 
         # Create OnToma object
         self.ontoma = ontoma.interface.OnToma()
@@ -194,40 +169,7 @@ class G2P(RareDiseaseMapper):
                 self._logger.info(f"No match for '{disease_name}' in MONDO")
                 return
 
-    def get_pub_array(self, pub_list):
-        '''
-        Takes a list of PMIDs and returns a list of reference dictionaries
-
-        Args:
-            pub_list (list): List of PMIDs extracted from the "pmids column"
-
-        Returns:
-            list: List of dictionaries containing the URL to the PubMed abstract
-        '''
-
-        pub_array = []
-
-        # If there were no pubmed ids there is one empty iten in the array
-        for publication in pub_list:
-            if len(publication) == 0:
-                pub_dict = {
-                    "lit_id": None
-                }
-                pub_array.append(pub_dict)
-            else:
-                pub_dict = {
-                    "lit_id": f"http://europepmc.org/abstract/MED/{publication}"
-                }
-                pub_array.append(pub_dict)
-        return pub_array
-
     def process_g2p(self, dd_file, eye_file, skin_file, cancer_file, evidence_file, unmapped_diseases_filename):
-
-        self.get_omim_to_efo_mappings()
-
-        gene_parser = GeneParser()
-        gene_parser._get_hgnc_data_from_json()
-        self.genes = gene_parser.genes
 
         # Parser DD file
         self._logger.info("Started parsing DD file")
@@ -274,125 +216,42 @@ class G2P(RareDiseaseMapper):
                 pmids = row["pmids"]
                 panel = row["panel"]
 
-                date = row["gene disease pair entry date"]
-                # Handle missing dates ("No date" in file)
-                try:
-                    date = datetime.datetime.strptime(date, "%Y-%m-%d %H:%M:%S").isoformat()
-                except ValueError:
-                    date = None
 
+                # Map disease to ontology terms
+                disease_mapping = self.map_disease_name_to_ontology(disease_name, disease_mim)
+                if disease_mapping:
+                    total_efo +=1
 
-                gene_symbol.rstrip()
+                    self._logger.info(f"{gene_symbol}, {gene_symbol}, '{disease_name}', {disease_mapping['id']}")
 
-                if gene_symbol in self.genes:
-                    # Map gene symbol to ensembl
-                    target = self.genes[gene_symbol]
-                    ensembl_iri = "http://identifiers.org/ensembl/" + target
+                    evidence = {
+                        'datasourceId': 'gene2phenotype',
+                        'datatypeId': 'genetic_literature',
+                        'targetFromSourceId': gene_symbol.rstrip(),
+                        'diseaseFromSource': disease_name,
+                        'diseaseFromSourceId': disease_mim,
+                        'diseaseFromSourceMappedId': ontoma.interface.make_uri(disease_mapping['id']).split("/")[-1],
+                        'confidence': confidence,
+                        'studyId': panel
+                    }
 
-                    # Map disease to ontology terms
-                    disease_mapping = self.map_disease_name_to_ontology(disease_name, disease_mim)
-                    if disease_mapping:
-                        total_efo +=1
+                    # Add literature provenance if there are PMIDs
+                    if len(pmids) != 0:
+                        evidence['literature'] = pmids.split(";")
 
-                        self._logger.info(f"{gene_symbol}, {target}, '{disease_name}', {disease_mapping['id']}")
+                    # Ignore allelic requirement if it's empty string
+                    evidence['allelicRequirements'] = [allelic_requirement] if allelic_requirement else self._logger.warn('Empty allelic requirement, ignoring the value')
 
-                        type = "genetic_literature"
-
-                        provenance_type = {
-                            'database' : {
-                                'id' : "Gene2Phenotype",
-                                'version' : self.g2p_version,
-                                'dbxref' : {
-                                    'url': "http://www.ebi.ac.uk/gene2phenotype",
-                                    'id' : "Gene2Phenotype",
-                                    'version' : self.g2p_version
-                                }
-                            }
-                        }
-
-                        # Add literature provenance if there are PMIDs
-                        if len(pmids) != 0:
-                            provenance_type["literature"] = {
-                                'references' : self.get_pub_array(pmids.split(";"))
-                            }
-
-                        # *** General properties ***
-                        access_level = "public"
-                        sourceID = "gene2phenotype"
-                        validated_against_schema_version = self.schema_version
-
-                        # *** Target info ***
-                        target = {
-                            'id' : ensembl_iri,
-                            'activity' : "http://identifiers.org/cttv.activity/unknown",
-                            'target_type' : "http://identifiers.org/cttv.target/gene_evidence",
-                            'target_name' : gene_symbol
-                        }
-                        # http://www.ontobee.org/ontology/ECO?iri=http://purl.obolibrary.org/obo/ECO_0000204 -- An evidence type that is based on an assertion by the author of a paper, which is read by a curator.
-
-                        # *** Disease info ***
-                        disease_info = {
-                            'id' : disease_mapping['id'],
-                            'name' : disease_mapping['name'],
-                            'source_name' : disease_name
-                        }
-                        # *** Evidence info ***
-                        # Score based on mutational consequence
-                        if confidence in G2P_confidence2score:
-                            score = G2P_confidence2score[confidence]
+                    # Assign SO code based on mutation consequence field
+                    if mutation_consequence in G2P_mutationCsq2functionalCsq:
+                        if G2P_mutationCsq2functionalCsq[mutation_consequence]:
+                            evidence['variantFunctionalConsequenceId'] = G2P_mutationCsq2functionalCsq[mutation_consequence]
                         else:
-                            self._logger.error('{} is not a recognised G2P confidence, assigning an score of 0'.format(confidence))
-                            score = 0
-                        resource_score = {
-                            'type': "probability",
-                            'value': score
-                        }
+                            self._logger.error('Ignoring empty mutation consequence'.format(mutation_consequence))
+                    else:
+                        self._logger.error( '{} is not a recognised G2P mutation consequence, ignoring the value'.format(mutation_consequence))
 
-                        # Linkout
-                        linkout = [
-                            {
-                                'url' : 'http://www.ebi.ac.uk/gene2phenotype/search?panel=ALL&search_term=%s' % (gene_symbol,),
-                                'nice_name' : 'Gene2Phenotype%s' % (gene_symbol)
-                            }
-                        ]
-
-                        evidence = {
-                            'is_associated' : True,
-                            'confidence' : confidence,
-                            'allelic_requirement' : allelic_requirement,
-                            'mutation_consequence' : mutation_consequence,
-                            'evidence_codes' : ["http://purl.obolibrary.org/obo/ECO_0000204"],
-                            'provenance_type' : provenance_type,
-                            'date_asserted' : date,
-                            'resource_score' : resource_score,
-                            'urls' : linkout
-                        }
-                        # *** unique_association_fields ***
-                        unique_association_fields = {
-                            'target_id' : ensembl_iri,
-                            'original_disease_label' : disease_name,
-                            'disease_id' : disease_mapping['id'],
-                            'gene_panel': panel,
-                            "mutation_consequence": mutation_consequence,
-                            "allelic_requirement": allelic_requirement
-                        }
-
-
-                        try:
-                            evidence = self.evidence_builder.Opentargets(
-                                type = type,
-                                access_level = access_level,
-                                sourceID = sourceID,
-                                evidence = evidence,
-                                target = target,
-                                disease = disease_info,
-                                unique_association_fields = unique_association_fields,
-                                validated_against_schema_version = validated_against_schema_version
-                            )
-                            self.evidence_strings.append(evidence)
-                        except:
-                            self._logger.warning('Evidence generation failed for row: {}'.format(c))
-                            raise
+                    self.evidence_strings.append(evidence)
 
             self._logger.info(f"Processed {c} diseases, mapped {total_efo}\n")
 
@@ -402,7 +261,8 @@ class G2P(RareDiseaseMapper):
             n = 0
             for evidence_string in self.evidence_strings:
                 n += 1
-                tp_file.write(evidence_string.serialize() + "\n")
+                json.dump(evidence_string, tp_file)
+                tp_file.write("\n")
             self._logger.info(f"{n} evidence strings saved.\n")
 
     def write_unmapped_diseases(self, filename):
@@ -417,43 +277,35 @@ def main():
 
     # Parse CLI arguments
     parser = argparse.ArgumentParser(description='Parse Gene2Phenotype gene-disease files downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads/')
-    parser.add_argument('-s', '--schema_version',
-                        help='JSON schema version to use, e.g. 1.6.8. It must be branch or a tag available in https://github.com/opentargets/json_schema',
-                        type=str, required=True)
     parser.add_argument('-d', '--dd_panel',
                         help='DD panel file downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads',
-                        type=str, default=Config.G2P_DD_FILENAME)
+                        type=str)
     parser.add_argument('-e', '--eye_panel',
                         help='Eye panel file downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads',
-                        type=str, default=Config.G2P_eye_FILENAME)
+                        type=str)
     parser.add_argument('-k', '--skin_panel',
                         help='Skin panel file downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads',
-                        type=str, default=Config.G2P_skin_FILENAME)
+                        type=str)
     parser.add_argument('-c', '--cancer_panel',
                         help='Cancer panel file downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads',
-                        type=str, default=Config.G2P_cancer_FILENAME)
+                        type=str)
     parser.add_argument('-o', '--output_file',
                         help='Name of evidence file. It uses the value of G2P_EVIDENCE_FILENAME in setting.py if not specified',
-                        type=str, default=Config.G2P_EVIDENCE_FILENAME)
+                        type=str)
     parser.add_argument('-u', '--unmapped_diseases_file',
                         help='If specified, the diseases not mapped to EFO will be stored in this file',
                         type=str, default=False)
-    parser.add_argument('-v', '--g2p_version',
-                        help='Version of the Gene2Phenotype data used. If not available please use the date in which the data was downloaded in YYYY-MM-DD format',
-                        type=str, required=True)
 
     args = parser.parse_args()
     # Get parameters
-    schema_version = args.schema_version
     dd_file = args.dd_panel
     eye_file = args.eye_panel
     skin_file = args.skin_panel
     cancer_file = args.cancer_panel
     outfile = args.output_file
     unmapped_diseases_file = args.unmapped_diseases_file
-    g2p_version = args.g2p_version
 
-    g2p = G2P(schema_version=schema_version, g2p_version=g2p_version)
+    g2p = G2P()
     g2p.process_g2p(dd_file, eye_file, skin_file, cancer_file, outfile, unmapped_diseases_file)
 
 if __name__ == "__main__":

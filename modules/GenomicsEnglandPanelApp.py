@@ -2,9 +2,10 @@ from settings import Config
 from common.HGNCParser import GeneParser
 import python_jsonschema_objects as pjo
 import pandas as pd
-pd.options.mode.chained_assignment = None  # default='warn'
+pd.options.mode.chained_assignment = None  # TODO: to remove
 from ontoma import OnToma
 from datetime import datetime
+from random import choice
 import logging
 import requests
 import json
@@ -17,19 +18,16 @@ PanelApp_classification2score = {
     "amber": 0.5,
 }
 
-class PanelApp_evidence_generator():
+class PanelAppEvidenceGenerator():
 
     def __init__(self, schema_version=Config.VALIDATED_AGAINST_SCHEMA_VERSION):
 
-        # Get JSON Schema
-
+        # Build JSON schema url from version
         self.schema_version = schema_version
         schema_url = f"https://raw.githubusercontent.com/opentargets/json_schema/{self.schema_version}/draft4_schemas/opentargets.json"
         logging.info(f"Loading JSON Schema from {schema_url}")
 
-
         # Initialize JSON Schema builder
-
         try:
             r = requests.get(schema_url)
             r.raise_for_status()
@@ -41,11 +39,9 @@ class PanelApp_evidence_generator():
             raise e
 
         # Create OnToma object
-
         self.otmap = OnToma()
 
         # Parse Gene Symbol to EnsEMBL ID
-
         gene_parser = GeneParser()
         gene_parser._get_hgnc_data_from_json()
         self.genes = gene_parser.genes
@@ -53,25 +49,25 @@ class PanelApp_evidence_generator():
     @staticmethod
     def build_publications(dataframe):
         '''
-        Builds a dataframe with the publications fetched from the PanelApp API and cleans them to match PubMed IDs.
+        Populates a dataframe with the publications fetched from the PanelApp API and cleans them to match PubMed IDs.
+        Args:
+            dataframe (pd.DataFrame): Initial .tsv data converted to a Pandas dataframe
+        Returns:
+            dataframe (pd.DataFrame): Original dataframe with an additional column: Publications
         '''
-        panel_lst = dataframe["Panel Id"].unique()
-        lst = []
-
-        for panel in panel_lst:
-            tmp = dataframe[dataframe["Panel Id"] == panel]
-            request = PanelApp_evidence_generator.publications_from_panel(panel)
-            tmp["Publications"] = tmp.apply(lambda X: PanelApp_evidence_generator.publication_from_symbol(X.Symbol, request), axis=1)
-            lst.append(tmp)
+        populated_groups = []
+        for (PanelId), group in dataframe.groupby("Panel Id"):
+            request = PanelAppEvidenceGenerator.publications_from_panel(PanelId)
+            group["Publications"] = group.apply(lambda X: PanelAppEvidenceGenerator.publication_from_symbol(X.Symbol, request), axis=1)
+            populated_groups.append(group)
         
-        dataframe = pd.concat(lst, ignore_index=True, sort=False)
+        dataframe = pd.concat(populated_groups, ignore_index=True, sort=False)
 
         cleaned_publication = []
         for row in dataframe["Publications"].to_list():
             try:
                 tmp = [re.match(r"(\d{8})", e)[0] for e in row]
-                tmp = list(set(tmp)) # Removing duplicated publications
-                cleaned_publication.append(tmp)
+                cleaned_publication.append(list(set(tmp))) # Removing duplicated publications
             except Exception as e:
                 cleaned_publication.append([])
                 continue
@@ -84,11 +80,15 @@ class PanelApp_evidence_generator():
     def publications_from_panel(panel_id):
         '''
         Queries the PanelApp API to obtain a list of the publications for every gene within a panel_id
+
+        Args:
+            panel_id (str): Panel ID extracted from the "Panel Id" column
+        Returns:
+            response (dict): Response of the API containing all genes related to a panel and their publications
         '''
         try:
             url = f"http://panelapp.genomicsengland.co.uk/api/v1/panels/{panel_id}/"
             res = requests.get(url).json()
-
             return res["genes"]
         except:
             logging.error("Query of the PanelApp API failed.")
@@ -97,40 +97,44 @@ class PanelApp_evidence_generator():
     @staticmethod
     def publication_from_symbol(symbol, response):
         '''
-        Returns the list of publications for a given symbol in a PanelApp query response.
+        Returns the list of publications for a given symbol in a PanelApp query response
+
+        Args:
+            symbol (str): Gene symbol extracted from the "Symbol" column
+            response (dict): Response of the API containing all genes related to a panel and their publications
+        Returns:
+            publication (list): Array with all publications for a particular gene in the corresponding Panel ID 
         '''
         for gene in response:
             if gene["gene_data"]["gene_symbol"] == symbol:
                 publication = gene["publications"]
                 return publication
-            continue
 
     @staticmethod
     def clean_dataframe(dataframe):
         '''
-        Cleaning of the initial .tsv file
+        Args:
+            dataframe (pd.DataFrame): Initial .tsv data converted to a Pandas dataframe
+        Returns:
+            dataframe (pd.DataFrame): Original dataframe cleaned
         '''
-
         # NaNs and "No OMIM phenotype" in "Phenotypes" column --> Assignment of Pannel Name
-
         dataframe.loc[(dataframe["Phenotypes"] == "No OMIM phenotype") | (dataframe["Phenotypes"].isna()), "Phenotypes"] = dataframe["Panel Name"]
 
         # Handling multiple phenotypes column: Phenotypes exploded and phenotype_list with the original string
-
         dataframe["phenotype_list"] = dataframe["Phenotypes"]
-        dataframe["Phenotypes"] = dataframe["Phenotypes"].apply(lambda X: X.split(";"))
-        dataframe = dataframe.explode("Phenotypes")
+        dataframe["Phenotype"] = dataframe["Phenotypes"].apply(lambda X: X.split(";"))
+        dataframe = dataframe.explode("Phenotype")
 
         # Extracting and cleaning the OMIM codes: 
         #   removal of the OMIM codes in the Phenotypes column and the inclusion of these in a Codes column
         #   deleting special characters
+        dataframe["OMIM_code"] = dataframe["Phenotype"].str.extract(r"(\d{6})")
+        dataframe["Phenotype"] = dataframe["Phenotype"].replace("(\d{6})", "", regex=True)
 
-        dataframe["Codes"] = dataframe["Phenotypes"].str.extract(r"(\d{6})")
-        dataframe["Phenotypes"] = dataframe["Phenotypes"].replace("(\d{6})","",regex=True)
-
-        dataframe["Phenotypes"] = dataframe["Phenotypes"].str.replace("-", " ", regex=False)
-        dataframe["Phenotypes"] = dataframe["Phenotypes"].str.replace("[^0-9a-zA-Z *]", "", regex=True)
-        dataframe["Phenotypes"] = dataframe["Phenotypes"].apply(lambda X: X.strip())
+        #dataframe["Phenotype"] = dataframe["Phenotype"].str.replace("-", " ", regex=False) 
+        dataframe["Phenotype"] = dataframe["Phenotype"].str.replace("[^0-9a-zA-Z *]", "", regex=True)
+        dataframe["Phenotype"] = dataframe["Phenotype"].apply(lambda X: X.strip())
 
         dataframe.reset_index(inplace=True)
 
@@ -138,18 +142,23 @@ class PanelApp_evidence_generator():
 
     def ontoma_query(self, iterable, dict_name="ontoma_queries.json"):
         '''
-        Queries the OnToma utility to map a phenotype to a disease.
-        '''
+        OnToma is used to query the ontology OBO files, the manual mapping file and the Zooma and OLS APIs.
 
-        dct = dict()
+        Args:
+            iterable (array): Array or column of a dataframe containing the strings to query
+            dict_name (str): Name of the output file where the OnToma queries will be saved
+        Returns:
+            mappings (dict): Output file. Keys: queried term (phenotype or OMIM code), Values: OnToma output
+        '''
+        mappings = dict()
 
         for e in iterable:
             try:
                 tmp = self.otmap.find_term(e, verbose=True)
                 if tmp != None:
-                    dct[e] = tmp
+                    mappings[e] = tmp
                 else:
-                    dct[e] = {
+                    mappings[e] = {
                     'term': None,
                      'label': None,
                      'source': None,
@@ -161,16 +170,21 @@ class PanelApp_evidence_generator():
                 continue
         
         with open(dict_name, "w") as outfile:  
-            json.dump(dct, outfile)
+            json.dump(mappings, outfile)
 
-        return dct
+        return mappings
 
     @staticmethod
-    def check_xref(phenotype, code, mappings_dict, codes_dict):
+    def OMIM_phenotype_xref(phenotype, code, mappings_dict, codes_dict):
         '''
-        Among the Fuzzy results of a phenotype query, it checks if the term and the respective code points to the same term
-        '''
+        Among the Fuzzy results of a phenotype query, it checks if the phenotype and the respective code points to the same EFO term
 
+        Args:
+            phenotype (str): Phenotype of each phenotype-OMIM code pair
+            code (str): Code of each phenotype-OMIM code pair
+            mappings_dict (dict): All mapping results for every phenotype
+            codes_dict (dict): All mapping results for every OMIM code
+        '''
         try:
             if phenotype == "":
                 return
@@ -184,6 +198,7 @@ class PanelApp_evidence_generator():
                     return
 
                 if code_result["term"] == phenotype_result["term"]:
+                    # If both EFO terms coincide, the phenotype in mappings_dict becomes a match
                     mappings_dict[phenotype]["quality"] = "match"
                     mappings_dict[phenotype]["action"] = "checked"
         except Exception as e:
@@ -192,10 +207,14 @@ class PanelApp_evidence_generator():
     @staticmethod
     def build_mappings(mappings_dict, dataframe):
         '''
-        Feeds the dataframe with the mappings results.
+        Populates the dataframe with the mappings resulted from OnToma.
+        Args:
+            mappings_dict (dict): All mapping results for every phenotype
+            dataframe (pd.DataFrame): DataFrame with transformed PanelApp data
+        Return:
+            dataframe (pd.DataFrame): DataFrame with new columns corresponding to the OnToma result
         '''
         # Splitting dictionaries between fuzzies and matches
-
         fuzzy = {}
         match = {}
 
@@ -207,24 +226,25 @@ class PanelApp_evidence_generator():
 
         # Creating the corresponding OnToma result for each phenotype
         # New columns: OnToma Result, OnToma Source, OnToma Term, OnToma Label
-
         for phenotype in match.keys():
-            dataframe.loc[dataframe["Phenotypes"] == phenotype, "OnToma Result"] = "match"
-            dataframe.loc[dataframe["Phenotypes"] == phenotype, "OnToma Action"] = match[phenotype]["action"]
-            dataframe.loc[dataframe["Phenotypes"] == phenotype, "OnToma Term"] = match[phenotype]["term"]
-            dataframe.loc[dataframe["Phenotypes"] == phenotype, "OnToma Label"] = match[phenotype]["label"]
+            dataframe.loc[dataframe["Phenotype"] == phenotype, "OnToma Result"] = "match"
+            dataframe.loc[dataframe["Phenotype"] == phenotype, "OnToma Action"] = match[phenotype]["action"]
+            dataframe.loc[dataframe["Phenotype"] == phenotype, "OnToma Term"] = match[phenotype]["term"]
+            dataframe.loc[dataframe["Phenotype"] == phenotype, "OnToma Label"] = match[phenotype]["label"]
             
         for phenotype in fuzzy.keys():
-            dataframe.loc[dataframe["Phenotypes"] == phenotype, "OnToma Result"] = "fuzzy"
-            dataframe.loc[dataframe["Phenotypes"] == phenotype, "OnToma Action"] = fuzzy[phenotype]["action"]
-            dataframe.loc[dataframe["Phenotypes"] == phenotype, "OnToma Term"] = fuzzy[phenotype]["term"]
-            dataframe.loc[dataframe["Phenotypes"] == phenotype, "OnToma Label"] = fuzzy[phenotype]["label"]
+            dataframe.loc[dataframe["Phenotype"] == phenotype, "OnToma Result"] = "fuzzy"
+            dataframe.loc[dataframe["Phenotype"] == phenotype, "OnToma Action"] = fuzzy[phenotype]["action"]
+            dataframe.loc[dataframe["Phenotype"] == phenotype, "OnToma Term"] = fuzzy[phenotype]["term"]
+            dataframe.loc[dataframe["Phenotype"] == phenotype, "OnToma Label"] = fuzzy[phenotype]["label"]
 
         return dataframe
 
-    def get_pub_array(self):
+    def build_pub_array(self):
         '''
-        Returns an array where all the publications are listed as dictionaries
+        Takes a list of PMIDs and returns a list of reference dictionaries
+        Returns:
+            pub_array (array): List of objects with the reference link to every publication   
         '''
         pub_array = []
 
@@ -235,6 +255,7 @@ class PanelApp_evidence_generator():
                 }
                 pub_array.append(pub_dict)
         else:
+            # If there were no pubmed ids there is one empty item in the array
             pub_dict = {
                 "lit_id": None
             }
@@ -243,19 +264,16 @@ class PanelApp_evidence_generator():
     
 
     def get_evidence_string(self, row):
-
-
         # Association level information:
         self.gene_symbol = row["Symbol"]
         self.mapped_disease = row["OnToma Label"]
         self.mapped_id = row["OnToma Term"]
         self.phenotypes_array = row["phenotype_list"].split(";")
-        self.source_name = row["Phenotypes"]
+        self.source_name = row["Phenotype"]
         self.mode_of_inheritance = row["Mode of inheritance"]
         self.evidence_classification = row["List"]
         self.sources = row["Sources"]
         self.publication = row["Publications"]
-        
         try:
             self.ensembl_iri = "http://identifiers.org/ensembl/" + self.genes[self.gene_symbol]
         except:
@@ -296,7 +314,7 @@ class PanelApp_evidence_generator():
         # literature field only shown when the publication array is not empty
         if len(self.publication) != 0:
             provenance_type["literature"] = {
-                            'references': self.get_pub_array()
+                            'references': self.build_pub_array()
                         }
 
         resource_score = {
@@ -346,10 +364,7 @@ class PanelApp_evidence_generator():
         unique_association_field = {
                         'disease_iri': self.mapped_id,
                         'target_id': self.ensembl_iri,
-                        'study_overview': self.panel_name,
-                        'study_id': self.panel_id,
-                        'study_version': self.panel_version,
-                        'original_disease_name': self.source_name,
+                        'study_id': self.panel_id
                     }
 
         try:
@@ -365,61 +380,95 @@ class PanelApp_evidence_generator():
             )
             return evidence.serialize()
         except Exception as e:
-            print(e)
             logging.error(f'Evidence generation failed for row: {row.name}')
             raise
 
     def write_evidence_strings(self, dataframe, mappings_dict):
-
+        '''
+        Processing of the dataframe to build all the evidences from its data
+        Args:
+            dataframe (pd.DataFrame): Initial .tsv file
+            mappings_dict (dict): All mapping results for every phenotype
+        Returns:
+            evidences (array): Object with all the generated evidences strings
+        '''
         # Read input file
         dataframe = pd.read_csv(dataframe, sep='\t')
 
         # Filtering with green and ambar evidences
-
         dataframe = dataframe[((dataframe["List"] == "green") | (dataframe["List"] == "amber")) & (dataframe["Panel Version"] > 1) & (dataframe["Panel Status"] == "PUBLIC")].reset_index(drop=True)
         dataframe.dropna(axis=1, how="all", inplace=True)
 
         # Feed the dataframe with publications
-
         logging.info("Fetching publications from the API...")
         dataframe = self.build_publications(dataframe)
         logging.info("Publications loaded.")
 
         # Splitting and cleaning the dataframe according to the phenotype string
-        
-        dataframe = PanelApp_evidence_generator.clean_dataframe(dataframe)
+        dataframe = PanelAppEvidenceGenerator.clean_dataframe(dataframe)
 
         # Mapping the phenotypes and OMIM codes to an EFO code
-
-        codes = dataframe["Codes"].unique()
-        phenotypes = dataframe["Phenotypes"].unique()
+        codes = dataframe["OMIM_code"].unique()
+        phenotypes = dataframe["Phenotype"].unique()
 
         if len(mappings_dict) == 0:
-            mappings_dict = self.ontoma_query(phenotypes)
+            # Checks whether the dictionary is not provided as a parameter 
+            mappings_dict = self.ontoma_query(phenotypes, dict_name="phenotypes_mapping.json")
             logging.info("Disease mappings completed.")
         else:
             logging.info("Disease mappings imported.")
         
-        codes_dict = self.ontoma_query(codes)
+        codes_dict = self.ontoma_query(codes, dict_name="codes_mapping.json")
 
-        # Xref of the fuzzy matches with the corresponding code
-
-        phenotypes_list = dataframe["Phenotypes"].to_list()
-        codes_list = dataframe["Codes"].to_list()
+        # Cross-referencing the fuzzy results from the phenotype query and the OMIM code query
+        phenotypes_list = dataframe["Phenotype"].to_list()
+        codes_list = dataframe["OMIM_code"].to_list()
         merged = list(zip(phenotypes_list, codes_list))
 
         for pheno, code in merged:
-            PanelApp_evidence_generator.check_xref(pheno, code, mappings_dict, codes_dict)
+            PanelAppEvidenceGenerator.OMIM_phenotype_xref(pheno, code, mappings_dict, codes_dict)
 
         # New columns: OnToma Result, OnToma Source, OnToma Term, OnToma Label
-        dataframe = PanelApp_evidence_generator.build_mappings(mappings_dict, dataframe)
-        dataframe = dataframe[dataframe["OnToma Result"] == "match"]
+        dataframe = PanelAppEvidenceGenerator.build_mappings(mappings_dict, dataframe)
 
         # Build evidence strings per row
+        dataframe = dataframe[dataframe["OnToma Result"] == "match"]
         evidences = dataframe.apply(self.get_evidence_string, axis=1)
         logging.info(f"{len(evidences)} evidence strings have been generated.")
 
+        # WARNING! Given the explosion of phenotypes, it is necessary to removing redundant evidences
+        evidences = PanelAppEvidenceGenerator.removing_redundant_evidences(evidences)
+
         return evidences
+
+    @staticmethod
+    def removing_redundant_evidences(evidences):
+        # Parsing data from the evidences object
+        parsed_data = []
+
+        json_data = evidences.apply(lambda x: json.loads(x))
+        for evidence in json_data:
+            parsed_data.append({
+                'target': evidence['target']['id'],
+                'disease': evidence['disease']['id'],
+                'panel_id': evidence['unique_association_fields']['study_id'],
+                'phenotype': evidence['disease']['source_name'],
+                'json_data': evidence
+            })
+        panelapp_df = pd.DataFrame(parsed_data)  
+
+        # Grouping to make the evidence unique: by target, disease and panel id
+        updated_evidences = []  
+        for (target, disease, panel_id), group in panelapp_df.groupby(['target','disease','panel_id']):
+            # Extracting evidence data:
+            data = group["json_data"].tolist()[0]
+            # Update evidence:
+            source_phenotypes = group.phenotype.unique().tolist()
+            data['disease']['source_name'] = choice(source_phenotypes)
+            # Save evidence:
+            updated_evidences.append(data)
+
+        return updated_evidences
 
 def main():
     # Initiating parser
@@ -447,7 +496,7 @@ def main():
     )
 
     # Initialize evidence builder object
-    evidence_builder = PanelApp_evidence_generator(schema_version)
+    evidence_builder = PanelAppEvidenceGenerator(schema_version)
 
     # Import dictionary if present
     if args.dictionary:
@@ -455,12 +504,15 @@ def main():
                 mappings_dict = json.load(f)
     else:
         mappings_dict = {}
-    
+
     # Writing evidence strings into a json file
     evidences = evidence_builder.write_evidence_strings(dataframe, mappings_dict)
-
+   
+    # Exporting the outfile
     with open(output_file, "wt") as f:
-        evidences.apply(lambda x: f.write(str(x)+'\n'))
+        for evidence in evidences:
+            json.dump(evidence, f)
+            f.write('\n')
     
     logging.info(f"Evidence strings saved into {output_file}. Exiting.")
 

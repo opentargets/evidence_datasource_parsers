@@ -6,7 +6,7 @@ from settings import Config
 class RareDiseaseMapper(object):
 
     def __init__(self):
-        print("init RareDiseaseMapper")
+
         super(RareDiseaseMapper, self).__init__()
         self._logger = logging.getLogger(__name__+".RareDiseaseMapper")
         self.omim_to_efo_map = OrderedDict()
@@ -24,7 +24,7 @@ class RareDiseaseMapper(object):
                 continue
             self._logger.debug("Parsing line: %s",line)
             '''
-            omim	efo_uri	efo_label	source	status
+            OMIM	efo_uri	efo_label
             '''
             line_count += 1
             (omim, efo_uri, efo_label) = line.split("\t")
