@@ -51,17 +51,9 @@ class Config:
     # HGNC
     GENES_HGNC = 'http://ftp.ebi.ac.uk/pub/databases/genenames/new/json/hgnc_complete_set.json'
 
-    # PROGENY
-    PROGENY_FILENAME = file_or_resource('progeny_normalVStumor_opentargets.txt')
-    PROGENY_EVIDENCE_FILENAME = 'progeny-20-05-2018.json'
-
     # UKBIOBANK
     UKBIOBANK_FILENAME = file_or_resource('ukbiobank.txt')
     UKBIOBANK_EVIDENCE_FILENAME = 'ukbiobank-30-04-2018.json'
-
-    # SLAPEnrich
-    SLAPENRICH_FILENAME = file_or_resource('slapenrich_opentargets.tsv')
-    SLAPENRICH_EVIDENCE_FILENAME = 'otar001_slapenrich-19-12-2017.json'
 
     # SYSBIO
     SYSBIO_FILENAME1 = file_or_resource('sysbio_evidence-31-01-2019.tsv')
@@ -78,13 +70,6 @@ class Config:
     PHEWAS_CATALOG_EVIDENCE_FILENAME = f"phewas_catalog-{datetime.today().strftime('%Y-%m-%d')}.json"
     PHEWAS_CATALOG_W_CONSEQUENCES = 'https://storage.googleapis.com/otar000-evidence_input/PheWAS/data_files/phewas_w_consequences.csv'
 
-    # Gene2Phenotype
-    #G2P_FILENAME = 'DDG2P.csv.gz'
-    G2P_DD_FILENAME = file_or_resource('DDG2P_2_4_2020.csv.gz')
-    G2P_eye_FILENAME = file_or_resource('EyeG2P_26_3_2020.csv.gz')
-    G2P_skin_FILENAME = file_or_resource('SkinG2P_26_3_2020.csv.gz')
-    G2P_cancer_FILENAME = file_or_resource('CancerG2P_26_3_2020.csv.gz')
-    G2P_EVIDENCE_FILENAME = 'gene2phenotype-19-08-2019.json'
 
     # IntoGEN
     INTOGEN_DRIVER_GENES_FILENAME = file_or_resource('intogen_Compendium_Cancer_Genes.tsv')

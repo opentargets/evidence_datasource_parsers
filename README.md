@@ -1,6 +1,6 @@
 # OT evidence generators
 
-Each folder in module corresponds corresponds to a datasource.
+Each folder in module corresponds to a datasource.
 
 In each folder we have one or more standalone python scripts.
 
@@ -96,9 +96,6 @@ The mapping of the diseases, i.e. the "disease name" column, is done on the fly 
 - If OnToma returns a fuzzy match it is ignore and MONDO is searched for exact matches.
 - When no exact matches are found the disease is considered unmapped and it's saved to a file (see the `-u`/ `--unmapped_disease_file` option below).
 
-The parser requires two parameters to run:
-- `-s`, `--schema_version`: JSON schema version to use, e.g. 1.6.8. It must be branch or a tag available in https://github.com/opentargets/json_schema.
-- `-v`, `--g2p_version`: Version of the Gene2Phenotype data used. If not available please use the date in which the data was downloaded in YYYY-MM-DD format.
 
 There are also a number of optional parameters to specify the name of the input and out files:
 - `-d`, `--dd_panel`: Name of Developmental Disorders (DD) panel file. It uses the value of G2P_DD_FILENAME in setting.py if not specified.
@@ -112,7 +109,7 @@ Note that when using the default file names, the input files have to exist in th
 
 To use the parser configure the python environment and run it as follows:
 ```bash
-(venv)$ python3 modules/Gene2Phenotype.py -s 1.7.1 -v 2020-08-19 -d DDG2P_19_8_2020.csv.gz -e EyeG2P_19_8_2020.csv.gz -k SkinG2P_19_8_2020.csv.gz -c CancerG2P_19_8_2020.csv.gz -o gene2phenotype-19-08-2020.json -u gene2phenotype-19-08-2020_unmapped_diseases.txt 
+(venv)$ python3 modules/Gene2Phenotype.py -d DDG2P_19_8_2020.csv.gz -e EyeG2P_19_8_2020.csv.gz -k SkinG2P_19_8_2020.csv.gz -c CancerG2P_19_8_2020.csv.gz -o gene2phenotype-19-08-2020.json -u gene2phenotype-19-08-2020_unmapped_diseases.txt 
 ```
 
 ### Genomics England Panel App
@@ -170,11 +167,63 @@ The CRISPR parser processes three files available in the `resources` directory:
 (venv)$ python3 modules/CRISPR.py -e <evidence_file> -d <description_file> -c <cell_line_file> -o <output_file> -l <log_file>
 ```
 
-- `-e`, `--evidence_file`: Name or full path for _crispr_evidence.tsv_.
-- `-d`, `--descriptions_file`: Name or full path for the _crispr_descriptions.tsv_ file.
-- `-c`, `--cell_types_file`: Name or full path for _crispr_cell_lines.tsv_.
+- `-e`, `--evidence_file`: name or full path for _crispr_evidence.tsv_.
+- `-d`, `--descriptions_file`: name or full path for the _crispr_descriptions.tsv_ file.
+- `-c`, `--cell_types_file`: name or full path for _crispr_cell_lines.tsv_.
 - `-o`, `--output_file`: output is a gzipped JSON.
 - `-l`, `--log_file`:  optional parameter. If not provided, logs are written to the standard error.
+
+### PROGENy
+
+The PROGENy parser processes three files:
+
+- progeny_normalVStumor_opentargets.txt: Main file that contains a systematic comparison of pathway activities between normal and primary TCGA samples in 14 tumor types using PROGENy. This file can be downloaded [here](https://storage.googleapis.com/otar000-evidence_input/PROGENy/data_files/progeny_normalVStumor_opentargets.txt) from the _otar000-evidence_input_ bucket.
+- cancer2EFO_mappings.tsv: File containing the mappings between the acronym of the type of cancer and its respective disease listed in EFO. This file can be found in the `resources` directory.
+- pathway2Reactome_mappings.tsv: File containing the mappings between the analysed pathway and their respective target and ID in Reactome. This file can be found in the `resources` directory.
+
+The source table is then formatted into a compressed set of JSON lines following the schema of the version to be used.
+
+The parser uses the following parameters:
+- `-i`, `--inputFile`: Main tsv file.
+- `-d`, `--diseaseMapping`: optional; input look-up table containing the cancer type mappings to an EFO ID.
+- `-s`, `--skipMapping`: optional; state whether to skip the disease to EFO term mapping step. If used this step is not performed.
+- `-p`, `--pathwayMapping`: input look-up table containing the pathway mappings to a respective target and ID in Reactome.
+- `-o`, `--outputFile`: gzipped JSON file containing the evidence strings.
+
+
+To use the parser configure the python environment and run it as follows:
+```bash
+python modules/PROGENY.py \
+    --inputFile progeny_normalVStumor_opentargets.txt \
+    --diseaseMapping resources/cancer2EFO_mappings.tsv \
+    --pathwayMapping resources/pathway2Reactome_mappings.tsv \
+    --outputFile progeny-2021-01-18.json.gz
+```
+
+### SLAPenrich
+
+The SLAPenrich parser processes twofiles:
+
+- `slapenrich_opentargets.tsv`: Main file that contains a systematic comparison of on somatic mutations from TCGA across 25 different cancer types and a collection of pathway gene sets from Reactome. This file can be downloaded [here](https://storage.googleapis.com/otar000-evidence_input/SLAPEnrich/data_file/slapenrich_opentargets-21-12-2017.tsv) from the _otar000-evidence_input_ bucket.
+- `cancer2EFO_mappings.tsv`: File containing the mappings between the acronym of the type of cancer and its respective disease listed in EFO. This file can be found in the `resources` directory.
+
+The source table is then formatted into a compressed set of JSON lines following the schema of the version to be used.
+
+The parser uses the following parameters:
+
+- `-i`, `--inputFile`: Name of tsv file located in the [SLAPEnrich bucket](https://storage.googleapis.com/otar000-evidence_input/SLAPEnrich/data_file/slapenrich_opentargets-21-12-2017.tsv).
+- `-d`, `--diseaseMapping`: optional; input look-up table containing the cancer type mappings to an EFO ID.
+- `-s`, `--skipMapping`: optional; state whether to skip the disease to EFO term mapping step. If used this step is not performed.
+- `-o`, `--outputFile`: gzipped JSON file containing the evidence strings.
+- `-l`, `--logFile`: optional; if not specified, logs are written to standard error.
+
+To use the parser configure the python environment and run it as follows:
+```bash
+python modules/SLAPEnrich.py \
+    --inputFile slapenrich_opentargets.tsv \
+    --diseaseMapping resources/cancer2EFO_mappings.tsv \
+    --outputFile slapenrich-2021-01-18.json.gz
+```
 
 
 ### PhenoDigm
