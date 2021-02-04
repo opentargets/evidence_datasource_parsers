@@ -60,12 +60,6 @@ class Config:
     SYSBIO_FILENAME2 = file_or_resource('sysbio_publication_info_nov2018.tsv')
     SYSBIO_EVIDENCE_FILENAME = 'sysbio-29-01-2019.json'
 
-    # PheWAS catalog
-    PHEWAS_CATALOG_FILENAME = file_or_resource('phewas-catalog-19-10-2018.csv')
-    PHEWAS_CATALOG_EVIDENCE_FILENAME = f"phewas_catalog-{datetime.today().strftime('%Y-%m-%d')}.json"
-    PHEWAS_CATALOG_W_CONSEQUENCES = 'https://storage.googleapis.com/otar000-evidence_input/PheWAS/data_files/phewas_w_consequences.csv'
-
-
     # IntoGEN
     INTOGEN_DRIVER_GENES_FILENAME = file_or_resource('intogen_Compendium_Cancer_Genes.tsv')
     INTOGEN_EVIDENCE_FILENAME = 'intogen-02-02-2020.json'

@@ -147,10 +147,28 @@ The intOGen parser generates evidence strings from three files that need to be i
 
 ### PheWAS catalog
 
-The `PheWAS.py` script parses the PheWAS Catalog CSV file specified as `PHEWAS_CATALOG_FILENAME` in `settings.py` and that should be located either in the working directory or the `resources` folder. This file can be downloaded [here](https://storage.googleapis.com/otar000-evidence_input/PheWAS/data_files/phewas-catalog-19-10-2018.csv). The mappings between the Phecodes and EFO are read from the [phewascat.mappings.tsv](https://raw.githubusercontent.com/opentargets/mappings/master/phewascat.mappings.tsv) file in the `mappings` repository. In addition, the data is enriched with information gathered from the Variant Index. The file is imported as `PHEWAS_CATALOG_W_CONSEQUENCES` and located [here](https://storage.googleapis.com/otar000-evidence_input/PheWAS/data_files/phewas_w_consequences.csv). This data is then joined with the PheWAS variants at the gene, variant level.  
+The PheWAS parser processes three files:
+- phewas-catalog-19-10-2018.csv: Main tsv file containing information from phenome-wide association studies. The file is located in the [PheWAS bucket](https://storage.googleapis.com/otar000-evidence_input/PheWAS/data_files/phewas-catalog-19-10-2018.csv).
+- phewas_w_consequences.csv: File containing PheWAS data enriched with data from the Genetics Portal on the variant and its functional consequence. This file is located in the [PheWAS bucket](https://storage.googleapis.com/otar000-evidence_input/PheWAS/data_files/phewas_w_consequences.csv).
+- phewascat.mappings.tsv: File containing the mappings between the phenotypes provided by PheWAS and its respective disease listed in EFO. This file is located in [our mappings repo](https://raw.githubusercontent.com/opentargets/mappings/master/phewascat.mappings.tsv).
 
-```sh
-(venv)$ python3 modules/PheWAS.py
+The source table is then formatted into a compressed set of JSON lines following the schema of the version to be used.
+
+The parser uses the following parameters:
+- `-i`, `--inputFile`: Main tsv file coming from PheWAS.
+- `-c`, `--consequencesFile`: Input look-up table containing the variant data and consequences coming from the Variant Index.
+- `-d`, `--diseaseMapping`: optional; input look-up table containing the PheWAS phenotypes mappings to an EFO IDs.
+- `-s`, `--skipMapping`: optional; state whether to skip the disease to EFO term mapping step. If used this step is not performed.
+- `-o`, `--outputFile`: Gzipped JSON file containing the evidence strings.
+- `-l`, `--logFile`: optional; if not specified, logs are written to standard error.
+
+To use the parser configure the python environment and run it as follows:
+```bash
+python modules/PheWAS.py \
+    --inputFile phewas-catalog-19-10-2018.csv \
+    --consequencesFile https://storage.googleapis.com/otar000-evidence_input/PheWAS/data_files/phewas_w_consequences.csv) \
+    --diseaseMapping https://raw.githubusercontent.com/opentargets/mappings/master/phewascat.mappings.tsv \
+    --outputFile phewas-2021-02-02.json.gz
 ```
 
 ### CRISPR
