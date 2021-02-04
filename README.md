@@ -179,37 +179,60 @@ The CRISPR parser processes three files available in the `resources` directory:
 - _crispr_descriptions.tsv_: File used to extract the number of targets prioritised per cancer types as well as to retrieve the cell lines from the next file.
 - _crispr_cell_lines.tsv_: It contains three columns with the cell line, tissue and the cancer type information. It is used to extract the cell lines in which the target has been identified as essential. The file has been adapted from the supplementary table 1 in the [Behan et al. 2019](https://www.nature.com/articles/s41586-019-1103-9) paper.
 
-The parser has five parameters but only two of them are compulsory, the other three have defaults specified in the `settings.py`:
-
-- `-i`, `--input_file`: Name or full path for _crispr_evidence.tsv_. The default value is taken from the `CRISPR_FILENAME1` variable in `settings.py`.
-- `-d`, `--description_file`: Name or full path for the _crispr_descriptions.tsv_ file. The default value is taken from the `CRISPR_FILENAME2` variable in `settings.py`.
-- `-c`, `--cell_types_file`: Name or full path for _crispr_cell_lines.tsv_. There is no default value, it **must** be specified.
-- `-o`, `--output_file`:  Name of the evidence JSON file. The default value is taken from the `CRISPR_EVIDENCE_FILENAME` variable in `settings.py`.
-- `-s`, `--schema_version`:  JSON schema version to use, e.g. 1.7.5. It must be branch or a tag available in https://github.com/opentargets/json_schema. There is no default value, it **must** be specified.
-
-This is how it is run only specifying the required parameters:
+*Usage:*
 
 ```sh
-(venv)$ python3 modules/CRISPR.py -s 1.7.5 -c crispr_cell_lines.tsv -o crispr-18-11-2020.json
+(venv)$ python3 modules/CRISPR.py -e <evidence_file> -d <description_file> -c <cell_line_file> -o <output_file> -l <log_file>
 ```
 
-### PhenoDigm
+- `-e`, `--evidence_file`: name or full path for _crispr_evidence.tsv_.
+- `-d`, `--descriptions_file`: name or full path for the _crispr_descriptions.tsv_ file.
+- `-c`, `--cell_types_file`: name or full path for _crispr_cell_lines.tsv_.
+- `-o`, `--output_file`: output is a gzipped JSON.
+- `-l`, `--log_file`:  optional parameter. If not provided, logs are written to the standard error.
 
-Generates target-disease evidence querying the IMPC SOLR API.
+### PROGENy
 
-### SLAPenrich
-The SLAPenrich parser processes three files:
+The PROGENy parser processes three files:
 
-- slapenrich_opentargets.tsv: Main file that contains a systematic comparison of on somatic mutations from TCGA across 25 different cancer types and a collection of pathway gene sets from Reactome. This file can be downloaded [here](https://storage.googleapis.com/otar000-evidence_input/SLAPEnrich/data_file/slapenrich_opentargets-21-12-2017.tsv) from the _otar000-evidence_input_ bucket.
+- progeny_normalVStumor_opentargets.txt: Main file that contains a systematic comparison of pathway activities between normal and primary TCGA samples in 14 tumor types using PROGENy. This file can be downloaded [here](https://storage.googleapis.com/otar000-evidence_input/PROGENy/data_files/progeny_normalVStumor_opentargets.txt) from the _otar000-evidence_input_ bucket.
 - cancer2EFO_mappings.tsv: File containing the mappings between the acronym of the type of cancer and its respective disease listed in EFO. This file can be found in the `resources` directory.
+- pathway2Reactome_mappings.tsv: File containing the mappings between the analysed pathway and their respective target and ID in Reactome. This file can be found in the `resources` directory.
 
 The source table is then formatted into a compressed set of JSON lines following the schema of the version to be used.
 
-The parser requires three parameters:
+The parser uses the following parameters:
+- `-i`, `--inputFile`: Main tsv file.
+- `-d`, `--diseaseMapping`: optional; input look-up table containing the cancer type mappings to an EFO ID.
+- `-s`, `--skipMapping`: optional; state whether to skip the disease to EFO term mapping step. If used this step is not performed.
+- `-p`, `--pathwayMapping`: input look-up table containing the pathway mappings to a respective target and ID in Reactome.
+- `-o`, `--outputFile`: gzipped JSON file containing the evidence strings.
+
+
+To use the parser configure the python environment and run it as follows:
+```bash
+python modules/PROGENY.py \
+    --inputFile progeny_normalVStumor_opentargets.txt \
+    --diseaseMapping resources/cancer2EFO_mappings.tsv \
+    --pathwayMapping resources/pathway2Reactome_mappings.tsv \
+    --outputFile progeny-2021-01-18.json.gz
+```
+
+### SLAPenrich
+
+The SLAPenrich parser processes twofiles:
+
+- `slapenrich_opentargets.tsv`: Main file that contains a systematic comparison of on somatic mutations from TCGA across 25 different cancer types and a collection of pathway gene sets from Reactome. This file can be downloaded [here](https://storage.googleapis.com/otar000-evidence_input/SLAPEnrich/data_file/slapenrich_opentargets-21-12-2017.tsv) from the _otar000-evidence_input_ bucket.
+- `cancer2EFO_mappings.tsv`: File containing the mappings between the acronym of the type of cancer and its respective disease listed in EFO. This file can be found in the `resources` directory.
+
+The source table is then formatted into a compressed set of JSON lines following the schema of the version to be used.
+
+The parser uses the following parameters:
+
 - `-i`, `--inputFile`: Name of tsv file located in the [SLAPEnrich bucket](https://storage.googleapis.com/otar000-evidence_input/SLAPEnrich/data_file/slapenrich_opentargets-21-12-2017.tsv).
 - `-d`, `--diseaseMapping`: optional; input look-up table containing the cancer type mappings to an EFO ID.
 - `-s`, `--skipMapping`: optional; state whether to skip the disease to EFO term mapping step. If used this step is not performed.
-- `-o`, `--outputFile`: Gzipped JSON file containing the evidence strings.
+- `-o`, `--outputFile`: gzipped JSON file containing the evidence strings.
 - `-l`, `--logFile`: optional; if not specified, logs are written to standard error.
 
 To use the parser configure the python environment and run it as follows:
@@ -220,6 +243,10 @@ python modules/SLAPEnrich.py \
     --outputFile slapenrich-2021-01-18.json.gz
 ```
 
+
+### PhenoDigm
+
+Generates target-disease evidence querying the IMPC SOLR API.
 
 #### System requirements and running time
 The PhenoDigm parser has been run both in a MacBook Pro and a Google Cloud machine. The current version is very memory greedy, using up to 60 GB. 
