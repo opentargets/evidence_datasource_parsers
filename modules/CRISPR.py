@@ -117,9 +117,6 @@ def main():
     # Replace some target ids: 
     evidence_df.targetFromSourceId = evidence_df.targetFromSourceId.apply(lambda x: CRISPR_SYMBOL_MAPPING[x] if x in CRISPR_SYMBOL_MAPPING else x)
 
-    # Convert score:
-    evidence_df.resourceScore = evidence_df.resourceScore/100
-
     ##
     ## Annotate evidence:
     ##
