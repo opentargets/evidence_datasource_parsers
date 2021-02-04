@@ -72,16 +72,16 @@ class phewasEvidenceGenerator():
                 logging.info("Disease mappings have been imported.")
             except:
                 logging.error(f"An error occurred while importing disease mappings: \n{e}.")
+            else:
+                # Filter out invalid disease IDs: MPATH_579, CHEBI_36047
+                pattern = "(^NCIT_C\d+$|^Orphanet_\d+$|^GO_\d+$|^HP_\d+$|^EFO_\d+$|^MONDO_\d+$|^DOID_\d+$|^MP_\d+$)"
+                self.dataframe = self.dataframe.filter(col("EFO_id").rlike(pattern))
         else:
             logging.info("Disease mapping has been skipped.")
             self.dataframe = self.dataframe.withColumn(
                 "EFO_id",
                 lit(None)
             )
-        
-        # Filter out invalid disease IDs: MPATH_579, CHEBI_36047
-        pattern = "(^NCIT_C\d+$|^Orphanet_\d+$|^GO_\d+$|^HP_\d+$|^EFO_\d+$|^MONDO_\d+$|^DOID_\d+$|^MP_\d+$)"
-        self.dataframe = self.dataframe.filter(col("EFO_id").rlike(pattern))
 
         # Parse gene symbols to ENSID to join with the consequences table
         self.dataframe = (self.dataframe
@@ -109,7 +109,7 @@ class phewasEvidenceGenerator():
             if skipMapping:
                 # Delete empty keys if mapping is skipped
                 del evidence["diseaseFromSourceMappedId"]
-            elif not evidence["variantId"]:
+            if not evidence["variantId"]:
                 # Delete empty variantId
                 del evidence["variantId"]
 
@@ -176,7 +176,7 @@ class phewasEvidenceGenerator():
                 "datatypeId" : "genetic_association",
                 "diseaseFromSource" : row["phewas_string"],
                 "diseaseFromSourceId" : row["phewas_code"],
-                "diseaseFromSourceMappedId" : row["EFO_id"].strip(),
+                "diseaseFromSourceMappedId" : row["EFO_id"],
                 "oddsRatio" : row["odds_ratio"],
                 "resourceScore" : row["p"],
                 "studyCases" : row["cases"],
