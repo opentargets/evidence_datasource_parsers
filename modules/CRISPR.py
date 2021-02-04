@@ -4,42 +4,6 @@ import datetime
 import pandas as pd
 import argparse
 
-'''
-{
- 'diseaseFromSourceId': 'EFO_0000305',
- 'resourceScore': 0.464688,
- 'targetFromSourceId': 'ENSG00000138107',
- 'datasourceId': 'crispr',
- 'datatypeId': 'affected_pathway',
- 'diseaseFromSource': 'Breast Carcinoma',
- 'diseaseCellLines': ['AU565',
-  'COLO-824',
-  'EVSA-T',
-  'HCC1143',
-  'HCC1187',
-  'HCC1806',
-  'HCC1937',
-  'HCC1954',
-  'HCC38',
-  'Hs-578-T',
-  'JIMT-1',
-  'MCF7',
-  'MDA-MB-361',
-  'MDA-MB-415',
-  'MDA-MB-436',
-  'MDA-MB-453',
-  'MFM-223',
-  'OCUB-M',
-  'UACC-893',
-  'CAL-51',
-  'HCC1395',
-  'HCC70',
-  'MDA-MB-231',
-  'T47D',
-  'MDA-MB-468'],
- 'sourceId': 'crispr'
- }
-'''
 
 # A few genes do not have Ensembl IDs in the data file provided
 CRISPR_SYMBOL_MAPPING={
@@ -139,7 +103,7 @@ def main():
     ## Process evidence file:
     ##
 
-    # Some columns from the evidence file is not needed:
+    # Some columns from the evidence file are not needed:
     evidence_df = (
         evidence_df
         .drop(['pmid','gene_set_name', 'disease_name'], axis=1)
@@ -172,7 +136,7 @@ def main():
         annotated_evidence = annotated_evidence[annotated_evidence._merge != 'both']
         logging.warning(f'Number of evidence with mathing diseases: {len(annotated_evidence)}')
 
-    # Remove unsued column
+    # Remove unused column
     annotated_evidence.drop(['_merge'], inplace=True, axis=1)
 
     # Update efo identifier:

@@ -173,7 +173,7 @@ The CRISPR parser processes three files available in the `resources` directory:
 - `-e`, `--evidence_file`: Name or full path for _crispr_evidence.tsv_.
 - `-d`, `--descriptions_file`: Name or full path for the _crispr_descriptions.tsv_ file.
 - `-c`, `--cell_types_file`: Name or full path for _crispr_cell_lines.tsv_.
-- `-o`, `--output_file`: output is a gizpped JSON.
+- `-o`, `--output_file`: output is a gzipped JSON.
 - `-l`, `--log_file`:  optional parameter. If not provided, logs are written to the standard error.
 
 
