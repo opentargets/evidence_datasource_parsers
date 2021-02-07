@@ -1,198 +1,245 @@
-'''tranform the phewascatalog.org CSV file in a set of JSON evidence objects
-'''
-
+from common.HGNCParser import GeneParser
 import logging
-import csv
+import requests
+import argparse
 import sys
 import json
-from pathlib import Path
+import numpy as np
+import gzip
+from pyspark import SparkContext, SparkFiles
+from pyspark.sql import SparkSession, Row
+from pyspark.sql.functions import *
+from pyspark.sql.types import *
 
+class phewasEvidenceGenerator():
+    def __init__(self):
+        # Create spark session     
+        self.spark = (SparkSession.builder
+                .appName('phewas')
+                .getOrCreate())
+        
+        # Initialize gene parser
+        gene_parser = GeneParser()
+        gene_parser._get_hgnc_data_from_json()
+        self.udfGeneParser = udf(
+            lambda X: gene_parser.genes.get(X.strip("*"), np.nan),
+            StringType()
+        )
 
-import requests
-from tqdm import tqdm
+        # Initialize variables
+        self.dataframe = None
+        self.enrichedDataframe = None
 
-from common.HGNCParser import GeneParser
-from common.Utils import mapping_on_github, ghmappings, DuplicateFilter
+    def generateEvidenceFromSource(self, inputFile, consequencesFile, diseaseMapping, skipMapping):
+        '''
+        Processing of the dataframe to build all the evidences from its data
+        Returns:
+            evidences (array): Object with all the generated evidences strings from source file
+        '''
+        # Read input file
+        self.dataframe = (self.spark
+                            .read.csv(inputFile, header=True)
+                            .select(
+                                "gene", "snp", "phewas_code", "phewas_string",
+                                col("cases").cast(IntegerType()),
+                                col("odds_ratio").cast(DoubleType()),
+                                col("p").cast(DoubleType())
+                            )
+                            # Filter out null genes & p-value > 0.05
+                            .filter(col("gene").isNotNull())
+                            .filter(col("p") < 0.05)
+        )
 
-from settings import Config, file_or_resource
+        # Mapping step
+        if not skipMapping:
+            try:
+                self.spark.sparkContext.addFile(diseaseMapping)
+                phewasMapping = (
+                    self.spark.read.csv(SparkFiles.get("phewascat.mappings.tsv"), sep=r'\t', header=True)
+                    .select(
+                        "Phewas_string", col("EFO_id").alias("EFO_link")
+                    )
+                    .withColumn(
+                        "EFO_id",
+                        element_at(split(col("EFO_link"), "/"), -1)
+                    )
+                )
+                self.dataframe = self.dataframe.join(
+                    phewasMapping,
+                    on=["Phewas_string"],
+                    how="inner"
+                )
+                logging.info("Disease mappings have been imported.")
+            except:
+                logging.error(f"An error occurred while importing disease mappings: \n{e}.")
+            else:
+                # Filter out invalid disease IDs: MPATH_579, CHEBI_36047
+                pattern = "(^NCIT_C\d+$|^Orphanet_\d+$|^GO_\d+$|^HP_\d+$|^EFO_\d+$|^MONDO_\d+$|^DOID_\d+$|^MP_\d+$)"
+                self.dataframe = self.dataframe.filter(col("EFO_id").rlike(pattern))
+        else:
+            logging.info("Disease mapping has been skipped.")
+            self.dataframe = self.dataframe.withColumn(
+                "EFO_id",
+                lit(None)
+            )
 
-'''define once where evidence is coming from
-'''
-PROVENANCE = {'literature': {
-            "references":[{"lit_id":"http://europepmc.org/articles/PMC3969265"}]
-            },
-             "database":{
-                 "version":"2013-12-31T09:53:37+00:00",
-                "id":"PHEWAS Catalog"
-                }
-}
+        # Parse gene symbols to ENSID to join with the consequences table
+        self.dataframe = (self.dataframe
+            .withColumn(
+                "ens_id",
+                self.udfGeneParser(col("gene"))
+            )
+            # Remove rows where the target is not valid
+            .filter(col("ens_id") != "NaN")
+        )
 
-TOTAL_NUM_PHEWAS = 4269549
+        # Get functional consequence per variant from OT Genetics Portal
+        cols = ["phewas_string", "phewas_code", "EFO_id", "odds_ratio", "p", "cases", "ens_id", "consequence_id", "variantId", "snp"]
+        self.enrichedDataframe = (self.enrichVariantData(consequencesFile)
+                                        .dropDuplicates(cols))
+        logging.info("Functional consequences have been imported.")
 
+        # Build evidence strings per row
+        logging.info("Generating evidence:")
+        evidences = (self.enrichedDataframe.rdd
+            .map(phewasEvidenceGenerator.parseEvidenceString)
+            .collect()) # list of dictionaries
+        
+        for evidence in evidences:
+            if skipMapping:
+                # Delete empty keys if mapping is skipped
+                del evidence["diseaseFromSourceMappedId"]
+            if not evidence["variantId"]:
+                # Delete empty variantId
+                del evidence["variantId"]
 
-__log__ = logging.getLogger(__name__)
-__moduledir__ = Path(__file__).resolve().parent
-__modulename__ = Path(__file__).parent.name
+        return evidences
 
-#configure this module's logger
-__log__.setLevel(logging.INFO)
-ch = logging.StreamHandler()
-formatter = logging.Formatter('%(levelname)s - %(message)s')
-ch.setFormatter(formatter)
-__log__.addHandler(ch)
-dup_filter = DuplicateFilter()
-__log__.addFilter(dup_filter)
+    def enrichVariantData(self, consequencesFile):
+        self.spark.sparkContext.addFile(consequencesFile)
+        phewasWithConsequences = (
+            self.spark.read.csv(SparkFiles.get("phewas_w_consequences.csv"), header=True)
+            .select(
+                col("rsid").alias("snp"),
+                col("gene_id").alias("ens_id"), 
+                col("pos").cast(IntegerType()),
+                "chrom", "ref", "alt",
+                "consequence_link"
+            )
+            .withColumn(
+                "consequence_id",
+                element_at(split(col("consequence_link"), "/"), -1)
+            )
+        )
 
-def make_disease(disease_info, phecode):
-    disease = {}
-    disease["id"] = disease_info['efo_uri']
-    disease['name'] = disease_info['efo_label']
-    disease['source_name'] = disease_info['phewas_string'] + " [" + phecode + "]"
-    return disease
+        # We want to remove all the SNPs associated with many variants
+        one2manyVariants = (phewasWithConsequences
+                                    .groupBy("snp")
+                                    .agg(count("snp"))
+                                    .filter(col("count(snp)") > 1)
+                                    .toPandas()["snp"]
+                                    .tolist()
+        )
+        phewasWithConsequences = phewasWithConsequences.filter(
+            ~col("snp").isin(one2manyVariants)
+        )
 
-def make_target(ensgid):
-    target = {}
-    target['target_type'] = "http://identifiers.org/cttv.target/gene_evidence"
-    target['id'] = "http://identifiers.org/ensembl/{}".format(ensgid)
-    target['activity'] = "http://identifiers.org/cttv.activity/unknown"
-    return target
+        # Enriching dataframe with consequences --> more records due to 1:many associations
+        self.dataframe = self.dataframe.join(
+            phewasWithConsequences,
+            on=["ens_id", "snp"],
+            how="left"
+        )
 
+        # Building variantId: "chrom_pos_ref_alt" of the respective rsId
+        self.dataframe = (self.dataframe.select(
+            "*",
+            concat(
+                col("chrom"),
+                lit("_"),
+                col("pos"),
+                lit("_"),
+                col("ref"),
+                lit("_"),
+                col("alt")
+            )
+            .alias("variantId")
+        ))
 
-def make_variant(rsid):
-    variant = {}
-    variant['type'] = "snp single"
-    variant['id'] = "http://identifiers.org/dbsnp/{}".format(rsid)
-    return variant
+        return self.dataframe
 
-
-def make_gene2variant():
-    return {'provenance_type':PROVENANCE,
-            'is_associated':True,
-            'date_asserted':"2017-12-31T09:53:37+00:00",
-            'evidence_codes':["http://purl.obolibrary.org/obo/ECO_0000205"],
-            'functional_consequence':'http://purl.obolibrary.org/obo/SO_0001060'
+    @staticmethod
+    def parseEvidenceString(row):
+        try:
+            evidence = {
+                "datasourceId" : "phewas_catalog",
+                "datatypeId" : "genetic_association",
+                "diseaseFromSource" : row["phewas_string"],
+                "diseaseFromSourceId" : row["phewas_code"],
+                "diseaseFromSourceMappedId" : row["EFO_id"],
+                "oddsRatio" : row["odds_ratio"],
+                "resourceScore" : row["p"],
+                "studyCases" : row["cases"],
+                "targetFromSource" : row["gene"].strip("*"),
+                "targetFromSourceId" : row["ens_id"],
+                "variantFunctionalConsequenceId" : row["consequence_id"] if row["consequence_id"] else "SO_0001060",
+                "variantId" : row["variantId"],
+                "variantRsId" : row["snp"]
             }
-
-def make_variant2disease(pval, odds_ratio, cases):
-    variant2disease = {}
-    variant2disease['unique_experiment_reference']='http://europepmc.org/articles/PMC3969265'
-    variant2disease['provenance_type']=PROVENANCE
-    variant2disease['is_associated']=True
-    variant2disease['date_asserted']="2013-12-31T09:53:37+00:00"
-    variant2disease['evidence_codes']=['http://identifiers.org/eco/PheWAS']
-    variant2disease['resource_score']={
-        'type': 'pvalue',
-        'method': {
-            "description":"pvalue for the phenotype to snp association."
-            },
-        "value":float(pval)
-        }
-
-    variant2disease['odds_ratio'] = odds_ratio
-    variant2disease['cases'] = cases
-    return variant2disease
-
-
+            return evidence
+        except Exception as e:
+            raise        
 
 def main():
+    # Initiating parser
+    parser = argparse.ArgumentParser(description=
+    "This script generates evidences from the PheWAS Catalog data source.")
 
-    ## load prepared mappings
-    mappings = {}
-    if mapping_on_github('phewascat'):
-        __log__.info('Downloading prepared mappings from github')
-        with requests.get(ghmappings('phewascat'), stream=True) as rmap:
-            for row in csv.DictReader(rmap.iter_lines(decode_unicode=True),delimiter='\t'):
-                phewas_str = row['Phewas_string'].strip()
-                if phewas_str not in mappings:
-                    mappings[phewas_str] = []
-                mappings[phewas_str].append({'efo_uri':row['EFO_id'].strip(), 'efo_label':row['EFO_label'].strip(), 'phewas_string':phewas_str})
-        __log__.info('Parsed %s mappings', len(mappings))
+    parser.add_argument("-i", "--inputFile", required=True, type=str, help="Input .csv file with the table containing association details.")
+    parser.add_argument("-c", "--consequencesFile", required=True, type=str, help="Input look-up table containing the variation consequences coming from the Variant Index.")
+    parser.add_argument("-d", "--diseaseMapping", required=False, type=str, help="Input look-up table containing the phenotype mappings to an EFO ID.")
+    parser.add_argument("-o", "--outputFile", required=True, type=str, help="Name of the compressed json.gz output file containing the evidence strings.")
+    parser.add_argument("-s", "--skipMapping", required=False, action="store_true", help="State whether to skip the disease to EFO mapping step.")
+    parser.add_argument("-l", "--logFile", help="Destination of the logs generated by this script.", type=str, required=False)
+
+    # Parsing parameters
+    args = parser.parse_args()
+
+    inputFile = args.inputFile
+    consequencesFile = args.consequencesFile
+    diseaseMapping = args.diseaseMapping
+    outputFile = args.outputFile
+    skipMapping = args.skipMapping
+
+    # Initialize logging:
+    logging.basicConfig(
+    level=logging.INFO,
+    format='%(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    )
+    if args.logFile:
+        logging.config.fileConfig(filename=args.logFile)
     else:
-        __log__.error('Trait mapping file not found on GitHub: https://raw.githubusercontent.com/opentargets/mappings/master/phewascat.mappings.tsv')
-        sys.exit()
+        logging.StreamHandler(sys.stderr)
+    
+    # Logging parameters
+    logging.info(f"PheWAS input table: {inputFile}")
+    logging.info(f"Phewas phenotype to EFO ID table: {diseaseMapping}")
+    logging.info(f"Phewas enriched with consequences input file: {consequencesFile}")
+    logging.info(f"Output file: {outputFile}")
 
-    ## gene symbol <=> ENSGID mappings ##
-    gene_parser = GeneParser()
-    __log__.info('Parsing gene data from HGNC...')
-    gene_parser._get_hgnc_data_from_json()
-    ensgid = gene_parser.genes
+    # Initialize evidence builder object
+    evidenceBuilder = phewasEvidenceGenerator()
 
-
-    built = 0
-    skipped_phewas_string_cnt = 0
-    skipped_unmapped_target_cnt = 0
-    skipped_zero_length_cnt = 0
-    skipped_non_significant_cnt = 0
-    __log__.info('Begin processing phewascatalog evidences..')
-    with open(Config.PHEWAS_CATALOG_EVIDENCE_FILENAME, 'w') as outfile:
-
-        with open(Config.PHEWAS_CATALOG_FILENAME) as r:
-            catalog = tqdm(csv.DictReader(r), total=TOTAL_NUM_PHEWAS)
-            for i, row in enumerate(catalog):
-                __log__.debug(row)
-
-                # Only use data with p-value<0.05
-                if float(row['p']) < 0.05:
-
-                    phewas_string = row['phewas_string'].strip()
-                    phewas_code = row['phewas_code'].strip()
-                    gene = row['gene'].strip('*')
-                    snp = row['snp']
-                    row_p = row['p']
-                    odds_ratio = row['odds_ratio']
-                    cases = row['cases']
-
-                    pev = {}
-                    pev['type'] = 'genetic_association'
-                    pev['access_level'] = 'public'
-                    pev['sourceID'] = 'phewas_catalog'
-                    pev['validated_against_schema_version'] = '1.6.7'
-
-                    ## find ENSGID ##
-                    if gene not in ensgid:
-                        __log__.debug("Skipping unmapped target %s",gene)
-                        skipped_unmapped_target_cnt += 1
-                        continue
-                    if not len(gene) or not len(ensgid[gene]):
-                        __log__.debug("Skipping zero length gene name")
-                        skipped_zero_length_cnt += 1
-                        continue
-                    pev['target'] = make_target(ensgid[gene])
-
-                    pev["variant"]= make_variant(snp)
-                    pev["evidence"] = { "variant2disease": make_variant2disease(row_p, odds_ratio, cases),
-                                        "gene2variant": make_gene2variant()}
-
-                    ## find EFO term ##
-                    if phewas_string not in mappings:
-                        __log__.debug("Skipping unmapped disease %s", phewas_string)
-                        skipped_phewas_string_cnt += 1
-                        continue
-
-                    for disease in mappings[phewas_string]:
-                        if disease['efo_uri'] != "NEW TERM REQUEST":
-                            pev['disease'] = make_disease(disease, phewas_code)
-
-                            # Evidence strings are unique based on the target, disease EFO term and Phewas string
-                            pev['unique_association_fields'] = {'target_id': ensgid[gene],
-                                                                'disease_id' : pev['disease']['id'],
-                                                                'phewas_string_and_code' : phewas_string + " [" + phewas_code + "]",
-                                                                'variant_id': snp}
-
-                            outfile.write("%s\n" % json.dumps(pev,
-                                sort_keys=True, separators = (',', ':')))
-
-                    built +=1
-
-                else:
-                    skipped_non_significant_cnt += 1
-
-        __log__.info("Completed. Parsed %s rows. "
-            "Built %s evidences. "
-            "Skipped %s ",i,built,i-built
-            )
-        __log__.debug("Skipped unmapped PheWAS string: {} \n Skipped unmapped targets: {} \n Skipped zero length gene name: {} \n Skipped non-significant association: {}".format(skipped_phewas_string_cnt, skipped_unmapped_target_cnt, skipped_zero_length_cnt, skipped_non_significant_cnt))
-
+    # Writing evidence strings into a json file
+    evidences = evidenceBuilder.generateEvidenceFromSource(inputFile, consequencesFile, diseaseMapping, skipMapping)
+        
+    with gzip.open(outputFile, "wt") as f:
+        for evidence in evidences:
+            json.dump(evidence, f)
+            f.write('\n')
+    logging.info(f"{len(evidences)} evidence strings saved into {outputFile}. Exiting.")
 
 if __name__ == '__main__':
     main()
+    
