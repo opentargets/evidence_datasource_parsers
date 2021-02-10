@@ -1,5 +1,6 @@
 from ontoma import OnToma
 import logging
+from sys import stderr
 import requests
 import argparse
 import re
@@ -27,7 +28,7 @@ class PanelAppEvidenceGenerator():
                 .appName('evidence_builder') \
                 .getOrCreate()
 
-        self.dataframe = dataframe
+        self.dataframe = None
 
     def writeEvidenceFromSource(self, inputFile, skipMapping):
         '''
@@ -60,7 +61,7 @@ class PanelAppEvidenceGenerator():
 
         # Map the diseases to an EFO term if necessary
         if not skipMapping:
-            self.dataframe = self.diseaseMappingsStep()
+            self.dataframe = self.diseaseMappingStep()
         else:
             logging.info("Disease mapping has been skipped.")
             self.dataframe = self.dataframe.withColumn(
@@ -214,7 +215,7 @@ class PanelAppEvidenceGenerator():
                 self.diseaseMappings = pool.map(self.diseaseToEfo, phenotypesDistinct) # list of dictionaries
                 self.diseaseMappings = {k:v for dct in self.diseaseMappings for (k,v) in self.diseaseMappings.items()}
                 pool.close()
-            except Exception as e:
+            except Exception as e: # TODO: SPARK-5063 error. SparkContext
                 logging.error(f"An error occurred while multi threading: \n{e}")
                 self.diseaseMappings = self.diseaseToEfo(*phenotypesDistinct)
         else:
@@ -393,7 +394,7 @@ def main():
     if args.logFile:
         logging.config.fileConfig(filename=args.logFile)
     else:
-        logging.StreamHandler(sys.stderr)
+        logging.StreamHandler(stderr)
 
     # Logging parameters
     logging.info(f"Panel app input table: {inputFile}")
