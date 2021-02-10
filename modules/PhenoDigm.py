@@ -104,7 +104,6 @@ class IPMC_solr_parser(object):
             # Log progress
             logging.debug(f'Chunk {chunk} done. Number of retrieved documents: {total}.')
 
-            
         logging.info(f'Retrieval finished. Number of documents: {total}')
             
 
@@ -119,12 +118,12 @@ class IPMC_solr_parser(object):
             params['fq'] = f'type:{data_type}'
             
         # Query
-        r = requests.get(self.ipmc_solr_host, params=params, timeout=30)
+        response = requests.get(self.ipmc_solr_host, params=params, timeout=30)
 
         # Check for erroneous HTTP response statuses
-        r.raise_for_status()
-        rsp = r.json()
-        return rs
+        response.raise_for_status()
+        response_data = response.json()
+        return response_data
 
 
 def get_solr_data(target_folder):
