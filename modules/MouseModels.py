@@ -250,7 +250,6 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                         if hgnc_gene_id and not hgnc_gene_id in self.hgnc2mgis:
                             self.hgnc2mgis[hgnc_gene_id] = []
                         self.hgnc2mgis[hgnc_gene_id].append(gene_id)
-
                     elif doc['type'] == 'mouse_model':
                         marker_symbol = doc['marker_symbol']
                         marker_id = doc['marker_id']
@@ -274,7 +273,6 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                                     mp_id = mt.groups()[0]
                                     model_phenotypes.append(mp_id)
                             self.mouse_models[model_id]['model_phenotypes'] = model_phenotypes
-
                     elif doc['type'] == 'disease_model_summary':
                         model_id = doc['model_id']
                         if not model_id in self.mouse_model2diseases:
@@ -864,7 +862,7 @@ def main():
         action="store_true", dest="write2cloud", default=False)
 
     # log file is optional:
-    parser.add_argument("-l", '--log-file', help='Optional filename for logfile.', required=False)
+    parser.add_argument("-l", '--logFile', help='Optional filename for logfile.', required=False)
     args = parser.parse_args()
 
     # Initialize logger:
