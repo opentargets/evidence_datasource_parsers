@@ -14,7 +14,7 @@ from pyspark.sql.functions import *
 from pyspark.sql.types import *
 
 class PanelAppEvidenceGenerator():
-    def __init__(self, dataframe, mappingsDict):
+    def __init__(self, mappingsDict):
         # Initialize mapping variables
         self.diseaseMappings = mappingsDict
         self.codesMappings = None
@@ -29,7 +29,7 @@ class PanelAppEvidenceGenerator():
 
         self.dataframe = dataframe
 
-    def writeEvidenceFromSource(self, skipMapping):
+    def writeEvidenceFromSource(self, inputFile, skipMapping):
         '''
         Processing of the dataframe to build all the evidences from its data
 
@@ -41,7 +41,7 @@ class PanelAppEvidenceGenerator():
 
         # Reading and filtering input file
         self.dataframe = (self.spark
-                            .read.csv(self.dataframe, sep=r'\t', header=True)
+                            .read.csv(inputFile, sep=r'\t', header=True)
                             .filter(
                                 ((col("List") == "green" ) | (col("List") == "amber")) &
                                 (col("Panel Version") > 1) &
@@ -131,7 +131,7 @@ class PanelAppEvidenceGenerator():
             res = requests.get(url).json()
             return res["genes"]
         except:
-            logging.error("Query of the PanelApp API failed.")
+            logging.error("Query of the PanelApp API has failed.")
             return None
     
     @staticmethod
@@ -218,13 +218,12 @@ class PanelAppEvidenceGenerator():
                 logging.error(f"An error occurred while multi threading: \n{e}")
                 self.diseaseMappings = self.diseaseToEfo(*phenotypesDistinct)
         else:
-            logging.info("Disease mappings have been imported.")
-        
+            logging.info(f"Disease mappings have been imported from {self.diseaseMappings}.")
 
         self.codesMappings = self.diseaseToEfo(*omimCodesDistinct)
         for phenotype, code in phenotypeCodePairs:
             self.phenotypeCodePairCheck(phenotype, code)
-        logging.info("Disease mappings have been completed.")
+        logging.info("Disease mappings have been checked.")
 
         # Add new columns: ontomaResult, ontomaUrl, ontomaLabel
         phenotypesMappings = self.diseaseMappings # TO-DO: refactor this workaround to avoid SparkContext error
@@ -241,8 +240,7 @@ class PanelAppEvidenceGenerator():
 
     def diseaseToEfo(self, *iterable, dictExport="diseaseToEfo_results.json"):
         '''
-        Queries the OnToma utility to map a phenotype to a disease.
-        OnToma is used to query the ontology OBO files, the manual mapping file and the Zooma and OLS APIs.
+        Queries the OnToma utility to map a phenotype to an EFO ID.
 
         Args:
             iterable (array): Array or column of a dataframe containing the strings to query
@@ -381,7 +379,7 @@ def main():
     # Parsing parameters
     args = parser.parse_args()
 
-    dataframe = args.inputFile
+    inputFile = args.inputFile
     outputFile = args.outputFile
     skipMapping = args.skipMapping
     mappingsDict = args.mappingsDict
@@ -403,7 +401,7 @@ def main():
     logging.info(f"Output file: {outputFile}")
 
     # Initialize evidence builder object
-    evidenceBuilder = PanelAppEvidenceGenerator(dataframe, skipMapping, mappingsDict)
+    evidenceBuilder = PanelAppEvidenceGenerator(mappingsDict)
 
     # Import dictionary if present
     if mappingsDict:
@@ -413,7 +411,7 @@ def main():
         phenotypesMappings = {}
     
     # Writing evidence strings into a json file
-    evidences = evidenceBuilder.writeEvidenceFromSource(skipMapping)
+    evidences = evidenceBuilder.writeEvidenceFromSource(inputFile, skipMapping)
 
     # Exporting the outfile
     with gzip.open(outputFile, "wt") as f:
