@@ -86,10 +86,14 @@ class SLAPEnrichEvidenceGenerator():
                 "datatypeId" : "affected_pathway",
                 "diseaseFromSourceMappedId" : row["EFO_id"],
                 "resourceScore" : row["pval"],
-                "pathwayName" : row["pathwayDescription"],
-                "pathwayId" : row["pathwayId"],
                 "targetFromSourceId" : row["gene"],
-                "diseaseFromSource" : row["Cancer_type_acronym"]
+                "diseaseFromSource" : row["Cancer_type_acronym"],
+                "pathways" : [
+                    {
+                    "id" : row["pathwayId"],
+                    "name" : row["pathwayDescription"]
+                    }
+                ]
             }
             return evidence
         except Exception as e:

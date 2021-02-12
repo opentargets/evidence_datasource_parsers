@@ -107,10 +107,14 @@ class progenyEvidenceGenerator():
                 "datatypeId" : "affected_pathway",
                 "diseaseFromSourceMappedId" : row["EFO_id"],
                 "resourceScore" : row["P.Value"],
-                "pathwayName" : row["description"],
-                "pathwayId" : row["reactomeId"],
                 "targetFromSourceId" : row["target"],
-                "diseaseFromSource" : row["Cancer_type"]
+                "diseaseFromSource" : row["Cancer_type"],
+                "pathways" : [
+                    {
+                    "id" : row["reactomeId"],
+                    "name" : row["description"]
+                    }
+                ]
             }
             return evidence
         except Exception:
