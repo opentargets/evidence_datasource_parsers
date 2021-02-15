@@ -188,7 +188,6 @@ def process_solr_data(solr_data_folder, output_file):
      * human HGNC gene symbol
      * mouse MGI gene id
     """
-
     logging.info('Reading gene table...')
 
     human_genes = (
@@ -206,24 +205,56 @@ def process_solr_data(solr_data_folder, output_file):
     logging.info(f'Number of human genes with mouse orthologue: { genes_table.select('hgnc_id').distinct().count()}')
 
     """
+    Ontology table contains the mapping between human an mouse
+    phenotypes. Only those mouse phenotypes included that have human correspondent
+
+    The mouse phenotype term is not included - that value comes from the models table
+    """
+    ontolgy_table = (
+        spark.read.json(f'{solr_data_folder}/type.ontology_ontology')
+        .select('hp_id','hp_term','mp_id')
+    )
+
+    logging.info(f"Number of human phenotypes: {ontolgy_table.select('hp_id').distinct().count()}")
+    logging.info(f"Number of mouse phenotypes: {ontolgy_table.select('mp_id').distinct().count()}")
+    logging.info(f"Number of human to mouse phenotype mappings: {ontolgy_table.count()}")
+
+    """
     The step below
      * reads mouse model table.
      * joins with genes table
+     * joins with ontology table
 
     Resulting table has
      * human HGNC gene IDs
      * human HGNC gene symbol
      * mouse MGI gene id
      * mouse model identifier
-     * mouse model phenotype list
+     * model phenotypes {id, label}
+     * human phenotypes {id, label}
     """
 
-    logging.info('Reading mouse-model table...')
     mouse_model_table = (
         spark.read.json(f'{solr_data_folder}/type.mouse_model')
         .select('model_id','model_phenotypes', 'marker_id')
         .withColumnRenamed('marker_id', 'gene_id')
+        .withColumn('model_phenotype', explode(col('model_phenotypes')))
+        .withColumn('parsed_phenotype', parse_phenotypes(col('model_phenotype')))
+        .drop('model_phenotypes')
+        .select('model_id', 'gene_id', 'parsed_phenotype.mp_id', 'parsed_phenotype.mp_term')
+        .join(ontolgy_table, on='mp_id', how='left')
         .join(genes_table, on='gene_id', how='inner')
+        .groupby('model_id','gene_id', 'hgnc_gene_id', 'hgnc_gene_symbol')
+        .agg(
+            collect_set(struct(           
+                    col("mp_id").alias('id'), 
+                    col('mp_term').alias('label')
+                )).alias('diseaseModelAssociatedModelPhenotypes'),
+            collect_set(struct(           
+                    col("hp_id").alias('id'), 
+                    col('hp_term').alias('label')
+                )).alias('diseaseModelAssociatedHumanPhenotypes')        
+        )
     )
 
     logging.info(f'Number of human genes with relevant mouse models: { mouse_model_table.select('hgnc_id').distinct().count()}')
@@ -249,11 +280,11 @@ def process_solr_data(solr_data_folder, output_file):
 
     # # For now,I'm not sure if it make sense to do the aggregation.
     # # Aggregation was required because the data was stored in dictionaries
-    disease_model_table = (
-        spark.read.json(f'{solr_data_folder}/type.disease_model_summary/')
-        .drop(*['association_curated', 'marker_locus', 'marker_symbol','model_source','type', 'disease_model_avg_norm'])
-        .join(mouse_model_table, on='model_id', how='inner')
-    )
+    # disease_model_table = (
+    #     spark.read.json(f'{solr_data_folder}/type.disease_model_summary/')
+    #     .drop(*['association_curated', 'marker_locus', 'marker_symbol','model_source','type', 'disease_model_avg_norm'])
+    #     .join(mouse_model_table, on='model_id', how='inner')
+    # )
 
 
 
