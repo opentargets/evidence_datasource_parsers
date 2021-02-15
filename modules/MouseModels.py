@@ -29,7 +29,7 @@ import opentargets.model.evidence.association_score as association_score
 
 class Phenodigm(RareDiseaseMapper, GCSBucketManager):
 
-    def __init__(self):
+    def __init__(self, logging):
 
         super(Phenodigm, self).__init__()
         self.efo = OntologyClassReader()
@@ -52,8 +52,8 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
         self.mouse_models = collections.OrderedDict()
         self.diseases = collections.OrderedDict()
         self.hashkeys = collections.OrderedDict()
-        self._logger = logging.getLogger(__name__)
-        self._logger.addHandler(TqdmLoggingHandler())
+        self._logger = logging
+
 
     def list_files(self, path):
         '''
@@ -714,7 +714,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                                             #self._logger.error("hs_symbol in disease_gene_locus[disease_id]: {0}".format(not disease_term_uris == None and disease_id in self.disease_gene_locus and hgnc_gene_id in self.disease_gene_locus[disease_id]))
                                             #self._logger.error("marker_symbol in disease_gene_locus[disease_id][hgnc_gene_id]): {0}".format(disease_term_uris is not None and disease_id in self.disease_gene_locus and marker_symbol in self.disease_gene_locus[disease_id][hgnc_gene_id]))
 
-    def convert_evidence(self, evidenceString):
+    def convert_evidence(self, data):
         '''
         This function maps the old evidence structure into the new json schema.
 
@@ -775,25 +775,17 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
 
     def process_ontologies(self):
 
-        bar = tqdm(desc='Load ontologies',
-                   total=3,
-                   unit='steps')
-
         self._logger.info("Load MP classes")
         self.mp.load_mp_classes()
-        bar.update()
+
         self._logger.info("Load HP classes")
         self.hpo.load_hpo_classes()
-        bar.update()
+
         self._logger.info("Load EFO classes")
         self.efo.load_efo_classes()
-        bar.update()
+
 
     def get_ontology_mappings(self):
-
-        bar = tqdm(desc='Get ontology mappings',
-                   total=2,
-                   unit='steps')
 
         self._logger.info("Get ontology mappings")
         self.get_omim_to_efo_mappings()
@@ -804,17 +796,14 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
         #self.omim_to_efo_map["OM:612278"] = ["http://www.ebi.ac.uk/efo/EFO_0003767"]
         #self.omim_to_efo_map["OMIM:608049"] = ["http://www.ebi.ac.uk/efo/EFO_0003756"]
         #self.omim_to_efo_map["OMIM:300494"] = ["http://www.ebi.ac.uk/efo/EFO_0003757"]
-        bar.update()
+
 
     def process_all(self, update_cache=False, write2cloud=False):
 
         if update_cache == True:
-            bar = tqdm(desc='Generate PhenoDigm evidence strings',
-                       total=1,
-                       unit='steps')
             self.access_solr(mode='update_cache')
-            bar.update()
             return
+
         elif write2cloud:
             self._logger.info("Upload evidence file to {}/PhenoDigm/json in the {} Google Cloud project".format(Config.GOOGLE_BUCKET_EVIDENCE_INPUT, Config.GOOGLE_DEFAULT_PROJECT))
             self.write_to_cloud(Config.MOUSEMODELS_EVIDENCE_FILENAME)
@@ -823,30 +812,18 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
         self.process_ontologies()
         self.get_ontology_mappings()
 
-        bar = tqdm(desc='Load mouse and human genes',
-                   total=2,
-                   unit='steps')
-
         self._logger.info("Load all mouse and human")
         self.load_mouse_genes()
-        bar.update()
-        self.load_human_genes()
-        bar.update()
 
-        bar = tqdm(desc='Extract and transform and load PhenoDigm data',
-                   total=3,
-                   unit='steps')
+        self.load_human_genes()
 
         self.access_solr(mode='parse_phenodigm')
-        bar.update()
         self._logger.info("Build evidence")
         self.generate_phenodigm_evidence_strings()
-        bar.update()
+
         self._logger.info("write evidence strings")
         self.write_evidence_strings(Config.MOUSEMODELS_EVIDENCE_FILENAME)
-        bar.update()
-        #
-        #bar.update()
+
         return
 
 
@@ -878,7 +855,7 @@ def main():
     else:
         logging.StreamHandler(sys.stderr)
 
-    ph = Phenodigm()
+    ph = Phenodigm(logging)
 
     #ph.process_ontologies()
     ph.process_all(update_cache=args.update_cache, write2cloud=args.write2cloud)
