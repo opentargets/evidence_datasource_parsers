@@ -355,7 +355,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
 
             if hgnc_gene_id and hs_ensembl_gene_id and re.match('^ENSG.*', hs_ensembl_gene_id) and hgnc_gene_id in self.hgnc2mgis:
 
-                self._logger.info("processing human gene {0} {1} {2} {3}".format(index_g, hs_symbol, hs_ensembl_gene_id, hgnc_gene_id))
+                # self._logger.info("processing human gene {0} {1} {2} {3}".format(index_g, hs_symbol, hs_ensembl_gene_id, hgnc_gene_id))
                 #print("processing human gene {0} {1} {2} {3}".format(index_g, hs_symbol, hs_ensembl_gene_id, hgnc_gene_id ))
 
                 '''
@@ -370,7 +370,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
 
                     marker_symbol = self.mgi2symbols[mouse_gene_id]
                     #print(marker_symbol)
-                    self._logger.info("\tProcessing mouse gene symbol %s" % (marker_symbol))
+                    # self._logger.info("\tProcessing mouse gene symbol %s" % (marker_symbol))
 
                     '''
                     Some mouse symbol are not mapped in Ensembl
@@ -384,7 +384,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                         '''
                         if marker_symbol in self.mgi2mouse_models:
 
-                            self._logger.info("\tFound %i mouse models for this marker" % (len(self.mgi2mouse_models[marker_symbol])))
+                            self._logger.debug("\tFound %i mouse models for this marker" % (len(self.mgi2mouse_models[marker_symbol])))
 
                             '''
                              if the marker is associated to mouse models
@@ -408,13 +408,13 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
 
                                 marker_id = mouse_model['marker_id']
                                 model_description = mouse_model['model_description']
-                                self._logger.info("\t\tMouse model {0} for {1}".format(model_id, marker_id))
+                                self._logger.debug("\t\tMouse model {0} for {1}".format(model_id, marker_id))
                                 '''
                                  Check the model_id is in the dictionary containing all the models
                                 '''
                                 if model_id in self.mouse_model2diseases:
 
-                                    self._logger.info("\t\tMouse model {0} is in the dictionary containing all the models".format(model_id))
+                                    self._logger.debug("\t\tMouse model {0} is in the dictionary containing all the models".format(model_id))
 
                                     for mouse_model2disease in self.mouse_model2diseases[model_id]:
 
@@ -429,9 +429,9 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                                         disease = None
                                         if disease_id in self.diseases:
                                             disease = self.diseases[disease_id]
-                                            self._logger.info("\t\t\tdisease: %s %s"%(disease_id, disease['disease_term']))
+                                            self._logger.debug("\t\t\tdisease: %s %s"%(disease_id, disease['disease_term']))
                                         else:
-                                            self._logger.info("\t\t\tdisease: %s"%(disease_id))
+                                            self._logger.debug("\t\t\tdisease: %s"%(disease_id))
 
                                         '''
                                             Get all phenotypes and check the ones that match the mouse ones 
@@ -452,13 +452,13 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                                             # find corresponding EFO disease term
                                             matchOMIM = re.match("^OMIM:(.+)$", disease_id)
                                             matchORPHANET = re.match("^ORPHANET:(.+)$", disease_id)
-                                            self._logger.info('disease is: {}'.format(disease_id))
+                                            self._logger.debug('disease is: {}'.format(disease_id))
                                             if matchOMIM:
                                                 if ';PMID' in disease_id:
                                                     (source, omim_id) = disease_id.split(';')[0].split(':')
                                                 else:
                                                     (source, omim_id) = disease_id.split(':')
-                                                self._logger.info("\t\t\tCheck OMIM id = %s is in efo"%omim_id)
+                                                self._logger.debug("\t\t\tCheck OMIM id = %s is in efo"%omim_id)
                                                 if omim_id in self.omim_to_efo_map:
                                                     efoMapping[disease_id] = self.omim_to_efo_map[omim_id]
                                                 if len(disease_terms) > 0:
@@ -622,8 +622,8 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                                                             term_name = self.hpo.current_classes[term_id]
                                                         else:
                                                             term_name = self.ontology[hp_id]['phenotype_term']
-                                                        #self._logger.info("HPO term is {0} {1}".format(hp, hp in hpo.terms))
-                                                        #self._logger.info("HPO term retrieved is {0} {1}".format( termId, termName ))
+                                                        self._logger.debug("HPO term is {0} {1}".format(hp, hp in hpo.terms))
+                                                        self._logger.debug("HPO term retrieved is {0} {1}".format( termId, termName ))
                                                         human_phenotypes.append(
                                                             bioentity.Phenotype(
                                                                 id = hp_id,
@@ -676,7 +676,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                                                 if 'disease_model_max_norm' in mouse_model2disease:
                                                     score = (mouse_model2disease['disease_model_max_norm'])/100
                                                     method = 'phenodigm_model_to_disease_score'
-                                                self._logger.info("score: {0}\n".format(score))
+                                                self._logger.debug("score: {0}\n".format(score))
                                                 evidenceString.unique_association_fields['score'] = "%.15f"%(score)
 
                                                 evidenceString.evidence.disease_model_association = evidence_phenotype.Disease_Model_Association(
