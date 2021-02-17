@@ -21,3 +21,24 @@ ClinGen:
   webSource: https://search.clinicalgenome.org/kb/gene-validity/download
   inputBucket: gs://ot-team/dsuveges/evidence_test/raw_data
   outputBucket: gs://ot-team/dsuveges/evidence_test/processed_evidence
+# Parameters for PheWAS:
+PheWAS:
+  inputBucket: gs://otar000-evidence_input/PheWAS/data_files
+  diseaseMapping: https://raw.githubusercontent.com/opentargets/mappings/master/phewascat.mappings.tsv
+  outputBucket: gs://otar000-evidence_input/PheWAS/json
+# Parameters for SLAPEnrich:
+SLAPEnrich:
+  inputBucket: gs://otar000-evidence_input/SLAPEnrich/data_file
+  outputBucket: gs://otar000-evidence_input/SLAPEnrich/json
+# Parameters for PROGENy:
+PROGENy:
+  inputBucket: gs://otar000-evidence_input/PROGENy/data_files
+  outputBucket: gs://otar000-evidence_input/PROGENy/json
+# Parameters for intOGen:
+intOGen:
+  inputBucket: gs://otar000-evidence_input/IntOgen/data_files
+  outputBucket: gs://otar000-evidence_input/IntOgen/json
+# Parameters for PanelApp:
+PanelApp:
+  inputBucket: gs://otar000-evidence_input/GenomicsEngland/data_files
+  outputBucket: gs://otar000-evidence_input/GenomicsEngland/json

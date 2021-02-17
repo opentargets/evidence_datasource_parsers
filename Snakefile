@@ -49,7 +49,74 @@ rule ClinGen:
         """
         python modules/ClinGen.py -i {input} -o {output.evidenceFile} -u {output.unmappedFile}
         """
+'''
+rule PheWAS:
+    input:
+        inputFile = GS.remote(f"{config['PheWAS']['inputBucket']}/phewas-catalog-19-10-2018.csv")
+        consequencesFile = GS.remote(f"{config['PheWAS']['inputBucket']}/phewas_w_consequences.csv")
+        diseaseMapping = GS.remote(config['PheWAS']['diseaseMapping'])
+    output:
+        evidenceFile=GS.remote(f"{config['PheWAS']['outputBucket']}/phewas_catalog-{timeStamp}.json.gz"),
+    log:
+        GS.remote(logFile)
+    shell:
+        """
+        python modules/PheWAS.py -i {input.inputFile} -c {input.consequencesFile} -d {input.diseaseMapping} -o {output.evidenceFile}
+        """
 
+rule SLAPEnrich:
+    input:
+        inputFile = GS.remote(f"{config['SLAPEnrich']['inputBucket']}/slapenrich_opentargets-21-12-2017.tsv")
+        diseaseMapping = "resources/cancer2EFO_mappings.tsv"
+    output:
+        evidenceFile=GS.remote(f"{config['PheWAS']['outputBucket']}/slapenrich-{timeStamp}.json.gz"),
+    log:
+        GS.remote(logFile)
+    shell:
+        """
+        python modules/SLAPEnrich.py -i {input.inputFile} -d {input.diseaseMapping} -o {output.evidenceFile}
+        """
+
+rule PROGENy:
+    input:
+        inputFile = GS.remote(f"{config['PROGENy']['inputBucket']}/progeny_normalVStumor_opentargets.txt")
+        diseaseMapping = "resources/cancer2EFO_mappings.tsv"
+        pathwayMapping = "resources/pathway2Reactome_mappings.tsv"
+    output:
+        evidenceFile=GS.remote(f"{config['PROGENy']['outputBucket']}/progeny-{timeStamp}.json.gz"),
+    log:
+        GS.remote(logFile)
+    shell:
+        """
+        python modules/PROGENY.py -i {input.inputFile} -d {input.diseaseMapping} -p {input.pathwayMapping} -o {output.evidenceFile}
+        """
+
+rule intOGen:
+    input:
+        inputGenes = GS.remote(f"{config['intOGen']['inputBucket']}/Compendium_Cancer_Genes.tsv")
+        inputCohorts = GS.remote(f"{config['intOGen']['inputBucket']}/cohorts.tsv")
+        diseaseMapping = "resources/cancer2EFO_mappings.tsv"
+    output:
+        evidenceFile=GS.remote(f"{config['intOGen']['outputBucket']}/intogen-{timeStamp}.json.gz"),
+    log:
+        GS.remote(logFile)
+    shell:
+        """
+        python modules/IntOGen.py -g {input.inputGenes} -c {input.inputCohorts} -d {input.diseaseMapping} -o {output.evidenceFile}
+        """
+
+rule PanelApp:
+    input:
+        inputFile = GS.remote(f"{config['PanelApp']['inputBucket']}/All_genes_20200928-1959.tsv")
+    output:
+        evidenceFile=GS.remote(f"{config['PanelApp']['outputBucket']}/genomics_england-{timeStamp}.json.gz"),
+    log:
+        GS.remote(logFile)
+    shell:
+        """
+        python modules/GenomicsEnglandPanelApp.py -i {input.inputFile} -o {output.evidenceFile}
+        """
+'''
 ## Running genetics portal evidence generation. 
 ## * input files under opentargets-genetics project area
 ## * output is generated in opentargets-platform bucket.    
