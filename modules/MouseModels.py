@@ -749,7 +749,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
     def write_evidence_strings(self, filename):
 
         countExported = 0
-        logger.info("Writing Phenodigm evidence strings")
+        self._logger.info("Writing Phenodigm evidence strings")
         with gzip.open(filename, 'wt') as tp_file:
             self._logger.info("Processing %i records" % (len(self.hashkeys)))
             for hashkey in self.hashkeys:
@@ -764,7 +764,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                         tp_file.write(json.dumps(new_evidence) + "\n")
                         countExported+=1
 
-        logger.info("Exported %i evidence" % (countExported))
+        self._logger.info("Exported %i evidence" % (countExported))
 
 
     def write_to_cloud(self, filename):
