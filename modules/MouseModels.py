@@ -199,8 +199,8 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
         hdr = {"Content-Type": "application/json", "Accept": "application/json",
                "User-Agent": "open_targets bot by /open/targets"}
 
-        #self._logger.info('hs Request "%s"...' % '","'.join(buffer))
-        self._logger.info('%s Request "%s"...' %(default_species,'","'.join(buffer)))
+        # self._logger.info('hs Request "%s"...' % '","'.join(buffer))
+        # self._logger.info('%s Request "%s"...' %(default_species,'","'.join(buffer)))
 
         body = '{ "symbols": ["%s"] }' % '","'.join(buffer)
         r = requests.post('http://rest.ensembl.org/lookup/symbol/%s/'%(default_species), data=body, headers=hdr)
@@ -213,8 +213,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                     g[symbol] = None
                 ensemblId = g[symbol]
                 #self._logger.info("hs {0} {1}".format(symbol, ensemblId))
-                self._logger.info("{} {} {}".format(default_species, symbol, ensemblId))
-            self._logger.info(json.dumps(self.hsGenes, indent=2))
+            self._logger.info(f"Number of human genes requested: {len(self.hsGenes)}")
         else:
             # should have exception here
             self._logger.error(body)
@@ -343,7 +342,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
         for hs_symbol in self.hsGenes:
             index_g +=1
             count_nb_evidence_string_generated = 0
-            self._logger.info('Now processing human gene: {}'.format(hs_symbol))
+            self._logger.debug('Now processing human gene: {}'.format(hs_symbol))
             hgnc_gene_id = self.symbol2hgncids[hs_symbol]
             hs_ensembl_gene_id = self.hsGenes[hs_symbol]
 
@@ -529,7 +528,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                                                 disease_name = 'N/A'
                                                 if disease_term['efo_uri'] in self.efo.current_classes:
                                                     disease_name = self.efo.current_classes[disease_term['efo_uri']]
-                                                self._logger.info("Disease id is %s"%(disease_term['efo_uri']))
+                                                self._logger.debug("Disease id is %s"%(disease_term['efo_uri']))
                                                 evidenceString.disease = bioentity.Disease(
                                                     id=disease_term['efo_uri'],
                                                     name=disease_name,
@@ -579,7 +578,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                                                 '''
                                                 zygosity = 'oth'
                                                 allelic_composition = mouse_model['model_description']
-                                                self._logger.info(mouse_model['model_description'])
+                                                self._logger.debug(mouse_model['model_description'])
                                                 if mouse_model['model_description'].endswith("hom") or mouse_model['model_description'].endswith("het") or mouse_model['model_description'].endswith("hem"):
                                                     zygosity = mouse_model['model_description'][-3:]
                                                     allelic_composition = mouse_model['model_description'][:-4]
@@ -622,8 +621,8 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                                                             term_name = self.hpo.current_classes[term_id]
                                                         else:
                                                             term_name = self.ontology[hp_id]['phenotype_term']
-                                                        self._logger.debug("HPO term is {0} {1}".format(hp, hp in hpo.terms))
-                                                        self._logger.debug("HPO term retrieved is {0} {1}".format( termId, termName ))
+                                                        # self._logger.debug("HPO term is {0} {1}".format(hp, hp in hpo.terms))
+                                                        # self._logger.debug("HPO term retrieved is {0} {1}".format( termId, termName ))
                                                         human_phenotypes.append(
                                                             bioentity.Phenotype(
                                                                 id = hp_id,
@@ -724,6 +723,9 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
             dict: dictionary for the new evidence if all fields could be successfully mapped. 
         '''
 
+        # Converting evidence string from this weird object to a more managable dictionary:
+        data = json.loads(data.to_JSON())
+
         try:
             return collections.OrderedDict({
             'targetFromSourceId' : data['target']['id'].split('/')[-1],
@@ -756,12 +758,14 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                 error = evidenceString.validate(self._logger)
                 score = evidenceString.evidence.disease_model_association.resource_score.value
                 if error == 0 and score >= 0.9:
-                    new_evidnce = self.convert_evidence(evidenceString)
-                    if new_evidnce:
-                        tp_file.write(new_evidnce.to_JSON(indentation=None) + "\n")
+                    self._logger.info()
+                    new_evidence = self.convert_evidence(evidenceString)
+                    if new_evidence:
+                        tp_file.write(json.dumps(new_evidence) + "\n")
                         countExported+=1
 
         logger.info("Exported %i evidence" % (countExported))
+
 
     def write_to_cloud(self, filename):
         # TODO: Take into account that filename at this step may not match the one saved because time stamp is automatic
@@ -772,6 +776,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
         with open(filename, 'rb') as my_file:
             print("have opened " + filename)
             blob.upload_from_file(my_file)
+
 
     def process_ontologies(self):
 
