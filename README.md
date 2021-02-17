@@ -1,6 +1,6 @@
 # OT evidence generators
 
-Each folder in module corresponds corresponds to a datasource.
+Each folder in module corresponds to a datasource.
 
 In each folder we have one or more standalone python scripts.
 
@@ -147,10 +147,28 @@ The intOGen parser generates evidence strings from three files that need to be i
 
 ### PheWAS catalog
 
-The `PheWAS.py` script parses the PheWAS Catalog CSV file specified as `PHEWAS_CATALOG_FILENAME` in `settings.py` and that should be located either in the working directory or the `resources` folder. This file can be downloaded [here](https://storage.googleapis.com/otar000-evidence_input/PheWAS/data_files/phewas-catalog-19-10-2018.csv). The mappings between the Phecodes and EFO are read from the [phewascat.mappings.tsv](https://raw.githubusercontent.com/opentargets/mappings/master/phewascat.mappings.tsv) file in the `mappings` repository. In addition, the data is enriched with information gathered from the Variant Index. The file is imported as `PHEWAS_CATALOG_W_CONSEQUENCES` and located [here](https://storage.googleapis.com/otar000-evidence_input/PheWAS/data_files/phewas_w_consequences.csv). This data is then joined with the PheWAS variants at the gene, variant level.  
+The PheWAS parser processes three files:
+- phewas-catalog-19-10-2018.csv: Main tsv file containing information from phenome-wide association studies. The file is located in the [PheWAS bucket](https://storage.googleapis.com/otar000-evidence_input/PheWAS/data_files/phewas-catalog-19-10-2018.csv).
+- phewas_w_consequences.csv: File containing PheWAS data enriched with data from the Genetics Portal on the variant and its functional consequence. This file is located in the [PheWAS bucket](https://storage.googleapis.com/otar000-evidence_input/PheWAS/data_files/phewas_w_consequences.csv).
+- phewascat.mappings.tsv: File containing the mappings between the phenotypes provided by PheWAS and its respective disease listed in EFO. This file is located in [our mappings repo](https://raw.githubusercontent.com/opentargets/mappings/master/phewascat.mappings.tsv).
 
-```sh
-(venv)$ python3 modules/PheWAS.py
+The source table is then formatted into a compressed set of JSON lines following the schema of the version to be used.
+
+The parser uses the following parameters:
+- `-i`, `--inputFile`: Main tsv file coming from PheWAS.
+- `-c`, `--consequencesFile`: Input look-up table containing the variant data and consequences coming from the Variant Index.
+- `-d`, `--diseaseMapping`: optional; input look-up table containing the PheWAS phenotypes mappings to an EFO IDs.
+- `-s`, `--skipMapping`: optional; state whether to skip the disease to EFO term mapping step. If used this step is not performed.
+- `-o`, `--outputFile`: Gzipped JSON file containing the evidence strings.
+- `-l`, `--logFile`: optional; if not specified, logs are written to standard error.
+
+To use the parser configure the python environment and run it as follows:
+```bash
+python modules/PheWAS.py \
+    --inputFile phewas-catalog-19-10-2018.csv \
+    --consequencesFile https://storage.googleapis.com/otar000-evidence_input/PheWAS/data_files/phewas_w_consequences.csv) \
+    --diseaseMapping https://raw.githubusercontent.com/opentargets/mappings/master/phewascat.mappings.tsv \
+    --outputFile phewas-2021-02-02.json.gz
 ```
 
 ### CRISPR
@@ -161,19 +179,70 @@ The CRISPR parser processes three files available in the `resources` directory:
 - _crispr_descriptions.tsv_: File used to extract the number of targets prioritised per cancer types as well as to retrieve the cell lines from the next file.
 - _crispr_cell_lines.tsv_: It contains three columns with the cell line, tissue and the cancer type information. It is used to extract the cell lines in which the target has been identified as essential. The file has been adapted from the supplementary table 1 in the [Behan et al. 2019](https://www.nature.com/articles/s41586-019-1103-9) paper.
 
-The parser has five parameters but only two of them are compulsory, the other three have defaults specified in the `settings.py`:
-
-- `-i`, `--input_file`: Name or full path for _crispr_evidence.tsv_. The default value is taken from the `CRISPR_FILENAME1` variable in `settings.py`.
-- `-d`, `--description_file`: Name or full path for the _crispr_descriptions.tsv_ file. The default value is taken from the `CRISPR_FILENAME2` variable in `settings.py`.
-- `-c`, `--cell_types_file`: Name or full path for _crispr_cell_lines.tsv_. There is no default value, it **must** be specified.
-- `-o`, `--output_file`:  Name of the evidence JSON file. The default value is taken from the `CRISPR_EVIDENCE_FILENAME` variable in `settings.py`.
-- `-s`, `--schema_version`:  JSON schema version to use, e.g. 1.7.5. It must be branch or a tag available in https://github.com/opentargets/json_schema. There is no default value, it **must** be specified.
-
-This is how it is run only specifying the required parameters:
+*Usage:*
 
 ```sh
-(venv)$ python3 modules/CRISPR.py -s 1.7.5 -c crispr_cell_lines.tsv -o crispr-18-11-2020.json
+(venv)$ python3 modules/CRISPR.py -e <evidence_file> -d <description_file> -c <cell_line_file> -o <output_file> -l <log_file>
 ```
+
+- `-e`, `--evidence_file`: name or full path for _crispr_evidence.tsv_.
+- `-d`, `--descriptions_file`: name or full path for the _crispr_descriptions.tsv_ file.
+- `-c`, `--cell_types_file`: name or full path for _crispr_cell_lines.tsv_.
+- `-o`, `--output_file`: output is a gzipped JSON.
+- `-l`, `--log_file`:  optional parameter. If not provided, logs are written to the standard error.
+
+### PROGENy
+
+The PROGENy parser processes three files:
+
+- progeny_normalVStumor_opentargets.txt: Main file that contains a systematic comparison of pathway activities between normal and primary TCGA samples in 14 tumor types using PROGENy. This file can be downloaded [here](https://storage.googleapis.com/otar000-evidence_input/PROGENy/data_files/progeny_normalVStumor_opentargets.txt) from the _otar000-evidence_input_ bucket.
+- cancer2EFO_mappings.tsv: File containing the mappings between the acronym of the type of cancer and its respective disease listed in EFO. This file can be found in the `resources` directory.
+- pathway2Reactome_mappings.tsv: File containing the mappings between the analysed pathway and their respective target and ID in Reactome. This file can be found in the `resources` directory.
+
+The source table is then formatted into a compressed set of JSON lines following the schema of the version to be used.
+
+The parser uses the following parameters:
+- `-i`, `--inputFile`: Main tsv file.
+- `-d`, `--diseaseMapping`: optional; input look-up table containing the cancer type mappings to an EFO ID.
+- `-s`, `--skipMapping`: optional; state whether to skip the disease to EFO term mapping step. If used this step is not performed.
+- `-p`, `--pathwayMapping`: input look-up table containing the pathway mappings to a respective target and ID in Reactome.
+- `-o`, `--outputFile`: gzipped JSON file containing the evidence strings.
+
+
+To use the parser configure the python environment and run it as follows:
+```bash
+python modules/PROGENY.py \
+    --inputFile progeny_normalVStumor_opentargets.txt \
+    --diseaseMapping resources/cancer2EFO_mappings.tsv \
+    --pathwayMapping resources/pathway2Reactome_mappings.tsv \
+    --outputFile progeny-2021-01-18.json.gz
+```
+
+### SLAPenrich
+
+The SLAPenrich parser processes twofiles:
+
+- `slapenrich_opentargets.tsv`: Main file that contains a systematic comparison of on somatic mutations from TCGA across 25 different cancer types and a collection of pathway gene sets from Reactome. This file can be downloaded [here](https://storage.googleapis.com/otar000-evidence_input/SLAPEnrich/data_file/slapenrich_opentargets-21-12-2017.tsv) from the _otar000-evidence_input_ bucket.
+- `cancer2EFO_mappings.tsv`: File containing the mappings between the acronym of the type of cancer and its respective disease listed in EFO. This file can be found in the `resources` directory.
+
+The source table is then formatted into a compressed set of JSON lines following the schema of the version to be used.
+
+The parser uses the following parameters:
+
+- `-i`, `--inputFile`: Name of tsv file located in the [SLAPEnrich bucket](https://storage.googleapis.com/otar000-evidence_input/SLAPEnrich/data_file/slapenrich_opentargets-21-12-2017.tsv).
+- `-d`, `--diseaseMapping`: optional; input look-up table containing the cancer type mappings to an EFO ID.
+- `-s`, `--skipMapping`: optional; state whether to skip the disease to EFO term mapping step. If used this step is not performed.
+- `-o`, `--outputFile`: gzipped JSON file containing the evidence strings.
+- `-l`, `--logFile`: optional; if not specified, logs are written to standard error.
+
+To use the parser configure the python environment and run it as follows:
+```bash
+python modules/SLAPEnrich.py \
+    --inputFile slapenrich_opentargets.tsv \
+    --diseaseMapping resources/cancer2EFO_mappings.tsv \
+    --outputFile slapenrich-2021-01-18.json.gz
+```
+
 
 ### PhenoDigm
 
@@ -236,34 +305,24 @@ python3 modules/MouseModels.py -w
 
 ### Open Targets Genetics Portal
 
-The evidence generation is done in two steps:
-1. Pooling together data from Genetics portal buckets: `GeneticsPortal_prepare_data.py`
-2. The resulting table is formatted into compressed set of JSON lines: `GeneticsPortal.py`
-
-The first step is run on Google Cloud Dataproc cluster to take advantage of the proximity of the Genetics Portal data stored in Google buckets. Once you have the proper cluster set up, submit the job:
+Genetics portal evidence generation is done by calling this Python script:
 
 ```bash
-gcloud dataproc jobs submit pyspark \
-    --cluster=${clusterName} \
-    --project=${projectName} \
-    --region=${region} \
-    ${repo_directory}/modules/GeneticsPortal_prepare_data.py -- \
-    --locus2gene=gs://genetics-portal-data/l2g/200127 \
-    --toploci=gs://genetics-portal-data/v2d/200207/toploci.parquet \
-    --study=gs://genetics-portal-data/v2d/200207/studies.parquet \
-    --variantIndex=gs://genetics-portal-data/variant-annotation/190129/variant-annotation.parquet \
-    --ecoCodes=gs://genetics-portal-data/lut/vep_consequences.tsv \
-    --output=gs://genetics-portal-analysis/l2g-platform-export/data/l2g_joined.2020.03.02_exploded.parquet
+python modules/GeneticsPortal.py \
+    --locus2gene gs://genetics-portal-data/l2g/200127 \
+    --toploci gs://genetics-portal-data/v2d/200207/toploci.parquet \
+    --study gs://genetics-portal-data/v2d/200207/studies.parquet \
+    --variantIndex gs://genetics-portal-data/variant-annotation/190129/variant-annotation.parquet \
+    --ecoCodes gs://genetics-portal-data/lut/vep_consequences.tsv \
+    --outputFile gentics-portal-evidence.json.gz \
+    --logFile gentics-portal-evidence.log \
+    --threshold 0.05
 ```
 
-The output is saved in a parquet file in one of the buckets. This then needs to be further processed:
+**Where:**
 
-```bash
-python ${repo_directory}/modules/GeneticsPortal.py \
-    --inputFile l2g_joined.2020.01.30_exploded.parquet \
-    --schemaFile https://raw.githubusercontent.com/opentargets/json_schema/Draft-4_compatible/opentargets.json \
-    --cores 32 --sample 1000 --outputFile output.json.gz
-```
+* `--threshold` is required. It provides a lower locus to gene score cutoff.
+* `--logFile` is optional. If not specified, logs are written to standard error.
 
-**Important**: to ensure the resulting json schema is valid, we are using the [python_jsonschema_objects](https://pypi.org/project/python-jsonschema-objects/0.0.13/) library, which enforces the proper structure. The only caveat is that the this library uses draft-4 JSON schema, while our JSON schema is written on draft-7. To resolve this discrepancy, our JSON schema repository has a parallel draft-4 compatible branch that we are using for evidence generation.
+
 

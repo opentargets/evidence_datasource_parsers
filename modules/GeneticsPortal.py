@@ -1,528 +1,262 @@
-import pandas as pd
-import numpy as np
-import python_jsonschema_objects as pjo
-import math
-from datetime import datetime
-from multiprocessing import Pool
+#!/usr/bin/env python
+
 import argparse
-import gzip
-import requests
+import sys
+import pyspark.sql
+from pyspark.sql.types import *
+from pyspark.sql.functions import *
 import logging
-import functools as fn
 
-# Importing settings:
-from settings import Config
 
-class genetics_portal_evidence_generator(Config):
-    """
-    Based on the provided schema this class generates evidence string for the Genetics portal
-    derived associations.
-
-    Parameters inherited from Config class
-    """
-
-    # Source name:
-    source_id = 'ot_genetics_portal'
-
-    def __init__(self, schema_json, schema_version):
-        """
-        The init function loads the json schema into a builder object and a namespace:
-        """
-
-        # Initialize json builder based on the schema:
-        self.builder = pjo.ObjectBuilder(schema_json)
-        self.evidence_builder = self.builder.build_classes()
-        self.schema_version = schema_version
-
-    def get_evidence_string(self,row):
-
-        # Variant level information:
-        self.chromosome = row['chrom']
-        self.position = row['pos']
-        self.references_allele = row['ref']
-        self.alternative_allele = row['alt']
-        self.rs_id = row['rsid']
-        self.consequence_code = row['most_severe_gene_csq']
-        self.consequence_link = row['consequence_link']
-
-        # Association level data:
-        self.sample_size = row['sample_size']
-        self.odds_ratio = row['odds_ratio']
-        self.pval_mantissa = row['pval_mantissa']
-        self.pval_exponent = row['pval_exponent']
-        self.oddsr_ci_lower = row['oddsr_ci_lower']
-        self.oddsr_ci_upper = row['oddsr_ci_upper']
-
-        # Study level information:
-        self.study_id = row['study_id']
-        self.date_added = row['pub_date']
-        self.author = row['pub_author']
-
-        # Target level information:
-        self.ensembl_gene_id = row['gene_id']
-
-        # Disease level information:
-        self.reported_trait = row['trait_reported']
-        self.efo_id = row['efo']
-
-        # Locus to gene score:
-        self.l2g_score = row['y_proba_full_model']
-
-        ##
-        ## Applying a few checks before proceeding:
-        ##
-
-        # If the association has no EFO attached:
-        if self.efo_id is None or self.efo_id == '':
-            logging.warning('No EFO id for association row: {}'.format(row.name))
-            return None
-
-        # If because of some reason no l2g score is given:
-        if self.l2g_score is None or self.l2g_score == '':
-            logging.warning('No l2g score is available for association row: {}'.format(row.name))
-            return None
-
-        ##
-        ## Process input:
-        ##
-
-        # Test if odds ratio is present:
-        if math.isnan(row['odds_ratio']):
-            self.odds_ratio = None
-        else:
-            self.odds_ratio = row['odds_ratio']
-
-        # Test if odds ratio confidence interval is present:
-        if math.isnan(self.oddsr_ci_lower):
-            self.confidence_interval = None
-        else:
-            self.confidence_interval = '{}-{}'.format(self.oddsr_ci_lower,self.oddsr_ci_upper)
-
-        # Test if Pubmed ID is present:
-        try:
-            self.pmid = row['pmid'].split(':')[1]
-        except IndexError:
-            self.pmid = row['pmid']
-        except AttributeError:
-            self.pmid = None
-
-        date_stamp = datetime.strptime(self.date_added, '%Y-%m-%d')
-        self.date_added = date_stamp.replace(microsecond=0).isoformat()
-        self.year = date_stamp.year
-
-        # Generating genetics portal variant id:
-        self.genetics_portal_variant_id = '{}_{}_{}_{}'.format(self.chromosome,self.position,self.references_allele,self.alternative_allele)
-
-        ##
-        ## Prepare evidence:
-        ##
-
-        # Generate literature property:
-        self.literature_prop = self.generate_literature_value()
-
-        # Generate target property:
-        target_prop = self.generate_target_value()
-
-        # Generate unique association fields:
-        unique_association_prop = self.generate_unique_fields()
-
-        # Generate disease prop:
-        disease_prop = self.generate_disease_value()
-
-        # Generate features for the returned json:
-        variant_prop = self.generate_variant_value()
-
-        # Generating evidence property:
-        evidence_value = self.generate_evidence_field()
-
-        # Compiling properties into evidence:
-        try:
-            evidence = self.evidence_builder.Opentargets4(
-                type='genetic_association',
-                access_level='public',
-                sourceID=self.source_id,
-                variant=variant_prop,
-                evidence=evidence_value,
-                target=target_prop,
-                disease=disease_prop,
-                unique_association_fields=unique_association_prop,
-                validated_against_schema_version=self.schema_version
-            )
-            return evidence.serialize()
-        except:
-            logging.warning('Evidence generation failed for row: {}'.format(row.name))
-            raise
-
-    def generate_literature_value(self):
-        """
-        This function generates values for publication link.
-
-        return: dictionary
-        """
-
-        # Generate return value:
-        if self.pmid:
-            return {
-                'references': [
-                  {
-                    'lit_id': '{}/{}'.format(self.LITERATURE_URL, self.pmid),
-                    'author': self.author,
-                    'year': self.year
-                  }
-                ]
-            }
-        else:
-            return None
-
-    def generate_target_value(self):
-        """
-        this function generates value for the target key of the gwas evidence
-
-        return: dict
-        """
-
-        # Testing for type:
-        if not isinstance(self.ensembl_gene_id, str):
-            raise TypeError('[Error] Target could not be generated. The provided Ensembl ID ({}) is not a string.'.format(self.ensembl_gene_id))
-
-        # Generate target object:
-        return {
-            'activity': '{}/predicted_damaging'.format(self.ACTIVITY_URL),
-            'id': '{}/{}'.format(self.TARGET_URL, self.ensembl_gene_id),
-            'target_type': '{}/gene_evidence'.format(self.TARGET_TYPE_URL)
-        }
-
-    def generate_disease_value(self):
-        """
-        This function generates value for the disease key of the gwas evidence
-
-        return: dict
-        """
-
-        # Testing for efo_id type:
-        if not isinstance(self.efo_id, str):
-            raise TypeError('[Error] Disease could not be generated. The provided EFO ID ({}) is not a string.'.format(self.efo_id))
-
-        # Testing type of reported trait:
-        if self.reported_trait and not isinstance(self.reported_trait, str):
-            raise TypeError('[Error] Disease could not be generated. The provided reported trait ({}) is not a string.'.format(self.reported_trait))
-
-        # Generate
-        return {
-            'id': self.efo_id,
-            'reported_trait': self.reported_trait
-        }
-
-    def generate_unique_fields(self):
-        """
-        Function to generate the unique terms. All fields are mandatory.
-
-        Returns:
-            dictionary with the following keys:
-            - target: link to target on ensembl
-            - disease_id: link to disease on efo
-            - variant: link to variant on genetics portal
-            - study: link to study page on genetics portal
-        """
-
-        return {
-            'target': '{}/{}'.format(self.TARGET_URL, self.ensembl_gene_id),
-            'disease_id': '{}/{}'.format(self.DISEASE_URL, self.efo_id),
-            'variant': '{}/variant/{}'.format(self.GENETICS_PORTAL_URL, self.genetics_portal_variant_id),
-            'study': '{}/study/{}'.format(self.GENETICS_PORTAL_URL, self.study_id)
-        }
-
-    @staticmethod
-    def map_variant_type(ref_allele,alt_allele,consequence_base_url = 'http://purl.obolibrary.org/obo'):
-        """
-        This function maps variants to variant ontology
-        based on the provided reference and alternative alleles.
-        """
-
-        # These are the available ontology terms to annotate variant types:
-        term_mapper = {
-            'SNP': 'SO_0000694',
-            'deletion': 'SO_0000159',
-            'insertion': 'SO_0000667'
-        }
-
-        # If any of the allele is missing, we cannot infer variant type:
-        if (not ref_allele) or (not alt_allele):
-            return OrderedDict({
-                'type': None,
-                'type_link': None
-            })
-
-        # Infer variant type:
-        if (len(ref_allele) == 1) and (len(alt_allele) ==1):
-            variant_type = 'SNP'
-        elif (len(ref_allele) == 1) and (len(alt_allele) > 1):
-            variant_type = 'insertion'
-        elif (len(ref_allele) > 1) and (len(alt_allele) == 1):
-            variant_type = 'deletion'
-        else:
-            variant_type = None
-
-        if variant_type:
-            return {
-                'type': variant_type,
-                'type_link': '{}/{}'.format(consequence_base_url,term_mapper[variant_type])
-            }
-        else:
-            return {
-                'type': None,
-                'type_link': None
-            }
-
-    def generate_variant_value(self):
-        return_data = {
-            'id': self.genetics_portal_variant_id,
-            'rs_id': self.rs_id,
-            'source_link': '{}/variant/{}'.format(self.GENETICS_PORTAL_URL, self.genetics_portal_variant_id),
-        }
-
-        # Adding variant type annotation:
-        return_data.update(self.map_variant_type(self.references_allele, self.alternative_allele, self.CONSEQUENCE_URL))
-
-        return return_data
-
-    def generate_evidence_field(self):
-        """
-        This function returns with the
-        """
-
-        return_value = {
-            'variant2disease': self.generate_variant2disease(),
-            'gene2variant': self.generate_gene2variant(),
-        }
-
-        return return_value
-
-    def generate_variant2disease(self):
-
-        # Generating p-value: if the exponent is too low, we apply a lower minimum.
-        pval = float('{}e{}'.format(self.pval_mantissa,self.pval_exponent)) if self.pval_exponent > -300 else 1e-302
-
-        # Generate resource score field:
-        resource_score = {
-            'type': 'pvalue',
-            'method': {
-                'description': 'pvalue for the snp to disease association'
-            },
-            'mantissa': int(round(self.pval_mantissa)),
-            'exponent': int(self.pval_exponent),
-            'value': pval
-        }
-
-        # Generate evidence code field:
-        evidence_codes = [
-            self.EVIDENCE_CODE_INFERENCE,
-            self.EVIDENCE_CODE_EVIDENCE_TYPE
-        ]
-
-        return_value = dict(gwas_sample_size=self.sample_size, provenance_type=self.generate_provenance(),
-                            is_associated=True,study_link='{}/study/{}'.format(self.GENETICS_PORTAL_URL, self.study_id),
-                            resource_score=resource_score, evidence_codes=evidence_codes, date_asserted=self.date_added,
-                            confidence_interval=self.confidence_interval, odds_ratio=self.odds_ratio)
-
-        # Adding reported trait:
-        return_value['reported_trait'] = self.reported_trait
-
-        # The literature link is only added if the pubmed ID is present:
-        return_value['unique_experiment_reference'] = '{}/{}'.format(self.LITERATURE_URL, self.pmid) if self.pmid else '{}/0000'.format(self.LITERATURE_URL)
-
-        return return_value
-
-    def generate_provenance(self):
-        # Generate provenence type:
-        provenence = {
-            'expert': {
-                'status': True,
-                'statement': 'Primary submitter of the data'
-            },
-            'database': {
-                'version': self.date_added,
-                'id': self.source_id,
-                'dbxref': {
-                    'version': self.date_added,
-                    'id': self.GENETICS_PORTAL_URL
-                }
-            }
-        }
-
-        if self.literature_prop:
-            provenence['literature'] = self.literature_prop
-
-        return provenence
-
-    def generate_gene2variant(self):
-
-        # Generate evidence code field:
-        evidence_codes = [
-            self.EVIDENCE_CODE_INFERENCE,
-            self.EVIDENCE_CODE_SOURCE
-        ]
-
-        # Generate resource score field:
-        resource_score = {
-            'type': 'locus_to_gene_score',
-            'method': {
-                'description': 'Locus to gene score generated by OpenTargets Genetics portal',
-            },
-            'value': self.l2g_score
-        }
-
-        return_data = {
-            'provenance_type': self.generate_provenance(),
-            'is_associated': True,
-            'date_asserted': self.date_added,
-            'evidence_codes': evidence_codes,
-            'resource_score': resource_score,
-            'functional_consequence': self.consequence_link,
-            'consequence_code': self.consequence_code
-        }
-
-        return return_data
-
-
-def initialize_evidence_generation(df, schemaFile):
-    """
-    As it is not possible for multiprocessing.Pool to copy over states of objects,
-    this function instantiates the evidence generator class and generates evidences.
-    """
-
-    # Fetching schema:
-    json_schema = requests.get(schemaFile).json()
-
-    # Initialize evidence builder object:
-    evidence_builder = genetics_portal_evidence_generator(json_schema, '1.6.4')
-
-    # Generate evidence for all rows of the dataframe:
-    evidences = df.apply(evidence_builder.get_evidence_string, axis=1)
-
-    return evidences
-
-
-def parallelize_dataframe(df, schemaFile, n_cores=2):
-
-    # Splitting dataframe as many chunks as many cores we have defined:
-    df_split = np.array_split(df, n_cores)
-
-    # Initialize pool object:
-    pool = Pool(n_cores)
-
-    # Create partial function:
-    partial_function = fn.partial(initialize_evidence_generation, schemaFile = schemaFile)
-
-    # Execute funciton on dataframe chunks and pool output:
-    df = pd.concat(pool.map(partial_function, df_split))
-
-    # Closing pool object:
-    pool.close()
-    pool.join()
-
-    return df
-
-
-def remove_duplicates(df):
-    """
-    This function reports and removes duplicated evidences to make sure
-    all evidences are unique.
-    """
-
-    unique_fields = ['chrom', 'pos', 'ref', 'alt', 'gene_id', 'study_id', 'efo']
-
-    # Are there any duplicated evidences:
-    duplicates = df.loc[df.duplicated(unique_fields)]
-
-    # Returning dataframe if no duplication was found:
-    if len(duplicates) == 0:
-        logging.info('Number of unique evidences: {}.'.format(len(df)))
-        logging.info('No duplicated evidences were found.')
-        return df 
-
-    # Reporting duplication:
-    logging.warning('Out of {} rows, the number of duplicated entries: {}'.format(len(df), len(duplicates)))
-
-    # Report duplicates:
-    logging.warning('The following rows are duplicated:')
-    logging.warning(duplicates)
-    logging.warning('Removing duplicates...')
-
-    # Removing duplicates:
-    df.drop_duplicates(unique_fields, keep=False, inplace=True)
-    logging.info('Number of unique evidences: {}.'.format(len(df)))
-
-    return df
+def load_eco_dict(inf):
+    '''
+    Loads the csq to eco scores into a dict
+    Returns: dict
+    '''
+
+    # Load
+    eco_df = (
+        spark.read.csv(inf, sep='\t', header=True, inferSchema=True)
+        .select('Term','Accession',col('eco_score').cast(DoubleType()))
+    )
+
+    # Convert to python dict
+    eco_dict = {}
+    eco_link_dict = {}
+    for row in eco_df.collect():
+        eco_dict[row.Term] = row.eco_score
+        eco_link_dict[row.Term] = row.Accession
+    
+    return (eco_dict,eco_link_dict)
 
 
 def main():
-    # Initialize logger:
+
+    ##
+    ## Parsing parameters:
+    ##
+    parser = argparse.ArgumentParser(description='This script pulls together data from Open Targets Genetics portal to generate Platform evidences.')
+    parser.add_argument('--locus2gene', help='Input table containing locus to gene scores.', type=str, required=True)
+    parser.add_argument('--toploci', help='Table containing top loci for all studies.', type=str, required=True)
+    parser.add_argument('--study', help='Table with all the studies.', type=str, required=True)
+    parser.add_argument('--variantIndex', help='Table with the variant indices (from gnomad 2.x).', type=str, required=True)
+    parser.add_argument('--ecoCodes', help='Table with consequence ECO codes.', type=str, required=True)
+    parser.add_argument('--outputFile', help='Output gzipped json file.', type=str, required=True)
+    parser.add_argument('--threshold', help='Threshold applied on l2g score for filtering.', type=float, required=True)
+    parser.add_argument('--logFile', help='Destination of the logs generated by this script.', type=str, required=False)
+    args = parser.parse_args()
+
+    # extract parameters:  
+    in_l2g = args.locus2gene
+    in_toploci = args.toploci
+    in_study = args.study
+    in_varindex = args.variantIndex
+    in_csq_eco = args.ecoCodes
+    l2g_threshold = args.threshold
+
+    # Initialize logger based on the provided logfile. 
+    # If no logfile is specified, logs are written to stderr 
     logging.basicConfig(
-        filename='evidence_builder.log',
         level=logging.INFO,
         format='%(asctime)s %(levelname)s %(module)s - %(funcName)s: %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S',
     )
+    if args.logFile:
+        logging.config.fileConfig(filename=args.logFile)
+    else:
+        logging.StreamHandler(sys.stderr)
 
-    logging.info('Process started...')
+    # Parse output file:
+    out_file = args.outputFile
 
-    # Parsing input parameter:
-    parser = argparse.ArgumentParser(description='This script generates Genetics portal sourced evidences.')
+    ##
+    ## Initialize spark session
+    ##
+    global spark
+    spark = (pyspark.sql.SparkSession.builder.getOrCreate())
+    logging.info(f'Spark version: {spark.version}')
 
-    # Database related input:
-    parser.add_argument('--inputFile', help='Input parquet file with the table containing association details.', type=str, required=True)
-    parser.add_argument('--schemaFile', help='OpenTargets JSON schema file (Draft-4 compatible!!).', type=str)
-    parser.add_argument('--cores', help='Number of computing cores available for the evidence generation.', type=int, default=2)
-    parser.add_argument('--outputFile', help='Name of the gzipped json output file.', type=str, default='output.json.gz')
-    parser.add_argument('--sample', help='If provided this many randomly selected of evidences will be generated.', type=int, required=False)
-    parser.add_argument('--threshold', help='If provided, evidences will be filtered for locus to gene score at the defined threshold.', type=float, required=False)
-    args = parser.parse_args()
+    ##
+    ## Log parameters:
+    ##
+    logging.info(f'Locus2gene table: {in_l2g}')
+    logging.info(f'Top locus table: {in_toploci}')
+    logging.info(f'Study table: {in_study}')
+    logging.info(f'Variant index table: {in_varindex}')
+    logging.info(f'ECO code table: {in_csq_eco}')
+    logging.info(f'Output file: {out_file}')
+    logging.info(f'l2g score threshold: {l2g_threshold}')
+    logging.info(f'Generating evidence:')
 
-    # Parse input parameters:
-    inputFile = args.inputFile
-    cores = args.cores
-    outputFile = args.outputFile
-    sample = args.sample
-    schemaFile = args.schemaFile
-    threshold = args.threshold
+    ##
+    ## Load/filter datasets
+    ##
 
-    #  Opening input file parquet of tsv:
-    if 'parquet' in inputFile:
-        genetics_dataframe = pd.read_parquet(inputFile)
-    elif '.tsv' in inputFile:
-        genetics_dataframe = pd.read_csv(inputFile, sep='\t')
+    # Load locus-to-gene (L2G) score data
+    l2g = (
+        spark.read.parquet(in_l2g)
+        # Keep results trained on high or medium confidence gold-standards
+        .filter(col('training_gs') == 'high_medium')
+        # Keep results from xgboost model
+        .filter(col('training_clf') == 'xgboost')
+        # keepging rows with l2g score above the threshold:
+        .filter(col('y_proba_full_model') >= l2g_threshold)
+        # Only keep study, variant, gene and score info
+        .select(
+            'study_id',
+            'chrom', 'pos', 'ref', 'alt',
+            'gene_id',
+            'y_proba_full_model',
+        )
+    )
 
-    logging.info('Loading data completed.')
+    # Load association statistics (only pvalue is required) from top loci table
+    pvals = (
+        spark.read.parquet(in_toploci)
+        # # Calculate pvalue from the mantissa and exponent
+        # .withColumn('pval', col('pval_mantissa') * pow(10, col('pval_exponent')))
+        # # NB. be careful as very small floats will be set to 0, we can se these
+        # # to the smallest possible float instead
+        # .withColumn('pval',
+        #     when(col('pval') == 0, sys.float_info.min)
+        #     .otherwise(col('pval'))
+        # )
+        # Keep required fields
+        .select('study_id', 'chrom', 'pos', 'ref', 'alt', 
+            'pval_mantissa', 'pval_exponent','odds_ratio','oddsr_ci_lower', 'oddsr_ci_upper')
+    )
 
-    # Removing duplicates:
-    genetics_dataframe = remove_duplicates(genetics_dataframe)
+    # Load (a) disease information, (b) sample size from the study table
+    study_info = (
+        spark.read.parquet(in_study)
+        .select(
+            'study_id', 'pmid', 'pub_date', 'pub_author', 'trait_reported',
+            'trait_efos',
+            col('n_initial').alias('sample_size') # Rename to sample size
+        )
 
-    # Applyting l2g score threshold if specified:
-    if threshold:
-        logging.info('Applying l2g score threshold {}'.format(threshold))
-        rows = len(genetics_dataframe)
-        genetics_dataframe = genetics_dataframe.loc[genetics_dataframe.y_proba_full_model > threshold]
-        logging.info('Number of rows went from {} to {} after applying the threshold.'.format(rows, len(genetics_dataframe)))
+        # Warning! Not all studies have an EFO annotated. Also, some have
+        # multiple EFOs! We need to decide a strategy to deal with these.
 
-    # If required, the dataframe is subset:
-    if sample:
-        genetics_dataframe = genetics_dataframe.sample(sample, random_state=12937)
-        logging.info('Resample comleted. Number of rows: {}.'.format(len(genetics_dataframe)))
+        # # For example, only keep studies with 1 efo:
+        # .filter(size(col('trait_efos')) == 1)
+        # .withColumn('efo', col('trait_efos').getItem(0))
+        # .drop('trait_efos')
 
-    # Evidences are generated in a parallel process spread across the defined number of cores:
-    evidences = parallelize_dataframe(df=genetics_dataframe, schemaFile=schemaFile, n_cores=cores)
-    evidences.dropna(inplace=True)
+        # Or, drop rows with no EFO and then explode array to multiple rows
+        .withColumn('trait_efos', when(col('trait_efos').isNotNull(),
+                                       expr('filter(trait_efos, t -> length(t) > 0)')))
+        .withColumn('efo', explode(col('trait_efos')))
+        .drop('trait_efos')
+    )
 
-    logging.info('{} evidence strings have been successfully generated.'.format(len(evidences)))
+    # Get mapping for rsIDs:
+    rsID_map = (
+        spark.read.parquet(in_varindex)
+        # chrom_b38|pos_b38
+        # Explode consequences, only keeping canonical transcript
+        .selectExpr(
+            'chrom_b38 as chrom', 'pos_b38 as pos', 'ref', 'alt', 'rsid'
+        )
+    )
 
-    # Save gzipped json file:
-    with gzip.open(outputFile, "wt") as f:
-        evidences.apply(lambda x: f.write(str(x)+'\n'))
+    # Load consequences:
+    var_consequences = (
+        spark.read.parquet(in_varindex)
+        # chrom_b38|pos_b38
+        # Explode consequences, only keeping canonical transcript
+        .selectExpr(
+            'chrom_b38 as chrom', 'pos_b38 as pos', 'ref', 'alt',
+            'vep.most_severe_consequence as most_severe_csq',
+            '''explode(
+                filter(vep.transcript_consequences, x -> x.canonical == 1)
+            ) as tc
+            '''
+        )
+        # Keep required fields from consequences struct
+        .selectExpr(
+            'chrom', 'pos', 'ref', 'alt', 'most_severe_csq',
+            'tc.gene_id as gene_id', 
+            'tc.consequence_terms as csq_arr',
+        )
+    )
 
-    logging.info('Evidence strings saved. Exiting.')
+    ##
+    ## Get most severe consequences:
+    ##
+    
+    # Load term to eco score dict
+    # (eco_dict,eco_link_dict) = spark.sparkContext.broadcast(load_eco_dict(in_csq_eco))
+    eco_dicts = spark.sparkContext.broadcast(load_eco_dict(in_csq_eco))
+    
+    get_link = udf(
+        lambda x: eco_dicts.value[1][x],
+        StringType()
+    )
+
+    # Extract most sereve csq per gene.
+    # Create UDF that reverse sorts csq terms using eco score dict, then select
+    # the first item. Then apply UDF to all rows in the data.
+    get_most_severe = udf(
+        lambda arr: sorted(arr, key=lambda x: eco_dicts.value[0].get(x, 0), reverse=True)[0],
+        StringType()
+    )
+    
+    var_consequences = (
+        var_consequences.withColumn('most_severe_gene_csq', get_most_severe(col('csq_arr')))
+        .withColumn('consequence_link',get_link(col('most_severe_gene_csq')))
+    )
+
+    ##
+    ## Join datasets together
+    ##
+    processed = (
+        l2g
+        # Join L2G to pvals, using study and variant info as key
+        .join(pvals, on=['study_id', 'chrom', 'pos', 'ref', 'alt'])
+        # Join this to the study info, using study_id as key
+        .join(study_info, on='study_id')
+        # Join transcript consequences:
+        .join(var_consequences, on = ['chrom', 'pos', 'ref', 'alt', 'gene_id'], how = 'left')
+        # Join rsIDs:
+        .join(rsID_map, on = ['chrom','pos', 'ref', 'alt'], how = 'left')
+        # Filling with missing values:
+        .fillna({'most_severe_gene_csq' : 'intergenic_variant', 'consequence_link' : 'http://purl.obolibrary.org/obo/SO_0001628'})
+    )
+
+    # Write output
+    (
+        processed
+        .withColumn('literature', when(col('pmid')!='', array(regexp_extract(col('pmid'), "PMID:(\d+)$",1))).otherwise(None))
+        .select(
+            lit('ot_genetics_portal').alias('datasourceId'),
+            lit('genetic_association').alias('datatypeId'),
+            col('gene_id').alias('targetFromSourceId'),
+            col('efo').alias('diseaseFromSourceMappedId'),
+            col('literature'),
+            col('pub_author').alias('publicationFirstAuthor'),
+            substring(col('pub_date'), 1, 4).cast(IntegerType()).alias('publicationYear'),
+            col('trait_reported').alias('diseaseFromSource'),
+            col('study_id').alias('studyId'),
+            col('sample_size').alias('studySampleSize'),
+            col('pval_mantissa').alias('pValueMantissa'),
+            col('pval_exponent').alias('pValueExponent'),
+            col('odds_ratio').alias('oddsRatio'),
+            col('oddsr_ci_lower').alias('confidenceIntervalLower'),
+            col('oddsr_ci_upper').alias('confidenceIntervalUpper'),
+            col('y_proba_full_model').alias('resourceScore'),
+            col('rsid').alias('variantRsId'),
+            concat_ws('_', col('chrom'),col('pos'),col('alt'),col('ref')).alias('variantId'),
+            regexp_extract(col('consequence_link'), "\/(SO.+)$",1).alias('variantFunctionalConsequenceId')
+        )
+        .write.format('json').mode('overwrite').option("compression", "org.apache.hadoop.io.compress.GzipCodec")
+        .save(out_file)
+    )
+
+    return 0
 
 
 if __name__ == '__main__':
-    
+
     main()
+

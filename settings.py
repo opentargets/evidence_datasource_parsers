@@ -51,33 +51,14 @@ class Config:
     # HGNC
     GENES_HGNC = 'http://ftp.ebi.ac.uk/pub/databases/genenames/new/json/hgnc_complete_set.json'
 
-    # PROGENY
-    PROGENY_FILENAME = file_or_resource('progeny_normalVStumor_opentargets.txt')
-    PROGENY_EVIDENCE_FILENAME = 'progeny-20-05-2018.json'
-
     # UKBIOBANK
     UKBIOBANK_FILENAME = file_or_resource('ukbiobank.txt')
     UKBIOBANK_EVIDENCE_FILENAME = 'ukbiobank-30-04-2018.json'
-
-    # SLAPEnrich
-    SLAPENRICH_FILENAME = file_or_resource('slapenrich_opentargets.tsv')
-    SLAPENRICH_EVIDENCE_FILENAME = 'otar001_slapenrich-19-12-2017.json'
 
     # SYSBIO
     SYSBIO_FILENAME1 = file_or_resource('sysbio_evidence-31-01-2019.tsv')
     SYSBIO_FILENAME2 = file_or_resource('sysbio_publication_info_nov2018.tsv')
     SYSBIO_EVIDENCE_FILENAME = 'sysbio-29-01-2019.json'
-
-    # CRISPR
-    CRISPR_FILENAME1 = file_or_resource('crispr_evidence.tsv')
-    CRISPR_FILENAME2 = file_or_resource('crispr_descriptions.tsv')
-    CRISPR_EVIDENCE_FILENAME = 'crispr-21-08-2019.json'
-
-    # PheWAS catalog
-    PHEWAS_CATALOG_FILENAME = file_or_resource('phewas-catalog-19-10-2018.csv')
-    PHEWAS_CATALOG_EVIDENCE_FILENAME = f"phewas_catalog-{datetime.today().strftime('%Y-%m-%d')}.json"
-    PHEWAS_CATALOG_W_CONSEQUENCES = 'https://storage.googleapis.com/otar000-evidence_input/PheWAS/data_files/phewas_w_consequences.csv'
-
 
     # IntoGEN
     INTOGEN_DRIVER_GENES_FILENAME = file_or_resource('intogen_Compendium_Cancer_Genes.tsv')
