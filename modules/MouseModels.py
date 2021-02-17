@@ -730,7 +730,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
             return collections.OrderedDict({
             'targetFromSourceId' : data['target']['id'].split('/')[-1],
             'diseaseFromSourceMappedId': data['disease']['id'].split('/')[-1],
-            'resourceScore': data['unique_association_fields']['score'],
+            'resourceScore': float(data['unique_association_fields']['score']),
             'datasourceId': 'phenodigm',
             'datatypeId': data['type'],
             'diseaseFromSource': data['disease']['source_name'],
@@ -758,7 +758,6 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                 error = evidenceString.validate(self._logger)
                 score = evidenceString.evidence.disease_model_association.resource_score.value
                 if error == 0 and score >= 0.9:
-                    self._logger.info()
                     new_evidence = self.convert_evidence(evidenceString)
                     if new_evidence:
                         tp_file.write(json.dumps(new_evidence) + "\n")
