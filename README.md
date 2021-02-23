@@ -218,6 +218,20 @@ python modules/PROGENY.py \
     --outputFile progeny-2021-01-18.json.gz
 ```
 
+### SystemsBiology
+
+This parser processes two files stored in this repository under `./resources`. 
+
+**Usage:**
+
+``bash
+python modules/SystemsBiology.py \
+    --evidenceFile resources/sysbio_evidence-31-01-2019.tsv \
+    --studyFile    resources/sysbio_publication_info_nov2018.tsv \
+    --outputFile   sysbio_evidence.json.gz \
+    --logFile      sysbio.parser.log
+```
+
 ### SLAPenrich
 
 The SLAPenrich parser processes twofiles:
