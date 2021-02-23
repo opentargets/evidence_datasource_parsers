@@ -226,8 +226,8 @@ This parser processes two files stored in Google cloud bucket: `gs://otar000-evi
 
 ``bash
 python modules/SystemsBiology.py \
-    --evidenceFile resources/sysbio_evidence-31-01-2019.tsv \
-    --studyFile    resources/sysbio_publication_info_nov2018.tsv \
+    --evidenceFile sysbio_evidence-31-01-2019.tsv \
+    --studyFile    sysbio_publication_info_nov2018.tsv \
     --outputFile   sysbio_evidence.json.gz \
     --logFile      sysbio.parser.log
 ```
