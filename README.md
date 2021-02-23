@@ -220,7 +220,7 @@ python modules/PROGENY.py \
 
 ### SystemsBiology
 
-This parser processes two files stored in this repository under `./resources`. 
+This parser processes two files stored in Google cloud bucket: `gs://otar000-evidence_input/SysBio/data_files`. The `sysbio_evidence-31-01-2019.tsv` file contains evidence data, while `sysbio_publication_info_nov2018.tsv` contains study level information.
 
 **Usage:**
 
