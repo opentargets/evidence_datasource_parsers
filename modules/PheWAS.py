@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from common.HGNCParser import GeneParser
 import logging
 import requests
