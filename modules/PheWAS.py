@@ -55,7 +55,7 @@ class phewasEvidenceGenerator():
             try:
                 self.spark.sparkContext.addFile(diseaseMapping)
                 phewasMapping = (
-                    self.spark.read.csv(SparkFiles.get("phewascat.mappings.tsv"), sep=r'\t', header=True)
+                    self.spark.read.csv(SparkFiles.get(diseaseMapping.split("/")[-1]), sep=r'\t', header=True)
                     .select(
                         "Phewas_string", col("EFO_id").alias("EFO_link")
                     )
@@ -70,7 +70,7 @@ class phewasEvidenceGenerator():
                     how="inner"
                 )
                 logging.info("Disease mappings have been imported.")
-            except:
+            except Exception as e:
                 logging.error(f"An error occurred while importing disease mappings: \n{e}.")
             else:
                 # Filter out invalid disease IDs: MPATH_579, CHEBI_36047
@@ -118,7 +118,7 @@ class phewasEvidenceGenerator():
     def enrichVariantData(self, consequencesFile):
         self.spark.sparkContext.addFile(consequencesFile)
         phewasWithConsequences = (
-            self.spark.read.csv(SparkFiles.get("phewas_w_consequences.csv"), header=True)
+            self.spark.read.csv(SparkFiles.get(consequencesFile.split("/")[-1]), header=True)
             .select(
                 col("rsid").alias("snp"),
                 col("gene_id").alias("ens_id"), 

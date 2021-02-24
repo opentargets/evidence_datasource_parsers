@@ -136,8 +136,7 @@ rule PheWAS:
             --inputFile {input.inputFile} \
             --consequencesFile {input.consequencesFile} \
             --diseaseMapping {input.diseaseMapping} \
-            --outputFile {output.evidenceFile} \
-            --logFile {log}
+            --outputFile {output.evidenceFile}
         '''
 
 ##
@@ -174,7 +173,6 @@ rule SLAPEnrich:
             --inputFile {input.inputFile} \
             --diseaseMapping {input.diseaseMapping} \
             --outputFile {output.evidenceFile} \
-            --logFile {log}
         """
 
 '''
