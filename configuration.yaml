@@ -1,6 +1,6 @@
 global:
   schema_file: 'https://raw.githubusercontent.com/opentargets/json_schema/master/opentargets.json'
-  logDir: gs://ot-team/dsuveges/evidence_test/logs
+  logDir: gs://ot-team/irene/evidence_test
 
 ## TODO
 ## 1. use gs://otar000-evidence_input/ as central bucket for all output
@@ -19,8 +19,8 @@ GeneticsPortal:
 # Parameters for ClinGen:
 ClinGen:
   webSource: https://search.clinicalgenome.org/kb/gene-validity/download
-  inputBucket: gs://ot-team/dsuveges/evidence_test/raw_data
-  outputBucket: gs://ot-team/dsuveges/evidence_test/processed_evidence
+  inputBucket: gs://ot-team/irene/evidence_test/raw_data
+  outputBucket: gs://ot-team/irene/evidence_test/processed_evidence
 # Parameters for PheWAS:
 PheWAS:
   inputBucket: gs://otar000-evidence_input/PheWAS/data_files
@@ -29,6 +29,7 @@ PheWAS:
 # Parameters for SLAPEnrich:
 SLAPEnrich:
   inputBucket: gs://otar000-evidence_input/SLAPEnrich/data_file
+  diseaseMapping: resources/cancer2EFO_mappings.tsv
   outputBucket: gs://otar000-evidence_input/SLAPEnrich/json
 # Parameters for PROGENy:
 PROGENy:
