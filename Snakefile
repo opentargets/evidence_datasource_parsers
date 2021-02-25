@@ -28,14 +28,14 @@ rule fetchClingen:
     params:
         webSource=config['ClinGen']['webSource']
     output:
-        cloud=GS.remote(f"{config['ClinGen']['inputBucket']}/ClinGen-Gene-Disease-Summary-{timeStamp}.csv"),
+        bucket=GS.remote(f"{config['ClinGen']['inputBucket']}/ClinGen-Gene-Disease-Summary-{timeStamp}.csv"),
         local=f"tmp/ClinGen-Gene-Disease-Summary-{timeStamp}.csv"    
     log:
         GS.remote(logFile)
     shell:
         """
         curl  {params.webSource} > {output.local}
-        gsutil cp {output.local} {output.cloud}
+        gsutil cp {output.local} {output.bucket}
         """
 
 rule ClinGen:
@@ -57,14 +57,14 @@ rule ClinGen:
 
 rule fetchGeneticsPortal:
     input:
-        locus2gene=GS.remote(config['GeneticsPortal']['locus2gene']),
-        #toploci=GS.remote(config['GeneticsPortal']['toploci']),
+        #locus2gene=GS.remote(config['GeneticsPortal']['locus2gene']),
+        toploci=GS.remote(config['GeneticsPortal']['toploci']),
         #study=GS.remote(config['GeneticsPortal']['study']),
         #variantIndex=GS.remote(config["GeneticsPortal"]["variantIndex"]),
         #ecoCodes=GS.remote(config['GeneticsPortal']['ecoCodes'])
     output:
-        locus2gene=f"tmp/locus2gene-{timeStamp}/*",
-        #toploci=f"tmp/toploci-{timeStamp}.parquet",
+        #locus2gene=f"tmp/locus2gene-{timeStamp}/*",
+        toploci=f"tmp/toploci-{timeStamp}.parquet",
         #study=f"tmp/studies-{timeStamp}.parquet",
         #variantIndex=f"tmp/variantIndex-{timeStamp}.parquet",
         #ecoCodes=f"tmp/ecoCodes-{timeStamp}.tsv"
@@ -72,7 +72,7 @@ rule fetchGeneticsPortal:
         GS.remote(logFile)
     shell:
         """
-        gsutil cp -r {input.locus2gene}/* {output.locus2gene}
+        gsutil cp {input.toploci} {output.toploci}
         """
 
 rule GeneticsPortal:
@@ -84,6 +84,8 @@ rule GeneticsPortal:
         ecoCodes=f"tmp/ecoCodes-{timeStamp}.tsv"
     params:
         threshold=config['GeneticsPortal']['threshold']
+    output:
+        evidenceFile=GS.remote(f"{config['GeneticsPortal']['outputBucket']}/genetics_portal_evidences{timeStamp}.json.gz")
     log:
         GS.remote(logFile)
     shell:
@@ -175,24 +177,62 @@ rule SLAPEnrich:
             --outputFile {output.evidenceFile} \
         """
 
-'''
 ##
 ## Running Gene2Phenotype parser
 ##
 rule fetchGene2Phenotype:
     params:
-        webSource=config['Gene2Phenotype']['webSource'],
-        tempFile=f"/tmp/ClinGen-Gene-Disease-Summary-{timeStamp}.csv"
+        webSource_dd_panel=config['Gene2Phenotype']['webSource_dd_panel'],
+        webSource_eye_panel=config['Gene2Phenotype']['webSource_eye_panel'],
+        webSource_skin_panel=config['Gene2Phenotype']['webSource_skin_panel'],
+        webSource_cancer_panel=config['Gene2Phenotype']['webSource_cancer_panel']
+
     output:
-        GS.remote(f"{config['ClinGen']['inputBucket']}/ClinGen-Gene-Disease-Summary-{timeStamp}.csv"),
-        f"/input/ClinGen-Gene-Disease-Summary-{timeStamp}.csv"
+        ddBucket=GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/DDG2P-{timeStamp}.csv.gz"),
+        ddLocal=f"tmp/DDG2P-{timeStamp}.csv.gz",
+        eyeBucket=GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/EyeG2P-{timeStamp}.csv.gz"),
+        eyeLocal=f"tmp/EyeG2P-{timeStamp}.csv.gz",
+        skinBucket=GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/SkinG2P-{timeStamp}.csv.gz"),
+        skinLocal=f"tmp/SkinG2P-{timeStamp}.csv.gz",
+        cancerBucket=GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/CancerG2P-{timeStamp}.csv.gz"),
+        cancerLocal=f"tmp/CancerG2P-{timeStamp}.csv.gz"
     log:
         GS.remote(logFile)
     shell:
         """
-        curl  {params.webSource} > {params.tempFile}
-        gsutil cp {params.tempFile} {output}
+        curl  {params.webSource_dd_panel} > {output.ddLocal}
+        gsutil cp {output.ddLocal} {output.ddBucket}
+        curl  {params.webSource_eye_panel} > {output.eyeLocal}
+        gsutil cp {output.eyeLocal} {output.eyeBucket}
+        curl  {params.webSource_skin_panel} > {output.skinLocal}
+        gsutil cp {output.skinLocal} {output.skinBucket}
+        curl  {params.webSource_cancer_panel} > {output.cancerLocal}
+        gsutil cp {output.cancerLocal} {output.cancerBucket}
         """
+
+rule Gene2Phenotype:
+    input:
+        ddPanel=f"tmp/DDG2P-{timeStamp}.csv.gz",
+        eyePanel=f"tmp/EyeG2P-{timeStamp}.csv.gz",
+        skinPanel=f"tmp/SkinG2P-{timeStamp}.csv.gz",
+        cancerPanel=f"tmp/CancerG2P-{timeStamp}.csv.gz"
+    output:
+        evidenceFile=GS.remote(f"{config['Gene2Phenotype']['outputBucket']}/gene2phenotype-{timeStamp}.json"),
+        unmappedDiseases=GS.remote(f"{config['Gene2Phenotype']['outputBucket']}/gene2phenotype_unmapped_diseases-{timeStamp}.txt")
+    log:
+        GS.remote(logFile)
+    shell:
+        """
+        python modules/Gene2Phenotype.py \
+            --dd_panel {input.ddPanel} \
+            --eye_panel {input.eyePanel} \
+            --skin_panel {input.skinPanel} \
+            --cancer_panel {input.cancerPanel} \
+            --output_file {output.evidenceFile} \
+            --unmapped_diseases_file {output.unmappedDiseases}
+        """
+
+'''
 
 rule PROGENy:
     input:
