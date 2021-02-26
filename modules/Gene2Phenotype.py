@@ -257,7 +257,7 @@ class G2P():
 
     def write_evidence_strings(self, filename):
         self._logger.info("Writing Gene2Phenotype evidence strings to %s", filename)
-        with open(filename, 'w') as tp_file:
+        with gzip.open(filename, 'w') as tp_file:
             n = 0
             for evidence_string in self.evidence_strings:
                 n += 1
@@ -290,7 +290,7 @@ def main():
                         help='Cancer panel file downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads',
                         type=str)
     parser.add_argument('-o', '--output_file',
-                        help='Name of evidence file. It uses the value of G2P_EVIDENCE_FILENAME in setting.py if not specified',
+                        help='Name of gzipped evidence file. It uses the value of G2P_EVIDENCE_FILENAME in setting.py if not specified',
                         type=str)
     parser.add_argument('-u', '--unmapped_diseases_file',
                         help='If specified, the diseases not mapped to EFO will be stored in this file',

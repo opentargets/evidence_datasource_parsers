@@ -34,6 +34,8 @@ SLAPEnrich:
 # Parameters for PROGENy:
 PROGENy:
   inputBucket: gs://otar000-evidence_input/PROGENy/data_files
+  diseaseMapping: resources/cancer2EFO_mappings.tsv
+  pathwayMapping: resources/pathway2Reactome_mappings.tsv
   outputBucket: gs://otar000-evidence_input/PROGENy/json
 # Parameters for intOGen:
 intOGen:
@@ -51,3 +53,14 @@ Gene2Phenotype:
   webSource_cancer_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/CancerG2P.csv.gz
   inputBucket: gs://otar000-evidence_input/Gene2Phenotype/data_files
   outputBucket: gs://otar000-evidence_input/Gene2Phenotype/json
+# Parameters for CRISPR:
+CRISPR:
+  inputBucket: gs://otar000-evidence_input/CRISPR/data_files
+  outputBucket: gs://otar000-evidence_input/CRISPR/json
+# Parameters for Phenodigm:
+Phenodigm:
+  outputBucket: gs://otar000-evidence_input/PhenoDigm/json
+# Parameters for SysBio:
+SysBio:
+  inputBucket: gs://otar000-evidence_input/SysBio/data_files
+  outputBucket: gs://otar000-evidence_input/SysBio/json

@@ -4,6 +4,7 @@ import logging
 import pandas as pd
 import argparse
 import json
+import gzip
 
 
 class ClinGen():
@@ -115,7 +116,7 @@ class ClinGen():
 
     def write_evidence_strings(self, filename):
         self._logger.info("Writing ClinGen evidence strings to %s", filename)
-        with open(filename, 'w') as tp_file:
+        with gzip.open(filename, 'w') as tp_file:
             for evidence_string in self.evidence_strings:
                 json.dump(evidence_string, tp_file)
                 tp_file.write("\n")
