@@ -271,11 +271,7 @@ rule crispr:
         GS.remote(logFile)
     shell:
         """
-        gcloud dataproc jobs submit pyspark \
-		--cluster=il-snakemake-test \
-        --project=open-targets-eu-dev \
-        --region=europe-west1 \
-		/Users/irene/Desktop/evidence_datasource_parsers/modules/CRISPR.py -- \
+        python modules/CRISPR.py \
         --evidence_file {input.evidenceFile} \
         --descriptions_file {input.descriptionsFile} \
         --cell_types_file {input.cellTypesFile} \
