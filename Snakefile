@@ -17,13 +17,13 @@ logFile = f"{config['global']['logDir']}/evidence_parser.{timeStamp}.log"
 rule all:
     input:
         GS.remote(f"{config['ClinGen']['outputBucket']}/ClinGen-{timeStamp}.json.gz"),
-        #GS.remote(f"{config['GeneticsPortal']['outputBucket']}/genetics_portal_evidences{timeStamp}.json.gz"),
         GS.remote(f"{config['PheWAS']['outputBucket']}/phewas_catalog-{timeStamp}.json.gz"),
         GS.remote(f"{config['SLAPEnrich']['outputBucket']}/slapenrich-{timeStamp}.json.gz"),
         GS.remote(f"{config['Gene2Phenotype']['outputBucket']}/gene2phenotype-{timeStamp}.json.gz"),
         GS.remote(f"{config['Gene2Phenotype']['outputBucket']}/gene2phenotype_unmapped_diseases-{timeStamp}.txt"),
         GS.remote(f"{config['CRISPR']['outputBucket']}/crispr-{timeStamp}.json.gz"),
-        GS.remote(f"{config['SysBio']['outputBucket']}/sysbio-{timeStamp}.json.gz")
+        GS.remote(f"{config['SysBio']['outputBucket']}/sysbio-{timeStamp}.json.gz"),
+        GS.remote(f"{config['Phenodigm']['outputBucket']}/phenodigm-{timeStamp}.json.gz")
 
 # --- Help Rules --- #
 ## help               : prints help comments for Snakefile
@@ -31,6 +31,11 @@ rule help:
     input: "Snakefile"
     shell:
         "sed -n 's/^##//p' {input}"
+
+## clean               : prints help comments for Snakefile
+rule clean:
+    shell:
+        "rm -rf tmp"
 
 # --- Data sources parsers --- #
 ## clingen          : processes the Gene Validity Curations table from ClinGen
@@ -178,8 +183,9 @@ rule phenodigm:
         GS.remote(logFile)
     shell:
         """
-        python modules/PROGENY.py \
+        python modules/MouseModels.py \
         --update-cache \
+        --outputFile {output.evidenceFile}
         """
 
 ## sysbio           : processes key driver genes for specific diseases that have been curated from Systems Biology papers

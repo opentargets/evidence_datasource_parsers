@@ -802,7 +802,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
         #self.omim_to_efo_map["OMIM:300494"] = ["http://www.ebi.ac.uk/efo/EFO_0003757"]
 
 
-    def process_all(self, update_cache=False, write2cloud=False):
+    def process_all(self, update_cache=False, write2cloud=False, outputFile):
 
         if update_cache == True:
             self.access_solr(mode='update_cache')
@@ -826,7 +826,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
         self.generate_phenodigm_evidence_strings()
 
         self._logger.info("write evidence strings")
-        self.write_evidence_strings(Config.MOUSEMODELS_EVIDENCE_FILENAME)
+        self.write_evidence_strings(outputFile)
 
         return
 
@@ -844,6 +844,7 @@ def main():
 
     # log file is optional:
     parser.add_argument("-l", '--logFile', help='Optional filename for logfile.', required=False)
+    parser.add_argument('-o', '--outputFile', help='Generated evidence file in a gzipped JSON format.')
     args = parser.parse_args()
 
     # Initialize logger:
@@ -862,7 +863,7 @@ def main():
     ph = Phenodigm(logging)
 
     #ph.process_ontologies()
-    ph.process_all(update_cache=args.update_cache, write2cloud=args.write2cloud)
+    ph.process_all(update_cache=args.update_cache, write2cloud=args.write2cloud, outputFile=args.outputFile)
 
 if __name__ == "__main__":
     main()
