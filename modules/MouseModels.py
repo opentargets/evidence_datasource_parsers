@@ -1,7 +1,7 @@
 import requests
 import collections
 from tqdm import tqdm
-import optparse
+import argparse
 import logging
 import os
 import sys
@@ -24,20 +24,12 @@ import opentargets.model.evidence.phenotype as evidence_phenotype
 import opentargets.model.evidence.core as evidence_core
 import opentargets.model.evidence.association_score as association_score
 
-logging.basicConfig(filename='phenodigm.log', filemode='w', level=logging.INFO)
-logger = logging.getLogger(__name__)
 
-__copyright__ = "Copyright 2014-2021, Open Targets"
-__credits__ = ["Gautier Koscielny", "Damian Smedley", "Asier Gonzalez"]
-__license__ = "Apache 2.0"
-__version__ = Config.VALIDATED_AGAINST_SCHEMA_VERSION
-__maintainer__ = "Open Targets Data Team"
-__email__ = ["data@opentargets.org"]
-__status__ = "Production"
+
 
 class Phenodigm(RareDiseaseMapper, GCSBucketManager):
 
-    def __init__(self):
+    def __init__(self, logging):
 
         super(Phenodigm, self).__init__()
         self.efo = OntologyClassReader()
@@ -60,8 +52,8 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
         self.mouse_models = collections.OrderedDict()
         self.diseases = collections.OrderedDict()
         self.hashkeys = collections.OrderedDict()
-        self._logger = logging.getLogger(__name__)
-        self._logger.addHandler(TqdmLoggingHandler())
+        self._logger = logging
+
 
     def list_files(self, path):
         '''
@@ -86,7 +78,6 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
             c+=1
             if c>1:
                 a = line.rstrip().split("\t")
-
 
     def load_mouse_genes(self):
 
@@ -136,7 +127,6 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                                          Config.MOUSEMODELS_CACHE_DIRECTORY + "/mmGenes.json")
             self.upload_blob_from_string(json.dumps(self.hsGenes, sort_keys=True, indent=2),
                                          Config.MOUSEMODELS_CACHE_DIRECTORY + "/hsGenes.json")
-
 
     def access_solr(self, mode='update_cache'):
 
@@ -201,7 +191,6 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
         rsp = r.json()
         return rsp
 
-
     def request_genes(self, buffer, default_species='homo_sapiens'):
         g = self.hsGenes
         if default_species=='mus_musculus':
@@ -210,8 +199,8 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
         hdr = {"Content-Type": "application/json", "Accept": "application/json",
                "User-Agent": "open_targets bot by /open/targets"}
 
-        #self._logger.info('hs Request "%s"...' % '","'.join(buffer))
-        self._logger.info('%s Request "%s"...' %(default_species,'","'.join(buffer)))
+        # self._logger.info('hs Request "%s"...' % '","'.join(buffer))
+        # self._logger.info('%s Request "%s"...' %(default_species,'","'.join(buffer)))
 
         body = '{ "symbols": ["%s"] }' % '","'.join(buffer)
         r = requests.post('http://rest.ensembl.org/lookup/symbol/%s/'%(default_species), data=body, headers=hdr)
@@ -224,8 +213,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                     g[symbol] = None
                 ensemblId = g[symbol]
                 #self._logger.info("hs {0} {1}".format(symbol, ensemblId))
-                self._logger.info("{} {} {}".format(default_species, symbol, ensemblId))
-            self._logger.info(json.dumps(self.hsGenes, indent=2))
+            self._logger.info(f"Number of human genes requested: {len(self.hsGenes)}")
         else:
             # should have exception here
             self._logger.error(body)
@@ -261,7 +249,6 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                         if hgnc_gene_id and not hgnc_gene_id in self.hgnc2mgis:
                             self.hgnc2mgis[hgnc_gene_id] = []
                         self.hgnc2mgis[hgnc_gene_id].append(gene_id)
-
                     elif doc['type'] == 'mouse_model':
                         marker_symbol = doc['marker_symbol']
                         marker_id = doc['marker_id']
@@ -285,7 +272,6 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                                     mp_id = mt.groups()[0]
                                     model_phenotypes.append(mp_id)
                             self.mouse_models[model_id]['model_phenotypes'] = model_phenotypes
-
                     elif doc['type'] == 'disease_model_summary':
                         model_id = doc['model_id']
                         if not model_id in self.mouse_model2diseases:
@@ -345,7 +331,6 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                     self._logger.error(json.dumps(doc))
                     break
 
-
     def generate_phenodigm_evidence_strings(self, upper_limit=0):
         '''
          Once you have retrieved all the genes,and mouse models
@@ -357,7 +342,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
         for hs_symbol in self.hsGenes:
             index_g +=1
             count_nb_evidence_string_generated = 0
-            self._logger.info('Now processing human gene: {}'.format(hs_symbol))
+            self._logger.debug('Now processing human gene: {}'.format(hs_symbol))
             hgnc_gene_id = self.symbol2hgncids[hs_symbol]
             hs_ensembl_gene_id = self.hsGenes[hs_symbol]
 
@@ -369,7 +354,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
 
             if hgnc_gene_id and hs_ensembl_gene_id and re.match('^ENSG.*', hs_ensembl_gene_id) and hgnc_gene_id in self.hgnc2mgis:
 
-                self._logger.info("processing human gene {0} {1} {2} {3}".format(index_g, hs_symbol, hs_ensembl_gene_id, hgnc_gene_id))
+                # self._logger.info("processing human gene {0} {1} {2} {3}".format(index_g, hs_symbol, hs_ensembl_gene_id, hgnc_gene_id))
                 #print("processing human gene {0} {1} {2} {3}".format(index_g, hs_symbol, hs_ensembl_gene_id, hgnc_gene_id ))
 
                 '''
@@ -384,7 +369,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
 
                     marker_symbol = self.mgi2symbols[mouse_gene_id]
                     #print(marker_symbol)
-                    self._logger.info("\tProcessing mouse gene symbol %s" % (marker_symbol))
+                    # self._logger.info("\tProcessing mouse gene symbol %s" % (marker_symbol))
 
                     '''
                     Some mouse symbol are not mapped in Ensembl
@@ -398,7 +383,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                         '''
                         if marker_symbol in self.mgi2mouse_models:
 
-                            self._logger.info("\tFound %i mouse models for this marker" % (len(self.mgi2mouse_models[marker_symbol])))
+                            self._logger.debug("\tFound %i mouse models for this marker" % (len(self.mgi2mouse_models[marker_symbol])))
 
                             '''
                              if the marker is associated to mouse models
@@ -422,13 +407,13 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
 
                                 marker_id = mouse_model['marker_id']
                                 model_description = mouse_model['model_description']
-                                self._logger.info("\t\tMouse model {0} for {1}".format(model_id, marker_id))
+                                self._logger.debug("\t\tMouse model {0} for {1}".format(model_id, marker_id))
                                 '''
                                  Check the model_id is in the dictionary containing all the models
                                 '''
                                 if model_id in self.mouse_model2diseases:
 
-                                    self._logger.info("\t\tMouse model {0} is in the dictionary containing all the models".format(model_id))
+                                    self._logger.debug("\t\tMouse model {0} is in the dictionary containing all the models".format(model_id))
 
                                     for mouse_model2disease in self.mouse_model2diseases[model_id]:
 
@@ -443,9 +428,9 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                                         disease = None
                                         if disease_id in self.diseases:
                                             disease = self.diseases[disease_id]
-                                            self._logger.info("\t\t\tdisease: %s %s"%(disease_id, disease['disease_term']))
+                                            self._logger.debug("\t\t\tdisease: %s %s"%(disease_id, disease['disease_term']))
                                         else:
-                                            self._logger.info("\t\t\tdisease: %s"%(disease_id))
+                                            self._logger.debug("\t\t\tdisease: %s"%(disease_id))
 
                                         '''
                                             Get all phenotypes and check the ones that match the mouse ones 
@@ -466,13 +451,13 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                                             # find corresponding EFO disease term
                                             matchOMIM = re.match("^OMIM:(.+)$", disease_id)
                                             matchORPHANET = re.match("^ORPHANET:(.+)$", disease_id)
-                                            self._logger.info('disease is: {}'.format(disease_id))
+                                            self._logger.debug('disease is: {}'.format(disease_id))
                                             if matchOMIM:
                                                 if ';PMID' in disease_id:
                                                     (source, omim_id) = disease_id.split(';')[0].split(':')
                                                 else:
                                                     (source, omim_id) = disease_id.split(':')
-                                                self._logger.info("\t\t\tCheck OMIM id = %s is in efo"%omim_id)
+                                                self._logger.debug("\t\t\tCheck OMIM id = %s is in efo"%omim_id)
                                                 if omim_id in self.omim_to_efo_map:
                                                     efoMapping[disease_id] = self.omim_to_efo_map[omim_id]
                                                 if len(disease_terms) > 0:
@@ -543,7 +528,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                                                 disease_name = 'N/A'
                                                 if disease_term['efo_uri'] in self.efo.current_classes:
                                                     disease_name = self.efo.current_classes[disease_term['efo_uri']]
-                                                self._logger.info("Disease id is %s"%(disease_term['efo_uri']))
+                                                self._logger.debug("Disease id is %s"%(disease_term['efo_uri']))
                                                 evidenceString.disease = bioentity.Disease(
                                                     id=disease_term['efo_uri'],
                                                     name=disease_name,
@@ -593,7 +578,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                                                 '''
                                                 zygosity = 'oth'
                                                 allelic_composition = mouse_model['model_description']
-                                                self._logger.info(mouse_model['model_description'])
+                                                self._logger.debug(mouse_model['model_description'])
                                                 if mouse_model['model_description'].endswith("hom") or mouse_model['model_description'].endswith("het") or mouse_model['model_description'].endswith("hem"):
                                                     zygosity = mouse_model['model_description'][-3:]
                                                     allelic_composition = mouse_model['model_description'][:-4]
@@ -636,8 +621,8 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                                                             term_name = self.hpo.current_classes[term_id]
                                                         else:
                                                             term_name = self.ontology[hp_id]['phenotype_term']
-                                                        #self._logger.info("HPO term is {0} {1}".format(hp, hp in hpo.terms))
-                                                        #self._logger.info("HPO term retrieved is {0} {1}".format( termId, termName ))
+                                                        # self._logger.debug("HPO term is {0} {1}".format(hp, hp in hpo.terms))
+                                                        # self._logger.debug("HPO term retrieved is {0} {1}".format( termId, termName ))
                                                         human_phenotypes.append(
                                                             bioentity.Phenotype(
                                                                 id = hp_id,
@@ -690,7 +675,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                                                 if 'disease_model_max_norm' in mouse_model2disease:
                                                     score = (mouse_model2disease['disease_model_max_norm'])/100
                                                     method = 'phenodigm_model_to_disease_score'
-                                                self._logger.info("score: {0}\n".format(score))
+                                                self._logger.debug("score: {0}\n".format(score))
                                                 evidenceString.unique_association_fields['score'] = "%.15f"%(score)
 
                                                 evidenceString.evidence.disease_model_association = evidence_phenotype.Disease_Model_Association(
@@ -728,10 +713,43 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                                             #self._logger.error("hs_symbol in disease_gene_locus[disease_id]: {0}".format(not disease_term_uris == None and disease_id in self.disease_gene_locus and hgnc_gene_id in self.disease_gene_locus[disease_id]))
                                             #self._logger.error("marker_symbol in disease_gene_locus[disease_id][hgnc_gene_id]): {0}".format(disease_term_uris is not None and disease_id in self.disease_gene_locus and marker_symbol in self.disease_gene_locus[disease_id][hgnc_gene_id]))
 
+    def convert_evidence(self, data):
+        '''
+        This function maps the old evidence structure into the new json schema.
+
+        Args:
+            evidenceString (dict): old PhenoDigm evidence string
+        Returns:
+            dict: dictionary for the new evidence if all fields could be successfully mapped. 
+        '''
+
+        # Converting evidence string from this weird object to a more managable dictionary:
+        data = json.loads(data.to_JSON())
+
+        try:
+            return collections.OrderedDict({
+            'targetFromSourceId' : data['target']['id'].split('/')[-1],
+            'diseaseFromSourceMappedId': data['disease']['id'].split('/')[-1],
+            'resourceScore': float(data['unique_association_fields']['score']),
+            'datasourceId': 'phenodigm',
+            'datatypeId': data['type'],
+            'diseaseFromSource': data['disease']['source_name'],
+            'targetInModel': data['unique_association_fields']['model_gene_id'].split('/')[-1],
+            'diseaseFromSourceId': data['unique_association_fields']['disease_phenodigm_id'],
+            'biologicalModelAllelicComposition': data['unique_association_fields']['model_description'],
+            'biologicalModelGeneticBackground': data['unique_association_fields']['model_genetic_background'],
+            'diseaseModelAssociatedModelPhenotypes': [{'id': p['id'], 'label': p['label']} for p in data['evidence']['disease_model_association']['model_phenotypes']],
+            'diseaseModelAssociatedHumanPhenotypes': [{'id': p['id'], 'label': p['label']} for p in data['evidence']['disease_model_association']['human_phenotypes']],
+            'biologicalModelId': data['evidence']['disease_model_association']['model_id'].split('#')[0]
+            })
+        except:
+            self._logger.warning(f'The following evidence could not be mapped to the new schema:\n{data}')
+            return None
+
     def write_evidence_strings(self, filename):
 
         countExported = 0
-        logger.info("Writing Phenodigm evidence strings")
+        self._logger.info("Writing Phenodigm evidence strings")
         with gzip.open(filename, 'wt') as tp_file:
             self._logger.info("Processing %i records" % (len(self.hashkeys)))
             for hashkey in self.hashkeys:
@@ -740,10 +758,13 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                 error = evidenceString.validate(self._logger)
                 score = evidenceString.evidence.disease_model_association.resource_score.value
                 if error == 0 and score >= 0.9:
-                    tp_file.write(evidenceString.to_JSON(indentation=None) + "\n")
-                    countExported+=1
+                    new_evidence = self.convert_evidence(evidenceString)
+                    if new_evidence:
+                        tp_file.write(json.dumps(new_evidence) + "\n")
+                        countExported+=1
 
-        logger.info("Exported %i evidence" % (countExported))
+        self._logger.info("Exported %i evidence" % (countExported))
+
 
     def write_to_cloud(self, filename):
         # TODO: Take into account that filename at this step may not match the one saved because time stamp is automatic
@@ -755,27 +776,20 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
             print("have opened " + filename)
             blob.upload_from_file(my_file)
 
-    def process_ontologies(self):
 
-        bar = tqdm(desc='Load ontologies',
-                   total=3,
-                   unit='steps')
+    def process_ontologies(self):
 
         self._logger.info("Load MP classes")
         self.mp.load_mp_classes()
-        bar.update()
+
         self._logger.info("Load HP classes")
         self.hpo.load_hpo_classes()
-        bar.update()
+
         self._logger.info("Load EFO classes")
         self.efo.load_efo_classes()
-        bar.update()
+
 
     def get_ontology_mappings(self):
-
-        bar = tqdm(desc='Get ontology mappings',
-                   total=2,
-                   unit='steps')
 
         self._logger.info("Get ontology mappings")
         self.get_omim_to_efo_mappings()
@@ -786,18 +800,14 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
         #self.omim_to_efo_map["OM:612278"] = ["http://www.ebi.ac.uk/efo/EFO_0003767"]
         #self.omim_to_efo_map["OMIM:608049"] = ["http://www.ebi.ac.uk/efo/EFO_0003756"]
         #self.omim_to_efo_map["OMIM:300494"] = ["http://www.ebi.ac.uk/efo/EFO_0003757"]
-        bar.update()
 
 
     def process_all(self, update_cache=False, write2cloud=False):
 
         if update_cache == True:
-            bar = tqdm(desc='Generate PhenoDigm evidence strings',
-                       total=1,
-                       unit='steps')
             self.access_solr(mode='update_cache')
-            bar.update()
             return
+
         elif write2cloud:
             self._logger.info("Upload evidence file to {}/PhenoDigm/json in the {} Google Cloud project".format(Config.GOOGLE_BUCKET_EVIDENCE_INPUT, Config.GOOGLE_DEFAULT_PROJECT))
             self.write_to_cloud(Config.MOUSEMODELS_EVIDENCE_FILENAME)
@@ -806,46 +816,53 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
         self.process_ontologies()
         self.get_ontology_mappings()
 
-        bar = tqdm(desc='Load mouse and human genes',
-                   total=2,
-                   unit='steps')
-
         self._logger.info("Load all mouse and human")
         self.load_mouse_genes()
-        bar.update()
-        self.load_human_genes()
-        bar.update()
 
-        bar = tqdm(desc='Extract and transform and load PhenoDigm data',
-                   total=3,
-                   unit='steps')
+        self.load_human_genes()
 
         self.access_solr(mode='parse_phenodigm')
-        bar.update()
         self._logger.info("Build evidence")
         self.generate_phenodigm_evidence_strings()
-        bar.update()
+
         self._logger.info("write evidence strings")
         self.write_evidence_strings(Config.MOUSEMODELS_EVIDENCE_FILENAME)
-        bar.update()
-        #
-        #bar.update()
+
         return
+
 
 def main():
 
-    parser = optparse.OptionParser()
-    parser.add_option("-u", '--update-cache', action="store_true", dest="update_cache", default=False)
-    parser.add_option("-w", '--write-evidence-to-cloud', action="store_true", dest="write2cloud", default=False)
-    options, args = parser.parse_args()
+    parser = argparse.ArgumentParser(description='Evidence parser for animal models sources from PhenoDigm')
 
-    # -u and -w options are mutually exclusuve
-    if options.update_cache and options.write2cloud:
-        parser.error("Options -u and -w are mutually exclusive, please use one only")
+    # Two of the flags are mutually exclusive:
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("-u", '--update-cache', help='To use cached data instead of fetching from IUPMC solr', 
+        action="store_true", dest="update_cache", default=False)
+    group.add_argument("-w", '--write-evidence-to-cloud', help='If the file is expected ot be uploaded to the cloud right a way',
+        action="store_true", dest="write2cloud", default=False)
 
-    ph = Phenodigm()
+    # log file is optional:
+    parser.add_argument("-l", '--logFile', help='Optional filename for logfile.', required=False)
+    args = parser.parse_args()
+
+    # Initialize logger:
+    # Initialize logger based on the provided logfile. 
+    # If no logfile is specified, logs are written to stderr 
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s %(levelname)s %(module)s - %(funcName)s: %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S',
+    )
+    if args.logFile:
+        logging.config.fileConfig(filename=args.logFile)
+    else:
+        logging.StreamHandler(sys.stderr)
+
+    ph = Phenodigm(logging)
+
     #ph.process_ontologies()
-    ph.process_all(update_cache=options.update_cache, write2cloud=options.write2cloud)
+    ph.process_all(update_cache=args.update_cache, write2cloud=args.write2cloud)
 
 if __name__ == "__main__":
     main()

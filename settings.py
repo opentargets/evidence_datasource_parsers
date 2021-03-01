@@ -55,11 +55,6 @@ class Config:
     UKBIOBANK_FILENAME = file_or_resource('ukbiobank.txt')
     UKBIOBANK_EVIDENCE_FILENAME = 'ukbiobank-30-04-2018.json'
 
-    # SYSBIO
-    SYSBIO_FILENAME1 = file_or_resource('sysbio_evidence-31-01-2019.tsv')
-    SYSBIO_FILENAME2 = file_or_resource('sysbio_publication_info_nov2018.tsv')
-    SYSBIO_EVIDENCE_FILENAME = 'sysbio-29-01-2019.json'
-
     # IntoGEN
     INTOGEN_DRIVER_GENES_FILENAME = file_or_resource('intogen_Compendium_Cancer_Genes.tsv')
     INTOGEN_EVIDENCE_FILENAME = 'intogen-02-02-2020.json'
