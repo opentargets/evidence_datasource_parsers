@@ -218,6 +218,20 @@ python modules/PROGENY.py \
     --outputFile progeny-2021-01-18.json.gz
 ```
 
+### SystemsBiology
+
+This parser processes two files stored in Google cloud bucket: `gs://otar000-evidence_input/SysBio/data_files`. The `sysbio_evidence-31-01-2019.tsv` file contains evidence data, while `sysbio_publication_info_nov2018.tsv` contains study level information.
+
+**Usage:**
+
+```bash
+python modules/SystemsBiology.py \
+    --evidenceFile sysbio_evidence-31-01-2019.tsv \
+    --studyFile    sysbio_publication_info_nov2018.tsv \
+    --outputFile   sysbio_evidence.json.gz \
+    --logFile      sysbio.parser.log
+```
+
 ### SLAPenrich
 
 The SLAPenrich parser processes twofiles:
