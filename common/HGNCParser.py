@@ -83,7 +83,7 @@ class GeneParser(object):
 
     def _get_hgnc_data_from_json(self):
 
-        r = requests.get(Config.GENES_HGNC)
+        r = requests.get('http://ftp.ebi.ac.uk/pub/databases/genenames/new/json/hgnc_complete_set.json')
         data = r.json()
 
         for row in tqdm(data['response']['docs'],

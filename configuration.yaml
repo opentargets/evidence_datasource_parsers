@@ -2,11 +2,6 @@ global:
   schema_file: 'https://raw.githubusercontent.com/opentargets/json_schema/master/opentargets.json'
   logDir: gs://ot-team/irene/evidence_test
 
-## TODO
-## 1. use gs://otar000-evidence_input/ as central bucket for all output
-## 2. 
-
-
 # Parameters for OT Gentics Portal evidence generation:
 GeneticsPortal:
   locus2gene: gs://genetics-portal-data/l2g/200127 # 110MB
@@ -14,7 +9,7 @@ GeneticsPortal:
   study: gs://genetics-portal-data/v2d/200207/studies.parquet # ~1MB
   variantIndex: gs://genetics-portal-data/variant-annotation/190129/variant-annotation.parquet # ~13GB
   ecoCodes: gs://genetics-portal-data/lut/vep_consequences.tsv # 1kb
-  outputBucket: gs://otar000-evidence_input/Genetics_portal/json
+  outputBucket: gs://genetics-portal-analysis/l2g-platform-export/data
   threshold: 0.05
 # Parameters for ClinGen:
 ClinGen:
@@ -41,6 +36,7 @@ PROGENy:
 intOGen:
   inputBucket: gs://otar000-evidence_input/IntOgen/data_files
   outputBucket: gs://otar000-evidence_input/IntOgen/json
+  diseaseMapping: resources/cancer2EFO_mappings.tsv
 # Parameters for PanelApp:
 PanelApp:
   inputBucket: gs://otar000-evidence_input/GenomicsEngland/data_files

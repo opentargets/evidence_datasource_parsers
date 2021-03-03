@@ -1,6 +1,5 @@
 import requests
 import collections
-from tqdm import tqdm
 import argparse
 import logging
 import os
@@ -13,7 +12,6 @@ import datetime
 import collections
 from retry import retry
 from settings import Config
-from common.Utils import TqdmLoggingHandler
 from common.RareDiseasesUtils import RareDiseaseMapper
 from common.GCSUtils import GCSBucketManager
 from ontologyutils.rdf_utils import OntologyClassReader
@@ -802,7 +800,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
         #self.omim_to_efo_map["OMIM:300494"] = ["http://www.ebi.ac.uk/efo/EFO_0003757"]
 
 
-    def process_all(self, update_cache=False, write2cloud=False, outputFile):
+    def process_all(self, outputFile, update_cache=False, write2cloud=False):
 
         if update_cache == True:
             self.access_solr(mode='update_cache')
@@ -863,7 +861,7 @@ def main():
     ph = Phenodigm(logging)
 
     #ph.process_ontologies()
-    ph.process_all(update_cache=args.update_cache, write2cloud=args.write2cloud, outputFile=args.outputFile)
+    ph.process_all(outputFile=args.outputFile, update_cache=args.update_cache, write2cloud=args.write2cloud)
 
 if __name__ == "__main__":
     main()

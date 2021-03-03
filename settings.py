@@ -4,23 +4,6 @@ import os
 import pkg_resources as res
 from datetime import datetime
 
-# from envparse import env, ConfigurationError
-
-# def read_option(option, cast=None,
-#                 **kwargs):
-
-#     try:
-#         default_value = kwargs.pop('default')
-#     except KeyError:
-#         default_value = None
-
-#     try:
-#         # reading the environment variable with envparse
-#         return env(option, cast=cast, **kwargs)
-#     except ConfigurationError:
-#        return default_value
-
-
 def file_or_resource(fname=None):
     # get filename and check if in getcwd then get from the package resources folder
     filename = os.path.expanduser(fname)
@@ -44,13 +27,6 @@ class Config:
     GOOGLE_DEFAULT_PROJECT = 'open-targets'
     GOOGLE_BUCKET_EVIDENCE_INPUT = 'otar000-evidence_input'
 
-    # Ontologies
-    EFO_URL = 'https://github.com/EBISPOT/efo/raw/v2018-01-15/efo.obo'
-    HP_URL = 'http://purl.obolibrary.org/obo/hp.obo'
-
-    # HGNC
-    GENES_HGNC = 'http://ftp.ebi.ac.uk/pub/databases/genenames/new/json/hgnc_complete_set.json'
-
     # UKBIOBANK
     UKBIOBANK_FILENAME = file_or_resource('ukbiobank.txt')
     UKBIOBANK_EVIDENCE_FILENAME = 'ukbiobank-30-04-2018.json'
@@ -71,17 +47,3 @@ class Config:
     # write to the cloud direcly
     MOUSEMODELS_CACHE_DIRECTORY = 'PhenoDigm/phenodigmcache'
     MOUSEMODELS_EVIDENCE_FILENAME = f"phenodigm-{datetime.today().strftime('%Y-%m-%d')}.json.gz"
-
-    # Configuration for genetics portal evidences:
-    ACTIVITY_URL = 'http://identifiers.org/cttv.activity'
-    TARGET_URL = 'http://identifiers.org/ensembl'
-    TARGET_TYPE_URL = 'http://identifiers.org/cttv.target'
-    LITERATURE_URL = 'http://europepmc.org/abstract/MED'
-    GENETICS_PORTAL_URL = 'https://genetics.opentargets.org'
-    DISEASE_URL = 'http://www.ebi.ac.uk/efo'
-    CONSEQUENCE_URL = 'http://purl.obolibrary.org/obo'
-
-    # Evidence codes:
-    EVIDENCE_CODE_INFERENCE = 'http://purl.obolibrary.org/obo/ECO_0000362' # computational inference
-    EVIDENCE_CODE_EVIDENCE_TYPE = 'http://identifiers.org/eco/GWAS' # GWAS data type.
-    EVIDENCE_CODE_SOURCE = 'http://identifiers.org/eco/locus_to_gene_pipeline' # variant to gene derived from l2g pipeline

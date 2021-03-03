@@ -39,7 +39,7 @@ rule clean:
 
 # --- Data sources parsers --- #
 ## clingen          : processes the Gene Validity Curations table from ClinGen
-rule ClinGen:
+rule clingen:
     input:
         f"tmp/ClinGen-Gene-Disease-Summary-{timeStamp}.csv"
     output:
@@ -51,36 +51,46 @@ rule ClinGen:
         GS.remote(logFile)
     shell:
         """
-        python modules/ClinGen.py -i {input} -o {output.evidenceFile} -u {output.unmappedFile}
+        python modules/ClinGen.py \
+        --input_file {input} \
+        --output_file {output.evidenceFile} 
+        --unmapped_diseases_file {output.unmappedFile}
         """
 
-## geneticsPortal           : processes lead variants from the Open Targets Genetics portal
+## geneticsPortal           : processes lead variants from the Open Targets Genetics portal on a Dataproc cluster
 rule geneticsPortal:
-    input:
-        locus2gene=f"tmp/locus2gene-{timeStamp}/",
-        toploci=f"tmp/toploci-{timeStamp}.parquet",
-        study=f"tmp/studies-{timeStamp}.parquet",
-        variantIndex=f"tmp/variantIndex-{timeStamp}.parquet",
-        ecoCodes=f"tmp/ecoCodes-{timeStamp}.tsv"
-    params:
-        threshold=config['GeneticsPortal']['threshold']
-    output:
-        evidenceFile=GS.remote(f"{config['GeneticsPortal']['outputBucket']}/genetics_portal_evidences{timeStamp}.json.gz")
-    conda:
-        'envs/conda-env.yml'
-    log:
-        GS.remote(logFile)
     shell:
-        '''
-        python modules/GeneticsPortal.py \
-        --locus2gene {input.locus2gene} \
-        --toploci {input.toploci} \
-        --study {input.study} \
-        --variantIndex {input.variantIndex} \
-        --ecoCodes {input.ecoCodes} \
-        --threshold {params}
-        --outputFile {output}
-        '''
+        """
+        gcloud beta dataproc clusters create \
+            snakemake-cluster-l2g-data \
+            --image-version=1.4 \
+            --properties=spark:spark.debug.maxToStringFields=100,spark:spark.executor.cores=31,spark:spark.executor.instances=1 \
+            --master-machine-type=n1-standard-32 \
+            --master-boot-disk-size=1TB \
+            --zone=europe-west1-d \
+            --single-node \
+            --max-idle=10m \
+            --region=europe-west1 \
+            --project=open-targets-genetics
+        
+        gcloud dataproc jobs submit pyspark \
+            --cluster=snakemake-cluster-l2g-data \
+            --project=open-targets-genetics \
+            --region=europe-west1 \
+            modules/GeneticsPortal.py -- \
+            --locus2gene gs://genetics-portal-data/l2g/200127 \
+            --toploci gs://genetics-portal-data/v2d/200207/toploci.parquet \
+            --study gs://genetics-portal-data/v2d/200207/studies.parquet \
+            --threshold 0.05 \
+            --variantIndex gs://genetics-portal-data/variant-annotation/190129/variant-annotation.parquet  \
+            --ecoCodes gs://genetics-portal-data/lut/vep_consequences.tsv \
+            --outputFile gs://genetics-portal-analysis/l2g-platform-export/data/genetics_portal_evidence.json.gz
+
+        gcloud dataproc clusters delete \
+            snakemake-cluster-l2g-data \
+            --region=europe-west1 \
+            --project=open-targets-genetics
+        """ 
 
 ## phewas           : processes phenome-wide association studies data from PheWAS
 rule phewas:
@@ -199,6 +209,10 @@ rule phenodigm:
         GS.remote(logFile)
     shell:
         """
+        wget https://github.com/opentargets/ontology-utils/archive/bff0f189a4c6e8613e99a5d47e9ad4ceb6a375fc.zip
+        pip3 install bff0f189a4c6e8613e99a5d47e9ad4ceb6a375fc.zip
+        export PYTHONPATH=.
+
         python modules/MouseModels.py \
         --update-cache \
         --outputFile {output.evidenceFile}
@@ -223,6 +237,44 @@ rule sysbio:
         --outputFile {output.evidenceFile}
         """
 
+## panelApp           : processes gene panels data curated by Genomics England
+rule panelApp:
+    input:
+        inputFile=f"tmp/panelapp_gene_panels-{timeStamp}.tsv"
+    output:
+        evidenceFile=GS.remote(f"{config['PanelApp']['outputBucket']}/genomics_england-{timeStamp}.json.gz")
+    conda:
+        'envs/conda-env.yml'
+    log:
+        GS.remote(logFile)
+    shell:
+        """
+        python modules/GenomicsEnglandPanelApp.py \
+        --inputFile {input.inputFile} \
+        --outputFile {output.evidenceFile}
+        """
+
+## intogen           : processes cohorts and driver genes data from intOGen
+rule intogen:
+    input:
+        inputGenes = f"tmp/Compendium_Cancer_Genes-{timeStamp}.tsv",
+        inputCohorts = f"tmp/cohorts-{timeStamp}.tsv",
+        diseaseMapping=f"tmp/intogen_cancer2EFO_mappings-{timeStamp}.tsv"
+    output:
+        evidenceFile=GS.remote(f"{config['intOGen']['outputBucket']}/intogen-{timeStamp}.json.gz")
+    conda:
+        'envs/conda-env.yml'
+    log:
+        GS.remote(logFile)
+    shell:
+        """
+        python modules/IntOGen.py \
+        --inputGenes {input.inputGenes} \
+        --inputCohorts {input.inputCohorts} \
+        --diseaseMapping {input.diseaseMapping} \
+        --outputFile {output.evidenceFile}
+        """
+
 # --- Fetching input data and uploading to GS --- #
 ## fetchClingen          : fetches the Gene Validity Curations table from ClinGen
 
@@ -241,30 +293,6 @@ rule fetchClingen:
         curl  {params.webSource} > {output.local}
         gsutil cp {output.local} {output.bucket}
         """
-
-## fetchGeneticsPortal           : fetches Open Targets Genetics data from their private bucket (not working)
-rule fetchGeneticsPortal:
-    input:
-        #locus2gene=GS.remote(config['GeneticsPortal']['locus2gene']),
-        toploci=GS.remote(config['GeneticsPortal']['toploci']),
-        #study=GS.remote(config['GeneticsPortal']['study']),
-        #variantIndex=GS.remote(config["GeneticsPortal"]["variantIndex"]),
-        #ecoCodes=GS.remote(config['GeneticsPortal']['ecoCodes'])
-    output:
-        #locus2gene=f"tmp/locus2gene-{timeStamp}/*",
-        toploci=f"tmp/toploci-{timeStamp}.parquet",
-        #study=f"tmp/studies-{timeStamp}.parquet",
-        #variantIndex=f"tmp/variantIndex-{timeStamp}.parquet",
-        #ecoCodes=f"tmp/ecoCodes-{timeStamp}.tsv"
-    conda:
-        'envs/conda-env.yml'
-    log:
-        GS.remote(logFile)
-    shell:
-        """
-        gsutil cp {input.toploci} {output.toploci}
-        """
-
 
 ## fetchPhewas           : fetches the PheWAS data and an enriched table from GS and a disease mapping look-up
 rule fetchPhewas:
@@ -400,52 +428,38 @@ rule fetchSysbio:
         gsutil cp {input.studyFile} {output.studyFile}
         """
 
-'''
-rule PanelApp:
+## fetchPanelApp           : fetches gene panels data from GS
+rule fetchPanelApp:
     input:
         inputFile = GS.remote(f"{config['PanelApp']['inputBucket']}/All_genes_20200928-1959.tsv")
     output:
-        evidenceFile=GS.remote(f"{config['PanelApp']['outputBucket']}/genomics_england-{timeStamp}.json.gz"),
+        inputFile=f"tmp/panelapp_gene_panels-{timeStamp}.tsv"
+    conda:
+        'envs/conda-env.yml'
     log:
         GS.remote(logFile)
     shell:
         """
-        python modules/GenomicsEnglandPanelApp.py -i {input.inputFile} -o {output.evidenceFile}
+        gsutil cp {input.inputFile} {output.inputFile}
         """
-##
-## Running intOGen parser
-##
 
+## fetchIntogen          : fetches cohorts and driver genes from GS
 rule fetchIntogen:
     input:
-        evidenceFile=GS.remote(f"{config['CRISPR']['inputBucket']}/crispr_evidence.tsv"),
-        descriptionsFile=GS.remote(f"{config['CRISPR']['inputBucket']}/crispr_descriptions.tsv"),
-        cellTypesFile=GS.remote(f"{config['CRISPR']['inputBucket']}/crispr_cell_lines.tsv")
+        inputGenes = GS.remote(f"{config['intOGen']['inputBucket']}/Compendium_Cancer_Genes.tsv"),
+        inputCohorts = GS.remote(f"{config['intOGen']['inputBucket']}/cohorts.tsv"),
+        diseaseMapping=config['intOGen']['diseaseMapping']
     output:
-        evidenceFile=f"tmp/crispr_evidence-{timeStamp}.csv",
-        descriptionsFile=f"tmp/crispr_descriptions-{timeStamp}.tsv",
-        cellTypesFile=f"tmp/crispr_cell_lines-{timeStamp}.tsv"
+        inputGenes = f"tmp/Compendium_Cancer_Genes-{timeStamp}.tsv",
+        inputCohorts = f"tmp/cohorts-{timeStamp}.tsv",
+        diseaseMapping=f"tmp/intogen_cancer2EFO_mappings-{timeStamp}.tsv"
+    conda:
+        'envs/conda-env.yml'
     log:
         GS.remote(logFile)
     shell:
         """
-        gsutil cp {input.evidenceFile} {output.evidenceFile}
-        gsutil cp {input.descriptionsFile} {output.descriptionsFile}
-        gsutil cp {input.cellTypesFile} {output.cellTypesFile}
+        gsutil cp {input.inputGenes} {output.inputGenes}
+        gsutil cp {input.inputCohorts} {output.inputCohorts}
+        gsutil cp {input.diseaseMapping} {output.diseaseMapping}
         """
-
-rule intogen:
-    input:
-        inputGenes = GS.remote(f"{config['intOGen']['inputBucket']}/Compendium_Cancer_Genes.tsv")
-        inputCohorts = GS.remote(f"{config['intOGen']['inputBucket']}/cohorts.tsv")
-        diseaseMapping = "resources/cancer2EFO_mappings.tsv"
-    output:
-        evidenceFile=GS.remote(f"{config['intOGen']['outputBucket']}/intogen-{timeStamp}.json.gz"),
-    log:
-        GS.remote(logFile)
-    shell:
-        """
-        python modules/IntOGen.py -g {input.inputGenes} -c {input.inputCohorts} -d {input.diseaseMapping} -o {output.evidenceFile}
-        """
-
-'''
