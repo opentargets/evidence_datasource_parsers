@@ -166,21 +166,23 @@ class PanelAppEvidenceGenerator():
     
         dataframe = (dataframe
                         .withColumn(
-                            # cohortPhenotypes --> original string
-                            "cohortPhenotypes",
-                            # NaNs and "No OMIM phenotype" in "Phenotypes" column --> Assignment of Pannel Name
+                            # NaNs and "No OMIM phenotype" in "Phenotypes" column --> Assignment of Panel Name
+                            "Phenotypes",
                             when(col("Phenotypes") == "No OMIM phenotype",
                                 col("Panel Name"))
                             .when(col("Phenotypes").isNull(),
                                 col("Panel Name"))
                             .otherwise(col("Phenotypes"))
                         )
+                        # cohortPhenotypes --> array of the original string separated by phenotypes 
+                        .withColumn(
+                            "cohortPhenotypes",                          
+                            split(col("Phenotypes"), ";")
+                        )
                         # phenotype --> explosion of cohortPhenotypes
                         .withColumn(
                             "phenotype",
-                            explode(
-                                split(col("cohortPhenotypes"), ";")
-                            )
+                            explode(col("cohortPhenotypes"))
                         )
                         # omimCode --> OMIM code present in "phenotype"
                         .withColumn("omimCode", regexp_extract(col("phenotype"), "(\d{6})", 1))
@@ -327,7 +329,7 @@ class PanelAppEvidenceGenerator():
                 "diseaseFromSource" : row["phenotype"],
                 "diseaseFromSourceId" : row["omimCode"],
                 "diseaseFromSourceMappedId" : row["ontomaUrl"].split("/")[-1], # if row["ontomaUrl"] else return
-                "cohortPhenotypes" : [row["cohortPhenotypes"]],
+                "cohortPhenotypes" : row["cohortPhenotypes"],
                 "targetFromSourceId" : row["Symbol"],
                 "allelicRequirements" : [row["Mode of inheritance"]],
                 "studyId" : row["Panel Id"],
