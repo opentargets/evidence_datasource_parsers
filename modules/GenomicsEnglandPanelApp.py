@@ -76,9 +76,13 @@ class PanelAppEvidenceGenerator():
             .collect() # list of dictionaries
         
         for evidence in evidences:
+            # Delete empty keys
             if skipMapping:
-                # Delete empty keys if mapping is skipped
                 del evidence["diseaseFromSourceMappedId"]
+            if not evidence["diseaseFromSourceId"]:
+                del evidence["diseaseFromSourceId"]
+            if len(evidence["literature"]) == 0:
+                del evidence["literature"]
 
         # WARNING! Given the explosion of phenotypes, it is necessary to remove redundant evidences
         #evidences = PanelAppEvidenceGenerator.removeRedundancies(evidences)
@@ -227,7 +231,7 @@ class PanelAppEvidenceGenerator():
         logging.info("Disease mappings have been checked.")
 
         # Add new columns: ontomaResult, ontomaUrl, ontomaLabel
-        phenotypesMappings = self.diseaseMappings # TO-DO: refactor this workaround to avoid SparkContext error
+        phenotypesMappings = self.diseaseMappings
         udfBuildMapping = udf(
             lambda X: PanelAppEvidenceGenerator.buildMapping(X, phenotypesMappings),
             ArrayType(StringType()))
@@ -280,7 +284,7 @@ class PanelAppEvidenceGenerator():
             phenotype (str): Phenotype of each phenotype-OMIM code pair
             omimCode (str): Code of each phenotype-OMIM code pair
         '''
-        try: # TO-DO: refactor this block
+        try:
             if phenotype == "":
                 return
             phenotypeResult = self.diseaseMappings[phenotype]
@@ -323,9 +327,9 @@ class PanelAppEvidenceGenerator():
                 "diseaseFromSource" : row["phenotype"],
                 "diseaseFromSourceId" : row["omimCode"],
                 "diseaseFromSourceMappedId" : row["ontomaUrl"].split("/")[-1], # if row["ontomaUrl"] else return
-                "cohortPhenotypes" : row["cohortPhenotypes"],
+                "cohortPhenotypes" : [row["cohortPhenotypes"]],
                 "targetFromSourceId" : row["Symbol"],
-                "allelicRequirements" : row["Mode of inheritance"],
+                "allelicRequirements" : [row["Mode of inheritance"]],
                 "studyId" : row["Panel Id"],
                 "studyOverview" : row["Panel Name"],
                 "literature" : row["publications"]
@@ -334,37 +338,6 @@ class PanelAppEvidenceGenerator():
         except Exception as e:
             logging.error(f'Evidence generation failed for row: {"row"}')
             raise
-    
-    '''
-    @staticmethod
-    def removeRedundancies(evidences):
-        # Parsing data from the evidences object
-        parsed_data = []
-
-        json_data = evidences.apply(lambda x: json.loads(x))
-        for evidence in json_data:
-            parsed_data.append({
-                'target': evidence['target']['id'],
-                'disease': evidence['disease']['id'],
-                'panel_id': evidence['unique_association_fields']['study_id'],
-                'phenotype': evidence['disease']['source_name'],
-                'json_data': evidence
-            })
-        panelapp_df = pd.DataFrame(parsed_data)  
-        
-        # Grouping to make the evidence unique: by target, disease and panel id
-        updated_evidences = []
-        for (target, disease, panel_id), group in panelapp_df.groupby(['target','disease','panel_id']):
-            # Extracting evidence data:
-            data = group["json_data"].tolist()[0]
-            # Update evidence:
-            source_phenotypes = group.phenotype.unique().tolist()
-            data['disease']['source_name'] = choice(source_phenotypes)
-            # Save evidence:
-            updated_evidences.append(data)
-
-        return updated_evidences
-    '''
 
 def main():
     # Initiating parser
