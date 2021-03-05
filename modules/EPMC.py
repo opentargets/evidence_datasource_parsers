@@ -126,8 +126,7 @@ def main():
 
         # Reorder columns:
         .select(["datasourceId", "datatypeId", "targetFromSource", "targetFromSourceId",
-                "diseaseFromSource","diseaseFromSourceMappedId","literature","textMiningSentences",
-                 "targetFromSource", "diseaseFromSource"])
+                "diseaseFromSource","diseaseFromSourceMappedId","literature","textMiningSentences"])
 
         # Save output:
         .write.format('json').mode('overwrite').option('compression', 'gzip').save(args.outputFile)
