@@ -103,9 +103,11 @@ def main():
         # Renaming columns:
         .withColumnRenamed("keywordId1", "targetFromSourceId")
         .withColumnRenamed("keywordId2", "diseaseFromSourceMappedId")
+        .withColumnRenamed("label1", "targetFromSource")
+        .withColumnRenamed("label2", "diseaseFromSource")
 
-        # collect sets of field values per window aggregation in w with keys partitionKeys
-        .withColumn('textMiningSentences', collect_set(
+            # collect sets of field values per window aggregation in w with keys partitionKeys
+        .withColumn('textMiningSentences', collect_list(
                 struct(
                     col("text"),
                     col('start1').alias('tStart'),
