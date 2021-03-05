@@ -107,7 +107,7 @@ def main():
         .withColumnRenamed("label2", "diseaseFromSource")
 
             # collect sets of field values per window aggregation in w with keys partitionKeys
-        .withColumn('textMiningSentences', collect_list(
+        .withColumn('textMiningSentences', collect_set(
                 struct(
                     col("text"),
                     col('start1').alias('tStart'),
