@@ -98,7 +98,7 @@ def main():
         spark.read.parquet(cooccurrenceFile)
 
         # Filtering for diases/target cooccurrences:
-        .filter((col('type') == "GP-DS") & (col('isMapped') == True))
+        .filter((col('type') == "GP-DS") & (col('isMapped') == True) & (col('pmid') != ""))
 
         # Renaming columns:
         .withColumnRenamed("keywordId1", "targetFromSourceId")
