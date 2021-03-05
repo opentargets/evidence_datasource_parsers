@@ -56,8 +56,8 @@ def main():
 
     if args.local:
         sparkConf = (SparkConf()
-                 .set("spark.driver.memory", "10g")
-                 .set("spark.executor.memory", "10g")
+                 .set("spark.driver.memory", "15g")
+                 .set("spark.executor.memory", "15g")
                  .set("spark.driver.maxResultSize", "0")
                  .set("spark.debug.maxToStringFields", "2000")
                  .set("spark.sql.execution.arrow.maxRecordsPerBatch", "500000")
@@ -113,14 +113,12 @@ def main():
                     col('start1').alias('tStart'),
                     col("end1").alias('tEnd'),
                     col('start2').alias('dStart'),
-                    col("end2").alias('dEnd'), 
+                    col("end2").alias('dEnd'),
                     col('section')
                 )).over(w)
             )
-        .withColumn("literature", collect_set(col('pmid')).over(w))
-        .withColumnRenamed("label1", "targetFromSource")
-        .withColumnRenamed("label2", "diseaseFromSource")
         .dropDuplicates(partitionKeys)
+        .withColumn("literature", array(col('pmid')))
 
         # Adding linteral columns:
         .withColumn('datasourceId',lit('europepmc'))
