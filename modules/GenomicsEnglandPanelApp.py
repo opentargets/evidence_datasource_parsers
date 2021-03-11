@@ -221,8 +221,8 @@ class PanelAppEvidenceGenerator():
                 self.diseaseMappings = pool.map(self.diseaseToEfo, phenotypesDistinct) # list of dictionaries
                 self.diseaseMappings = {k:v for dct in self.diseaseMappings for (k,v) in self.diseaseMappings.items()}
                 pool.close()
-            except Exception as e: # TODO: SPARK-5063 error. SparkContext
-                logging.error(f"An error occurred while multi threading: \n{e}")
+            except Exception as e:
+                logging.error(f"Processing the mappings without multithreading. An error occurred during the task: \n{e}.")
                 self.diseaseMappings = self.diseaseToEfo(*phenotypesDistinct)
         else:
             logging.info(f"Disease mappings have been imported from {self.diseaseMappings}.")
@@ -306,15 +306,9 @@ class PanelAppEvidenceGenerator():
             logging.error(f'No OMIM code for phenotype: {phenotype}')
     
     def buildMapping(phenotype, phenotypesMappings):
-
-        '''newSchema = self.dataframe.schema \
-                        .add("ontomaResult", StringType(), True) \
-                        .add("ontomaUrl", StringType(), True) \
-                        .add("ontomaLabel", StringType(), True)'''
-                        
         if phenotype in phenotypesMappings.keys():
             ontomaResult = phenotypesMappings[phenotype]["quality"]
-            ontomaUrl = phenotypesMappings[phenotype]["term"]
+            ontomaUrl = phenotypesMappings[phenotype]["term"].split("/")[-1]
             ontomaLabel = phenotypesMappings[phenotype]["label"]
 
             return ontomaResult, ontomaUrl, ontomaLabel # TO-DO: implement this https://stackoverflow.com/questions/42980704/pyspark-create-new-column-with-mapping-from-a-dict
@@ -328,7 +322,7 @@ class PanelAppEvidenceGenerator():
                 "confidence" : row["List"],
                 "diseaseFromSource" : row["phenotype"],
                 "diseaseFromSourceId" : row["omimCode"],
-                "diseaseFromSourceMappedId" : row["ontomaUrl"].split("/")[-1], # if row["ontomaUrl"] else return
+                "diseaseFromSourceMappedId" : row["ontomaUrl"],
                 "cohortPhenotypes" : row["cohortPhenotypes"],
                 "targetFromSourceId" : row["Symbol"],
                 "allelicRequirements" : [row["Mode of inheritance"]],
