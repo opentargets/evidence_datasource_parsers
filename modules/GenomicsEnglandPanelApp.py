@@ -15,11 +15,7 @@ from pyspark.sql.functions import *
 from pyspark.sql.types import *
 
 class PanelAppEvidenceGenerator():
-    def __init__(self, mappingsDict):
-        # Initialize mapping variables
-        self.diseaseMappings = mappingsDict
-        self.codesMappings = None
-
+    def __init__(self, phenotypesMappings):
         # Create OnToma object
         self.otmap = OnToma()
 
@@ -29,6 +25,10 @@ class PanelAppEvidenceGenerator():
                 .getOrCreate()
 
         self.dataframe = None
+        
+        # Initialize mapping variables
+        self.diseaseMappings = phenotypesMappings
+        self.codesMappings = None
 
     def writeEvidenceFromSource(self, inputFile, skipMapping):
         '''
@@ -225,9 +225,9 @@ class PanelAppEvidenceGenerator():
                 logging.error(f"Processing the mappings without multithreading. An error occurred during the task: \n{e}.")
                 self.diseaseMappings = self.diseaseToEfo(*phenotypesDistinct)
         else:
-            logging.info(f"Disease mappings have been imported from {self.diseaseMappings}.")
+            logging.info(f"Disease mappings have been imported.")
 
-        self.codesMappings = self.diseaseToEfo(*omimCodesDistinct)
+        self.codesMappings = self.diseaseToEfo(*omimCodesDistinct, dictExport="codesToEfo_results.json")
         for phenotype, code in phenotypeCodePairs:
             self.phenotypeCodePairCheck(phenotype, code)
         logging.info("Disease mappings have been checked.")
@@ -239,7 +239,12 @@ class PanelAppEvidenceGenerator():
             ArrayType(StringType()))
         self.dataframe = (self.dataframe
             .withColumn("ontomaResult", udfBuildMapping(col("phenotype"))[0])
-            .withColumn("ontomaUrl", udfBuildMapping(col("phenotype"))[1])
+            .withColumn("ontomaUrl",
+                split(
+                    udfBuildMapping(col("phenotype"))[1],
+                    "/")
+                .getItem(-1)
+            )
             .withColumn("ontomaLabel", udfBuildMapping(col("phenotype"))[1])
         )
 
@@ -308,7 +313,7 @@ class PanelAppEvidenceGenerator():
     def buildMapping(phenotype, phenotypesMappings):
         if phenotype in phenotypesMappings.keys():
             ontomaResult = phenotypesMappings[phenotype]["quality"]
-            ontomaUrl = phenotypesMappings[phenotype]["term"].split("/")[-1]
+            ontomaUrl = phenotypesMappings[phenotype]["term"]
             ontomaLabel = phenotypesMappings[phenotype]["label"]
 
             return ontomaResult, ontomaUrl, ontomaLabel # TO-DO: implement this https://stackoverflow.com/questions/42980704/pyspark-create-new-column-with-mapping-from-a-dict
@@ -370,16 +375,16 @@ def main():
     logging.info(f"Phenotypes mapped to EFO look-up file: {mappingsDict}")
     logging.info(f"Output file: {outputFile}")
 
-    # Initialize evidence builder object
-    evidenceBuilder = PanelAppEvidenceGenerator(mappingsDict)
-
     # Import dictionary if present
     if mappingsDict:
         with open(mappingsDict, "r") as f:
                 phenotypesMappings = json.load(f)
     else:
-        phenotypesMappings = {}
-    
+        phenotypesMappings = None
+
+    # Initialize evidence builder object
+    evidenceBuilder = PanelAppEvidenceGenerator(phenotypesMappings)
+
     # Writing evidence strings into a json file
     evidences = evidenceBuilder.writeEvidenceFromSource(inputFile, skipMapping)
 
