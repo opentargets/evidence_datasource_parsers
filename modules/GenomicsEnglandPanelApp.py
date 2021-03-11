@@ -176,8 +176,11 @@ class PanelAppEvidenceGenerator():
                         )
                         # cohortPhenotypes --> array of the original string separated by phenotypes 
                         .withColumn(
-                            "cohortPhenotypes",                          
-                            split(col("Phenotypes"), ";")
+                            "cohortPhenotypes",
+                            array_distinct(split(
+                                col("Phenotypes"),
+                                ";"
+                            ))   
                         )
                         # phenotype --> explosion of cohortPhenotypes
                         .withColumn(
