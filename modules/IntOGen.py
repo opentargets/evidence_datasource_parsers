@@ -104,7 +104,9 @@ class intogenEvidenceGenerator():
     def cancer2EFO(self, diseaseMapping):
         diseaseMappingsFile = (self.spark
                         .read.csv(diseaseMapping, sep=r'\t', header=True)
-                        .select("Cancer_type_acronym", "EFO_id"))
+                        .select("Cancer_type_acronym", "EFO_id")
+                        .withColumn("EFO_id", trim(col("EFO_id")))
+        )
 
         self.dataframe = self.dataframe.join(
             diseaseMappingsFile,
