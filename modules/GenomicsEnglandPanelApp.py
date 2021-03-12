@@ -13,6 +13,7 @@ from pyspark import SparkContext
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import *
 from pyspark.sql.types import *
+import time
 
 class PanelAppEvidenceGenerator():
     def __init__(self, phenotypesMappings):
@@ -192,7 +193,7 @@ class PanelAppEvidenceGenerator():
                         # removal of the OMIM code in "phenotype"
                         .withColumn("phenotype", regexp_replace(col("phenotype"), "(\d{6})", ""))
                         # deleting special characters in "phenotype"
-                        .withColumn("phenotype", regexp_replace(col("phenotype"), "[^0-9a-zA-Z *]", ""))
+                        .withColumn("phenotype", regexp_replace(col("phenotype"), "[^0-9a-zA-Z -]", ""))
                         .withColumn("phenotype", trim(col("phenotype")))
         )
 
@@ -231,9 +232,12 @@ class PanelAppEvidenceGenerator():
             logging.info(f"Disease mappings have been imported.")
 
         self.codesMappings = self.diseaseToEfo(*omimCodesDistinct, dictExport="codesToEfo_results.json")
+        tic = time.perf_counter()
         for phenotype, code in phenotypeCodePairs:
             self.phenotypeCodePairCheck(phenotype, code)
         logging.info("Disease mappings have been checked.")
+        toc = time.perf_counter()
+        print(f"Downloaded the tutorial in {toc - tic:0.4f} seconds")
 
         # Add new columns: ontomaResult, ontomaUrl, ontomaLabel
         phenotypesMappings = self.diseaseMappings
@@ -288,7 +292,8 @@ class PanelAppEvidenceGenerator():
 
     def phenotypeCodePairCheck(self, phenotype, omimCode):
         '''
-        Among the Fuzzy results of a phenotype query, it checks if the phenotype and the respective code points to the same EFO term
+        Among the Fuzzy results of a phenotype query, it checks if the phenotype and the respective code points
+        to the same EFO term and changes the dictionary with the mappings
 
         Args:
             phenotype (str): Phenotype of each phenotype-OMIM code pair
