@@ -214,9 +214,6 @@ class PanelAppEvidenceGenerator():
 
         omimCodesDistinct = list(self.dataframe.select("omimCode").distinct().toPandas()["omimCode"])
         phenotypesDistinct = list(self.dataframe.select("phenotype").distinct().toPandas()["phenotype"])
-        omimCodes = list(self.dataframe.toPandas()["omimCode"])
-        phenotypes = list(self.dataframe.toPandas()["phenotype"])
-        phenotypeCodePairs = list(zip(phenotypes, omimCodes))
 
         if self.diseaseMappings is None:
             # Checks whether the dictionary is not provided as a parameter
@@ -232,12 +229,9 @@ class PanelAppEvidenceGenerator():
             logging.info(f"Disease mappings have been imported.")
 
         self.codesMappings = self.diseaseToEfo(*omimCodesDistinct, dictExport="codesToEfo_results.json")
-        tic = time.perf_counter()
-        for phenotype, code in phenotypeCodePairs:
+        for i, (phenotype, code) in self.dataframe.select("omimCode", "phenotype").toPandas().drop_duplicates().iterrows():
             self.phenotypeCodePairCheck(phenotype, code)
         logging.info("Disease mappings have been checked.")
-        toc = time.perf_counter()
-        print(f"Downloaded the tutorial in {toc - tic:0.4f} seconds")
 
         # Add new columns: ontomaResult, ontomaUrl, ontomaLabel
         phenotypesMappings = self.diseaseMappings
