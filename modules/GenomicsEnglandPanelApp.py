@@ -241,10 +241,12 @@ class PanelAppEvidenceGenerator():
         self.dataframe = (self.dataframe
             .withColumn("ontomaResult", udfBuildMapping(col("phenotype"))[0])
             .withColumn("ontomaUrl",
-                split(
-                    udfBuildMapping(col("phenotype"))[1],
-                    "/")
-                .getItem(-1)
+                element_at(
+                    split(
+                        udfBuildMapping(col("phenotype"))[1],
+                        "/"),
+                    -1
+                )
             )
             .withColumn("ontomaLabel", udfBuildMapping(col("phenotype"))[1])
         )
