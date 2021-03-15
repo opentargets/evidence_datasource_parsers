@@ -70,11 +70,15 @@ class PanelAppEvidenceGenerator():
                 lit(None)
             )
 
-        # Build evidence strings per row
         logging.info("Generating evidence:")
-        evidences = self.dataframe.rdd.map(
-            PanelAppEvidenceGenerator.parseEvidenceString) \
-            .collect() # list of dictionaries
+        evidences = (self.dataframe
+                        # Removing redundant evidence after the explosion of phenotypes
+                        .dropDuplicates(["Panel Id", "Symbol", "ontomaUrl"])
+                        # Build evidence strings per row
+                        .rdd.map(
+                            PanelAppEvidenceGenerator.parseEvidenceString)
+                        .collect() # list of dictionaries
+        )
         
         for evidence in evidences:
             # Delete empty keys
@@ -84,9 +88,6 @@ class PanelAppEvidenceGenerator():
                 del evidence["diseaseFromSourceId"]
             if len(evidence["literature"]) == 0:
                 del evidence["literature"]
-
-        # WARNING! Given the explosion of phenotypes, it is necessary to remove redundant evidences
-        #evidences = PanelAppEvidenceGenerator.removeRedundancies(evidences)
 
         return evidences
 
