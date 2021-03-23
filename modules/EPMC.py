@@ -98,7 +98,7 @@ def main():
         spark.read.parquet(cooccurrenceFile)
 
         # Filtering for diases/target cooccurrences:
-        .filter((col('type') == "GP-DS") & (col('isMapped') == True) & (col('pmid') != ""))
+        .filter((col('type') == "GP-DS") & (col('isMapped') == True) & (col('pmid') != "") & (col('label1') != "("))
 
         # Renaming columns:
         .withColumnRenamed("keywordId1", "targetFromSourceId")
@@ -106,7 +106,7 @@ def main():
         .withColumnRenamed("label1", "targetFromSource")
         .withColumnRenamed("label2", "diseaseFromSource")
 
-            # collect sets of field values per window aggregation in w with keys partitionKeys
+        # collect sets of field values per window aggregation in w with keys partitionKeys
         .withColumn('textMiningSentences', collect_set(
                 struct(
                     col("text"),
@@ -117,15 +117,22 @@ def main():
                     col('section')
                 )).over(w)
             )
+
         .dropDuplicates(partitionKeys)
+
+        # Summarizing all scores then filter for evidence string with at least score == 2
+        .withColumn('resourceScore', sum(col('evidence_score')).over(w))
+        .filter(col('resourceScore') > 1) 
+
         .withColumn("literature", array(col('pmid')))
+
 
         # Adding linteral columns:
         .withColumn('datasourceId',lit('europepmc'))
         .withColumn('datatypeId',lit('literature'))
 
         # Reorder columns:
-        .select(["datasourceId", "datatypeId", "targetFromSource", "targetFromSourceId",
+        .select(["datasourceId", "datatypeId", "targetFromSource", "targetFromSourceId", "resourceScore",
                 "diseaseFromSource","diseaseFromSourceMappedId","literature","textMiningSentences"])
 
         # Save output:
