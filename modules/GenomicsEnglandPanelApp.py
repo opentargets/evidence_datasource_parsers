@@ -88,6 +88,8 @@ class PanelAppEvidenceGenerator():
                 del evidence["diseaseFromSourceId"]
             if len(evidence["literature"]) == 0:
                 del evidence["literature"]
+            if evidence["allelicRequirements"] == [None]:
+                del evidence["allelicRequirements"]
 
         return evidences
 
