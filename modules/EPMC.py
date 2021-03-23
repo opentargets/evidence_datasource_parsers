@@ -106,25 +106,32 @@ def main():
         .withColumnRenamed("label1", "targetFromSource")
         .withColumnRenamed("label2", "diseaseFromSource")
 
-        # collect sets of field values per window aggregation in w with keys partitionKeys
-        .withColumn('textMiningSentences', collect_set(
-                struct(
+        .withColumn('tmp',col('pmid'))
+
+        # Aggregating data by publication, target and disease:
+        .groupBy(['pmid', 'targetFromSourceId', 'diseaseFromSourceMappedId'])
+        .agg(
+            first(col("targetFromSource")).alias("targetFromSource"),
+            first(col("diseaseFromSource")).alias("diseaseFromSource"),
+            collect_set(col('tmp')).alias('literature'),
+            collect_set(
+                struct(  
                     col("text"),
                     col('start1').alias('tStart'),
                     col("end1").alias('tEnd'),
                     col('start2').alias('dStart'),
+                    col("end2").alias('dEnd'), 
                     col("end2").alias('dEnd'),
                     col('section')
-                )).over(w)
-            )
-
-        .dropDuplicates(partitionKeys)
+                )
+            ).alias('textMiningSentences'),
+            sum(col('evidence_score')).alias('resourceScore')
+        )
 
         # Summarizing all scores then filter for evidence string with at least score == 2
-        .withColumn('resourceScore', sum(col('evidence_score')).over(w))
+        # .withColumn('resourceScore', sum(col('evidence_score')).over(w))
+        # .withColumn('resourceScores', collect_list(col('evidence_score')).over(w))
         .filter(col('resourceScore') > 1) 
-
-        .withColumn("literature", array(col('pmid')))
 
 
         # Adding linteral columns:
@@ -132,7 +139,7 @@ def main():
         .withColumn('datatypeId',lit('literature'))
 
         # Reorder columns:
-        .select(["datasourceId", "datatypeId", "targetFromSource", "targetFromSourceId", "resourceScore",
+        .select(["datasourceId", "datatypeId", "targetFromSource", "targetFromSourceId", 'resourceScore',
                 "diseaseFromSource","diseaseFromSourceMappedId","literature","textMiningSentences"])
 
         # Save output:
