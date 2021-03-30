@@ -252,7 +252,7 @@ def main():
 
             col('y_proba_full_model').alias('resourceScore'),
             col('rsid').alias('variantRsId'),
-            concat_ws('_', col('chrom'),col('pos'),col('alt'),col('ref')).alias('variantId'),
+            concat_ws('_', col('chrom'),col('pos'),col('ref'),col('alt')).alias('variantId'),
             regexp_extract(col('consequence_link'), "\/(SO.+)$",1).alias('variantFunctionalConsequenceId')
         )
         .write.format('json').mode('overwrite').option("compression", "org.apache.hadoop.io.compress.GzipCodec")
