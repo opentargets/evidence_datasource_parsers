@@ -14,15 +14,15 @@ import re
 
 
 
-class IPMC_solr_parser(object):
+class IMPC_solr_parser(object):
     '''
-    This class retrieves data from the IPMC solr API.
+    This class retrieves data from the IMPC solr API.
     
     * Returns array of documents.
     * If target folder is specified, json files are saved into that folder.
     '''
     
-    ipmc_solr_host = 'http://www.ebi.ac.uk/mi/impc/solr/phenodigm/select'
+    impc_solr_host = 'http://www.ebi.ac.uk/mi/impc/solr/phenodigm/select'
 
     
     def __init__(self, target_folder, rows=20000, limit=None):
@@ -68,7 +68,7 @@ class IPMC_solr_parser(object):
         chunk = 0
         limit = None
 
-        logging.info(f'Retrieving data from IPMC solr: {self.ipmc_solr_host}')
+        logging.info(f'Retrieving data from IMPC solr: {self.impc_solr_host}')
         logging.info(f'Retrieving {self.rows} documents at a time.')
         logging.info(f'Specified data type: {data_type}')
             
@@ -118,7 +118,7 @@ class IPMC_solr_parser(object):
             params['fq'] = f'type:{data_type}'
             
         # Query
-        response = requests.get(self.ipmc_solr_host, params=params, timeout=30)
+        response = requests.get(self.impc_solr_host, params=params, timeout=30)
 
         # Check for erroneous HTTP response statuses
         response.raise_for_status()
@@ -142,7 +142,7 @@ def get_solr_data(target_folder):
                   'disease_gene_summary','disease','ontology_ontology','ontology']
 
     # Initialize impc solr object:
-    impc_solr_retriever = IPMC_solr_parser(target_folder=target_folder)
+    impc_solr_retriever = IMPC_solr_parser(target_folder=target_folder)
 
     # Looping through all 
     for data_type in data_types:
