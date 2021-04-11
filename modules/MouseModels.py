@@ -1,24 +1,28 @@
-import requests
+#!/usr/bin/env python3
+
 import argparse
+import collections
+import datetime
+import gzip
+import hashlib
+import json
 import logging
 import os
-import sys
-import json
-import gzip
 import re
-import hashlib
-import datetime
-import collections
+import sys
+
+import pyspark
+import requests
 from retry import retry
-from settings import Config
+
 from common.RareDiseasesUtils import RareDiseaseMapper
 from ontologyutils.rdf_utils import OntologyClassReader
-
 import opentargets.model.core as cttv
 import opentargets.model.bioentity as bioentity
 import opentargets.model.evidence.phenotype as evidence_phenotype
 import opentargets.model.evidence.core as evidence_core
 import opentargets.model.evidence.association_score as association_score
+from settings import Config
 
 
 class Phenodigm(RareDiseaseMapper):
