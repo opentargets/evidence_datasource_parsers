@@ -274,65 +274,29 @@ python modules/SLAPEnrich.py \
     --outputFile slapenrich-2021-01-18.json.gz
 ```
 
-
 ### PhenoDigm
 
 Generates target-disease evidence querying the IMPC SOLR API.
 
-#### System requirements and running time
 The PhenoDigm parser has been run both in a MacBook Pro and a Google Cloud machine. The current version is very memory greedy, using up to 60 GB. 
 
 * MacBook Pro: It takes around 8 hours to run in a 16 GB laptop.
 * Google Cloud Machine: It runs in around 2 hours in a 60 GB machine (_n1-standard-16_). There used to be such a machine set up but now one called _ag-ubuntu-20-04-lts_ in _open-targets-eu-dev_ can be used instead (see below). This machine has specs higher than needed (32 vCPU and 208 GB memory).
 
-#### Installation
-Before the parser can be run there is one dependency that needs to be installed manually:
-
 ```sh
-# Create and activate virtual environment (requires python3)
-virtualenv -p python3 phenodigm_venv
+# Prepare the virtual environment
+python3 -m venv phenodigm_venv
 source phenodigm_venv/bin/activate
-
-# Install dependencies
 pip3 install -r requirements.txt
+export PYTHONPATH=.
 
 # Manually download and install ontology-utils as it requires specific tag
 wget https://github.com/opentargets/ontology-utils/archive/bff0f189a4c6e8613e99a5d47e9ad4ceb6a375fc.zip
 pip3 install bff0f189a4c6e8613e99a5d47e9ad4ceb6a375fc.zip
 
-# Set environment variables
-export PYTHONPATH=.
+# Run
+python3 modules/MouseModels.py
 ```
-Additionally, the parser needs access to Google Cloud, which requires downloading a key JSON file and setting the `GOOGLE_APPLICATION_CREDENTIALS` variable. Ask someone from the back-end team about it.
-
-#### Running MouseModels in a Google Cloud virtual machine
-
-Start the machine and connect to it via SSH. When you are ready set-up the environment and run the parser:
-
-```sh
-# Move to installation directory
-cd opentargets/evidence_datasource_parsers/
-
-# Activate virtual environment
-. phenodigm_venv/bin/activate
-
-# Set up PYTHONPATH AND GOOGLE_APPLICATION_CREDENTIALS environment variables
-. phenodigm_venv/bin/set_env_variables.sh
-
-# Update cache
-# NOTE: This is only required once per release, i.e. is not needed if PhenoDigm is
-# rerun multiple times in a short period of time
-python3 modules/MouseModels.py --update-cache
-
-# Run PhenoDigm parser
-python3 modules/MouseModels.py 
-
-# Upload the evidence file to Google Cloud Storage
-python3 modules/MouseModels.py -w
-```
-**CAVEAT:** The last step (`-w`) tries to upload a file with the current date in the name, which may not work if the parser was run on another day, which would be the date on the filename.
-
-**REMINDER:** Remember to stop the machine once you are done as it costs money to have it on! 
 
 ### Open Targets Genetics Portal
 
