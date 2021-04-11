@@ -1,6 +1,4 @@
 import requests
-import collections
-from tqdm import tqdm
 import argparse
 import logging
 import os
@@ -13,9 +11,7 @@ import datetime
 import collections
 from retry import retry
 from settings import Config
-from common.Utils import TqdmLoggingHandler
 from common.RareDiseasesUtils import RareDiseaseMapper
-from common.GCSUtils import GCSBucketManager
 from ontologyutils.rdf_utils import OntologyClassReader
 
 import opentargets.model.core as cttv
@@ -25,9 +21,7 @@ import opentargets.model.evidence.core as evidence_core
 import opentargets.model.evidence.association_score as association_score
 
 
-
-
-class Phenodigm(RareDiseaseMapper, GCSBucketManager):
+class Phenodigm(RareDiseaseMapper):
 
     def __init__(self, logging):
 
@@ -79,22 +73,10 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
             if c>1:
                 a = line.rstrip().split("\t")
 
-    def load_mouse_genes(self):
-
-        raw = self.download_blob_as_string(filename=Config.MOUSEMODELS_CACHE_DIRECTORY + "/mmGenes.json")
-        self.mmGenes = json.loads(raw.decode("utf-8"))
-        self._logger.info("Loaded {0} mm genes".format(len(self.mmGenes)))
-
-    def load_human_genes(self):
-
-        raw = self.download_blob_as_string(filename=Config.MOUSEMODELS_CACHE_DIRECTORY + "/hsGenes.json")
-        self.hsGenes = json.loads(raw.decode("utf-8"))
-        self._logger.info("Loaded {0} hs genes".format(len(self.hsGenes)))
-
     def update_genes(self, docs=None):
 
         if docs:
-            
+
             for doc in docs:
                 if doc['type'] == 'gene':
                     if 'hgnc_gene_id' in doc:
@@ -113,20 +95,14 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
                                 self.mm_buffer = []
 
         else:
-            
+
             if len(self.hs_buffer) > 0:
                 self.request_genes(buffer=self.hs_buffer, default_species='homo_sapiens')
                 self.hs_buffer = []
-    
+
             if len(self.mm_buffer) > 0:
                 self.request_genes(buffer=self.mm_buffer, default_species='mus_musculus')
                 self.mm_buffer = []
-
-                self._logger.info("Upload to BLOB")
-            self.upload_blob_from_string(json.dumps(self.mmGenes, sort_keys=True, indent=2),
-                                         Config.MOUSEMODELS_CACHE_DIRECTORY + "/mmGenes.json")
-            self.upload_blob_from_string(json.dumps(self.hsGenes, sort_keys=True, indent=2),
-                                         Config.MOUSEMODELS_CACHE_DIRECTORY + "/hsGenes.json")
 
     def access_solr(self, mode='update_cache'):
 
@@ -222,7 +198,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
             sys.exit(1)
 
     def parse_phenodigm(self, docs=None):
-        
+
         if docs:
             for doc in docs:
                 '''
@@ -720,7 +696,7 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
         Args:
             evidenceString (dict): old PhenoDigm evidence string
         Returns:
-            dict: dictionary for the new evidence if all fields could be successfully mapped. 
+            dict: dictionary for the new evidence if all fields could be successfully mapped.
         '''
 
         # Converting evidence string from this weird object to a more managable dictionary:
@@ -765,18 +741,6 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
 
         self._logger.info("Exported %i evidence" % (countExported))
 
-
-    def write_to_cloud(self, filename):
-        # TODO: Take into account that filename at this step may not match the one saved because time stamp is automatic
-
-        # The name of the blob. This corresponds to the unique path of the object in the bucket.
-        # Uploading the file to otar000-evidence_input/PhenoDigm/json
-        blob = self.bucket.blob("PhenoDigm/json/" + filename)
-        with open(filename, 'rb') as my_file:
-            print("have opened " + filename)
-            blob.upload_from_file(my_file)
-
-
     def process_ontologies(self):
 
         self._logger.info("Load MP classes")
@@ -787,7 +751,6 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
 
         self._logger.info("Load EFO classes")
         self.efo.load_efo_classes()
-
 
     def get_ontology_mappings(self):
 
@@ -801,34 +764,17 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
         #self.omim_to_efo_map["OMIM:608049"] = ["http://www.ebi.ac.uk/efo/EFO_0003756"]
         #self.omim_to_efo_map["OMIM:300494"] = ["http://www.ebi.ac.uk/efo/EFO_0003757"]
 
-
-    def process_all(self, update_cache=False, write2cloud=False):
-
-        if update_cache == True:
-            self.access_solr(mode='update_cache')
-            return
-
-        elif write2cloud:
-            self._logger.info("Upload evidence file to {}/PhenoDigm/json in the {} Google Cloud project".format(Config.GOOGLE_BUCKET_EVIDENCE_INPUT, Config.GOOGLE_DEFAULT_PROJECT))
-            self.write_to_cloud(Config.MOUSEMODELS_EVIDENCE_FILENAME)
-            return
-
+    def process_all(self):
+        self.access_solr(mode='update_cache')
         self.process_ontologies()
         self.get_ontology_mappings()
 
-        self._logger.info("Load all mouse and human")
-        self.load_mouse_genes()
-
-        self.load_human_genes()
-
         self.access_solr(mode='parse_phenodigm')
-        self._logger.info("Build evidence")
+        self._logger.info('Build evidence')
         self.generate_phenodigm_evidence_strings()
 
-        self._logger.info("write evidence strings")
+        self._logger.info('Write evidence strings')
         self.write_evidence_strings(Config.MOUSEMODELS_EVIDENCE_FILENAME)
-
-        return
 
 
 def main(log_file):
@@ -843,7 +789,7 @@ def main(log_file):
     logging.basicConfig(**logging_config)
 
     # Process the data.
-    Phenodigm(logging).process_all(update_cache=args.update_cache, write2cloud=args.write2cloud)
+    Phenodigm(logging).process_all()
 
 
 if __name__ == '__main__':
