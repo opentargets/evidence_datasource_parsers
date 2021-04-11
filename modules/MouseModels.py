@@ -831,38 +831,23 @@ class Phenodigm(RareDiseaseMapper, GCSBucketManager):
         return
 
 
-def main():
+def main(log_file):
+    # Initialize logger based on the provided log file. If no log file is specified, logs are written to STDERR.
+    logging_config = {
+        'level': logging.INFO,
+        'format': '%(asctime)s %(levelname)s %(module)s - %(funcName)s: %(message)s',
+        'datefmt': '%Y-%m-%d %H:%M:%S',
+    }
+    if log_file:
+        logging_config['filename'] = log_file
+    logging.basicConfig(**logging_config)
 
-    parser = argparse.ArgumentParser(description='Evidence parser for animal models sources from PhenoDigm')
+    # Process the data.
+    Phenodigm(logging).process_all(update_cache=args.update_cache, write2cloud=args.write2cloud)
 
-    # Two of the flags are mutually exclusive:
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument("-u", '--update-cache', help='To use cached data instead of fetching from IUPMC solr', 
-        action="store_true", dest="update_cache", default=False)
-    group.add_argument("-w", '--write-evidence-to-cloud', help='If the file is expected ot be uploaded to the cloud right a way',
-        action="store_true", dest="write2cloud", default=False)
 
-    # log file is optional:
-    parser.add_argument("-l", '--logFile', help='Optional filename for logfile.', required=False)
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Evidence parser for animal models sources from PhenoDigm.')
+    parser.add_argument('-l', '--log-file', help='Optional filename to redirect the logs into.', required=False)
     args = parser.parse_args()
-
-    # Initialize logger:
-    # Initialize logger based on the provided logfile. 
-    # If no logfile is specified, logs are written to stderr 
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s %(levelname)s %(module)s - %(funcName)s: %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S',
-    )
-    if args.logFile:
-        logging.config.fileConfig(filename=args.logFile)
-    else:
-        logging.StreamHandler(sys.stderr)
-
-    ph = Phenodigm(logging)
-
-    #ph.process_ontologies()
-    ph.process_all(update_cache=args.update_cache, write2cloud=args.write2cloud)
-
-if __name__ == "__main__":
-    main()
+    main(args.log_file)
