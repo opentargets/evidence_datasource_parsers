@@ -8,6 +8,7 @@ import hashlib
 import json
 import logging
 import os
+import pathlib
 import re
 import tempfile
 import urllib.request
@@ -26,7 +27,61 @@ import opentargets.model.evidence.association_score as association_score
 from settings import Config
 
 HGNC_DATASET_URI = 'http://ftp.ebi.ac.uk/pub/databases/genenames/hgnc/tsv/hgnc_complete_set.txt'
+HGNC_DATASET_FILENAME = os.path.split(HGNC_DATASET_URI)[-1]
 MGI_DATASET_URI = 'http://www.informatics.jax.org/downloads/reports/MGI_Gene_Model_Coord.rpt'
+MGI_DATASET_FILENAME = os.path.split(MGI_DATASET_URI)[-1]
+
+IMPC_SOLR_HOST = 'http://www.ebi.ac.uk/mi/impc/solr/phenodigm/select'
+IMPC_SOLR_DATA_TYPES = ('gene', 'gene_gene', 'mouse_model', 'disease_model_summary', 'disease_gene_summary', 'disease',
+                        'ontology_ontology', 'ontology')
+IMPC_FILENAME_FORMAT = '{cache_dir}/impc_solr_{data_type}.json'
+
+
+class ImpcSolrRetriever:
+    """Retrieves data from the IMPC SOLR API and saves JSONs to the specified location."""
+
+    def __init__(self, solr_host, timeout, rows):
+        """Initialise query parameters.
+
+        Args:
+            solr_host (str): SOLR endpoint to make the requests against.
+            timeout (int): Timeout to apply to the requests, in seconds.
+            rows (int): Number of SOLR documents returned in a single batch."""
+        self.solr_host = solr_host
+        self.timeout = timeout
+        self.rows = rows
+
+    # The @retry decorator ensures that the requests are retried in case of network or server error.
+    @retry(tries=3, delay=5, backoff=1.2, jitter=(1, 3))
+    def query_solr(self, data_type, start):
+        """Returns one batch of the SOLR documents of the specified data type."""
+        params = {'q': '*:*', 'fq': f'type:{data_type}', 'start': start, 'rows': self.rows}
+        response = requests.get(self.solr_host, params=params, timeout=self.timeout)
+        # Check for HTTP errors
+        response.raise_for_status()
+        return response.json()
+
+    def fetch_data(self, data_type, output_filename):
+        """Fetch all data of the requested type to the specified location."""
+        output_file = open(output_filename, 'wt')
+        # Initialise the counters.
+        start, total = 0, 0
+        while True:
+            solr_data = self.query_solr(start, data_type)
+            # If we don't find any items, we break.
+            if solr_data['response']['numFound'] == 0:
+                break
+            # Write data to file.
+            for doc in solr_data['response']['docs']:
+                json.dump(doc, output_file)
+                output_file.write('\n')
+            # Increment the counters.
+            start += self.rows
+            total += len(solr_data['response']['docs'])
+            # Exit if all documents have been retrieved.
+            if total == solr_data['response']['numFound']:
+                break
+        output_file.close()
 
 
 class Phenodigm(RareDiseaseMapper):
@@ -53,6 +108,23 @@ class Phenodigm(RareDiseaseMapper):
         self.diseases = collections.OrderedDict()
         self.hashkeys = collections.OrderedDict()
         self._logger = logging
+
+    def update_cache(self, cache_dir):
+        """Fetch the Ensembl gene ID and SOLR data into the local cache directory."""
+        pathlib.Path(cache_dir).mkdir(parents=False, exist_ok=True)
+
+        self._logger.info('Fetching human gene ID mappings from HGNC.')
+        urllib.request.urlretrieve(HGNC_DATASET_URI, HGNC_DATASET_FILENAME)
+
+        self._logger.info('Fetching mouse gene ID mappings from MGI.')
+        urllib.request.urlretrieve(MGI_DATASET_URI, MGI_DATASET_FILENAME)
+
+        self._logger.info('Fetching Phenodigm data from IMPC SOLR.')
+        impc_solr_retriever = ImpcSolrRetriever(solr_host=IMPC_SOLR_HOST, timeout=600, rows=50000)
+        for data_type in IMPC_SOLR_DATA_TYPES:
+            self._logger.info(f'Fetching Phenodigm data type {data_type}.')
+            filename = IMPC_FILENAME_FORMAT.format(cache_dir=cache_dir, data_type=data_type)
+            impc_solr_retriever.fetch_data(data_type, filename)
 
     def fetch_human_ensembl_mappings(self):
         """Loads HGNC ID → Ensembl gene ID mappings from the HGNC database."""
