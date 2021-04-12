@@ -10,6 +10,8 @@ import logging
 import os
 import re
 import sys
+import tempfile
+import urllib.request
 
 import pyspark
 import requests
@@ -23,6 +25,9 @@ import opentargets.model.evidence.phenotype as evidence_phenotype
 import opentargets.model.evidence.core as evidence_core
 import opentargets.model.evidence.association_score as association_score
 from settings import Config
+
+HGNC_DATASET_URI = 'http://ftp.ebi.ac.uk/pub/databases/genenames/hgnc/tsv/hgnc_complete_set.txt'
+MGI_DATASET_URI = 'http://www.informatics.jax.org/downloads/reports/MGI_Gene_Model_Coord.rpt'
 
 
 class Phenodigm(RareDiseaseMapper):
@@ -52,30 +57,21 @@ class Phenodigm(RareDiseaseMapper):
         self.hashkeys = collections.OrderedDict()
         self._logger = logging
 
+        self.spark = pyspark.sql.SparkSession.builder.appName('phenodigm_parser').getOrCreate()
 
-    def list_files(self, path):
-        '''
-        returns a list of names (with extension, without full path) of all files
-        in folder path
-        '''
-        files = []
-        for name in os.listdir(path):
-            if os.path.isfile(os.path.join(path, name)) and re.match("part[0-9]+", name):
-                files.append(os.path.join(path, name))
-        return files
+    def fetch_human_ensembl_mappings(self):
+        """Loads HGNC ID → Ensembl gene ID mappings from the HGNC database."""
+        # Fetch the TSV into a temporary file
+        tmp_file = tempfile.NamedTemporaryFile(delete=False)
+        urllib.request.urlretrieve(HGNC_DATASET_URI, tmp_file.name)
+        # Load into Spark
+        human_genes = self.spark.read.csv(tmp_file.name, sep='\t', header=True).select('hgnc_id', 'ensembl_gene_id')
+        self.hsGenes = {r.hgnc_id: r.ensembl_gene_id for r in human_genes.collect()}
+        os.remove(tmp_file.name)
 
-    def load_mouse_marker_genes(self):
-
-        #http://www.informatics.jax.org/downloads/reports/MRK_List2.rpt
-        uri = 'http://www.informatics.jax.org/downloads/reports/MRK_List2.rpt'
-        r = requests.get(url, timeout=30)
-        self._logger.info("REQUEST %s" % (r.url))
-        rsp = r.text
-        c = 0
-        for line in rsp:
-            c+=1
-            if c>1:
-                a = line.rstrip().split("\t")
+    def fetch_mouse_ensembl_mappings(self):
+        """Loads MGI ID → Ensembl gene ID mappings from the MGI database."""
+        self.mmGenes = None
 
     def update_genes(self, docs=None):
 
@@ -769,6 +765,10 @@ class Phenodigm(RareDiseaseMapper):
         #self.omim_to_efo_map["OMIM:300494"] = ["http://www.ebi.ac.uk/efo/EFO_0003757"]
 
     def process_all(self):
+        self._logger.info('Fetch Ensembl gene ID mappings for human and mouse.')
+        self.fetch_human_ensembl_mappings()
+        self.fetch_mouse_ensembl_mappings()
+
         self.access_solr(mode='update_cache')
         self.process_ontologies()
         self.get_ontology_mappings()
