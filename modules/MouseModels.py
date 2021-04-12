@@ -61,17 +61,31 @@ class Phenodigm(RareDiseaseMapper):
 
     def fetch_human_ensembl_mappings(self):
         """Loads HGNC ID → Ensembl gene ID mappings from the HGNC database."""
-        # Fetch the TSV into a temporary file
+        # TODO: possibly unify fetching via temp file
         tmp_file = tempfile.NamedTemporaryFile(delete=False)
         urllib.request.urlretrieve(HGNC_DATASET_URI, tmp_file.name)
-        # Load into Spark
-        human_genes = self.spark.read.csv(tmp_file.name, sep='\t', header=True).select('hgnc_id', 'ensembl_gene_id')
+        human_genes = (
+            self.spark.read.csv(tmp_file.name, sep='\t', header=True)
+                .select('hgnc_id', 'ensembl_gene_id')
+        )
+        # TODO: use the Spark dataframe directly for joins
         self.hsGenes = {r.hgnc_id: r.ensembl_gene_id for r in human_genes.collect()}
         os.remove(tmp_file.name)
 
     def fetch_mouse_ensembl_mappings(self):
         """Loads MGI ID → Ensembl gene ID mappings from the MGI database."""
-        self.mmGenes = None
+        # TODO: possibly unify fetching via temp file
+        tmp_file = tempfile.NamedTemporaryFile(delete=False)
+        urllib.request.urlretrieve(MGI_DATASET_URI, tmp_file.name)
+        mouse_genes = (
+            self.spark.read.csv(tmp_file.name, sep='\t', header=True)
+                .withColumnRenamed('1. MGI accession id', 'mgi_id')
+                .withColumnRenamed('11. Ensembl gene id', 'ensembl_gene_id')
+                .select('mgi_id', 'ensembl_gene_id')
+        )
+        # TODO: use the Spark dataframe directly for joins
+        self.mmGenes = {r.mgi_id: r.ensembl_gene_id for r in mouse_genes.collect()}
+        os.remove(tmp_file.name)
 
     def update_genes(self, docs=None):
 
