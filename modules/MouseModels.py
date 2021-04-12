@@ -10,10 +10,10 @@ import logging
 import os
 import pathlib
 import re
-import tempfile
 import urllib.request
 
 import pyspark
+import pyspark.sql.functions
 import requests
 from retry import retry
 
@@ -34,7 +34,7 @@ MGI_DATASET_FILENAME = os.path.split(MGI_DATASET_URI)[-1]
 IMPC_SOLR_HOST = 'http://www.ebi.ac.uk/mi/impc/solr/phenodigm/select'
 IMPC_SOLR_DATA_TYPES = ('gene', 'gene_gene', 'mouse_model', 'disease_model_summary', 'disease_gene_summary', 'disease',
                         'ontology_ontology', 'ontology')
-IMPC_FILENAME_FORMAT = '{cache_dir}/impc_solr_{data_type}.json'
+IMPC_FILENAME = 'impc_solr_{data_type}.json'
 
 
 class ImpcSolrRetriever:
@@ -67,7 +67,7 @@ class ImpcSolrRetriever:
         # Initialise the counters.
         start, total = 0, 0
         while True:
-            solr_data = self.query_solr(start, data_type)
+            solr_data = self.query_solr(data_type, start)
             # If we don't find any items, we break.
             if solr_data['response']['numFound'] == 0:
                 break
@@ -84,29 +84,19 @@ class ImpcSolrRetriever:
         output_file.close()
 
 
-class Phenodigm(RareDiseaseMapper):
+class PhenoDigm(RareDiseaseMapper):
 
     def __init__(self, logging):
-        super(Phenodigm, self).__init__()
+        super(PhenoDigm, self).__init__()
         self.spark = pyspark.sql.SparkSession.builder.appName('phenodigm_parser').getOrCreate()
+        self.hgnc_id_to_ensembl_id, self.mgi_id_to_ensembl_id = None, None
+        self.disease_model_summary = None
+        self.evidence = None
         self.efo = OntologyClassReader()
         self.hpo = OntologyClassReader()
         self.mp = OntologyClassReader()
         self.cache = collections.OrderedDict()
         self.counter = 0
-        self.mmGenes = None
-        self.hsGenes = None
-        self.hgnc2mgis = collections.OrderedDict()
-        self.mgi2symbols = collections.OrderedDict()
-        self.symbol2hgncids = collections.OrderedDict()
-        self.mgi2mouse_models = collections.OrderedDict()
-        self.mouse_model2diseases = collections.OrderedDict()
-        self.disease_gene_locus = collections.OrderedDict()
-        self.ontology = collections.OrderedDict()
-        self.ontology_ontology = collections.OrderedDict()
-        self.mouse_models = collections.OrderedDict()
-        self.diseases = collections.OrderedDict()
-        self.hashkeys = collections.OrderedDict()
         self._logger = logging
 
     def update_cache(self, cache_dir):
@@ -114,215 +104,68 @@ class Phenodigm(RareDiseaseMapper):
         pathlib.Path(cache_dir).mkdir(parents=False, exist_ok=True)
 
         self._logger.info('Fetching human gene ID mappings from HGNC.')
-        urllib.request.urlretrieve(HGNC_DATASET_URI, HGNC_DATASET_FILENAME)
+        urllib.request.urlretrieve(HGNC_DATASET_URI, os.path.join(cache_dir, HGNC_DATASET_FILENAME))
 
         self._logger.info('Fetching mouse gene ID mappings from MGI.')
-        urllib.request.urlretrieve(MGI_DATASET_URI, MGI_DATASET_FILENAME)
+        urllib.request.urlretrieve(MGI_DATASET_URI, os.path.join(cache_dir, MGI_DATASET_FILENAME))
 
         self._logger.info('Fetching Phenodigm data from IMPC SOLR.')
         impc_solr_retriever = ImpcSolrRetriever(solr_host=IMPC_SOLR_HOST, timeout=600, rows=50000)
         for data_type in IMPC_SOLR_DATA_TYPES:
             self._logger.info(f'Fetching Phenodigm data type {data_type}.')
-            filename = IMPC_FILENAME_FORMAT.format(cache_dir=cache_dir, data_type=data_type)
+            filename = os.path.join(cache_dir, IMPC_FILENAME.format(data_type=data_type))
             impc_solr_retriever.fetch_data(data_type, filename)
 
-    def fetch_human_ensembl_mappings(self):
-        """Loads HGNC ID → Ensembl gene ID mappings from the HGNC database."""
-        # TODO: possibly unify fetching via temp file
-        tmp_file = tempfile.NamedTemporaryFile(delete=False)
-        urllib.request.urlretrieve(HGNC_DATASET_URI, tmp_file.name)
-        human_genes = (
-            self.spark.read.csv(tmp_file.name, sep='\t', header=True)
+    def load_data_from_cache(self, cache_dir):
+        """Load the Ensembl gene ID and SOLR data from the downloaded files into Spark."""
+        self.hgnc_id_to_ensembl_id = (
+            self.spark.read.csv(os.path.join(cache_dir, HGNC_DATASET_FILENAME), sep='\t', header=True)
                 .select('hgnc_id', 'ensembl_gene_id')
+            .withColumnRenamed('ensembl_gene_id', 'ensembl_human_gene_id')
         )
-        # TODO: use the Spark dataframe directly for joins
-        self.hsGenes = {r.hgnc_id: r.ensembl_gene_id for r in human_genes.collect()}
-        os.remove(tmp_file.name)
-
-    def fetch_mouse_ensembl_mappings(self):
-        """Loads MGI ID → Ensembl gene ID mappings from the MGI database."""
-        # TODO: possibly unify fetching via temp file
-        tmp_file = tempfile.NamedTemporaryFile(delete=False)
-        urllib.request.urlretrieve(MGI_DATASET_URI, tmp_file.name)
-        mouse_genes = (
-            self.spark.read.csv(tmp_file.name, sep='\t', header=True)
+        self.mgi_id_to_ensembl_id = (
+            self.spark.read.csv(os.path.join(cache_dir, MGI_DATASET_FILENAME), sep='\t', header=True)
                 .withColumnRenamed('1. MGI accession id', 'mgi_id')
-                .withColumnRenamed('11. Ensembl gene id', 'ensembl_gene_id')
-                .select('mgi_id', 'ensembl_gene_id')
+                .withColumnRenamed('11. Ensembl gene id', 'ensembl_mouse_gene_id')
+                .select('mgi_id', 'ensembl_mouse_gene_id')
         )
-        # TODO: use the Spark dataframe directly for joins
-        self.mmGenes = {r.mgi_id: r.ensembl_gene_id for r in mouse_genes.collect()}
-        os.remove(tmp_file.name)
+        self.disease_model_summary = (
+            self.spark.read.json(os.path.join(cache_dir, IMPC_FILENAME.format(data_type='disease_model_summary')))
+                .select('model_id', 'model_genetic_background', 'model_description', 'disease_id', 'disease_term',
+                        'disease_model_max_norm')
+                .limit(100)
+        )
 
-    def access_solr(self):
+    def generate_phenodigm_evidence_strings(self):
+        self.evidence = (
+            self.disease_model_summary
 
-        start = 0
-        rows = 20000
-        counter = 0
-        total = 0
-        numFound = 1
+            # Rename some columns
+            .withColumnRenamed('disease_id', 'diseaseFromSourceId')
+            .withColumnRenamed('disease_term', 'diseaseFromSource')
+            .withColumnRenamed('model_description', 'biologicalModelAllelicComposition')
+            .withColumnRenamed('model_genetic_background', 'biologicalModelGeneticBackground')
 
-        while (total < numFound):
-            counter += 1
-            self._logger.info(start)
+            # Strip trailing modifiers from the model ID
+            # For example: MGI:6274930#hom#early → MGI:6274930
+            .withColumn(
+                'biologicalModelId',
+                pyspark.sql.functions.split(pyspark.sql.functions.col('model_id'), '#').getItem(0)
+            )
 
-            rsp = self.query_solr(counter, start, rows)
+            # Convert the percentage score into fraction
+            .withColumn('resourceScore', pyspark.sql.functions.col('disease_model_max_norm') / 100.0)
 
-            numFound = rsp['response']['numFound']
-            self._logger.info("NumFound %i"%(numFound))
-            nbItems = len(rsp['response']['docs'])
-            total += nbItems
-            self._logger.info("Number of items: %i" % (nbItems))
+            # Remove intermediate columns
+            .drop('disease_model_max_norm', 'model_id')
 
-            self.parse_phenodigm(docs=rsp['response']['docs'])
+            # Add constant value columns
+            .withColumn('datasourceId', pyspark.sql.functions.lit('phenodigm'))
+            .withColumn('datatypeId', pyspark.sql.functions.lit('animal_model'))
+        )
 
-            start += nbItems
+        return
 
-    # Use @retry decorator to ensure that errors like the query failing because server was overloaded, are handled
-    # correctly and the request is retried
-    @retry(tries=3, delay=5, backoff=1.2, jitter=(1, 3))
-    def query_solr(self, counter, start, rows):
-        '''
-        Queries IMPC solr API
-
-        :param url: Query
-        :return: Dictionary with response
-        '''
-
-        # SOLR base URL
-        url = Config.MOUSEMODELS_PHENODIGM_SOLR + '/solr/phenodigm/select'
-
-        # Full URI for printing
-        uri = url + '?q=*:*&wt=json&indent=true&start=%i&rows=%i' % (start, rows)
-
-        # Params for querying
-        params = dict(q="*", wt="json", indent="true", start="%i" % start, rows="%i" % rows)
-        self._logger.info("REQUEST {0}. {1}".format(counter, uri))
-
-        # Query
-        r = requests.get(url, params=params, timeout=30)
-        self._logger.info("REQUEST %s" % (r.url))
-
-        # Check for erroneous HTTP response statuses
-        r.raise_for_status()
-        rsp = r.json()
-        return rsp
-
-    def parse_phenodigm(self, docs=None):
-
-        if docs:
-            for doc in docs:
-                '''
-                1. Load all gene documents
-                2. Load all mouse models of diseases.
-                . Load all ontology mapping
-                '''
-                try:
-                    if doc['type'] == 'gene':
-                        # this is a human gene
-                        if 'hgnc_gene_id' in doc:
-                            hgnc_gene_id = doc['hgnc_gene_id']
-                            hgnc_gene_symbol = doc['hgnc_gene_symbol']
-                            self.symbol2hgncids[hgnc_gene_symbol] = hgnc_gene_id
-                        elif 'gene_id' in doc:
-                            gene_id = doc['gene_id']
-                            gene_symbol = doc['gene_symbol']
-                            self.mgi2symbols[gene_id] = gene_symbol
-                            # this is a mouse gene
-                    elif doc['type'] == 'gene_gene':
-                        # gene_id # hgnc_gene_id
-                        hgnc_gene_id = doc['hgnc_gene_id']
-                        gene_id = doc['gene_id']
-                        if hgnc_gene_id and not hgnc_gene_id in self.hgnc2mgis:
-                            self.hgnc2mgis[hgnc_gene_id] = []
-                        self.hgnc2mgis[hgnc_gene_id].append(gene_id)
-                    elif doc['type'] == 'mouse_model':
-                        marker_symbol = doc['marker_symbol']
-                        marker_id = doc['marker_id']
-                        model_id = doc['model_id']
-
-                        # if there is a mouse model then add the marker id
-                        if marker_id not in self.mgi2symbols:
-                            self.mgi2symbols[marker_id] = marker_symbol
-
-                        if not marker_symbol in self.mgi2mouse_models:
-                            self.mgi2mouse_models[marker_symbol] = []
-                        self.mgi2mouse_models[marker_symbol].append(model_id)
-
-                        if not model_id in self.mouse_models:
-                            self.mouse_models[model_id] = doc
-
-                            model_phenotypes = []
-                            for raw_mp in doc['model_phenotypes']:
-                                mt = re.match("^(MP\:\d+)\s+", raw_mp)
-                                if mt:
-                                    mp_id = mt.groups()[0]
-                                    model_phenotypes.append(mp_id)
-                            self.mouse_models[model_id]['model_phenotypes'] = model_phenotypes
-                    elif doc['type'] == 'disease_model_summary':
-                        model_id = doc['model_id']
-                        if not model_id in self.mouse_model2diseases:
-                            self.mouse_model2diseases[model_id] = []
-                        self.mouse_model2diseases[model_id].append(doc)
-                    elif doc['type'] == 'disease_gene_summary' and 'marker_symbol' in doc and 'hgnc_gene_locus' in doc and 'disease_id' in doc:
-                        hgnc_gene_id = doc['hgnc_gene_id']
-                        hgnc_gene_symbol = doc['hgnc_gene_symbol']
-                        marker_symbol = doc['marker_symbol']
-                        try:
-                            disease_id = doc['disease_id']
-                            #if 'disease_id' in doc:
-                            #    raise KeyError()
-                        except Exception as error:
-
-                            if isinstance(error, KeyError):
-                                self._logger.error("Error checking disease in document: %s" % (str(error)))
-                                self._logger.error(json.dumps(doc, indent=4))
-                                raise Exception()
-                        if not disease_id in self.disease_gene_locus:
-                            self.disease_gene_locus[disease_id] = { hgnc_gene_id: [ marker_symbol ] }
-                        elif not hgnc_gene_id in self.disease_gene_locus[disease_id]:
-                            self.disease_gene_locus[disease_id][hgnc_gene_id] = [ marker_symbol ]
-                        else:
-                            self.disease_gene_locus[disease_id][hgnc_gene_id].append(marker_symbol)
-                    elif doc['type'] == 'disease' or (doc['type'] == 'disease_gene_summary' and 'disease_id' in doc and not doc['disease_id'] in self.diseases):
-                        '''and doc['disease_id'].startswith('ORPHANET')):'''
-                        disease_phenotypes = []
-                        if 'disease_phenotypes' in doc:
-                            raw_disease_phenotypes = doc['disease_phenotypes']
-                            for raw_phenotype in raw_disease_phenotypes:
-                                mt = re.match("^(HP\:\d+)\s+", raw_phenotype)
-                                hp_id = mt.groups()[0]
-                                disease_phenotypes.append(hp_id)
-                        disease_id = doc['disease_id']
-                        self.diseases[disease_id] = doc
-                        self.diseases[disease_id]['disease_phenotypes'] = disease_phenotypes
-
-                        #matchOMIM = re.match("^OMIM:(.+)$", disease_id)
-                        #if matchOMIM:
-                        #    terms = efo.getTermsByDbXref(disease_id)
-                        #    if terms == None:
-                        #        terms = OMIMmap[disease_id]
-                        #    if terms == None:
-                        #        self._logger.error("{0} '{1}' not in EFO".format(disease_id, doc['disease_term']))
-                    #else:
-                    #    self._logger.error("Never heard of this '%s' type of documents in PhenoDigm. Exiting..."%(doc['type']))
-                    #    sys.exit(1)
-                    elif doc['type'] == 'ontology_ontology':
-                        if doc['mp_id'] not in self.ontology_ontology:
-                            self.ontology_ontology[doc['mp_id']] = []
-                        self.ontology_ontology[doc['mp_id']].append(doc)
-                    elif doc['type'] == 'ontology':
-                        self.ontology[doc['phenotype_id']] = doc
-                except KeyError as ke:
-                    self._logger.error("KeyError \n", ke)
-                    self._logger.error(json.dumps(doc))
-                    break
-
-    def generate_phenodigm_evidence_strings(self, upper_limit=0):
-        '''
-         Once you have retrieved all the genes,and mouse models
-         Create an evidence string for every gene to disease relationship
-        '''
         now = datetime.datetime.now()
         efoMapping = collections.OrderedDict()
         index_g = 0
@@ -729,6 +572,9 @@ class Phenodigm(RareDiseaseMapper):
             return None
 
     def write_evidence_strings(self, filename):
+        self.evidence.write.format('json').save(filename)
+
+        return
 
         countExported = 0
         self._logger.info("Writing Phenodigm evidence strings")
@@ -748,21 +594,17 @@ class Phenodigm(RareDiseaseMapper):
         self._logger.info("Exported %i evidence" % (countExported))
 
     def process_ontologies(self):
-
-        self._logger.info("Load MP classes")
+        self._logger.info('Load MP classes.')
         self.mp.load_mp_classes()
-
-        self._logger.info("Load HP classes")
+        self._logger.info('Load HP classes.')
         self.hpo.load_hpo_classes()
-
-        self._logger.info("Load EFO classes")
+        self._logger.info('Load EFO classes.')
         self.efo.load_efo_classes()
 
     def get_ontology_mappings(self):
-
-        self._logger.info("Get ontology mappings")
+        self._logger.info('Get ontology mappings.')
         self.get_omim_to_efo_mappings()
-        self._logger.info("Get all Zooma mapping for Open Targets")
+        self._logger.info('Get all ZOOMA mappings for Open Targets.')
         self.get_opentargets_zooma_to_efo_mappings()
         #self.omim_to_efo_map["OMIM:191390"] = ["http://www.ebi.ac.uk/efo/EFO_0003767"]
         #self.omim_to_efo_map["OMIM:266600"] = ["http://www.ebi.ac.uk/efo/EFO_0003767"]
@@ -770,37 +612,29 @@ class Phenodigm(RareDiseaseMapper):
         #self.omim_to_efo_map["OMIM:608049"] = ["http://www.ebi.ac.uk/efo/EFO_0003756"]
         #self.omim_to_efo_map["OMIM:300494"] = ["http://www.ebi.ac.uk/efo/EFO_0003757"]
 
-    def process_all(self, cache_dir, use_cached):
-
+    def process_all(self, cache_dir, output, use_cached):
         if not use_cached:
             self._logger.info('Update the gene mapping and SOLR cache')
             self.update_cache(cache_dir)
 
         self._logger.info('Load gene mappings and SOLR data from local cache')
-        # TODO
+        self.load_data_from_cache(cache_dir)
+
+        self._logger.info('Build evidence strings.')
+        self.generate_phenodigm_evidence_strings()
+
+        self._logger.info('Write evidence strings.')
+        self.write_evidence_strings(output)
+
         return
 
-        self._logger.info('1. Fetch Ensembl gene ID mappings for human.')
-        self.fetch_human_ensembl_mappings()
-
-        self._logger.info('2. Fetch Ensembl gene ID mappings for mouse.')
-        self.fetch_mouse_ensembl_mappings()
-
-        self._logger.info('3. Process ontologies.')
+        # TODO move higher; is this required under the new approach?
+        self._logger.info('Process ontologies.')
         self.process_ontologies()
         self.get_ontology_mappings()
 
-        self._logger.info('4. Fetch information from IMPC SOLR.')
-        self.access_solr()
 
-        self._logger.info('5. Build evidence')
-        self.generate_phenodigm_evidence_strings()
-
-        self._logger.info('6. Write evidence strings')
-        self.write_evidence_strings(Config.MOUSEMODELS_EVIDENCE_FILENAME)
-
-
-def main(cache_dir, use_cached=False, log_file=None):
+def main(cache_dir, output, use_cached=False, log_file=None):
     # Initialize logger based on the provided log file. If no log file is specified, logs are written to STDERR.
     logging_config = {
         'level': logging.INFO,
@@ -812,13 +646,14 @@ def main(cache_dir, use_cached=False, log_file=None):
     logging.basicConfig(**logging_config)
 
     # Process the data.
-    Phenodigm(logging).process_all(cache_dir, use_cached)
+    PhenoDigm(logging).process_all(cache_dir, output, use_cached)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Evidence parser for animal models sources from PhenoDigm.')
-    parser.add_argument('--cache-dir', help='Directory to store intermediate cache files in', required=True)
-    parser.add_argument('--use-cached', help='Use existing downloaded cache', action='store_true')
+    parser.add_argument('--cache-dir', help='Directory to store intermediate cache files in.', required=True)
+    parser.add_argument('--output', help='Name of the JSON file to output the evidence strings.', required=True)
+    parser.add_argument('--use-cached', help='Use existing downloaded cache.', action='store_true')
     parser.add_argument('--log-file', help='Optional filename to redirect the logs into.')
     args = parser.parse_args()
-    main(args.cache_dir, args.use_cached, args.log_file)
+    main(args.cache_dir, args.output, args.use_cached, args.log_file)
