@@ -480,13 +480,9 @@ class Phenodigm(RareDiseaseMapper):
                                              marker_symbol in self.disease_gene_locus[disease_id][hgnc_gene_id])):
 
                                             for disease_term in disease_terms:
-
                                                 '''
                                                 Create a new evidence string
                                                 '''
-
-
-
                                                 # 1.2.6 create an Animal_Models class
                                                 evidenceString = cttv.Animal_Models()
                                                 evidenceString.validated_against_schema_version = Config.VALIDATED_AGAINST_SCHEMA_VERSION
@@ -774,7 +770,16 @@ class Phenodigm(RareDiseaseMapper):
         #self.omim_to_efo_map["OMIM:608049"] = ["http://www.ebi.ac.uk/efo/EFO_0003756"]
         #self.omim_to_efo_map["OMIM:300494"] = ["http://www.ebi.ac.uk/efo/EFO_0003757"]
 
-    def process_all(self):
+    def process_all(self, cache_dir, use_cached):
+
+        if not use_cached:
+            self._logger.info('Update the gene mapping and SOLR cache')
+            self.update_cache(cache_dir)
+
+        self._logger.info('Load gene mappings and SOLR data from local cache')
+        # TODO
+        return
+
         self._logger.info('1. Fetch Ensembl gene ID mappings for human.')
         self.fetch_human_ensembl_mappings()
 
@@ -795,7 +800,7 @@ class Phenodigm(RareDiseaseMapper):
         self.write_evidence_strings(Config.MOUSEMODELS_EVIDENCE_FILENAME)
 
 
-def main(log_file):
+def main(cache_dir, use_cached=False, log_file=None):
     # Initialize logger based on the provided log file. If no log file is specified, logs are written to STDERR.
     logging_config = {
         'level': logging.INFO,
@@ -807,11 +812,13 @@ def main(log_file):
     logging.basicConfig(**logging_config)
 
     # Process the data.
-    Phenodigm(logging).process_all()
+    Phenodigm(logging).process_all(cache_dir, use_cached)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Evidence parser for animal models sources from PhenoDigm.')
-    parser.add_argument('-l', '--log-file', help='Optional filename to redirect the logs into.', required=False)
+    parser.add_argument('--cache-dir', help='Directory to store intermediate cache files in', required=True)
+    parser.add_argument('--use-cached', help='Use existing downloaded cache', action='store_true')
+    parser.add_argument('--log-file', help='Optional filename to redirect the logs into.')
     args = parser.parse_args()
-    main(args.log_file)
+    main(args.cache_dir, args.use_cached, args.log_file)
