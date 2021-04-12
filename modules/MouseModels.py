@@ -290,8 +290,8 @@ class Phenodigm(RareDiseaseMapper):
                     We will check that once we get the symbol
                     '''
 
-                    if marker_symbol in self.mmGenes:
-                        mmEnsemblId = self.mmGenes[marker_symbol]
+                    if mouse_gene_id in self.mmGenes:
+                        mmEnsemblId = self.mmGenes[mouse_gene_id]
                         '''
                          Some genes don't have any mouse models...
                         '''
