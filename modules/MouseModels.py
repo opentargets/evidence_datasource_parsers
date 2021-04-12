@@ -9,7 +9,6 @@ import json
 import logging
 import os
 import re
-import sys
 import tempfile
 import urllib.request
 
@@ -33,17 +32,15 @@ MGI_DATASET_URI = 'http://www.informatics.jax.org/downloads/reports/MGI_Gene_Mod
 class Phenodigm(RareDiseaseMapper):
 
     def __init__(self, logging):
-
         super(Phenodigm, self).__init__()
+        self.spark = pyspark.sql.SparkSession.builder.appName('phenodigm_parser').getOrCreate()
         self.efo = OntologyClassReader()
         self.hpo = OntologyClassReader()
         self.mp = OntologyClassReader()
         self.cache = collections.OrderedDict()
         self.counter = 0
-        self.mmGenes = collections.OrderedDict()
-        self.hsGenes = collections.OrderedDict()
-        self.mm_buffer = []
-        self.hs_buffer = []
+        self.mmGenes = None
+        self.hsGenes = None
         self.hgnc2mgis = collections.OrderedDict()
         self.mgi2symbols = collections.OrderedDict()
         self.symbol2hgncids = collections.OrderedDict()
@@ -56,8 +53,6 @@ class Phenodigm(RareDiseaseMapper):
         self.diseases = collections.OrderedDict()
         self.hashkeys = collections.OrderedDict()
         self._logger = logging
-
-        self.spark = pyspark.sql.SparkSession.builder.appName('phenodigm_parser').getOrCreate()
 
     def fetch_human_ensembl_mappings(self):
         """Loads HGNC ID → Ensembl gene ID mappings from the HGNC database."""
@@ -87,71 +82,34 @@ class Phenodigm(RareDiseaseMapper):
         self.mmGenes = {r.mgi_id: r.ensembl_gene_id for r in mouse_genes.collect()}
         os.remove(tmp_file.name)
 
-    def update_genes(self, docs=None):
-
-        if docs:
-
-            for doc in docs:
-                if doc['type'] == 'gene':
-                    if 'hgnc_gene_id' in doc:
-                        hgnc_gene_symbol = doc['hgnc_gene_symbol']
-                        if hgnc_gene_symbol and not hgnc_gene_symbol in self.hsGenes and hgnc_gene_symbol not in self.hs_buffer:
-                            self.hs_buffer.append(hgnc_gene_symbol)
-                            if len(self.hs_buffer) == 100:
-                                self.request_genes(buffer=self.hs_buffer, default_species='homo_sapiens')
-                                self.hs_buffer = []
-                    elif 'gene_symbol' in doc:
-                        marker_symbol = doc['gene_symbol']
-                        if marker_symbol not in self.mmGenes and marker_symbol not in self.mm_buffer:
-                            self.mm_buffer.append(marker_symbol)
-                            if len(self.mm_buffer) == 100:
-                                self.request_genes(buffer=self.mm_buffer, default_species='mus_musculus')
-                                self.mm_buffer = []
-
-        else:
-
-            if len(self.hs_buffer) > 0:
-                self.request_genes(buffer=self.hs_buffer, default_species='homo_sapiens')
-                self.hs_buffer = []
-
-            if len(self.mm_buffer) > 0:
-                self.request_genes(buffer=self.mm_buffer, default_species='mus_musculus')
-                self.mm_buffer = []
-
-    def access_solr(self, mode='update_cache'):
+    def access_solr(self):
 
         start = 0
         rows = 20000
-        nbItems = rows
         counter = 0
         total = 0
         numFound = 1
 
         while (total < numFound):
-            counter+=1
+            counter += 1
             self._logger.info(start)
 
-            rsp = self.query_solr(counter, start, rows, mode)
+            rsp = self.query_solr(counter, start, rows)
 
             numFound = rsp['response']['numFound']
             self._logger.info("NumFound %i"%(numFound))
             nbItems = len(rsp['response']['docs'])
-            total+=nbItems
+            total += nbItems
             self._logger.info("Number of items: %i" % (nbItems))
 
-            if mode == 'update_cache':
-                self.update_genes(docs=rsp['response']['docs'])
-            elif mode == 'parse_phenodigm':
-                self.parse_phenodigm(docs=rsp['response']['docs'])
+            self.parse_phenodigm(docs=rsp['response']['docs'])
 
-            start+=nbItems
+            start += nbItems
 
-        if mode == 'update_cache':
-            self.update_genes(docs=None)
-
-    # Use @retry decorator to ensure that errors like the query failing because server was overloaded, are handled correctly and the request is retried
+    # Use @retry decorator to ensure that errors like the query failing because server was overloaded, are handled
+    # correctly and the request is retried
     @retry(tries=3, delay=5, backoff=1.2, jitter=(1, 3))
-    def query_solr(self, counter, start, rows, mode):
+    def query_solr(self, counter, start, rows):
         '''
         Queries IMPC solr API
 
@@ -167,9 +125,6 @@ class Phenodigm(RareDiseaseMapper):
 
         # Params for querying
         params = dict(q="*", wt="json", indent="true", start="%i" % start, rows="%i" % rows)
-        if mode == 'update_cache':
-            uri = uri + '&fq=type:gene'
-            params['fq'] = "type:gene"
         self._logger.info("REQUEST {0}. {1}".format(counter, uri))
 
         # Query
@@ -180,36 +135,6 @@ class Phenodigm(RareDiseaseMapper):
         r.raise_for_status()
         rsp = r.json()
         return rsp
-
-    def request_genes(self, buffer, default_species='homo_sapiens'):
-        g = self.hsGenes
-        if default_species=='mus_musculus':
-            g = self.mmGenes
-
-        hdr = {"Content-Type": "application/json", "Accept": "application/json",
-               "User-Agent": "open_targets bot by /open/targets"}
-
-        # self._logger.info('hs Request "%s"...' % '","'.join(buffer))
-        # self._logger.info('%s Request "%s"...' %(default_species,'","'.join(buffer)))
-
-        body = '{ "symbols": ["%s"] }' % '","'.join(buffer)
-        r = requests.post('http://rest.ensembl.org/lookup/symbol/%s/'%(default_species), data=body, headers=hdr)
-        if r.status_code == requests.codes.ok:
-            ensemblMap = r.json()
-            for symbol, value in ensemblMap.items():
-                if value["object_type"] == "Gene":
-                    g[symbol] = value['id']
-                else:
-                    g[symbol] = None
-                ensemblId = g[symbol]
-                #self._logger.info("hs {0} {1}".format(symbol, ensemblId))
-            self._logger.info(f"Number of human genes requested: {len(self.hsGenes)}")
-        else:
-            # should have exception here
-            self._logger.error(body)
-            self._logger.error(r.status_code)
-            self._logger.error(r.text)
-            sys.exit(1)
 
     def parse_phenodigm(self, docs=None):
 
@@ -330,8 +255,7 @@ class Phenodigm(RareDiseaseMapper):
         efoMapping = collections.OrderedDict()
         index_g = 0
         for hs_symbol in self.hsGenes:
-            index_g +=1
-            count_nb_evidence_string_generated = 0
+            index_g += 1
             self._logger.debug('Now processing human gene: {}'.format(hs_symbol))
             hgnc_gene_id = self.symbol2hgncids[hs_symbol]
             hs_ensembl_gene_id = self.hsGenes[hs_symbol]
@@ -779,19 +703,23 @@ class Phenodigm(RareDiseaseMapper):
         #self.omim_to_efo_map["OMIM:300494"] = ["http://www.ebi.ac.uk/efo/EFO_0003757"]
 
     def process_all(self):
-        self._logger.info('Fetch Ensembl gene ID mappings for human and mouse.')
+        self._logger.info('1. Fetch Ensembl gene ID mappings for human.')
         self.fetch_human_ensembl_mappings()
+
+        self._logger.info('2. Fetch Ensembl gene ID mappings for mouse.')
         self.fetch_mouse_ensembl_mappings()
 
-        self.access_solr(mode='update_cache')
+        self._logger.info('3. Process ontologies.')
         self.process_ontologies()
         self.get_ontology_mappings()
 
-        self.access_solr(mode='parse_phenodigm')
-        self._logger.info('Build evidence')
+        self._logger.info('4. Fetch information from IMPC SOLR.')
+        self.access_solr()
+
+        self._logger.info('5. Build evidence')
         self.generate_phenodigm_evidence_strings()
 
-        self._logger.info('Write evidence strings')
+        self._logger.info('6. Write evidence strings')
         self.write_evidence_strings(Config.MOUSEMODELS_EVIDENCE_FILENAME)
 
 
