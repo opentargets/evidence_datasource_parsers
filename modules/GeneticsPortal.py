@@ -255,7 +255,7 @@ def main():
             concat_ws('_', col('chrom'),col('pos'),col('ref'),col('alt')).alias('variantId'),
             regexp_extract(col('consequence_link'), "\/(SO.+)$",1).alias('variantFunctionalConsequenceId')
         )
-        .dropDuplicates(['variantId', 'study_id', 'targetFromSourceId', 'diseaseFromSourceMappedId'])
+        .dropDuplicates(['variantId', 'studyId', 'targetFromSourceId', 'diseaseFromSourceMappedId'])
         .write.format('json').mode('overwrite').option('compression', 'gzip').save(out_file)
     )
 
