@@ -145,6 +145,23 @@ The intOGen parser generates evidence strings from three files that need to be i
 - _intogen_cohorts.tsv_: It contains information about the analysed cohorts and it can be downloaded from the [intOGen website](https://www.intogen.org/download). In the current implementation, the total number of samples included in each cohort is used to calculate the percentage of samples that carry a relevant mutation in a driver gene.
 - _intogen_Compendium_Cancer_Genes.tsv_: It contains the genes that have been identified as _drivers_ in at least one cohort and information related to  the methods that yield significant results, the q-value and additional data about mutations. It can be downloaded from the same place as the cohorts file.
 
+The parser uses the following parameters:
+- `-g`, `--inputGenes`: Input source .tsv file listing the driver genes across the analyzed cohorts.
+- `-c`, `--inputCohorts`: Input source .tsv file with information about the analyzed cohorts.
+- `-d`, `--diseaseMapping`: optional; input look-up table containing the cancer type mappings to an EFO ID.
+- `-o`, `--outputFile`: Gzipped JSON file containing the evidence strings.
+- `-s`, `--skipMapping`: optional; state whether to skip the disease to EFO term mapping step. If used this step is not performed.
+- `-l`, `--logFile`: optional; if not specified, logs are written to standard error.
+
+To use the parser configure the python environment and run it as follows:
+```bash
+python modules/IntOGen.py \
+    --inputGenes Compendium_Cancer_Genes.tsv \
+    --inputCohorts cohorts.tsv \
+    --diseaseMapping resources/cancer2EFO_mappings.tsv \
+    --outputFile intogen-2021-03-08.json.gz
+```
+
 ### PheWAS catalog
 
 The PheWAS parser processes three files:
