@@ -255,9 +255,8 @@ def main():
             concat_ws('_', col('chrom'),col('pos'),col('ref'),col('alt')).alias('variantId'),
             regexp_extract(col('consequence_link'), "\/(SO.+)$",1).alias('variantFunctionalConsequenceId')
         )
-        .dropDuplicates()
-        .write.format('json').mode('overwrite').option("compression", "org.apache.hadoop.io.compress.GzipCodec")
-        .save(out_file)
+        .dropDuplicates(['variantId', 'study_id', 'targetFromSourceId', 'diseaseFromSourceMappedId'])
+        .write.format('json').mode('overwrite').option('compression', 'gzip').save(out_file)
     )
 
     return 0
