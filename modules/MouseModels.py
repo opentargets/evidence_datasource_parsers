@@ -2,10 +2,12 @@
 """Evidence parser for the animal model sources from PhenoDigm."""
 
 import argparse
+import gzip
 import json
 import logging
 import os
 import pathlib
+import tempfile
 import urllib.request
 
 import pyspark
@@ -110,9 +112,13 @@ class PhenoDigm:
             self.spark.read.json(os.path.join(cache_dir, IMPC_FILENAME.format(data_type='disease_model_summary')))
                 .select('model_id', 'model_genetic_background', 'model_description', 'disease_id', 'disease_term',
                         'disease_model_max_norm')
+                .limit(100)
         )
 
     def generate_phenodigm_evidence_strings(self):
+        # Prepare the
+
+
         self.evidence = (
             self.disease_model_summary
 
@@ -141,7 +147,16 @@ class PhenoDigm:
         )
 
     def write_evidence_strings(self, filename):
-        self.evidence.write.format('json').save(filename)
+        """Dump the Spark evidence dataframe into a temporary directory as separate JSON chunks. Collect and combine the
+        chunks into the final output file. JSON keys are sorted in the process, but the order of the output records
+        themselves is not modified."""
+        with tempfile.TemporaryDirectory() as tmp_dir_name, gzip.open(filename, 'wt') as outfile:
+            self.evidence.write.format('json').mode('overwrite').save(tmp_dir_name)
+            json_chunks = [f for f in os.listdir(tmp_dir_name) if f.endswith('.json')]
+            for chunk_filename in json_chunks:
+                with open(os.path.join(tmp_dir_name, chunk_filename), 'rt') as json_chunk:
+                    for line in json_chunk:
+                        outfile.write(json.dumps(json.loads(line), sort_keys=True) + '\n')
 
     def process_all(self, cache_dir, output, use_cached):
         if not use_cached:
@@ -176,7 +191,7 @@ def main(cache_dir, output, use_cached=False, log_file=None):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--cache-dir', help='Directory to store the HGNC/MGI/SOLR cache files in.', required=True)
-    parser.add_argument('--output', help='Name of the JSON file to output the evidence strings into.', required=True)
+    parser.add_argument('--output', help='Name of the json.gz file to output the evidence strings into.', required=True)
     parser.add_argument('--use-cached', help='Use the existing cache and do not update it.', action='store_true')
     parser.add_argument('--log-file', help='Optional filename to redirect the logs into.')
     args = parser.parse_args()
