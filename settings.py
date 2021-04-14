@@ -61,13 +61,6 @@ class Config:
     OMIM_TO_EFO_MAP_URL = 'https://raw.githubusercontent.com/opentargets/platform_semantic/master/resources/xref_mappings/omim_to_efo.txt'
     ZOOMA_TO_EFO_MAP_URL = 'https://raw.githubusercontent.com/opentargets/platform_semantic/master/resources/zooma/cttv_indications_3.txt'
 
-    # mouse models (Phenodigm)
-    # used to be 'http://localhost:8983' # 'solrclouddev.sanger.ac.uk'
-    MOUSEMODELS_PHENODIGM_SOLR = 'http://www.ebi.ac.uk/mi/impc'
-    # write to the cloud direcly
-    MOUSEMODELS_CACHE_DIRECTORY = 'PhenoDigm/phenodigmcache'
-    MOUSEMODELS_EVIDENCE_FILENAME = f"phenodigm-{datetime.today().strftime('%Y-%m-%d')}.json.gz"
-
     # Configuration for genetics portal evidences:
     ACTIVITY_URL = 'http://identifiers.org/cttv.activity'
     TARGET_URL = 'http://identifiers.org/ensembl'

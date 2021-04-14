@@ -282,7 +282,7 @@ Generates target-disease evidence querying the IMPC SOLR API. To set up the envi
 python3 -m venv phenodigm_venv
 source phenodigm_venv/bin/activate
 pip3 install -r requirements.txt
-python3 modules/MouseModels.py --cache-dir phenodigm_cache --output phenodigm.json.gz
+python3 modules/PhenoDigm.py --cache-dir phenodigm_cache --output phenodigm.json.gz
 ```
 
 Two additional optional arguments could be used:
