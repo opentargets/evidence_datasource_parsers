@@ -223,6 +223,8 @@ class PhenoDigm:
         )
 
         self.evidence = (
+            # This table contains all unique (model_id, disease_id) associations which form the base of the evidence
+            # strings.
             self.disease_model_summary
 
             # Filter out the associations with a low score. Some associations lack this score and are kept.

@@ -276,8 +276,11 @@ python modules/SLAPEnrich.py \
 
 ### PhenoDigm
 
-Generates target-disease evidence by querying the IMPC SOLR API. To set up the environment and run:
+Generates target-disease evidence by querying the IMPC SOLR API. The base of the evidence is the `disease_model_summary` table, which is unique on the (`model_id`, `disease_id`) tuple. When target information is added, an original row may explode into multiple evidence strings. As a result, the final output is unique on the (`biologicalModelId`, `targetFromSourceId`, `targetInModel`, `diseaseFromSourceId`) tuple.
 
+The associations are filtered on the `disease_model_max_norm` score. For some associations this score is not available in the source data, and they are always kept.
+
+To set up the environment and run:
 ```sh
 python3 -m venv phenodigm_venv
 source phenodigm_venv/bin/activate
