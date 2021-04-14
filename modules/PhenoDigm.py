@@ -208,9 +208,17 @@ class PhenoDigm:
         # For human phenotypes, we only want to include the ones which are present in the disease *and* also can be
         # traced back to the model phenotypes through the MP → HP mapping relationship.
         matched_human_phenotypes = (
-            model_phenotypes_split
+            # This first table is not strictly speaking required for the joins, but starting the join chain from it
+            # significantly reduces the memory consumption by limiting the operations only to (model, disease) pairs
+            # which actually exist.
+            self.disease_model_summary.select('model_id', 'disease_id')
+            # Add all mouse model phenotypes. Now we have: model_id, disease_id, mp_id.
+            .join(model_phenotypes_split, on='model_id', how='inner')
+            # Convert to the corresponding human phenotypes. Now we have: model_id, disease_id, hp_id.
             .join(self.mouse_phenotype_to_human_phenotype, on='mp_id', how='inner')
-            .join(human_phenotypes_split, on='hp_id', how='inner')
+            .drop('mp_id')
+            # Filter the records to only leave human phenotypes which are observed in the corresponding human disease.
+            .join(human_phenotypes_split, on=['disease_id', 'hp_id'], how='inner')
             .join(hp_terms, on='hp_id', how='inner')
             .groupby('model_id', 'disease_id')
             .agg(
