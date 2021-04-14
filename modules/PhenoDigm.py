@@ -168,7 +168,7 @@ class PhenoDigm:
         )
 
         # Mouse to human gene mappings, e.g. 'MGI:1346074', 'HGNC:4024'.
-        self.mouse_gene_to_human_gene = self.load_solr_csv('gene_gene')  #
+        self.mouse_gene_to_human_gene = self.load_solr_csv('gene_gene')
         # Mouse to human phenotype mappings, e.g. 'MP:0000745','HP:0100033'.
         self.mouse_phenotype_to_human_phenotype = self.load_solr_csv('ontology_ontology')
 
@@ -243,6 +243,7 @@ class PhenoDigm:
             .drop('mp_id')
             # Filter the records to only leave human phenotypes which are observed in the corresponding human disease.
             .join(human_phenotypes_split, on=['disease_id', 'hp_id'], how='inner')
+            # Add ontology terms in addition to IDs. Now we have: model_id, disease_id, hp_id, hp_term.
             .join(hp_terms, on='hp_id', how='inner')
             .groupby('model_id', 'disease_id')
             .agg(
