@@ -276,29 +276,18 @@ python modules/SLAPEnrich.py \
 
 ### PhenoDigm
 
-Generates target-disease evidence querying the IMPC SOLR API.
-
-The PhenoDigm parser has been run both in a MacBook Pro and a Google Cloud machine. The current version is very memory greedy, using up to 60 GB. 
-
-* MacBook Pro: It takes around 8 hours to run in a 16 GB laptop.
-* Google Cloud Machine: It runs in around 2 hours in a 60 GB machine (_n1-standard-16_). There used to be such a machine set up but now one called _ag-ubuntu-20-04-lts_ in _open-targets-eu-dev_ can be used instead (see below). This machine has specs higher than needed (32 vCPU and 208 GB memory).
+Generates target-disease evidence querying the IMPC SOLR API. To set up the environment and run:
 
 ```sh
-# Prepare the virtual environment
 python3 -m venv phenodigm_venv
 source phenodigm_venv/bin/activate
 pip3 install -r requirements.txt
-export PYTHONPATH=.
-
-# Manually download and install ontology-utils as it requires specific tag
-wget https://github.com/opentargets/ontology-utils/archive/bff0f189a4c6e8613e99a5d47e9ad4ceb6a375fc.zip
-pip3 install bff0f189a4c6e8613e99a5d47e9ad4ceb6a375fc.zip
-
-# Run
-python3 modules/MouseModels.py -l log.txt
+python3 modules/MouseModels.py --cache-dir phenodigm_cache --output phenodigm.json.gz
 ```
 
-If `-l` is unspecified, logs will be printed to STDERR.
+Two additional optional arguments could be used:
+* `--use-cached`: do not re-download the cache and use the existing files;
+* `--log-file`: filename to redirect the logs into instead of STDERR.
 
 ### Open Targets Genetics Portal
 
@@ -320,6 +309,3 @@ python modules/GeneticsPortal.py \
 
 * `--threshold` is required. It provides a lower locus to gene score cutoff.
 * `--logFile` is optional. If not specified, logs are written to standard error.
-
-
-
