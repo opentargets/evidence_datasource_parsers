@@ -41,9 +41,6 @@ class Config:
     # schema version
     VALIDATED_AGAINST_SCHEMA_VERSION = '1.2.8'
 
-    GOOGLE_DEFAULT_PROJECT = 'open-targets'
-    GOOGLE_BUCKET_EVIDENCE_INPUT = 'otar000-evidence_input'
-
     # Ontologies
     EFO_URL = 'https://github.com/EBISPOT/efo/raw/v2018-01-15/efo.obo'
     HP_URL = 'http://purl.obolibrary.org/obo/hp.obo'

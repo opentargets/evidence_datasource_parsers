@@ -74,7 +74,8 @@ class PhenoDigm:
         self.logger = logger
         self.spark = pyspark.sql.SparkSession.builder.appName('phenodigm_parser').getOrCreate()
         self.hgnc_gene_id_to_ensembl_human_gene_id, self.mgi_gene_id_to_ensembl_mouse_gene_id = None, None
-        self.disease_model_summary, self.mouse_gene_to_human_gene = None, None
+        (self.mouse_gene_to_human_gene, self.disease_model_summary, self.mouse_model,
+         self.mouse_phenotype_to_human_phenotype, self.disease) = [None] * 5
         self.evidence = None
 
     def update_cache(self, cache_dir):
@@ -109,6 +110,11 @@ class PhenoDigm:
             .withColumnRenamed('11. Ensembl gene id', 'ensembl_mouse_gene_id')
             .select('mgi_gene_id', 'ensembl_mouse_gene_id')
         )
+        self.mouse_gene_to_human_gene = (
+            self.spark.read.json(os.path.join(cache_dir, IMPC_FILENAME.format(data_type='gene_gene')))
+            .select('gene_id', 'hgnc_gene_id')
+            .withColumnRenamed('gene_id', 'mgi_gene_id')
+        )
         self.disease_model_summary = (
             self.spark.read.json(os.path.join(cache_dir, IMPC_FILENAME.format(data_type='disease_model_summary')))
             .select('model_id', 'model_genetic_background', 'model_description',
@@ -117,10 +123,17 @@ class PhenoDigm:
             .withColumnRenamed('marker_id', 'mgi_gene_id')
             .limit(100)
         )
-        self.mouse_gene_to_human_gene = (
-            self.spark.read.json(os.path.join(cache_dir, IMPC_FILENAME.format(data_type='gene_gene')))
-            .select('gene_id', 'hgnc_gene_id')
-            .withColumnRenamed('gene_id', 'mgi_gene_id')
+        self.mouse_model = (
+            self.spark.read.json(os.path.join(cache_dir, IMPC_FILENAME.format(data_type='mouse_model')))
+            .select('model_id', 'model_phenotypes')
+        )
+        self.mouse_phenotype_to_human_phenotype = (
+            self.spark.read.json(os.path.join(cache_dir, IMPC_FILENAME.format(data_type='ontology_ontology')))
+            .select('mp_id', 'mp_term', 'hp_id', 'hp_term')
+        )
+        self.disease = (
+            self.spark.read.json(os.path.join(cache_dir, IMPC_FILENAME.format(data_type='disease')))
+            .select('disease_id', 'disease_phenotypes')
         )
 
     def generate_phenodigm_evidence_strings(self):
@@ -155,15 +168,61 @@ class PhenoDigm:
             .groupby('mgi_gene_id').agg(pf.collect_list('ensembl_human_gene_id').alias('ensembl_human_gene_id_list'))
         )
 
+        # Process phenotype information
+        model_phenotypes = (  # model ID, MP ID, MP term, HP ID, HP term
+            self.mouse_model
+            .withColumn('phenotype', pf.explode('model_phenotypes'))
+            .withColumn('mp_id', pf.split(pf.col('phenotype'), ' ').getItem(0))
+            .drop('model_phenotypes')
+            .join(self.mouse_phenotype_to_human_phenotype, on='mp_id', how='left')
+        )
+        diseases = (  # disease ID, HP ID
+            self.disease
+            .withColumn('phenotype', pf.explode('disease_phenotypes'))
+            .withColumn('hp_id', pf.split(pf.col('phenotype'), ' ').getItem(0))
+        )
+        # For human phenotypes, we only want to include the ones which are present in the disease *and* also can be
+        # traced back to the model phenotypes through the MP → HP mapping relationship.
+        matched_human_phenotypes = (
+            self.disease_model_summary
+            .join(model_phenotypes, on='model_id', how='inner')
+            .join(diseases, on=['disease_id', 'hp_id'], how='inner')
+            .select('model_id', 'disease_id', 'hp_id', 'hp_term')
+            .groupby('model_id', 'disease_id')
+            .agg(
+                pf.collect_set(pf.struct(
+                    pf.col('hp_id').alias('id'),
+                    pf.col('hp_term').alias('label')
+                )).alias('diseaseModelAssociatedHumanPhenotypes')
+            )
+            .select('model_id', 'disease_id', 'diseaseModelAssociatedHumanPhenotypes')
+        )
+        all_mouse_phenotypes = (
+            model_phenotypes
+            .select('model_id', 'mp_id', 'mp_term')
+            .groupby('model_id')
+            .agg(
+                pf.collect_set(pf.struct(
+                    pf.col('mp_id').alias('id'),
+                    pf.col('mp_term').alias('label')
+                )).alias('diseaseModelAssociatedModelPhenotypes')
+            )
+            .select('model_id', 'diseaseModelAssociatedModelPhenotypes')
+        )
+
         self.evidence = (
             self.disease_model_summary
 
-            # Add gene mapping information. The mappings are not one-to-one in general!
+            # Add the gene mapping information. Note the mappings are not one-to-one in general.
             .join(mgi_to_mouse_ensembl_agg, on='mgi_gene_id', how='inner')
             .join(mgi_to_human_ensembl_agg, on='mgi_gene_id', how='inner')
             .withColumn('ensembl_mouse_gene_id', pf.explode(pf.column('ensembl_mouse_gene_id_list')))
             .withColumn('ensembl_human_gene_id', pf.explode(pf.column('ensembl_human_gene_id_list')))
             .drop('ensembl_mouse_gene_id_list', 'ensembl_human_gene_id_list')
+
+            # Add phenotype information
+            .join(matched_human_phenotypes, on=['model_id', 'disease_id'], how='left')
+            .join(all_mouse_phenotypes, on='model_id', how='left')
 
             # Rename some columns
             .withColumnRenamed('disease_id', 'diseaseFromSourceId')
