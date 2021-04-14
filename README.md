@@ -287,7 +287,8 @@ python3 modules/PhenoDigm.py --cache-dir phenodigm_cache --output phenodigm.json
 
 Additional optional arguments are available:
 ```
-usage: PhenoDigm.py [-h] --cache-dir CACHE_DIR --output OUTPUT [--score-cutoff SCORE_CUTOFF] [--use-cached] [--log-file LOG_FILE]
+usage: PhenoDigm.py [-h] --cache-dir CACHE_DIR --output OUTPUT [--score-cutoff SCORE_CUTOFF]
+                    [--use-cached] [--log-file LOG_FILE]
 
 Evidence parser for the animal model sources from PhenoDigm.
 
@@ -295,9 +296,11 @@ optional arguments:
   -h, --help            show this help message and exit
   --cache-dir CACHE_DIR
                         Directory to store the HGNC/MGI/SOLR cache files in. (default: None)
-  --output OUTPUT       Name of the json.gz file to output the evidence strings into. (default: None)
+  --output OUTPUT       Name of the json.gz file to output the evidence strings into. (default:
+                        None)
   --score-cutoff SCORE_CUTOFF
-                        Discard model-disease associations with the `disease_model_max_norm` score less than this value. The score range is 0 to 100. (default: 90.0)
+                        Discard model-disease associations with the `disease_model_max_norm` score
+                        less than this value. The score range is 0 to 100. (default: 90.0)
   --use-cached          Use the existing cache and do not update it. (default: False)
   --log-file LOG_FILE   Optional filename to redirect the logs into. (default: None)
 ```
