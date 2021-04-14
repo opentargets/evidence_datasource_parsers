@@ -305,14 +305,15 @@ optional arguments:
                         None)
   --score-cutoff SCORE_CUTOFF
                         Discard model-disease associations with the `disease_model_max_norm` score
-                        less than this value. The score range is 0 to 100. (default: 90.0)
+                        less than this value. The score ranges from 0 to 100. (default: 90.0)
   --use-cached          Use the existing cache and do not update it. (default: False)
   --log-file LOG_FILE   Optional filename to redirect the logs into. (default: None)
 ```
 
 Approximate resource requirements and benchmarks:
-* Wall clock time to download the entire data from SOLR: 20 minutes;
-* Wall clock time to ingest and process the data: 3.5 minutes when running on AMD Ryzen 5 3600 (6 cores, 12 threads);
+* Total wall clock running time: 8 minutes on AMD Ryzen 5 3600 (6 cores / 12 threads).
+  - Fetch the data from SOLR: 4 minutes.
+  - Ingest the data and generate the evidence strings: 4 minutes.
 * Peak RAM usage: 1.5 GB.
 
 ### Open Targets Genetics Portal

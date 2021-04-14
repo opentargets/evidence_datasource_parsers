@@ -2,7 +2,6 @@
 """Evidence parser for the animal model sources from PhenoDigm."""
 
 import argparse
-import json
 import logging
 import os
 import pathlib
@@ -26,11 +25,24 @@ MGI_DATASET_FILENAME = os.path.split(MGI_DATASET_URI)[-1]
 
 # Mouse model data from IMPC SOLR.
 IMPC_SOLR_HOST = 'http://www.ebi.ac.uk/mi/impc/solr/phenodigm/select'
-# Other tables (not currently used): gene, disease_gene_summary.
-IMPC_SOLR_TABLES = ('gene_gene', 'mouse_model', 'disease_model_summary', 'disease', 'ontology', 'ontology_ontology')
-IMPC_FILENAME = 'impc_solr_{data_type}.json'
-IMPC_SOLR_BATCH_SIZE = 100000
-IMPC_SOLR_TIMEOUT = 600
+# The tables and their fields to fetch from SOLR. The syntax 'original_name > new_name' means that the column will be
+# renamed after loading. Other tables (not currently used): gene, disease_gene_summary.
+IMPC_SOLR_TABLES = {
+    'gene_gene': ('gene_id > mgi_gene_id', 'hgnc_gene_id'),
+    'mouse_model': ('model_id', 'model_phenotypes'),
+    'disease_model_summary': ('model_id', 'model_genetic_background > biologicalModelGeneticBackground',
+                              'model_description > biologicalModelAllelicComposition', 'disease_id', 'disease_term',
+                              'disease_model_max_norm > resourceScore', 'marker_id > mgi_gene_id'),
+    'disease': ('disease_id', 'disease_phenotypes'),
+    'ontology': ('ontology', 'phenotype_id', 'phenotype_term'),
+    'ontology_ontology': ('mp_id', 'hp_id'),
+}
+
+IMPC_FILENAME = 'impc_solr_{data_type}.csv'
+# The largest table is about 7 million records. The one billion limit is used as an arbitrary high number to retrieve
+# all records in one large request, which maximises the performance.
+IMPC_SOLR_BATCH_SIZE = 1000000000
+IMPC_SOLR_TIMEOUT = 3600
 DEFAULT_ASSOCIATION_SCORE_CUTOFF = 90.0
 
 
@@ -46,28 +58,48 @@ class ImpcSolrRetriever:
 
     # The decorator ensures that the requests are retried in case of network or server errors.
     @retry(tries=3, delay=5, backoff=1.2, jitter=(1, 3))
-    def query_solr(self, data_type, start):
-        """Request one batch of SOLR documents of the specified data type."""
-        params = {'q': '*:*', 'fq': f'type:{data_type}', 'start': start, 'rows': self.rows}
+    def get_number_of_solr_records(self, data_type):
+        params = {'q': '*:*', 'fq': f'type:{data_type}', 'rows': 0}
         response = requests.get(self.solr_host, params=params, timeout=self.timeout)
         response.raise_for_status()  # Check for HTTP errors. This will be caught by @retry.
-        return response.json()
+        return response.json()['response']['numFound']
+
+    @retry(tries=3, delay=5, backoff=1.2, jitter=(1, 3))
+    def query_solr(self, data_type, start):
+        """Request one batch of SOLR documents of the specified data type and write it into a temporary file."""
+        list_of_columns = [column.split(' > ')[0] for column in IMPC_SOLR_TABLES[data_type]]
+        params = {'q': '*:*', 'fq': f'type:{data_type}', 'start': start, 'rows': self.rows, 'wt': 'csv',
+                  'fl': ','.join(list_of_columns)}
+        response = requests.get(self.solr_host, params=params, timeout=self.timeout, stream=True)
+        response.raise_for_status()
+        # Write records as they appear instead of keeping everything in memory.
+        with tempfile.NamedTemporaryFile('wt', delete=False) as tmp_file:
+            response_lines = response.iter_lines(decode_unicode=True)
+            header = next(response_lines)
+            if start == 0:  # Only write the header for the first requested batch.
+                tmp_file.write(header + '\n')
+            number_of_records = 0
+            for line in response_lines:
+                number_of_records += 1
+                tmp_file.write(line + '\n')
+            return number_of_records, tmp_file.name
 
     def fetch_data(self, data_type, output_filename):
         """Fetch all rows of the requested data type to the specified location."""
-        with open(output_filename, 'wt') as outfile:
+        total_records = self.get_number_of_solr_records(data_type)
+        assert total_records != 0, f'SOLR did not return any data for {data_type}.'
+        with open(output_filename, 'wb') as outfile:
             start, total = 0, 0  # Initialise the counters.
             while True:
-                solr_data = self.query_solr(data_type, start)
-                assert solr_data['response']['numFound'] != 0, f'SOLR did not return any data for {data_type}.'
-                for doc in solr_data['response']['docs']:  # Write data to file.
-                    json.dump(doc, outfile)
-                    outfile.write('\n')
+                number_of_records, tmp_filename = self.query_solr(data_type, start)
+                with open(tmp_filename, 'rb') as tmp_file:
+                    shutil.copyfileobj(tmp_file, outfile)
+                os.remove(tmp_filename)
                 # Increment the counters.
                 start += self.rows
-                total += len(solr_data['response']['docs'])
+                total += number_of_records
                 # Exit when all documents have been retrieved.
-                if total == solr_data['response']['numFound']:
+                if total == total_records:
                     break
 
 
@@ -105,8 +137,17 @@ class PhenoDigm:
     def load_tsv(self, filename):
         return self.spark.read.csv(os.path.join(self.cache_dir, filename), sep='\t', header=True)
 
-    def load_solr_json(self, data_type):
-        return self.spark.read.json(os.path.join(self.cache_dir, IMPC_FILENAME.format(data_type=data_type)))
+    def load_solr_csv(self, data_type):
+        """Load the CSV from SOLR; rename and select columns as specified."""
+        df = self.spark.read.csv(os.path.join(self.cache_dir, IMPC_FILENAME.format(data_type=data_type)), header=True)
+        column_name_mappings = [column_map.split(' > ') for column_map in IMPC_SOLR_TABLES[data_type]]
+        columns_to_rename = {mapping[0]: mapping[1] for mapping in column_name_mappings if len(mapping) == 2}
+        new_column_names = [mapping[-1] for mapping in column_name_mappings]
+        # Rename columns
+        for old_column_name, new_column_name in columns_to_rename.items():
+            df = df.withColumnRenamed(old_column_name, new_column_name)
+        # Restrict only to the columns we need
+        return df.select(new_column_names)
 
     def load_data_from_cache(self):
         """Load the Ensembl gene ID and SOLR data from the downloaded TSV/JSON files into Spark."""
@@ -126,28 +167,28 @@ class PhenoDigm:
 
         # Mouse to human mappings.
         self.mouse_gene_to_human_gene = (  # E.g. 'MGI:1346074', 'HGNC:4024'.
-            self.load_solr_json('gene_gene')
+            self.load_solr_csv('gene_gene')
             .withColumnRenamed('gene_id', 'mgi_gene_id')
             .select('mgi_gene_id', 'hgnc_gene_id')
         )
         self.mouse_phenotype_to_human_phenotype = (  # E. g. 'MP:0000745','HP:0100033'
-            self.load_solr_json('ontology_ontology')
+            self.load_solr_csv('ontology_ontology')
             .select('mp_id', 'hp_id')
         )
 
         # Mouse model and disease data.
         # Note that the models are accessioned with the same prefix ('MGI:') as genes, but they are separate entities.
         self.mouse_model = (  # E. g. 'MGI:3800884', ['MP:0001304 cataract'].
-            self.load_solr_json('mouse_model')
+            self.load_solr_csv('mouse_model')
             .select('model_id', 'model_phenotypes')
         )
         self.disease = (  # E.g. 'OMIM:609258', ['HP:0000545 Myopia'].
-            self.load_solr_json('disease')
+            self.load_solr_csv('disease')
             .select('disease_id', 'disease_phenotypes')
         )
         self.disease_model_summary = (
             # E. g. 'MGI:2681494', 'C57BL/6JY-smk', 'smk/smk', 'ORPHA:3097', 'Meacham Syndrome', 91.6, 'MGI:98324'.
-            self.load_solr_json('disease_model_summary')
+            self.load_solr_csv('disease_model_summary')
             .withColumnRenamed('marker_id', 'mgi_gene_id')
             .withColumnRenamed('model_description', 'biologicalModelAllelicComposition')  # Using the final name.
             .withColumnRenamed('model_genetic_background', 'biologicalModelGeneticBackground')  # Using the final name.
@@ -156,7 +197,7 @@ class PhenoDigm:
                     'disease_term', 'resourceScore', 'mgi_gene_id')
         )
         self.ontology = (
-            self.load_solr_json('ontology')
+            self.load_solr_csv('ontology')
             .filter((pf.col('ontology') == 'MP') | (pf.col('ontology') == 'HP'))
             .select('ontology', 'phenotype_id', 'phenotype_term')
         )
@@ -176,16 +217,18 @@ class PhenoDigm:
         )
 
         # Split lists of phenotypes in the `mouse_model` and `disease` tables and keep only the ID. For example, one row
-        # with ['MP:0001529 abnormal vocalization', 'MP:0002981 increased liver weight'] becomes two rows with
-        # 'MP:0001529' and 'MP:0002981'.
+        # with 'MP:0001529 abnormal vocalization,MP:0002981 increased liver weight' becomes two rows with 'MP:0001529'
+        # and 'MP:0002981'.
         model_phenotypes_split = (
             self.mouse_model
+            .withColumn('model_phenotypes', pf.split(pf.col('model_phenotypes'), ','))
             .withColumn('phenotype', pf.explode('model_phenotypes'))
             .withColumn('mp_id', pf.split(pf.col('phenotype'), ' ').getItem(0))
             .select('model_id', 'mp_id')
         )
         human_phenotypes_split = (
             self.disease
+            .withColumn('disease_phenotypes', pf.split(pf.col('disease_phenotypes'), ','))
             .withColumn('phenotype', pf.explode('disease_phenotypes'))
             .withColumn('hp_id', pf.split(pf.col('phenotype'), ' ').getItem(0))
             .select('disease_id', 'hp_id')
@@ -326,7 +369,7 @@ if __name__ == '__main__':
     parser.add_argument('--output', help='Name of the json.gz file to output the evidence strings into.', required=True)
     parser.add_argument('--score-cutoff', help=(
         'Discard model-disease associations with the `disease_model_max_norm` score less than this value. The score '
-        'range is 0 to 100.'
+        'ranges from 0 to 100.'
     ), type=float, default=DEFAULT_ASSOCIATION_SCORE_CUTOFF)
     parser.add_argument('--use-cached', help='Use the existing cache and do not update it.', action='store_true')
     parser.add_argument('--log-file', help='Optional filename to redirect the logs into.')
