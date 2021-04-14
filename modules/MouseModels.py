@@ -11,7 +11,7 @@ import tempfile
 import urllib.request
 
 import pyspark
-import pyspark.sql.functions
+import pyspark.sql.functions as pf
 import requests
 from retry import retry
 
@@ -73,8 +73,8 @@ class PhenoDigm:
         super(PhenoDigm, self).__init__()
         self.logger = logger
         self.spark = pyspark.sql.SparkSession.builder.appName('phenodigm_parser').getOrCreate()
-        self.hgnc_id_to_ensembl_id, self.mgi_id_to_ensembl_id = None, None
-        self.disease_model_summary = None
+        self.hgnc_gene_id_to_ensembl_human_gene_id, self.mgi_gene_id_to_ensembl_mouse_gene_id = None, None
+        self.disease_model_summary, self.mouse_gene_to_human_gene = None, None
         self.evidence = None
 
     def update_cache(self, cache_dir):
@@ -97,34 +97,79 @@ class PhenoDigm:
 
     def load_data_from_cache(self, cache_dir):
         """Load the Ensembl gene ID and SOLR data from the downloaded TSV/JSON files into Spark."""
-        self.hgnc_id_to_ensembl_id = (
+        self.hgnc_gene_id_to_ensembl_human_gene_id = (
             self.spark.read.csv(os.path.join(cache_dir, HGNC_DATASET_FILENAME), sep='\t', header=True)
-                .select('hgnc_id', 'ensembl_gene_id')
+            .select('hgnc_id', 'ensembl_gene_id')
+            .withColumnRenamed('hgnc_id', 'hgnc_gene_id')
             .withColumnRenamed('ensembl_gene_id', 'ensembl_human_gene_id')
         )
-        self.mgi_id_to_ensembl_id = (
+        self.mgi_gene_id_to_ensembl_mouse_gene_id = (
             self.spark.read.csv(os.path.join(cache_dir, MGI_DATASET_FILENAME), sep='\t', header=True)
-                .withColumnRenamed('1. MGI accession id', 'mgi_id')
-                .withColumnRenamed('11. Ensembl gene id', 'ensembl_mouse_gene_id')
-                .select('mgi_id', 'ensembl_mouse_gene_id')
+            .withColumnRenamed('1. MGI accession id', 'mgi_gene_id')
+            .withColumnRenamed('11. Ensembl gene id', 'ensembl_mouse_gene_id')
+            .select('mgi_gene_id', 'ensembl_mouse_gene_id')
         )
         self.disease_model_summary = (
             self.spark.read.json(os.path.join(cache_dir, IMPC_FILENAME.format(data_type='disease_model_summary')))
-                .select('model_id', 'model_genetic_background', 'model_description', 'disease_id', 'disease_term',
-                        'disease_model_max_norm')
-                .limit(100)
+            .select('model_id', 'model_genetic_background', 'model_description',
+                    'disease_id', 'disease_term', 'disease_model_max_norm',
+                    'marker_id')
+            .withColumnRenamed('marker_id', 'mgi_gene_id')
+            .limit(100)
+        )
+        self.mouse_gene_to_human_gene = (
+            self.spark.read.json(os.path.join(cache_dir, IMPC_FILENAME.format(data_type='gene_gene')))
+            .select('gene_id', 'hgnc_gene_id')
+            .withColumnRenamed('gene_id', 'mgi_gene_id')
         )
 
     def generate_phenodigm_evidence_strings(self):
-        # Prepare the
+        # Prepare the gene mapping tables for mouse and human. Each mapping is not guaranteed to be one-to-one, so
+        # appropriate aggregations are applied, and the corresponding explosions will be applied after joining the
+        # table. For example (a hypothetical scenario), if a `marker_id` (MGI gene identifier) maps to 2 different
+        # ENSMUSG accessions, and at the same time to 3 different ENSG accessions, a single source row will eventually
+        # be exploded into 6 to reflect the total evidence available.
+        mgi_to_mouse_ensembl_agg = (  # Example: MGI:1 → [ENSMUSG1, ENSMUSG2]
+            self.mgi_gene_id_to_ensembl_mouse_gene_id
+            .groupby('mgi_gene_id')
+            .agg(pf.collect_list('ensembl_mouse_gene_id').alias('ensembl_mouse_gene_id_list'))
+        )
 
+        # For human genes, we map: MGI ID → HGNC ID → Ensembl human gene ID.
+        mgi_to_hgnc = (
+            self.mouse_gene_to_human_gene
+            .groupby('hgnc_gene_id')
+            .agg(pf.collect_list('mgi_gene_id').alias('mgi_gene_id_list'))
+        )
+        hgnc_to_ensg = (
+            self.hgnc_gene_id_to_ensembl_human_gene_id
+            .groupby('hgnc_gene_id')
+            .agg(pf.collect_list('ensembl_human_gene_id').alias('ensembl_human_gene_id_list'))
+        )
+        mgi_to_human_ensembl_agg = (  # Example: MGI:1 → [ENSG1, ENSG2]
+            mgi_to_hgnc.join(hgnc_to_ensg, on='hgnc_gene_id', how='inner')
+            .drop('hgnc_gene_id')  # Thank you for making the join possible, but we don't need you anymore.
+            .withColumn('mgi_gene_id', pf.explode(pf.column('mgi_gene_id_list')))
+            .withColumn('ensembl_human_gene_id', pf.explode(pf.column('ensembl_human_gene_id_list')))
+            .drop('mgi_gene_id_list', 'ensembl_human_gene_id_list')
+            .groupby('mgi_gene_id').agg(pf.collect_list('ensembl_human_gene_id').alias('ensembl_human_gene_id_list'))
+        )
 
         self.evidence = (
             self.disease_model_summary
 
+            # Add gene mapping information. The mappings are not one-to-one in general!
+            .join(mgi_to_mouse_ensembl_agg, on='mgi_gene_id', how='inner')
+            .join(mgi_to_human_ensembl_agg, on='mgi_gene_id', how='inner')
+            .withColumn('ensembl_mouse_gene_id', pf.explode(pf.column('ensembl_mouse_gene_id_list')))
+            .withColumn('ensembl_human_gene_id', pf.explode(pf.column('ensembl_human_gene_id_list')))
+            .drop('ensembl_mouse_gene_id_list', 'ensembl_human_gene_id_list')
+
             # Rename some columns
             .withColumnRenamed('disease_id', 'diseaseFromSourceId')
             .withColumnRenamed('disease_term', 'diseaseFromSource')
+            .withColumnRenamed('ensembl_human_gene_id', 'targetFromSourceId')
+            .withColumnRenamed('ensembl_mouse_gene_id', 'targetInModel')
             .withColumnRenamed('model_description', 'biologicalModelAllelicComposition')
             .withColumnRenamed('model_genetic_background', 'biologicalModelGeneticBackground')
 
@@ -132,18 +177,18 @@ class PhenoDigm:
             # For example: MGI:6274930#hom#early → MGI:6274930
             .withColumn(
                 'biologicalModelId',
-                pyspark.sql.functions.split(pyspark.sql.functions.col('model_id'), '#').getItem(0)
+                pf.split(pf.col('model_id'), '#').getItem(0)
             )
 
             # Convert the percentage score into fraction
-            .withColumn('resourceScore', pyspark.sql.functions.col('disease_model_max_norm') / 100.0)
+            .withColumn('resourceScore', pf.col('disease_model_max_norm') / 100.0)
 
             # Remove intermediate columns
             .drop('disease_model_max_norm', 'model_id')
 
             # Add constant value columns
-            .withColumn('datasourceId', pyspark.sql.functions.lit('phenodigm'))
-            .withColumn('datatypeId', pyspark.sql.functions.lit('animal_model'))
+            .withColumn('datasourceId', pf.lit('phenodigm'))
+            .withColumn('datatypeId', pf.lit('animal_model'))
         )
 
     def write_evidence_strings(self, filename):
