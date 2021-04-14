@@ -278,7 +278,7 @@ python modules/SLAPEnrich.py \
 
 Generates the mouse model target-disease evidence by querying the IMPC SOLR API.
 
-The base of the evidence is the `disease_model_summary` table, which is unique on the (`model_id`, `disease_id`) tuple. When target information is added, an original row may explode into multiple evidence strings. As a result, the final output is unique on the (`biologicalModelId`, `targetFromSourceId`, `targetInModel`, `diseaseFromSourceId`) tuple.
+The base of the evidence is the `disease_model_summary` table, which is unique on the combination of (`model_id`, `disease_id`). When target information is added, an original row may explode into multiple evidence strings. As a result, the final output is unique on the combination of (`biologicalModelId`, `targetFromSourceId`, `targetInModel`, `diseaseFromSourceId`).
 
 The associations are filtered on the `disease_model_max_norm` score. For some associations this score is not available in the source data, and they are always kept.
 
@@ -299,15 +299,16 @@ Evidence parser for the animal model sources from PhenoDigm.
 
 optional arguments:
   -h, --help            show this help message and exit
-  --cache-dir CACHE_DIR
-                        Directory to store the HGNC/MGI/SOLR cache files in. (default: None)
-  --output OUTPUT       Name of the json.gz file to output the evidence strings into. (default:
-                        None)
   --score-cutoff SCORE_CUTOFF
                         Discard model-disease associations with the `disease_model_max_norm` score
                         less than this value. The score ranges from 0 to 100. (default: 90.0)
   --use-cached          Use the existing cache and do not update it. (default: False)
   --log-file LOG_FILE   Optional filename to redirect the logs into. (default: None)
+
+required arguments:
+  --cache-dir CACHE_DIR
+                        Directory to store the HGNC/MGI/SOLR cache files in. (default: None)
+  --output OUTPUT       Name of the json.gz file to output the evidence strings into. (default: None)
 ```
 
 Approximate resource requirements and benchmarks:
