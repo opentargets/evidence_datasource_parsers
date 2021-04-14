@@ -276,7 +276,9 @@ python modules/SLAPEnrich.py \
 
 ### PhenoDigm
 
-Generates target-disease evidence by querying the IMPC SOLR API. The base of the evidence is the `disease_model_summary` table, which is unique on the (`model_id`, `disease_id`) tuple. When target information is added, an original row may explode into multiple evidence strings. As a result, the final output is unique on the (`biologicalModelId`, `targetFromSourceId`, `targetInModel`, `diseaseFromSourceId`) tuple.
+Generates the mouse model target-disease evidence by querying the IMPC SOLR API.
+
+The base of the evidence is the `disease_model_summary` table, which is unique on the (`model_id`, `disease_id`) tuple. When target information is added, an original row may explode into multiple evidence strings. As a result, the final output is unique on the (`biologicalModelId`, `targetFromSourceId`, `targetInModel`, `diseaseFromSourceId`) tuple.
 
 The associations are filtered on the `disease_model_max_norm` score. For some associations this score is not available in the source data, and they are always kept.
 
@@ -307,6 +309,11 @@ optional arguments:
   --use-cached          Use the existing cache and do not update it. (default: False)
   --log-file LOG_FILE   Optional filename to redirect the logs into. (default: None)
 ```
+
+Approximate resource requirements and benchmarks:
+* Wall clock time to download the entire data from SOLR: 20 minutes;
+* Wall clock time to ingest and process the data: 3.5 minutes when running on AMD Ryzen 5 3600 (6 cores, 12 threads);
+* Peak RAM usage: 1.5 GB.
 
 ### Open Targets Genetics Portal
 
