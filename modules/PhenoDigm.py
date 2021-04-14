@@ -115,7 +115,7 @@ class PhenoDigm:
             self.load_tsv(HGNC_DATASET_FILENAME)
             .withColumnRenamed('hgnc_id', 'hgnc_gene_id')
             .withColumnRenamed('ensembl_gene_id', 'targetFromSourceId')  # Using the final name.
-            .select('hgnc_id', 'targetFromSourceId')
+            .select('hgnc_gene_id', 'targetFromSourceId')
         )
         self.mgi_gene_id_to_ensembl_mouse_gene_id = (  # E.g. 'MGI:87853', 'ENSMUSG00000027596'.
             self.load_tsv(MGI_DATASET_FILENAME)
@@ -158,8 +158,7 @@ class PhenoDigm:
         self.ontology = (
             self.load_solr_json('ontology')
             .filter((pf.col('ontology') == 'MP') | (pf.col('ontology') == 'HP'))
-            .select('phenotype_id', 'phenotype_term')
-            .filter(pf.col('on'))
+            .select('ontology', 'phenotype_id', 'phenotype_term')
         )
         assert self.ontology.select('phenotype_id').distinct().count() == self.ontology.count(), \
             f'Encountered multiple names for the same term in the ontology table.'
@@ -169,10 +168,11 @@ class PhenoDigm:
         # Process ontology information to enable MP and HP term lookup based on the ID.
         mp_terms, hp_terms = (
             self.ontology
-            .filter(self.ontology == ontology_name)
-            .withColumn('phenotype_id', f'{ontology_name}_id')
-            .withColumn('phenotype_term', f'{ontology_name}_term')
-            for ontology_name in ('mp', 'hp')
+            .filter(pf.col('ontology') == ontology_name)
+            .withColumnRenamed('phenotype_id', f'{ontology_name.lower()}_id')
+            .withColumnRenamed('phenotype_term', f'{ontology_name.lower()}_term')
+            .select(f'{ontology_name.lower()}_id', f'{ontology_name.lower()}_term')
+            for ontology_name in ('MP', 'HP')
         )
 
         # Split lists of phenotypes in the `mouse_model` and `disease` tables and keep only the ID. For example, one row
@@ -237,8 +237,8 @@ class PhenoDigm:
             # Add the human gene mapping information. This is added in two stages: MGI → HGNC → Ensembl human gene.
             # Similarly to mouse gene mappings, at each stage there is a possibility of a row explosion.
             .join(self.mouse_gene_to_human_gene, on='mgi_gene_id', how='inner')
-            .join(self.hgnc_gene_id_to_ensembl_human_gene_id, on='hgnc_id', how='inner')  # `targetFromSourceId`.
-            .drop('mgi_gene_id', 'hgnc_id')
+            .join(self.hgnc_gene_id_to_ensembl_human_gene_id, on='hgnc_gene_id', how='inner')  # `targetFromSourceId`.
+            .drop('mgi_gene_id', 'hgnc_gene_id')
 
             # Add all mouse phenotypes of the model → `diseaseModelAssociatedModelPhenotypes`.
             .join(all_mouse_phenotypes, on='model_id', how='left')
