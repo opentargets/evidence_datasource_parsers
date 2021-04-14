@@ -15,6 +15,7 @@ import pyspark.sql.functions as pf
 import requests
 from retry import retry
 
+
 # Human gene mappings.
 HGNC_DATASET_URI = 'http://ftp.ebi.ac.uk/pub/databases/genenames/hgnc/tsv/hgnc_complete_set.txt'
 HGNC_DATASET_FILENAME = os.path.split(HGNC_DATASET_URI)[-1]
@@ -30,6 +31,7 @@ IMPC_SOLR_TABLES = ('gene_gene', 'mouse_model', 'disease_model_summary', 'diseas
 IMPC_FILENAME = 'impc_solr_{data_type}.json'
 IMPC_SOLR_BATCH_SIZE = 100000
 IMPC_SOLR_TIMEOUT = 600
+DEFAULT_ASSOCIATION_SCORE_CUTOFF = 90.0
 
 
 class ImpcSolrRetriever:
@@ -162,7 +164,7 @@ class PhenoDigm:
         assert self.ontology.select('phenotype_id').distinct().count() == self.ontology.count(), \
             f'Encountered multiple names for the same term in the ontology table.'
 
-    def generate_phenodigm_evidence_strings(self):
+    def generate_phenodigm_evidence_strings(self, score_cutoff):
         """Generate the evidence by renaming, transforming and joining the columns."""
         # Process ontology information to enable MP and HP term lookup based on the ID.
         mp_terms, hp_terms = (
@@ -223,6 +225,9 @@ class PhenoDigm:
         self.evidence = (
             self.disease_model_summary
 
+            # Filter out the associations with a low score. Some associations lack this score and are kept.
+            .filter(~(pf.col('disease_model_max_norm') < score_cutoff))
+
             # Add the mouse gene mapping information. The mappings are not necessarily one to one, because a single MGI
             # can map to multiple Ensembl mouse genes. When this happens, join will handle the necessary explosions, and
             # a single row from the original table will generate multiple evidence strings.
@@ -262,9 +267,9 @@ class PhenoDigm:
         )
 
     def write_evidence_strings(self, evidence_strings_filename):
-        """Dump the Spark evidence dataframe into a temporary directory as separate JSON chunks. Collect, combine and
-        compress the to obtain the final output file. The order of the evidence strings is not maintained, and they are
-        returned in the order collected by Spark."""
+        """Dump the Spark evidence dataframe into a temporary directory as separate JSON chunks. Collect and combine
+        them to obtain the final output file. The order of the evidence strings is not maintained, and they are returned
+        in random order as collected by Spark."""
         with tempfile.TemporaryDirectory() as tmp_dir_name, open(evidence_strings_filename, 'wb') as outfile:
             (
                 self.evidence.write
@@ -275,7 +280,7 @@ class PhenoDigm:
                 with open(os.path.join(tmp_dir_name, json_chunk_filename), 'rb') as json_chunk:
                     shutil.copyfileobj(json_chunk, outfile)
 
-    def process_all(self, output, use_cached):
+    def process_all(self, output, score_cutoff, use_cached):
         if not use_cached:
             self.logger.info('Update the HGNC/MGI/SOLR cache.')
             self.update_cache()
@@ -284,13 +289,13 @@ class PhenoDigm:
         self.load_data_from_cache()
 
         self.logger.info('Build the evidence strings.')
-        self.generate_phenodigm_evidence_strings()
+        self.generate_phenodigm_evidence_strings(score_cutoff)
 
         self.logger.info('Collect and write the evidence strings.')
         self.write_evidence_strings(output)
 
 
-def main(cache_dir, output, use_cached=False, log_file=None):
+def main(cache_dir, output, score_cutoff, use_cached=False, log_file=None):
     # Initialize the logger based on the provided log file. If no log file is specified, logs are written to STDERR.
     logging_config = {
         'level': logging.INFO,
@@ -302,14 +307,18 @@ def main(cache_dir, output, use_cached=False, log_file=None):
     logging.basicConfig(**logging_config)
 
     # Process the data.
-    PhenoDigm(logging, cache_dir).process_all(output, use_cached)
+    PhenoDigm(logging, cache_dir).process_all(output, score_cutoff, use_cached)
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--cache-dir', help='Directory to store the HGNC/MGI/SOLR cache files in.', required=True)
     parser.add_argument('--output', help='Name of the json.gz file to output the evidence strings into.', required=True)
+    parser.add_argument('--score-cutoff', help=(
+        'Discard model-disease associations with the `disease_model_max_norm` score less than this value. The score '
+        'range is 0 to 100.'
+    ), type=float, default=DEFAULT_ASSOCIATION_SCORE_CUTOFF)
     parser.add_argument('--use-cached', help='Use the existing cache and do not update it.', action='store_true')
     parser.add_argument('--log-file', help='Optional filename to redirect the logs into.')
     args = parser.parse_args()
-    main(args.cache_dir, args.output, args.use_cached, args.log_file)
+    main(args.cache_dir, args.output, args.score_cutoff, args.use_cached, args.log_file)
