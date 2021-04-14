@@ -295,8 +295,10 @@ wget https://github.com/opentargets/ontology-utils/archive/bff0f189a4c6e8613e99a
 pip3 install bff0f189a4c6e8613e99a5d47e9ad4ceb6a375fc.zip
 
 # Run
-python3 modules/MouseModels.py
+python3 modules/MouseModels.py -l log.txt
 ```
+
+If `-l` is unspecified, logs will be printed to STDERR.
 
 ### Open Targets Genetics Portal
 
