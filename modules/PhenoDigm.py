@@ -137,7 +137,7 @@ class PhenoDigm:
             impc_solr_retriever.fetch_data(data_type, filename)
 
     def load_tsv(self, filename):
-        return self.spark.read.csv(os.path.join(self.cache_dir, filename), sep='\t', header=True)
+        return self.spark.read.csv(os.path.join(self.cache_dir, filename), sep='\t', header=True, nullValue='null')
 
     def load_solr_csv(self, data_type):
         """Load the CSV from SOLR; rename and select columns as specified."""
@@ -164,6 +164,7 @@ class PhenoDigm:
             self.load_tsv(MGI_DATASET_FILENAME)
             .withColumnRenamed('1. MGI accession id', 'mgi_gene_id')
             .withColumnRenamed('11. Ensembl gene id', 'targetInModel')  # Using the final name.
+            .filter(pf.col('targetInModel').isNotNull())
             .select('mgi_gene_id', 'targetInModel')
         )
 
