@@ -312,9 +312,9 @@ required arguments:
 ```
 
 Approximate resource requirements and benchmarks:
-* Total wall clock running time: 8 minutes on AMD Ryzen 5 3600 (6 cores / 12 threads).
+* Total wall clock running time: 6 minutes on AMD Ryzen 5 3600 (6 cores / 12 threads).
   - Fetch the data from SOLR: 4 minutes.
-  - Ingest the data and generate the evidence strings: 4 minutes.
+  - Ingest the data and generate the evidence strings: 2 minutes.
 * Peak RAM usage: 1.5 GB.
 
 ### Open Targets Genetics Portal

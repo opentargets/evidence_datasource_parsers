@@ -201,25 +201,31 @@ class PhenoDigm:
         # Split lists of phenotypes in the `mouse_model` and `disease` tables and keep only the ID. For example, one row
         # with 'MP:0001529 abnormal vocalization,MP:0002981 increased liver weight' becomes two rows with 'MP:0001529'
         # and 'MP:0002981'.
-        model_phenotypes_split = (
+        model_mouse_phenotypes = (
             self.mouse_model
             .withColumn('model_phenotypes', pf.split(pf.col('model_phenotypes'), ','))
             .withColumn('phenotype', pf.explode('model_phenotypes'))
             .withColumn('mp_id', pf.split(pf.col('phenotype'), ' ').getItem(0))
             .select('model_id', 'mp_id')
         )
-        human_phenotypes_split = (
+        disease_human_phenotypes = (
             self.disease
             .withColumn('disease_phenotypes', pf.split(pf.col('disease_phenotypes'), ','))
             .withColumn('phenotype', pf.explode('disease_phenotypes'))
             .withColumn('hp_id', pf.split(pf.col('phenotype'), ' ').getItem(0))
             .select('disease_id', 'hp_id')
         )
+        # Map mouse model phenotypes into human terms.
+        model_human_phenotypes = (
+            model_mouse_phenotypes
+            .join(self.mouse_phenotype_to_human_phenotype, on='mp_id', how='inner')
+            .select('model_id', 'hp_id')
+        )
 
         # We are reporting all mouse phenotypes for a model, regardless of whether they can be mapped into any human
         # disease.
         all_mouse_phenotypes = (
-            model_phenotypes_split
+            model_mouse_phenotypes
             .join(mp_terms, on='mp_id', how='inner')
             .groupby('model_id')
             .agg(
@@ -233,17 +239,12 @@ class PhenoDigm:
         # For human phenotypes, we only want to include the ones which are present in the disease *and* also can be
         # traced back to the model phenotypes through the MP → HP mapping relationship.
         matched_human_phenotypes = (
-            # This first table is not strictly speaking required for the joins, but starting the join chain from it
-            # significantly reduces the memory consumption by limiting the operations only to (model, disease) pairs
-            # which actually exist.
+            # We start with all possible pairs of model-disease associations.
             self.disease_model_summary.select('model_id', 'disease_id')
-            # Add all mouse model phenotypes. Now we have: model_id, disease_id, mp_id.
-            .join(model_phenotypes_split, on='model_id', how='inner')
-            # Convert to the corresponding human phenotypes. Now we have: model_id, disease_id, hp_id.
-            .join(self.mouse_phenotype_to_human_phenotype, on='mp_id', how='inner')
-            .drop('mp_id')
-            # Filter the records to only leave human phenotypes which are observed in the corresponding human disease.
-            .join(human_phenotypes_split, on=['disease_id', 'hp_id'], how='inner')
+            # Add all disease phenotypes. Now we have: model_id, disease_id, hp_id (from disease).
+            .join(disease_human_phenotypes, on='disease_id', how='inner')
+            # Only keep the phenotypes which also appear in the mouse model (after mapping).
+            .join(model_human_phenotypes, on=['model_id', 'hp_id'], how='inner')
             # Add ontology terms in addition to IDs. Now we have: model_id, disease_id, hp_id, hp_term.
             .join(hp_terms, on='hp_id', how='inner')
             .groupby('model_id', 'disease_id')
