@@ -15,7 +15,7 @@ GeneticsPortal:
 ClinGen:
   webSource: https://search.clinicalgenome.org/kb/gene-validity/download
   inputBucket: gs://otar000-evidence_input/ClinGen/data_files
-  outputBucket: gs://otar000-evidence_input/ClinGen
+  outputBucket: gs://otar000-evidence_input/ClinGen/json
 # Parameters for PheWAS:
 PheWAS:
   inputBucket: gs://otar000-evidence_input/PheWAS/data_files

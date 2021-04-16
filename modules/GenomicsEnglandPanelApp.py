@@ -73,7 +73,7 @@ class PanelAppEvidenceGenerator():
         logging.info("Generating evidence:")
         evidences = (self.dataframe
                         # Removing redundant evidence after the explosion of phenotypes
-                        .dropDuplicates(["Panel Id", "Symbol", "ontomaUrl"])
+                        .dropDuplicates(["Panel Id", "Symbol", "ontomaUrl", "cohortPhenotypes"])
                         # Build evidence strings per row
                         .rdd.map(
                             PanelAppEvidenceGenerator.parseEvidenceString)

@@ -1,6 +1,4 @@
-from settings import Config
 import ontoma
-
 import logging
 import csv
 import gzip
@@ -290,7 +288,7 @@ def main():
                         help='Cancer panel file downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads',
                         type=str)
     parser.add_argument('-o', '--output_file',
-                        help='Name of gzipped evidence file. It uses the value of G2P_EVIDENCE_FILENAME in setting.py if not specified',
+                        help='Name of gzipped evidence file',
                         type=str)
     parser.add_argument('-u', '--unmapped_diseases_file',
                         help='If specified, the diseases not mapped to EFO will be stored in this file',

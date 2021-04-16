@@ -44,7 +44,7 @@ rule clingen:
         f"tmp/ClinGen-Gene-Disease-Summary-{timeStamp}.csv"
     output:
         evidenceFile=GS.remote(f"{config['ClinGen']['outputBucket']}/ClinGen-{timeStamp}.json.gz"),
-        unmappedFile=GS.remote(f"{config['ClinGen']['outputBucket']}/ClinGen-Gene-unmapped-{timeStamp}.lst")
+        unmappedDiseases=f"unmappedDiseases/clingen_unmapped_diseases-{timeStamp}.lst"
     conda:
         'envs/conda-env.yml'
     log:
@@ -53,8 +53,8 @@ rule clingen:
         """
         python modules/ClinGen.py \
         --input_file {input} \
-        --output_file {output.evidenceFile} 
-        --unmapped_diseases_file {output.unmappedFile}
+        --output_file {output.evidenceFile} \
+        --unmapped_diseases_file {output.unmappedDiseases}
         """
 
 ## geneticsPortal           : processes lead variants from the Open Targets Genetics portal on a Dataproc cluster
@@ -141,7 +141,7 @@ rule gene2Phenotype:
         cancerPanel=f"tmp/CancerG2P-{timeStamp}.csv.gz"
     output:
         evidenceFile=GS.remote(f"{config['Gene2Phenotype']['outputBucket']}/gene2phenotype-{timeStamp}.json.gz"),
-        unmappedDiseases=GS.remote(f"{config['Gene2Phenotype']['outputBucket']}/gene2phenotype_unmapped_diseases-{timeStamp}.txt")
+        unmappedDiseases=f"unmappedDiseases/gene2phenotype_unmapped_diseases-{timeStamp}.txt"
     conda:
         'envs/conda-env.yml'
     log:
