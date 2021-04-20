@@ -301,9 +301,8 @@ class PhenoDigm:
         )
 
     def write_evidence_strings(self, evidence_strings_filename):
-        """Dump the Spark evidence dataframe into a temporary directory as separate JSON chunks. Collect and combine
-        them to obtain the final output file. The order of the evidence strings is not maintained, and they are returned
-        in random order as collected by Spark."""
+        """Dump the Spark evidence dataframe as a compressed JSON file. The order of the evidence strings is not
+        maintained, and they are returned in random order as collected by Spark."""
         with tempfile.TemporaryDirectory() as tmp_dir_name:
             (
                 self.evidence.coalesce(1).write
@@ -313,20 +312,6 @@ class PhenoDigm:
             json_chunks = [f for f in os.listdir(tmp_dir_name) if f.endswith('.json.gz')]
             assert len(json_chunks) == 1, f'Expected one JSON file, but found {len(json_chunks)}.'
             os.rename(json_chunks[0], evidence_strings_filename)
-
-    def process_all(self, output, score_cutoff, use_cached):
-        if not use_cached:
-            self.logger.info('Update the HGNC/MGI/SOLR cache.')
-            self.update_cache()
-
-        self.logger.info('Load gene mappings and SOLR data from local cache.')
-        self.load_data_from_cache()
-
-        self.logger.info('Build the evidence strings.')
-        self.generate_phenodigm_evidence_strings(score_cutoff)
-
-        self.logger.info('Collect and write the evidence strings.')
-        self.write_evidence_strings(output)
 
 
 def main(cache_dir, output, score_cutoff, use_cached=False, log_file=None):
@@ -341,7 +326,19 @@ def main(cache_dir, output, score_cutoff, use_cached=False, log_file=None):
     logging.basicConfig(**logging_config)
 
     # Process the data.
-    PhenoDigm(logging, cache_dir).process_all(output, score_cutoff, use_cached)
+    phenodigm = PhenoDigm(logging, cache_dir)
+    if not use_cached:
+        logging.info('Update the HGNC/MGI/SOLR cache.')
+        phenodigm.update_cache()
+
+    logging.info('Load gene mappings and SOLR data from local cache.')
+    phenodigm.load_data_from_cache()
+
+    logging.info('Build the evidence strings.')
+    phenodigm.generate_phenodigm_evidence_strings(score_cutoff)
+
+    logging.info('Collect and write the evidence strings.')
+    phenodigm.write_evidence_strings(output)
 
 
 if __name__ == '__main__':
