@@ -304,15 +304,15 @@ class PhenoDigm:
         """Dump the Spark evidence dataframe into a temporary directory as separate JSON chunks. Collect and combine
         them to obtain the final output file. The order of the evidence strings is not maintained, and they are returned
         in random order as collected by Spark."""
-        with tempfile.TemporaryDirectory() as tmp_dir_name, open(evidence_strings_filename, 'wb') as outfile:
+        with tempfile.TemporaryDirectory() as tmp_dir_name:
             (
-                self.evidence.write
+                self.evidence.coalesce(1).write
                 .format('json').mode('overwrite').option('compression', 'org.apache.hadoop.io.compress.GzipCodec')
                 .save(tmp_dir_name)
             )
-            for json_chunk_filename in [f for f in os.listdir(tmp_dir_name) if f.endswith('.json.gz')]:
-                with open(os.path.join(tmp_dir_name, json_chunk_filename), 'rb') as json_chunk:
-                    shutil.copyfileobj(json_chunk, outfile)
+            json_chunks = [f for f in os.listdir(tmp_dir_name) if f.endswith('.json.gz')]
+            assert len(json_chunks) == 1, f'Expected one JSON file, but found {len(json_chunks)}.'
+            os.rename(json_chunks[0], evidence_strings_filename)
 
     def process_all(self, output, score_cutoff, use_cached):
         if not use_cached:
