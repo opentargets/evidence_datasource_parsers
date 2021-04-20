@@ -19,16 +19,14 @@ from retry import retry
 # renamed after loading. Other tables (not currently used): gene, disease_gene_summary.
 IMPC_SOLR_TABLES = {
     # Mouse to human mappings.
-    'gene_gene': ('gene_id > mgi_gene_id', 'hgnc_gene_id'),
+    'gene_gene': ('gene_id', 'hgnc_gene_id'),
     'ontology_ontology': ('mp_id', 'hp_id'),
     # Mouse model and disease data.
     'mouse_model': ('model_id', 'model_phenotypes'),
     'disease': ('disease_id', 'disease_phenotypes'),
-    'disease_model_summary': ('model_id', 'model_genetic_background > biologicalModelGeneticBackground',
-                              'model_description > biologicalModelAllelicComposition', 'disease_id', 'disease_term',
-                              'disease_model_max_norm > resourceScore', 'marker_id > mgi_gene_id'),
+    'disease_model_summary': ('model_id', 'model_genetic_background', 'model_description', 'disease_id', 'disease_term',
+                              'disease_model_max_norm', 'marker_id'),
     'ontology': ('ontology', 'phenotype_id', 'phenotype_term'),
-
 }
 
 
@@ -165,7 +163,10 @@ class PhenoDigm:
         )
 
         # Mouse to human gene mappings, e.g. 'MGI:1346074', 'HGNC:4024'.
-        self.mouse_gene_to_human_gene = self.load_solr_csv('gene_gene')
+        self.mouse_gene_to_human_gene = (
+            self.load_solr_csv('gene_gene')
+            .withColumnRenamed('gene_id', 'mgi_gene_id')
+        )
         # Mouse to human phenotype mappings, e.g. 'MP:0000745','HP:0100033'.
         self.mouse_phenotype_to_human_phenotype = self.load_solr_csv('ontology_ontology')
 
@@ -174,7 +175,13 @@ class PhenoDigm:
         self.mouse_model = self.load_solr_csv('mouse_model')  # E. g. 'MGI:3800884', ['MP:0001304 cataract'].
         self.disease = self.load_solr_csv('disease')  # E.g. 'OMIM:609258', ['HP:0000545 Myopia'].
         # E. g. 'MGI:2681494', 'C57BL/6JY-smk', 'smk/smk', 'ORPHA:3097', 'Meacham Syndrome', 91.6, 'MGI:98324'.
-        self.disease_model_summary = self.load_solr_csv('disease_model_summary')
+        self.disease_model_summary = (
+            self.load_solr_csv('disease_model_summary')
+            .withColumnRenamed('model_genetic_background', 'biologicalModelGeneticBackground')
+            .withColumnRenamed('model_description', 'biologicalModelAllelicComposition')
+            .withColumnRenamed('disease_model_max_norm', 'resourceScore')
+            .withColumnRenamed('marker_id', 'mgi_gene_id')
+        )
         self.ontology = (
             self.load_solr_csv('ontology')  # E.g. 'HP', 'HP:0000002', 'Abnormality of body height'.
             .filter((pf.col('ontology') == 'MP') | (pf.col('ontology') == 'HP'))
