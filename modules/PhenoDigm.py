@@ -206,16 +206,14 @@ class PhenoDigm:
         # and 'MP:0002981'.
         model_mouse_phenotypes = (
             self.mouse_model
-            .withColumn('model_phenotypes', pf.split(pf.col('model_phenotypes'), ','))
-            .withColumn('phenotype', pf.explode('model_phenotypes'))
-            .withColumn('mp_id', pf.split(pf.col('phenotype'), ' ').getItem(0))
+            .withColumn('mp_ids', pf.regexp_extract(pf.col('model_phenotypes'), r'MP:\d+', 1))
+            .withColumn('mp_id', pf.explode('mp_ids'))
             .select('model_id', 'mp_id')
         )
         disease_human_phenotypes = (
             self.disease
-            .withColumn('disease_phenotypes', pf.split(pf.col('disease_phenotypes'), ','))
-            .withColumn('phenotype', pf.explode('disease_phenotypes'))
-            .withColumn('hp_id', pf.split(pf.col('phenotype'), ' ').getItem(0))
+            .withColumn('hp_ids', pf.regexp_extract(pf.col('disease_phenotypes'), r'HP:\d+', 1))
+            .withColumn('hp_id', pf.explode('hp_ids'))
             .select('disease_id', 'hp_id')
         )
         # Map mouse model phenotypes into human terms.
