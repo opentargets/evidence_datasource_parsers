@@ -15,16 +15,6 @@ import requests
 from retry import retry
 
 
-# Human gene mappings.
-HGNC_DATASET_URI = 'http://ftp.ebi.ac.uk/pub/databases/genenames/hgnc/tsv/hgnc_complete_set.txt'
-HGNC_DATASET_FILENAME = os.path.split(HGNC_DATASET_URI)[-1]
-
-# Mouse gene mappings.
-MGI_DATASET_URI = 'http://www.informatics.jax.org/downloads/reports/MGI_Gene_Model_Coord.rpt'
-MGI_DATASET_FILENAME = os.path.split(MGI_DATASET_URI)[-1]
-
-# Mouse model data from IMPC SOLR.
-IMPC_SOLR_HOST = 'http://www.ebi.ac.uk/mi/impc/solr/phenodigm/select'
 # The tables and their fields to fetch from SOLR. The syntax 'original_name > new_name' means that the column will be
 # renamed after loading. Other tables (not currently used): gene, disease_gene_summary.
 IMPC_SOLR_TABLES = {
@@ -40,29 +30,25 @@ IMPC_SOLR_TABLES = {
     'ontology': ('ontology', 'phenotype_id', 'phenotype_term'),
 
 }
-IMPC_FILENAME = 'impc_solr_{data_type}.csv'
-# The largest table is about 7 million records. The one billion limit is used as an arbitrary high number to retrieve
-# all records in one large request, which maximises the performance.
-IMPC_SOLR_BATCH_SIZE = 1000000000
-IMPC_SOLR_TIMEOUT = 3600
 DEFAULT_ASSOCIATION_SCORE_CUTOFF = 90.0
 
 
 class ImpcSolrRetriever:
     """Retrieve data from the IMPC SOLR API and save the CSV files to the specified location."""
 
-    def __init__(self, solr_host: str, timeout: int, rows: int):
-        """Initialise the query parameters: SOLR endpoint to make the requests against; timeout to apply to the
-        requests, in seconds; and the number of SOLR records requested in a single batch."""
-        self.solr_host = solr_host
-        self.timeout = timeout
-        self.rows = rows
+    # Mouse model data from IMPC SOLR.
+    IMPC_SOLR_HOST = 'http://www.ebi.ac.uk/mi/impc/solr/phenodigm/select'
+
+    # The largest table is about 7 million records. The one billion limit is used as an arbitrary high number to
+    # retrieve all records in one large request, which maximises the performance.
+    IMPC_SOLR_BATCH_SIZE = 1000000000
+    IMPC_SOLR_TIMEOUT = 3600
 
     # The decorator ensures that the requests are retried in case of network or server errors.
     @retry(tries=3, delay=5, backoff=1.2, jitter=(1, 3))
     def get_number_of_solr_records(self, data_type):
         params = {'q': '*:*', 'fq': f'type:{data_type}', 'rows': 0}
-        response = requests.get(self.solr_host, params=params, timeout=self.timeout)
+        response = requests.get(self.IMPC_SOLR_HOST, params=params, timeout=self.IMPC_SOLR_TIMEOUT)
         response.raise_for_status()  # Check for HTTP errors. This will be caught by @retry.
         return response.json()['response']['numFound']
 
@@ -70,9 +56,9 @@ class ImpcSolrRetriever:
     def query_solr(self, data_type, start):
         """Request one batch of SOLR records of the specified data type and write it into a temporary file."""
         list_of_columns = [column.split(' > ')[0] for column in IMPC_SOLR_TABLES[data_type]]
-        params = {'q': '*:*', 'fq': f'type:{data_type}', 'start': start, 'rows': self.rows, 'wt': 'csv',
+        params = {'q': '*:*', 'fq': f'type:{data_type}', 'start': start, 'rows': self.IMPC_SOLR_BATCH_SIZE, 'wt': 'csv',
                   'fl': ','.join(list_of_columns)}
-        response = requests.get(self.solr_host, params=params, timeout=self.timeout, stream=True)
+        response = requests.get(self.IMPC_SOLR_HOST, params=params, timeout=self.IMPC_SOLR_TIMEOUT, stream=True)
         response.raise_for_status()
         # Write records as they appear to avoid keeping the entire response in memory.
         with tempfile.NamedTemporaryFile('wt', delete=False) as tmp_file:
@@ -98,7 +84,7 @@ class ImpcSolrRetriever:
                     shutil.copyfileobj(tmp_file, outfile)
                 os.remove(tmp_filename)
                 # Increment the counters.
-                start += self.rows
+                start += self.IMPC_SOLR_BATCH_SIZE
                 total += number_of_records
                 # Exit when all documents have been retrieved.
                 if total == total_records:
@@ -107,6 +93,16 @@ class ImpcSolrRetriever:
 
 class PhenoDigm:
     """Retrieve the data, load it into Spark, process and write the resulting evidence strings."""
+
+    # Human gene mappings.
+    HGNC_DATASET_URI = 'http://ftp.ebi.ac.uk/pub/databases/genenames/hgnc/tsv/hgnc_complete_set.txt'
+    HGNC_DATASET_FILENAME = 'hgnc_complete_set.txt'
+
+    # Mouse gene mappings.
+    MGI_DATASET_URI = 'http://www.informatics.jax.org/downloads/reports/MGI_Gene_Model_Coord.rpt'
+    MGI_DATASET_FILENAME = 'MGI_Gene_Model_Coord.rpt'
+
+    IMPC_FILENAME = 'impc_solr_{data_type}.csv'
 
     def __init__(self, logger, cache_dir):
         super(PhenoDigm, self).__init__()
@@ -123,17 +119,16 @@ class PhenoDigm:
         pathlib.Path(self.cache_dir).mkdir(parents=False, exist_ok=True)
 
         self.logger.info('Fetching human gene ID mappings from HGNC.')
-        urllib.request.urlretrieve(HGNC_DATASET_URI, os.path.join(self.cache_dir, HGNC_DATASET_FILENAME))
+        urllib.request.urlretrieve(self.HGNC_DATASET_URI, os.path.join(self.cache_dir, self.HGNC_DATASET_FILENAME))
 
         self.logger.info('Fetching mouse gene ID mappings from MGI.')
-        urllib.request.urlretrieve(MGI_DATASET_URI, os.path.join(self.cache_dir, MGI_DATASET_FILENAME))
+        urllib.request.urlretrieve(self.MGI_DATASET_URI, os.path.join(self.cache_dir, self.MGI_DATASET_FILENAME))
 
         self.logger.info('Fetching PhenoDigm data from IMPC SOLR.')
-        impc_solr_retriever = ImpcSolrRetriever(solr_host=IMPC_SOLR_HOST, timeout=IMPC_SOLR_TIMEOUT,
-                                                rows=IMPC_SOLR_BATCH_SIZE)
+        impc_solr_retriever = ImpcSolrRetriever()
         for data_type in IMPC_SOLR_TABLES:
             self.logger.info(f'Fetching PhenoDigm data type {data_type}.')
-            filename = os.path.join(self.cache_dir, IMPC_FILENAME.format(data_type=data_type))
+            filename = os.path.join(self.cache_dir, self.IMPC_FILENAME.format(data_type=data_type))
             impc_solr_retriever.fetch_data(data_type, filename)
 
     def load_tsv(self, filename):
@@ -141,7 +136,10 @@ class PhenoDigm:
 
     def load_solr_csv(self, data_type):
         """Load the CSV from SOLR; rename and select columns as specified."""
-        df = self.spark.read.csv(os.path.join(self.cache_dir, IMPC_FILENAME.format(data_type=data_type)), header=True)
+        df = self.spark.read.csv(
+            os.path.join(self.cache_dir, self.IMPC_FILENAME.format(data_type=data_type)),
+            header=True
+        )
         column_name_mappings = [column_map.split(' > ') for column_map in IMPC_SOLR_TABLES[data_type]]
         columns_to_rename = {mapping[0]: mapping[1] for mapping in column_name_mappings if len(mapping) == 2}
         new_column_names = [mapping[-1] for mapping in column_name_mappings]
@@ -155,13 +153,13 @@ class PhenoDigm:
         """Load the Ensembl gene ID and SOLR data from the downloaded TSV/CSV files into Spark."""
         # Mappings from HGNC/MGI gene IDs to Ensembl gene IDs.
         self.hgnc_gene_id_to_ensembl_human_gene_id = (  # E.g. 'HGNC:5', 'ENSG00000121410'.
-            self.load_tsv(HGNC_DATASET_FILENAME)
+            self.load_tsv(self.HGNC_DATASET_FILENAME)
             .withColumnRenamed('hgnc_id', 'hgnc_gene_id')
             .withColumnRenamed('ensembl_gene_id', 'targetFromSourceId')  # Using the final name.
             .select('hgnc_gene_id', 'targetFromSourceId')
         )
         self.mgi_gene_id_to_ensembl_mouse_gene_id = (  # E.g. 'MGI:87853', 'ENSMUSG00000027596'.
-            self.load_tsv(MGI_DATASET_FILENAME)
+            self.load_tsv(self.MGI_DATASET_FILENAME)
             .withColumnRenamed('1. MGI accession id', 'mgi_gene_id')
             .withColumnRenamed('11. Ensembl gene id', 'targetInModel')  # Using the final name.
             .filter(pf.col('targetInModel').isNotNull())
