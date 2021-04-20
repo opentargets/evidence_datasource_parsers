@@ -30,7 +30,6 @@ IMPC_SOLR_TABLES = {
     'ontology': ('ontology', 'phenotype_id', 'phenotype_term'),
 
 }
-DEFAULT_ASSOCIATION_SCORE_CUTOFF = 90.0
 
 
 class ImpcSolrRetriever:
@@ -349,7 +348,7 @@ if __name__ == '__main__':
     parser.add_argument('--score-cutoff', help=(
         'Discard model-disease associations with the `disease_model_max_norm` score less than this value. The score '
         'ranges from 0 to 100.'
-    ), type=float, default=DEFAULT_ASSOCIATION_SCORE_CUTOFF)
+    ), type=float, default=90.0)
     parser.add_argument('--use-cached', help='Use the existing cache and do not update it.', action='store_true')
     parser.add_argument('--log-file', help='Optional filename to redirect the logs into.')
     args = parser.parse_args()
