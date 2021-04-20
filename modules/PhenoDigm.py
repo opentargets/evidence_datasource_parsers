@@ -206,14 +206,14 @@ class PhenoDigm:
         # and 'MP:0002981'.
         model_mouse_phenotypes = (
             self.mouse_model
-            .withColumn('mp_ids', pf.regexp_extract(pf.col('model_phenotypes'), r'MP:\d+', 1))
-            .withColumn('mp_id', pf.explode('mp_ids'))
+            .withColumn('mp_id', pf.expr(r"regexp_extract_all(model_phenotypes, '(MP:\\d+)', 1)"))
+            .withColumn('mp_id', pf.explode('mp_id'))
             .select('model_id', 'mp_id')
         )
         disease_human_phenotypes = (
             self.disease
-            .withColumn('hp_ids', pf.regexp_extract(pf.col('disease_phenotypes'), r'HP:\d+', 1))
-            .withColumn('hp_id', pf.explode('hp_ids'))
+            .withColumn('hp_id', pf.expr(r"regexp_extract_all(disease_phenotypes, '(HP:\\d+)', 1)"))
+            .withColumn('hp_id', pf.explode('hp_id'))
             .select('disease_id', 'hp_id')
         )
         # Map mouse model phenotypes into human terms.
@@ -315,7 +315,7 @@ class PhenoDigm:
             )
             json_chunks = [f for f in os.listdir(tmp_dir_name) if f.endswith('.json.gz')]
             assert len(json_chunks) == 1, f'Expected one JSON file, but found {len(json_chunks)}.'
-            os.rename(json_chunks[0], evidence_strings_filename)
+            os.rename(os.path.join(tmp_dir_name, json_chunks[0]), evidence_strings_filename)
 
 
 def main(cache_dir, output, score_cutoff, use_cached=False, log_file=None):
