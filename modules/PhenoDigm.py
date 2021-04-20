@@ -105,7 +105,6 @@ class PhenoDigm:
     IMPC_FILENAME = 'impc_solr_{data_type}.csv'
 
     def __init__(self, logger, cache_dir):
-        super(PhenoDigm, self).__init__()
         self.logger = logger
         self.cache_dir = cache_dir
         self.spark = pyspark.sql.SparkSession.builder.appName('phenodigm_parser').getOrCreate()
