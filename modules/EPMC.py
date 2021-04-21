@@ -13,8 +13,9 @@ import logging
 # example run local, make sure you dont pass many parquet files as input to not run out of mem
 # also, double check you put the ram size properly in the local settings in the SparkConf map
 # python modules/EPMC.py --local \
-#        --cooccurrenceFile /home/mkarmona/src/opentargets/data/platform/epmc/epmc-cooccurrences/part-0000\* \
+#        --cooccurrenceFile /home/mkarmona/src/opentargets/data/platform/epmc/epmc-cooccurrences \
 #        --outputFile test_out
+#        --logFile epmc_parser.log
 
 
 def main():
@@ -88,25 +89,44 @@ def main():
     logging.info(f'Output file: {out_file}')
     logging.info(f'Generating evidence:')
 
+    filtered_target_terms = ["TEC", "TECS", "Tec", "tec", "'", "(", ")", "-", "-S", "S", "S-", "SS", "SSS",
+         "Ss", "Ss-", "s", "s-", "ss", "U3", "U6", "u6", "SNORA70", "U2", "U8"]
+
     ##
     ## Load/filter datasets
     ##
-    partitionKeys = ['pmid', 'targetFromSourceId', 'diseaseFromSourceMappedId']
-    w = Window.partitionBy(*partitionKeys)
-    (
+    # partitionKeys = ['pmid', 'targetFromSourceId', 'diseaseFromSourceMappedId']
+    # w = Window.partitionBy(*partitionKeys)
+    filtered_cooccurrence_df = (
         # Reading file:
         spark.read.parquet(cooccurrenceFile)
 
         # Filtering for diases/target cooccurrences:
-        .filter((col('type') == "GP-DS") & (col('isMapped') == True) & (col('pmid') != "") & (col('label1') != "("))
-
+        .filter(
+            (col('type') == "GP-DS") & 
+            (col('isMapped') == True) & 
+            (col('pmid').isNotNull()) & 
+            (length(col('text')) < 600) &
+            (col('label1').isin(filtered_target_terms) == False)
+        )
         # Renaming columns:
         .withColumnRenamed("keywordId1", "targetFromSourceId")
         .withColumnRenamed("keywordId2", "diseaseFromSourceMappedId")
         .withColumnRenamed("label1", "targetFromSource")
         .withColumnRenamed("label2", "diseaseFromSource")
 
-        .withColumn('tmp',col('pmid'))
+        .withColumn('tmp',col('pmid').cast(StringType()))
+    )
+
+    # Report on the number of diseases, targets and associations:
+    logging.info(f'Number of publications: {filtered_cooccurrence_df.select(col("tmp")).distinct().count()}')
+    logging.info(f'Number of targets: {filtered_cooccurrence_df.select(col("targetFromSourceId")).distinct().count()}')
+    logging.info(f'Number of diseases: {filtered_cooccurrence_df.select(col("diseaseFromSourceMappedId")).distinct().count()}')
+    logging.info(f'Number of associations: {filtered_cooccurrence_df.select(col("diseaseFromSourceMappedId"), col("targetFromSourceId")).dropDuplicates().count()}')
+
+    # Aggregating cooccurrence, get score apply filter:    
+    aggregated_df = (
+        filtered_cooccurrence_df
 
         # Aggregating data by publication, target and disease:
         .groupBy(['pmid', 'targetFromSourceId', 'diseaseFromSourceMappedId'])
@@ -120,7 +140,6 @@ def main():
                     col('start1').alias('tStart'),
                     col("end1").alias('tEnd'),
                     col('start2').alias('dStart'),
-                    col("end2").alias('dEnd'), 
                     col("end2").alias('dEnd'),
                     col('section')
                 )
@@ -132,9 +151,16 @@ def main():
         # .withColumn('resourceScore', sum(col('evidence_score')).over(w))
         # .withColumn('resourceScores', collect_list(col('evidence_score')).over(w))
         .filter(col('resourceScore') > 1) 
+    )
 
+    # Report number of evidence:
+    logging.info(f'Number of evidence: {aggregated_df.count()}')
 
-        # Adding linteral columns:
+    # Final formatting and saving data:
+    (
+        aggregated_df
+
+        # Adding literal columns:
         .withColumn('datasourceId',lit('europepmc'))
         .withColumn('datatypeId',lit('literature'))
 
@@ -145,6 +171,8 @@ def main():
         # Save output:
         .write.format('json').mode('overwrite').option('compression', 'gzip').save(args.outputFile)
     )
+    
+    logging.info(f'EPMC disease target evidence saved.')
 
     return 0
 
