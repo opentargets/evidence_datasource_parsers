@@ -2,23 +2,142 @@
 
 import argparse
 import sys
-from pyspark import *
-from pyspark.sql import *
-from pyspark.sql.types import *
-from pyspark.sql.functions import *
-from pyspark.sql.window import Window
 import logging
 
+import pyspark
+from pyspark.sql.types import StringType
+from pyspark.sql import SparkSession 
+import pyspark.sql.functions as pf
+from pyspark import SparkContext
+from pyspark.conf import SparkConf
 
-# example run local, make sure you dont pass many parquet files as input to not run out of mem
-# also, double check you put the ram size properly in the local settings in the SparkConf map
-# python modules/EPMC.py --local \
-#        --cooccurrenceFile /home/mkarmona/src/opentargets/data/platform/epmc/epmc-cooccurrences \
-#        --outputFile test_out
-#        --logFile epmc_parser.log
+
+# The following target labels are excluded as they were grounded to too many target Ids
+EXCLUDED_TARGET_TERMS = ['TEC', 'TECS', 'Tec', 'tec', '\'', '(', ')', '-', '-S', 'S', 'S-', 'SS', 'SSS',
+         'Ss', 'Ss-', 's', 's-', 'ss', 'U3', 'U6', 'u6', 'SNORA70', 'U2', 'U8']
+
+def main(cooccurrenceFile, outputFile, local=False):
+
+    ##
+    ## Initialize spark session
+    ##
+    if local:
+        sparkConf = (SparkConf()
+                 .set('spark.driver.memory', '15g')
+                 .set('spark.executor.memory', '15g')
+                 .set('spark.driver.maxResultSize', '0')
+                 .set('spark.debug.maxToStringFields', '2000')
+                 .set('spark.sql.execution.arrow.maxRecordsPerBatch', '500000')
+                 )
+        spark = (
+            SparkSession.builder
+                .config(conf=sparkConf)
+                .master('local[*]')
+                .getOrCreate()
+        )
+    else:
+        sparkConf = (SparkConf()
+                 .set('spark.driver.maxResultSize', '0')
+                 .set('spark.debug.maxToStringFields', '2000')
+                 .set('spark.sql.execution.arrow.maxRecordsPerBatch', '500000')
+                 )
+        spark = (
+            SparkSession.builder
+                .config(conf=sparkConf)
+                .getOrCreate()
+        )
+
+    logging.info(f'Spark version: {spark.version}')
+
+    ##
+    ## Log parameters:
+    ##
+    logging.info(f'Cooccurrence file: {cooccurrenceFile}')
+    logging.info(f'Output file: {outputFile}')
+    logging.info(f'Generating evidence:')
+
+    ##
+    ## Load/filter datasets:
+    ##
+    filtered_cooccurrence_df = (
+        # Reading file:
+        spark.read.parquet(cooccurrenceFile)
+
+        # Filtering for diases/target cooccurrences:
+        .filter(
+            (pf.col('type') == 'GP-DS') &  # Filter gene/protein - disease cooccurrence
+            (pf.col('isMapped') == True) &  # Filtering for mapped cooccurrences
+            (pf.col('pmid').isNotNull()) &  # Excluding publications without pmid
+            (pf.length(pf.col('text')) < 600) & # Exclude sentences with more than 600 characters
+            (pf.col('label1').isin(EXCLUDED_TARGET_TERMS) == False) # Excluding target labels from the exclusion list
+        )
+        # Renaming columns:
+        .withColumnRenamed('keywordId1', 'targetFromSourceId')
+        .withColumnRenamed('keywordId2', 'diseaseFromSourceMappedId')
+        .withColumnRenamed('label1', 'targetFromSource')
+        .withColumnRenamed('label2', 'diseaseFromSource')
+
+        .withColumn('tmp', pf.col('pmid').cast(StringType()))
+    )
+
+    # Report on the number of diseases, targets and associations:
+    logging.info(f'Number of publications: {filtered_cooccurrence_df.select(pf.col("tmp")).distinct().count()}')
+    logging.info(f'Number of targets: {filtered_cooccurrence_df.select(pf.col("targetFromSourceId")).distinct().count()}')
+    logging.info(f'Number of diseases: {filtered_cooccurrence_df.select(pf.col("diseaseFromSourceMappedId")).distinct().count()}')
+    logging.info(f'Number of associations: {filtered_cooccurrence_df.select(pf.col("diseaseFromSourceMappedId"), pf.col("targetFromSourceId")).dropDuplicates().count()}')
+
+    # Aggregating cooccurrence, get score apply filter:    
+    aggregated_df = (
+        filtered_cooccurrence_df
+
+        # Aggregating data by publication, target and disease:
+        .groupBy(['pmid', 'targetFromSourceId', 'diseaseFromSourceMappedId'])
+        .agg(
+            pf.first(pf.col('targetFromSource')).alias('targetFromSource'),
+            pf.first(pf.col('diseaseFromSource')).alias('diseaseFromSource'),
+            pf.collect_set(pf.col('tmp')).alias('literature'),
+            pf.collect_set(
+                pf.struct(  
+                    pf.col('text'),
+                    pf.col('start1').alias('tStart'),
+                    pf.col('end1').alias('tEnd'),
+                    pf.col('start2').alias('dStart'),
+                    pf.col('end2').alias('dEnd'),
+                    pf.col('section')
+                )
+            ).alias('textMiningSentences'),
+            pf.sum(pf.col('evidence_score')).alias('resourceScore')
+        )
+
+        # Summarizing all scores then filter for evidence string with at least score == 2
+        .filter(pf.col('resourceScore') > 1)
+    )
+
+    # Report number of evidence:
+    logging.info(f'Number of evidence: {aggregated_df.count()}')
+
+    ##
+    ## Final formatting and saving data:
+    ##
+    (
+        aggregated_df
+
+        # Adding literal columns:
+        .withColumn('datasourceId', pf.lit('europepmc'))
+        .withColumn('datatypeId', pf.lit('literature'))
+
+        # Reorder columns:
+        .select(['datasourceId', 'datatypeId', 'targetFromSource', 'targetFromSourceId', 'resourceScore',
+                'diseaseFromSource','diseaseFromSourceMappedId','literature','textMiningSentences'])
+
+        # Save output:
+        .write.format('json').mode('overwrite').option('compression', 'gzip').save(outputFile)
+    )
+    
+    logging.info(f'EPMC disease target evidence saved.')
 
 
-def main():
+if __name__ == '__main__':
 
     ##
     ## Parsing parameters:
@@ -32,7 +151,9 @@ def main():
 
     # extract parameters:  
     cooccurrenceFile = args.cooccurrenceFile
-
+    logFile = args.logFile
+    outputFile = args.outputFile
+    local = args.local
 
     # Initialize logger based on the provided logfile. 
     # If no logfile is specified, logs are written to stderr 
@@ -41,143 +162,10 @@ def main():
         format='%(asctime)s %(levelname)s %(module)s - %(funcName)s: %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S',
     )
-    if args.logFile:
-        logging.config.fileConfig(filename=args.logFile)
+    if logFile:
+        logging.config.fileConfig(filename=logFile)
     else:
         logging.StreamHandler(sys.stderr)
 
-    # Parse output file:
-    out_file = args.outputFile
-
-    ##
-    ## Initialize spark session
-    ##
-    global spark
-    local = True
-
-    if args.local:
-        sparkConf = (SparkConf()
-                 .set("spark.driver.memory", "15g")
-                 .set("spark.executor.memory", "15g")
-                 .set("spark.driver.maxResultSize", "0")
-                 .set("spark.debug.maxToStringFields", "2000")
-                 .set("spark.sql.execution.arrow.maxRecordsPerBatch", "500000")
-                 )
-        spark = (
-            SparkSession.builder
-                .config(conf=sparkConf)
-                .master('local[*]')
-                .getOrCreate()
-        )
-    else:
-        sparkConf = (SparkConf()
-                 .set("spark.driver.maxResultSize", "0")
-                 .set("spark.debug.maxToStringFields", "2000")
-                 .set("spark.sql.execution.arrow.maxRecordsPerBatch", "500000")
-                 )
-        spark = (
-            SparkSession.builder
-                .config(conf=sparkConf)
-                .getOrCreate()
-        )
-    logging.info(f'Spark version: {spark.version}')
-
-    ##
-    ## Log parameters:
-    ##
-    logging.info(f'Cooccurrence file: {cooccurrenceFile}')
-    logging.info(f'Output file: {out_file}')
-    logging.info(f'Generating evidence:')
-
-    filtered_target_terms = ["TEC", "TECS", "Tec", "tec", "'", "(", ")", "-", "-S", "S", "S-", "SS", "SSS",
-         "Ss", "Ss-", "s", "s-", "ss", "U3", "U6", "u6", "SNORA70", "U2", "U8"]
-
-    ##
-    ## Load/filter datasets
-    ##
-    # partitionKeys = ['pmid', 'targetFromSourceId', 'diseaseFromSourceMappedId']
-    # w = Window.partitionBy(*partitionKeys)
-    filtered_cooccurrence_df = (
-        # Reading file:
-        spark.read.parquet(cooccurrenceFile)
-
-        # Filtering for diases/target cooccurrences:
-        .filter(
-            (col('type') == "GP-DS") & 
-            (col('isMapped') == True) & 
-            (col('pmid').isNotNull()) & 
-            (length(col('text')) < 600) &
-            (col('label1').isin(filtered_target_terms) == False)
-        )
-        # Renaming columns:
-        .withColumnRenamed("keywordId1", "targetFromSourceId")
-        .withColumnRenamed("keywordId2", "diseaseFromSourceMappedId")
-        .withColumnRenamed("label1", "targetFromSource")
-        .withColumnRenamed("label2", "diseaseFromSource")
-
-        .withColumn('tmp',col('pmid').cast(StringType()))
-    )
-
-    # Report on the number of diseases, targets and associations:
-    logging.info(f'Number of publications: {filtered_cooccurrence_df.select(col("tmp")).distinct().count()}')
-    logging.info(f'Number of targets: {filtered_cooccurrence_df.select(col("targetFromSourceId")).distinct().count()}')
-    logging.info(f'Number of diseases: {filtered_cooccurrence_df.select(col("diseaseFromSourceMappedId")).distinct().count()}')
-    logging.info(f'Number of associations: {filtered_cooccurrence_df.select(col("diseaseFromSourceMappedId"), col("targetFromSourceId")).dropDuplicates().count()}')
-
-    # Aggregating cooccurrence, get score apply filter:    
-    aggregated_df = (
-        filtered_cooccurrence_df
-
-        # Aggregating data by publication, target and disease:
-        .groupBy(['pmid', 'targetFromSourceId', 'diseaseFromSourceMappedId'])
-        .agg(
-            first(col("targetFromSource")).alias("targetFromSource"),
-            first(col("diseaseFromSource")).alias("diseaseFromSource"),
-            collect_set(col('tmp')).alias('literature'),
-            collect_set(
-                struct(  
-                    col("text"),
-                    col('start1').alias('tStart'),
-                    col("end1").alias('tEnd'),
-                    col('start2').alias('dStart'),
-                    col("end2").alias('dEnd'),
-                    col('section')
-                )
-            ).alias('textMiningSentences'),
-            sum(col('evidence_score')).alias('resourceScore')
-        )
-
-        # Summarizing all scores then filter for evidence string with at least score == 2
-        # .withColumn('resourceScore', sum(col('evidence_score')).over(w))
-        # .withColumn('resourceScores', collect_list(col('evidence_score')).over(w))
-        .filter(col('resourceScore') > 1) 
-    )
-
-    # Report number of evidence:
-    logging.info(f'Number of evidence: {aggregated_df.count()}')
-
-    # Final formatting and saving data:
-    (
-        aggregated_df
-
-        # Adding literal columns:
-        .withColumn('datasourceId',lit('europepmc'))
-        .withColumn('datatypeId',lit('literature'))
-
-        # Reorder columns:
-        .select(["datasourceId", "datatypeId", "targetFromSource", "targetFromSourceId", 'resourceScore',
-                "diseaseFromSource","diseaseFromSourceMappedId","literature","textMiningSentences"])
-
-        # Save output:
-        .write.format('json').mode('overwrite').option('compression', 'gzip').save(args.outputFile)
-    )
-    
-    logging.info(f'EPMC disease target evidence saved.')
-
-    return 0
-
-
-if __name__ == '__main__':
-
-    main()
+    main(cooccurrenceFile, outputFile, local)
 
