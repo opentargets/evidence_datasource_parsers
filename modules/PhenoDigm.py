@@ -157,9 +157,10 @@ class PhenoDigm:
         self.mgi_gene_id_to_ensembl_mouse_gene_id = (  # E.g. 'MGI:87853', 'ENSMUSG00000027596'.
             self.load_tsv(self.MGI_DATASET_FILENAME)
             .withColumnRenamed('1. MGI accession id', 'mgi_gene_id')
-            .withColumnRenamed('11. Ensembl gene id', 'targetInModel')  # Using the final name.
-            .filter(pf.col('targetInModel').isNotNull())
-            .select('mgi_gene_id', 'targetInModel')
+            .withColumnRenamed('3. marker symbol', 'targetInModel')  # Using the final name.
+            .withColumnRenamed('11. Ensembl gene id', 'targetInModelId')  # Using the final name.
+            .filter(pf.col('targetInModelId').isNotNull())
+            .select('mgi_gene_id', 'targetInModel', 'targetInModelId')
         )
 
         # Mouse to human gene mappings, e.g. 'MGI:1346074', 'HGNC:4024'.
@@ -268,8 +269,9 @@ class PhenoDigm:
 
             # Add the mouse gene mapping information. The mappings are not necessarily one to one, because a single MGI
             # can map to multiple Ensembl mouse genes. When this happens, join will handle the necessary explosions, and
-            # a single row from the original table will generate multiple evidence strings.
-            .join(self.mgi_gene_id_to_ensembl_mouse_gene_id, on='mgi_gene_id', how='inner')  # `targetInModel`.
+            # a single row from the original table will generate multiple evidence strings. This adds the fields
+            # `targetInModel` and `targetInModelId`.
+            .join(self.mgi_gene_id_to_ensembl_mouse_gene_id, on='mgi_gene_id', how='inner')
             # Add the human gene mapping information. This is added in two stages: MGI → HGNC → Ensembl human gene.
             # Similarly to mouse gene mappings, at each stage there is a possibility of a row explosion.
             .join(self.mouse_gene_to_human_gene, on='mgi_gene_id', how='inner')
@@ -301,7 +303,7 @@ class PhenoDigm:
             .select('biologicalModelAllelicComposition', 'biologicalModelGeneticBackground', 'biologicalModelId',
                     'datasourceId', 'datatypeId', 'diseaseFromSource', 'diseaseFromSourceId',
                     'diseaseModelAssociatedHumanPhenotypes', 'diseaseModelAssociatedModelPhenotypes', 'resourceScore',
-                    'targetFromSourceId', 'targetInModel')
+                    'targetFromSourceId', 'targetInModel', 'targetInModelId')
         )
 
     def write_evidence_strings(self, evidence_strings_filename):
