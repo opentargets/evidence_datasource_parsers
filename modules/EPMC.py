@@ -137,8 +137,7 @@ def main(cooccurrenceFile, outputFile, local=False):
     logging.info(f'EPMC disease target evidence saved.')
 
 
-if __name__ == '__main__':
-
+def parse_args():
     ##
     ## Parsing parameters:
     ##
@@ -155,6 +154,13 @@ if __name__ == '__main__':
     outputFile = args.outputFile
     local = args.local
 
+    return (cooccurrenceFile, logFile, outputFile, local)
+
+
+
+if __name__ == '__main__':
+
+
     # Initialize logger based on the provided logfile. 
     # If no logfile is specified, logs are written to stderr 
     logging.basicConfig(
@@ -167,5 +173,10 @@ if __name__ == '__main__':
     else:
         logging.StreamHandler(sys.stderr)
 
+
+    # Parse arguments:
+    (cooccurrenceFile, logFile, outputFile, local) = parse_args()
+
+    # Calling main function:
     main(cooccurrenceFile, outputFile, local)
 
