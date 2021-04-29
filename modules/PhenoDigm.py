@@ -283,13 +283,20 @@ class PhenoDigm:
             # Add the matched model/disease human phenotypes → 'diseaseModelAssociatedHumanPhenotypes`.
             .join(matched_human_phenotypes, on=['model_id', 'disease_id'], how='left')
 
-            # Strip trailing modifiers from the model ID.
+            # Model ID adjustments. First, strip trailing modifiers from the model ID.
             # For example: 'MGI:6274930#hom#early' → 'MGI:6274930'.
             .withColumn(
                 'biologicalModelId',
                 pf.split(pf.col('model_id'), '#').getItem(0)
             )
             .drop('model_id')
+            # We only want to output the model names from the MGI namespace.
+            # An example of something we *don't* want is 'NOT-RELEASED-025eb4a791'. This will be converted to null.
+            .withColumn(
+                'biologicalModelId',
+                pf.when(pf.col('biologicalModelId').rlike(r'^MGI:\d+$'), pf.col('biologicalModelId'))
+            )
+
             # Convert the percentage score into fraction.
             .withColumn('resourceScore', pf.col('resourceScore') / 100.0)
             # Rename the disease data columns.
