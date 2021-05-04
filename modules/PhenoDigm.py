@@ -264,8 +264,8 @@ class PhenoDigm:
             # strings.
             self.disease_model_summary
 
-            # Filter out the associations with a low score. Some associations lack this score and are kept.
-            .filter(~(pf.col('disease_model_max_norm') < score_cutoff))
+            # Filter out the associations with a low score.
+            .filter(~(pf.col('resourceScore') < score_cutoff))
 
             # Add the mouse gene mapping information. The mappings are not necessarily one to one, because a single MGI
             # can map to multiple Ensembl mouse genes. When this happens, join will handle the necessary explosions, and
@@ -365,7 +365,7 @@ if __name__ == '__main__':
     parser.add_argument('--score-cutoff', help=(
         'Discard model-disease associations with the `disease_model_max_norm` score less than this value. The score '
         'ranges from 0 to 100.'
-    ), type=float, default=90.0)
+    ), type=float, default=0.0)
     parser.add_argument('--use-cached', help='Use the existing cache and do not update it.', action='store_true')
     parser.add_argument('--log-file', help='Optional filename to redirect the logs into.')
     args = parser.parse_args()
