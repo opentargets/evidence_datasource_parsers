@@ -283,15 +283,18 @@ class PhenoDigm:
             # Add the matched model/disease human phenotypes → 'diseaseModelAssociatedHumanPhenotypes`.
             .join(matched_human_phenotypes, on=['model_id', 'disease_id'], how='left')
 
-            # Model ID adjustments. First, strip trailing modifiers from the model ID.
-            # For example: 'MGI:6274930#hom#early' → 'MGI:6274930'.
+            # Model ID adjustments. First, strip the trailing modifiers, where present. The original ID, used for table
+            # joins, may look like 'MGI:6274930#hom#early', where the first part is the allele ID and the second
+            # specifies the zygotic state. There can be several models for the same allele ID with different phenotypes.
+            # However, this information is also duplicated in `biologicalModelGeneticBackground` (for example:
+            # 'C57BL/6NCrl,Ubl7<em1(IMPC)Tcp> hom early'), so in this field we strip those modifiers.
             .withColumn(
                 'biologicalModelId',
                 pf.split(pf.col('model_id'), '#').getItem(0)
             )
             .drop('model_id')
-            # We only want to output the model names from the MGI namespace.
-            # An example of something we *don't* want is 'NOT-RELEASED-025eb4a791'. This will be converted to null.
+            # Second, we only want to output the model names from the MGI namespace. An example of something we *don't*
+            # want is 'NOT-RELEASED-025eb4a791'. This will be converted to null.
             .withColumn(
                 'biologicalModelId',
                 pf.when(pf.col('biologicalModelId').rlike(r'^MGI:\d+$'), pf.col('biologicalModelId'))
