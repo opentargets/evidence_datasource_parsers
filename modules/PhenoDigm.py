@@ -15,8 +15,7 @@ import requests
 from retry import retry
 
 
-# The tables and their fields to fetch from SOLR. The syntax 'original_name > new_name' means that the column will be
-# renamed after loading. Other tables (not currently used): gene, disease_gene_summary.
+# The tables and their fields to fetch from SOLR. Other tables (not currently used): gene, disease_gene_summary.
 IMPC_SOLR_TABLES = {
     # Mouse to human mappings.
     'gene_gene': ('gene_id', 'hgnc_gene_id'),
@@ -321,9 +320,8 @@ class PhenoDigm:
         maintained, and they are returned in random order as collected by Spark."""
         with tempfile.TemporaryDirectory() as tmp_dir_name:
             (
-                self.evidence.coalesce(1).write
-                .format('json').mode('overwrite').option('compression', 'org.apache.hadoop.io.compress.GzipCodec')
-                .save(tmp_dir_name)
+                self.evidence.coalesce(1).write.format('json').mode('overwrite')
+                .option('compression', 'org.apache.hadoop.io.compress.GzipCodec').save(tmp_dir_name)
             )
             json_chunks = [f for f in os.listdir(tmp_dir_name) if f.endswith('.json.gz')]
             assert len(json_chunks) == 1, f'Expected one JSON file, but found {len(json_chunks)}.'
