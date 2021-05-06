@@ -1,0 +1,17 @@
+# conda-env create --name <env> --file <this file>
+# conda activate <env>
+# conda deactivate
+# conda-env remove -n <env>
+
+name: evidence_datasource_parsers
+channels:
+    - conda-forge
+    - bioconda
+    - defaults
+dependencies:
+    - python=3.7
+    - conda-forge::pyspark=3.1.1
+    - pip
+    - pip:
+      - -r file:requirements.txt
+
