@@ -138,9 +138,7 @@ def main(cooccurrenceFile, outputFile, local=False):
 
 
 def parse_args():
-    ##
-    ## Parsing parameters:
-    ##
+
     parser = argparse.ArgumentParser(description='This script generates target/disease evidence strings from ePMC cooccurrence files.')
     parser.add_argument('--cooccurrenceFile', help='Partioned parquet file with the ePMC cooccurrences', type=str, required=True)
     parser.add_argument('--outputFile', help='Resulting evidence file saved as compressed JSON.', type=str, required=True)
@@ -159,7 +157,9 @@ def parse_args():
 
 
 if __name__ == '__main__':
-
+    
+    # Parse arguments:
+    (cooccurrenceFile, logFile, outputFile, local) = parse_args()
 
     # Initialize logger based on the provided logfile. 
     # If no logfile is specified, logs are written to stderr 
@@ -173,9 +173,6 @@ if __name__ == '__main__':
     else:
         logging.StreamHandler(sys.stderr)
 
-
-    # Parse arguments:
-    (cooccurrenceFile, logFile, outputFile, local) = parse_args()
 
     # Calling main function:
     main(cooccurrenceFile, outputFile, local)
