@@ -1,6 +1,6 @@
-name: snakemake
+name: evidence_datasource_parsers
 channels:
-  - anaconda
+  - bioconda
   - conda-forge
   - defaults
 dependencies:
@@ -128,5 +128,5 @@ dependencies:
     - typing-extensions==3.7.4.3
     - wrapt==1.12.1
     - zipp==3.4.0
-prefix: /Users/irene/miniconda3/envs/snakemake
+
 
