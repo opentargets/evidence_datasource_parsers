@@ -60,3 +60,7 @@ Phenodigm:
 SysBio:
   inputBucket: gs://otar000-evidence_input/SysBio/data_files
   outputBucket: gs://otar000-evidence_input/SysBio/json
+# Parameters for EuropePMC:
+EPMC:
+  inputBucket: gs://ot-snapshots/literature/20210427/cooccurrences
+  outputBucket: gs://otar000-evidence_input/EPMC/json

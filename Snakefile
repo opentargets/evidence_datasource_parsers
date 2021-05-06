@@ -241,7 +241,7 @@ rule panelApp:
     input:
         inputFile=f"tmp/panelapp_gene_panels-{timeStamp}.tsv"
     output:
-        evidenceFile=GS.remote(f"{config['PanelApp']['outputBucket']}/genomics_england-{timeStamp}.json.gz")
+        evidenceFile = GS.remote(f"{config['PanelApp']['outputBucket']}/genomics_england-{timeStamp}.json.gz")
     conda:
         'envs/conda-env.yml'
     log:
@@ -260,7 +260,7 @@ rule intogen:
         inputCohorts = f"tmp/cohorts-{timeStamp}.tsv",
         diseaseMapping=f"tmp/intogen_cancer2EFO_mappings-{timeStamp}.tsv"
     output:
-        evidenceFile=GS.remote(f"{config['intOGen']['outputBucket']}/intogen-{timeStamp}.json.gz")
+        evidenceFile = GS.remote(f"{config['intOGen']['outputBucket']}/intogen-{timeStamp}.json.gz")
     conda:
         'envs/conda-env.yml'
     log:
@@ -273,6 +273,26 @@ rule intogen:
         --diseaseMapping {input.diseaseMapping} \
         --outputFile {output.evidenceFile}
         """
+inputCooccurences = directory(f"tmp/epmc_cooccurrences-{timeStamp}")
+
+## epmc           : processes target/disease evidence strings from ePMC cooccurrence files
+rule epmc:
+    input:
+        inputCooccurences = directory(f"tmp/epmc_cooccurrences-{timeStamp}")
+    output:
+        evidenceFile = directory(GS.remote(f"{config['EPMC']['outputBucket']}/epmc-{timeStamp}"))
+    conda:
+        'envs/conda-env.yml'
+    log:
+        GS.remote(logFile)
+    shell:
+        """
+        python modules/EPMC.py \
+        --cooccurrenceFile {input.inputCooccurences} \
+        --output {output.evidenceFile} \
+        --local
+        """
+
 
 # --- Fetching input data and uploading to GS --- #
 ## fetchClingen          : fetches the Gene Validity Curations table from ClinGen
@@ -461,4 +481,19 @@ rule fetchIntogen:
         gsutil cp {input.inputGenes} {output.inputGenes}
         gsutil cp {input.inputCohorts} {output.inputCohorts}
         gsutil cp {input.diseaseMapping} {output.diseaseMapping}
+        """
+
+## fetchEpmc          : fetches the partioned parquet files with the ePMC cooccurrences
+rule fetchEpmc:
+    input:
+        inputCooccurences = GS.remote(config['EPMC']['inputBucket'])
+    output:
+        inputCooccurences = directory(f"tmp/epmc_cooccurrences-{timeStamp}")
+    conda:
+        'envs/conda-env.yml'
+    log:
+        GS.remote(logFile)
+    shell:
+        """
+        gsutil cp -r {input.inputCooccurences} {output.inputCooccurences}
         """
