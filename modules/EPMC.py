@@ -80,11 +80,11 @@ def main(cooccurrenceFile, outputFile, local=False):
         .withColumn('tmp', pf.col('pmid').cast(StringType()))
     )
 
-    # Report on the number of diseases, targets and associations:
-    logging.info(f'Number of publications: {filtered_cooccurrence_df.select(pf.col("tmp")).distinct().count()}')
-    logging.info(f'Number of targets: {filtered_cooccurrence_df.select(pf.col("targetFromSourceId")).distinct().count()}')
-    logging.info(f'Number of diseases: {filtered_cooccurrence_df.select(pf.col("diseaseFromSourceMappedId")).distinct().count()}')
-    logging.info(f'Number of associations: {filtered_cooccurrence_df.select(pf.col("diseaseFromSourceMappedId"), pf.col("targetFromSourceId")).dropDuplicates().count()}')
+    # Report on the number of diseases, targets and associations if loglevel == "debug" to avoid cost on computation time:
+    logging.debug(f'Number of publications: {filtered_cooccurrence_df.select(pf.col("tmp")).distinct().count()}')
+    logging.debug(f'Number of targets: {filtered_cooccurrence_df.select(pf.col("targetFromSourceId")).distinct().count()}')
+    logging.debug(f'Number of diseases: {filtered_cooccurrence_df.select(pf.col("diseaseFromSourceMappedId")).distinct().count()}')
+    logging.debug(f'Number of associations: {filtered_cooccurrence_df.select(pf.col("diseaseFromSourceMappedId"), pf.col("targetFromSourceId")).dropDuplicates().count()}')
 
     # Aggregating cooccurrence, get score apply filter:    
     aggregated_df = (
@@ -114,7 +114,7 @@ def main(cooccurrenceFile, outputFile, local=False):
     )
 
     # Report number of evidence:
-    logging.info(f'Number of evidence: {aggregated_df.count()}')
+    logging.debug(f'Number of evidence: {aggregated_df.count()}')
 
     ##
     ## Final formatting and saving data:
