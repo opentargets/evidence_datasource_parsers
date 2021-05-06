@@ -20,7 +20,6 @@ rule all:
         GS.remote(f"{config['PheWAS']['outputBucket']}/phewas_catalog-{timeStamp}.json.gz"),
         GS.remote(f"{config['SLAPEnrich']['outputBucket']}/slapenrich-{timeStamp}.json.gz"),
         GS.remote(f"{config['Gene2Phenotype']['outputBucket']}/gene2phenotype-{timeStamp}.json.gz"),
-        GS.remote(f"{config['Gene2Phenotype']['outputBucket']}/gene2phenotype_unmapped_diseases-{timeStamp}.txt"),
         GS.remote(f"{config['CRISPR']['outputBucket']}/crispr-{timeStamp}.json.gz"),
         GS.remote(f"{config['SysBio']['outputBucket']}/sysbio-{timeStamp}.json.gz"),
         GS.remote(f"{config['Phenodigm']['outputBucket']}/phenodigm-{timeStamp}.json.gz")
@@ -44,7 +43,7 @@ rule clingen:
         f"tmp/ClinGen-Gene-Disease-Summary-{timeStamp}.csv"
     output:
         evidenceFile=GS.remote(f"{config['ClinGen']['outputBucket']}/ClinGen-{timeStamp}.json.gz"),
-        unmappedDiseases=f"unmappedDiseases/clingen_unmapped_diseases-{timeStamp}.lst"
+        unmappedDiseases=f"tmp/unmappedDiseases/clingen_unmapped_diseases-{timeStamp}.lst"
     conda:
         'envs/conda-env.yml'
     log:
@@ -141,7 +140,7 @@ rule gene2Phenotype:
         cancerPanel=f"tmp/CancerG2P-{timeStamp}.csv.gz"
     output:
         evidenceFile=GS.remote(f"{config['Gene2Phenotype']['outputBucket']}/gene2phenotype-{timeStamp}.json.gz"),
-        unmappedDiseases=f"unmappedDiseases/gene2phenotype_unmapped_diseases-{timeStamp}.txt"
+        unmappedDiseases=f"tmp/unmappedDiseases/gene2phenotype_unmapped_diseases-{timeStamp}.txt"
     conda:
         'envs/conda-env.yml'
     log:
