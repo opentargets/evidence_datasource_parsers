@@ -309,7 +309,7 @@ rule fetchClingen:
         GS.remote(logFile)
     shell:
         """
-        curl  {params.webSource} > {output.local}
+        curl {params.webSource} > {output.local}
         gsutil cp {output.local} {output.bucket}
         """
 
@@ -350,7 +350,7 @@ rule fetchSlapenrich:
         GS.remote(logFile)
     shell:
         """
-        cp  {params.diseaseMapping} {output.diseaseMapping}
+        cp {params.diseaseMapping} {output.diseaseMapping}
         gsutil cp {input.inputFile} {output.inputFile}
         """
 
@@ -424,8 +424,8 @@ rule fetchProgeny:
         GS.remote(logFile)
     shell:
         """
-        cp  {input.diseaseMapping} {output.diseaseMapping}
-        cp  {input.pathwayMapping} {output.pathwayMapping}
+        cp {input.diseaseMapping} {output.diseaseMapping}
+        cp {input.pathwayMapping} {output.pathwayMapping}
         gsutil cp {input.inputFile} {output.inputFile}
         """
 
