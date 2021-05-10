@@ -1,5 +1,4 @@
 global:
-  schema_file: 'https://raw.githubusercontent.com/opentargets/json_schema/master/opentargets.json'
   logDir: gs://ot-team/irene/evidence_test
 
 # Parameters for OT Gentics Portal evidence generation:

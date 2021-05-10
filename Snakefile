@@ -3,14 +3,11 @@ from snakemake.remote.GS import RemoteProvider as GSRemoteProvider
 GS = GSRemoteProvider()
 
 # --- Settings --- #
-# Current time in YYYY-MM-DD-hh-mm format:
+# Current date in YYYY-MM-DD format:
 timeStamp = datetime.now().strftime("%Y-%m-%d")
 
 # Configuration is read from the config yaml:
 configfile: 'configuration.yaml'
-
-# Schema version is now hardcoded, version will be read from the command line later:
-schemaFile = config['global']['schema_file']
 logFile = f"{config['global']['logDir']}/evidence_parser.{timeStamp}.log"
 
 # --- All rules --- #
