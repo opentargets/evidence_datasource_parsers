@@ -24,7 +24,7 @@ IMPC_SOLR_TABLES = {
     'mouse_model': ('model_id', 'model_phenotypes'),
     'disease': ('disease_id', 'disease_phenotypes'),
     'disease_model_summary': ('model_id', 'model_genetic_background', 'model_description', 'disease_id', 'disease_term',
-                              'disease_model_max_norm', 'marker_id'),
+                              'disease_model_avg_norm', 'disease_model_max_norm', 'marker_id'),
     'ontology': ('ontology', 'phenotype_id', 'phenotype_term'),
 }
 
@@ -179,7 +179,14 @@ class PhenoDigm:
             self.load_solr_csv('disease_model_summary')
             .withColumnRenamed('model_genetic_background', 'biologicalModelGeneticBackground')
             .withColumnRenamed('model_description', 'biologicalModelAllelicComposition')
-            .withColumnRenamed('disease_model_max_norm', 'resourceScore')
+            # In Phenodigm, the scores report the association between diseases and animal models, not genes. The
+            # phenotype similarity is computed using an algorithm called OWLSim which expresses the similarity in terms
+            # of the Jaccard Index (simJ) or Information Content (IC). Therefore, to compute the score you can take the
+            # maximum score of both analyses (disease_model_max_norm) or a combination of them both
+            # (disease_model_avg_norm). In the Results and discussion section of the Phenodigm paper, the methods are
+            # compared to a number of gold standards. It is concluded that the geometric mean of both analyses is the
+            # superior metric and should therefore be used as the score.
+            .withColumnRenamed('disease_model_avg_norm', 'resourceScore')
             .withColumnRenamed('marker_id', 'mgi_gene_id')
         )
         self.ontology = (
@@ -359,7 +366,7 @@ if __name__ == '__main__':
     req.add_argument('--cache-dir', help='Directory to store the HGNC/MGI/SOLR cache files in.', required=True)
     req.add_argument('--output', help='Name of the json.gz file to output the evidence strings into.', required=True)
     parser.add_argument('--score-cutoff', help=(
-        'Discard model-disease associations with the `disease_model_max_norm` score less than this value. The score '
+        'Discard model-disease associations with the `disease_model_avg_norm` score less than this value. The score '
         'ranges from 0 to 100.'
     ), type=float, default=0.0)
     parser.add_argument('--use-cached', help='Use the existing cache and do not update it.', action='store_true')
