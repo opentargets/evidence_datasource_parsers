@@ -274,65 +274,27 @@ python modules/SLAPEnrich.py \
     --outputFile slapenrich-2021-01-18.json.gz
 ```
 
-
 ### PhenoDigm
 
-Generates target-disease evidence querying the IMPC SOLR API.
+Generates the mouse model target-disease evidence by querying the IMPC SOLR API.
 
-#### System requirements and running time
-The PhenoDigm parser has been run both in a MacBook Pro and a Google Cloud machine. The current version is very memory greedy, using up to 60 GB. 
+The base of the evidence is the `disease_model_summary` table, which is unique on the combination of (`model_id`, `disease_id`). When target information is added, an original row may explode into multiple evidence strings. As a result, the final output is unique on the combination of (`biologicalModelId`, `targetFromSourceId`, `targetInModelId`, `diseaseFromSourceId`).
 
-* MacBook Pro: It takes around 8 hours to run in a 16 GB laptop.
-* Google Cloud Machine: It runs in around 2 hours in a 60 GB machine (_n1-standard-16_). There used to be such a machine set up but now one called _ag-ubuntu-20-04-lts_ in _open-targets-eu-dev_ can be used instead (see below). This machine has specs higher than needed (32 vCPU and 208 GB memory).
-
-#### Installation
-Before the parser can be run there is one dependency that needs to be installed manually:
-
+To set up the environment and run:
 ```sh
-# Create and activate virtual environment (requires python3)
-virtualenv -p python3 phenodigm_venv
+python3 -m venv phenodigm_venv
 source phenodigm_venv/bin/activate
-
-# Install dependencies
 pip3 install -r requirements.txt
-
-# Manually download and install ontology-utils as it requires specific tag
-wget https://github.com/opentargets/ontology-utils/archive/bff0f189a4c6e8613e99a5d47e9ad4ceb6a375fc.zip
-pip3 install bff0f189a4c6e8613e99a5d47e9ad4ceb6a375fc.zip
-
-# Set environment variables
-export PYTHONPATH=.
+python3 modules/PhenoDigm.py --cache-dir phenodigm_cache --output phenodigm.json.gz
 ```
-Additionally, the parser needs access to Google Cloud, which requires downloading a key JSON file and setting the `GOOGLE_APPLICATION_CREDENTIALS` variable. Ask someone from the back-end team about it.
 
-#### Running MouseModels in a Google Cloud virtual machine
+Additional optional arguments are available. Run `python3 modules/PhenoDigm.py -h` for details.
 
-Start the machine and connect to it via SSH. When you are ready set-up the environment and run the parser:
-
-```sh
-# Move to installation directory
-cd opentargets/evidence_datasource_parsers/
-
-# Activate virtual environment
-. phenodigm_venv/bin/activate
-
-# Set up PYTHONPATH AND GOOGLE_APPLICATION_CREDENTIALS environment variables
-. phenodigm_venv/bin/set_env_variables.sh
-
-# Update cache
-# NOTE: This is only required once per release, i.e. is not needed if PhenoDigm is
-# rerun multiple times in a short period of time
-python3 modules/MouseModels.py --update-cache
-
-# Run PhenoDigm parser
-python3 modules/MouseModels.py 
-
-# Upload the evidence file to Google Cloud Storage
-python3 modules/MouseModels.py -w
-```
-**CAVEAT:** The last step (`-w`) tries to upload a file with the current date in the name, which may not work if the parser was run on another day, which would be the date on the filename.
-
-**REMINDER:** Remember to stop the machine once you are done as it costs money to have it on! 
+Approximate resource requirements and benchmarks:
+* Total wall clock running time: 6 minutes on AMD Ryzen 5 3600 (6 cores / 12 threads).
+  - Fetch the data from SOLR: 4 minutes.
+  - Ingest the data and generate the evidence strings: 2 minutes.
+* Peak RAM usage: 1.5 GB.
 
 ### Open Targets Genetics Portal
 
@@ -354,6 +316,3 @@ python modules/GeneticsPortal.py \
 
 * `--threshold` is required. It provides a lower locus to gene score cutoff.
 * `--logFile` is optional. If not specified, logs are written to standard error.
-
-
-
