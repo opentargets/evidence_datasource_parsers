@@ -299,8 +299,6 @@ class PhenoDigm:
                 pf.when(pf.col('biologicalModelId').rlike(r'^MGI:\d+$'), pf.col('biologicalModelId'))
             )
 
-            # Convert the percentage score into fraction.
-            .withColumn('resourceScore', pf.col('resourceScore') / 100.0)
             # Rename the disease data columns.
             .withColumnRenamed('disease_id', 'diseaseFromSourceId')
             .withColumnRenamed('disease_term', 'diseaseFromSource')
