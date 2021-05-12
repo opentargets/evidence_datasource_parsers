@@ -72,6 +72,8 @@ def main(cooccurrenceFile, outputFile, local=False):
         .filter(
             (pf.col('type') == 'GP-DS') &  # Filter gene/protein - disease cooccurrence
             (pf.col('isMapped')) &  # Filtering for mapped cooccurrences
+            # Making sure at least the pmid or the pmcid is given:
+            (pf.col('pmid').isNotNull() | pf.col('pmcid').isNotNull()) &
             (pf.length(pf.col('text')) < 600) &  # Exclude sentences with more than 600 characters
             (pf.col('label1').isin(EXCLUDED_TARGET_TERMS) == False)  # Excluding target labels from the exclusion list
         )
