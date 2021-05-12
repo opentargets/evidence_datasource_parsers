@@ -95,7 +95,7 @@ def main(cooccurrenceFile, outputFile, local=False):
         # Aggregating data by publication, target and disease:
         .groupBy(['publicationIdentifier', 'targetFromSourceId', 'diseaseFromSourceMappedId'])
         .agg(
-            pf.first(pf.col('pmcid')).alias('pmcId'),
+            pf.collect_set(pf.col('pmcid')).alias('pmcIds'),
             pf.collect_set(pf.col('pmid')).alias('literature'),
             pf.collect_set(
                 pf.struct(
@@ -126,8 +126,8 @@ def main(cooccurrenceFile, outputFile, local=False):
         .withColumn('datatypeId', pf.lit('literature'))
 
         # Reorder columns:
-        .select(['datasourceId', 'datatypeId', 'targetFromSourceId', 'diseaseFromSourceMappedId','resourceScore',
-                 'literature', 'textMiningSentences', 'pmcId'])
+        .select(['datasourceId', 'datatypeId', 'targetFromSourceId', 'diseaseFromSourceMappedId',
+            'resourceScore', 'literature', 'textMiningSentences', 'pmcIds'])
 
         # Save output:
         .write.format('json').mode('overwrite').option('compression', 'gzip').save(outputFile)
