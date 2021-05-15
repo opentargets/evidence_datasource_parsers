@@ -1,20 +1,24 @@
 #!/usr/bin/env python
 
 import argparse
-from sys import stderr
+import sys
 import gzip
 import logging
 import json
+
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import *
-from pyspark.sql.types import *
+import pyspark.sql.functions as F
 
 class intogenEvidenceGenerator():
     def __init__(self):
-        # Create spark session     
-        self.spark = (SparkSession.builder
-                .appName('intOGen')
-                .getOrCreate())
+        
+        # Create spark session
+        self.spark = (
+            SparkSession.builder
+            .appName('intOGen')
+            .getOrCreate()
+        )
+        
         logging.info(f"Spark version: {self.spark.version}")
 
         # Initialize source tables
@@ -26,42 +30,42 @@ class intogenEvidenceGenerator():
         Returns:
             evidences (array): Object with all the generated evidences strings from source file
         '''
-        # Read input files
-        genes = (self.spark
-                        .read.csv(inputGenes, sep=r'\t', header=True, inferSchema=True)
-                        .select(
-                            "SYMBOL",
-                            "COHORT",
-                            col("CANCER_TYPE").alias("Cancer_type_acronym"),
-                            col("SAMPLES").alias("numberMutatedSamples"),
-                            "METHODS",
-                            "ROLE",
-                            "QVALUE_COMBINATION"
-                        )
-                        .withColumn("METHODS", split(col("METHODS"), ","))
-                        # Mutation role mapping to a SO code
-                        .withColumn(
-                            "functionalConsequenceId",
-                            when(
-                                col("ROLE") == "Act",
-                                "SO_0002053" # gain_of_function_variant
-                            )
-                            .when(
-                                col("ROLE") == "LoF",
-                                "SO_0002054" # loss_of_function_variant
-                            )
-                            .otherwise(None)
-                        )
+
+        genes = (
+            self.spark
+            .read.csv(inputGenes, sep=r'\t', header=True, inferSchema=True)
+            .select(
+                'SYMBOL',
+                'COHORT',
+                F.col("CANCER_TYPE").alias("Cancer_type_acronym"),
+                F.col("SAMPLES").alias("numberMutatedSamples"),
+                "METHODS",
+                "ROLE",
+                "QVALUE_COMBINATION"
+            )
+            .withColumn("METHODS", F.split(F.col("METHODS"), ","))
+          
+            # Mutation role mapping to a SO code
+            .withColumn(
+                "functionalConsequenceId",
+                # gain_of_function_variant
+                F.when(F.col("ROLE") == "Act", "SO_0002053")
+                # loss_of_function_variant
+                .when(F.col("ROLE") == "LoF", "SO_0002054")
+                .otherwise(None)
+            )
         )
-        cohorts = (self.spark
-                        .read.csv(inputCohorts, sep=r'\t', header=True, inferSchema=True)
-                        .select(
-                            "COHORT",
-                            "CANCER_TYPE_NAME",
-                            "WEB_SHORT_COHORT_NAME",
-                            "WEB_LONG_COHORT_NAME",
-                            col("SAMPLES").alias("numberSamplesTested")
-                        )
+
+        cohorts = (
+            self.spark
+            .read.csv(inputCohorts, sep=r'\t', header=True, inferSchema=True)
+            .select(
+                "COHORT",
+                "CANCER_TYPE_NAME",
+                "WEB_SHORT_COHORT_NAME",
+                "WEB_LONG_COHORT_NAME",
+                F.col("SAMPLES").alias("numberSamplesTested")
+            )
         )
 
         # Joining genes and cohorts data
@@ -82,15 +86,17 @@ class intogenEvidenceGenerator():
             logging.info("Disease mapping has been skipped.")
             self.dataframe = self.dataframe.withColumn(
                 "EFO_id",
-                lit(None)
+                F.lit(None)
             )
-        
+
         # Build evidence strings per row
         logging.info("Generating evidence:")
-        evidences = (self.dataframe.rdd
+        evidences = (
+            self.dataframe.rdd
             .map(intogenEvidenceGenerator.parseEvidenceString)
-            .collect()) # list of dictionaries
-        
+            .collect()
+        )  # list of dictionaries
+
         for evidence in evidences:
             if skipMapping:
                 # Delete empty keys if mapping is skipped
@@ -100,18 +106,20 @@ class intogenEvidenceGenerator():
                 del evidence["mutatedSamples"][0]["functionalConsequenceId"]
 
         return evidences
-    
+
     def cancer2EFO(self, diseaseMapping):
-        diseaseMappingsFile = (self.spark
-                        .read.csv(diseaseMapping, sep=r'\t', header=True)
-                        .select("Cancer_type_acronym", "EFO_id")
-                        .withColumn("EFO_id", trim(col("EFO_id")))
+
+        diseaseMappingsFile = (
+            self.spark
+            .read.csv(diseaseMapping, sep=r'\t', header=True)
+            .select("Cancer_type_acronym", "EFO_id")
+            .withColumn("EFO_id", F.trim(F.col("EFO_id")))
         )
 
         self.dataframe = self.dataframe.join(
             diseaseMappingsFile,
             on="Cancer_type_acronym",
-            how="inner"
+            how="left"
         )
 
         return self.dataframe
@@ -120,31 +128,58 @@ class intogenEvidenceGenerator():
     def parseEvidenceString(row):
         try:
             evidence = {
-                "datasourceId" : "intogen",
-                "cohortDescription" : row["WEB_LONG_COHORT_NAME"],
-                "cohortId" : row["COHORT"],
-                "cohortShortName" : row["WEB_SHORT_COHORT_NAME"],
-                "datatypeId" : "somatic_mutation",
-                "diseaseFromSource" : row["CANCER_TYPE_NAME"],
-                "diseaseFromSourceMappedId" : row["EFO_id"],
-                "resourceScore" : row["QVALUE_COMBINATION"],
-                "significantDriverMethods" : row["METHODS"],
-                "targetFromSourceId" : row["SYMBOL"],
-                "mutatedSamples" : [{
-                    "functionalConsequenceId" : row["functionalConsequenceId"],
-                    "numberMutatedSamples" : row["numberMutatedSamples"],
-                    "numberSamplesTested" : row["numberSamplesTested"]
+                "datasourceId": "intogen",
+                "cohortDescription": row["WEB_LONG_COHORT_NAME"],
+                "cohortId": row["COHORT"],
+                "cohortShortName": row["WEB_SHORT_COHORT_NAME"],
+                "datatypeId": "somatic_mutation",
+                "diseaseFromSource": row["CANCER_TYPE_NAME"],
+                "resourceScore": row["QVALUE_COMBINATION"],
+                "significantDriverMethods": row["METHODS"],
+                "targetFromSourceId": row["SYMBOL"],
+                "mutatedSamples": [{
+                    "functionalConsequenceId": row["functionalConsequenceId"],
+                    "numberMutatedSamples": row["numberMutatedSamples"],
+                    "numberSamplesTested": row["numberSamplesTested"]
                 }]
             }
+
+            # The diseaseFromSourceMappedId is skipped if EFO_id is missing:
+            if row['EFO_id']:
+                evidence['diseaseFromSourceMappedId'] = row['EFO_id']
 
             return evidence
         except Exception as e:
             raise
 
-def main():
+
+def main(inputGenes, inputCohorts, diseaseMapping, outputFile, skipMapping):
+
+    # Logging parameters
+    logging.info(f"intOGen driver genes table: {inputGenes}")
+    logging.info(f"intOGen cohorts table: {inputCohorts}")
+    logging.info(f"Cancer type to EFO ID table: {diseaseMapping}")
+    logging.info(f"Output file: {outputFile}")
+    logging.info(f"Skipping disease mapping: {skipMapping}")
+
+    # Initialize evidence builder object
+    evidenceBuilder = intogenEvidenceGenerator()
+
+    # Writing evidence strings into a json file
+    evidences = evidenceBuilder.generateEvidenceFromSource(inputGenes, inputCohorts, diseaseMapping, skipMapping)
+
+    with gzip.open(outputFile, "wt") as f:
+        for evidence in evidences:
+            json.dump(evidence, f)
+            f.write('\n')
+
+    logging.info(f"{len(evidences)} evidence strings saved into {outputFile}. Exiting.")
+
+
+if __name__ == '__main__':
+
     # Initiating parser
-    parser = argparse.ArgumentParser(description=
-    "This script generates evidences for the intOGen data source.")
+    parser = argparse.ArgumentParser(description="This script generates evidences for the intOGen data source.")
 
     parser.add_argument("-g", "--inputGenes", required=True, type=str, help="Input source .tsv file listing the driver genes across the analyzed cohorts.")
     parser.add_argument("-c", "--inputCohorts", required=True, type=str, help="Input source .tsv file with information about the analyzed cohorts.")
@@ -163,32 +198,13 @@ def main():
 
     # Initialize logging:
     logging.basicConfig(
-    level=logging.INFO,
-    format='%(name)s - %(levelname)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S',
+        level=logging.INFO,
+        format='%(name)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S',
     )
     if args.logFile:
         logging.config.fileConfig(filename=args.logFile)
     else:
-        logging.StreamHandler(stderr)
+        logging.StreamHandler(sys.stderr)
 
-    # Logging parameters
-    logging.info(f"intOGen driver genes table: {inputGenes}")
-    logging.info(f"intOGen cohorts table: {inputCohorts}")
-    logging.info(f"Cancer type to EFO ID table: {diseaseMapping}")
-    logging.info(f"Output file: {outputFile}")
-
-    # Initialize evidence builder object
-    evidenceBuilder = intogenEvidenceGenerator()
-
-    # Writing evidence strings into a json file
-    evidences = evidenceBuilder.generateEvidenceFromSource(inputGenes, inputCohorts, diseaseMapping, skipMapping)
-
-    with gzip.open(outputFile, "wt") as f:
-        for evidence in evidences:
-            json.dump(evidence, f)
-            f.write('\n')
-    logging.info(f"{len(evidences)} evidence strings saved into {outputFile}. Exiting.")
-
-if __name__ == '__main__':
-    main()
+    main(inputGenes, inputCohorts, diseaseMapping, outputFile, skipMapping)
