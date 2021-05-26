@@ -6,14 +6,12 @@ import argparse
 import re
 import gzip
 import json
-import multiprocessing as mp # from multiprocessing import Pool
+import multiprocessing as mp
 import numpy as np
 import pandas as pd
-from pyspark import SparkContext
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import *
 from pyspark.sql.types import *
-import time
 
 class PanelAppEvidenceGenerator():
     def __init__(self, phenotypesMappings):

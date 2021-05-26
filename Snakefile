@@ -7,7 +7,7 @@ GS = GSRemoteProvider()
 timeStamp = datetime.now().strftime("%Y-%m-%d")
 
 # Configuration is read from the config yaml:
-configfile: 'configuration.yaml'
+config: 'configuration.yaml'
 logFile = f"{config['global']['logDir']}/evidence_parser.{timeStamp}.log"
 
 # --- All rules --- #
@@ -94,6 +94,7 @@ rule phewas:
         inputFile=f"tmp/phewas_catalog-{timeStamp}.csv",
         consequencesFile=f"tmp/phewas_w_consequences-{timeStamp}.csv",
         diseaseMapping=f"tmp/phewascat_mappings-{timeStamp}.tsv"
+        genesSet=f"{config['global']['genesHGNC']}"
     output:
         evidenceFile=GS.remote(f"{config['PheWAS']['outputBucket']}/phewas_catalog-{timeStamp}.json.gz")
     conda:
@@ -106,6 +107,7 @@ rule phewas:
             --inputFile {input.inputFile} \
             --consequencesFile {input.consequencesFile} \
             --diseaseMapping {input.diseaseMapping} \
+            --genesSet {input.genesSet} \
             --outputFile {output.evidenceFile}
         '''
 

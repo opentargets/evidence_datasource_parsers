@@ -81,9 +81,9 @@ class GeneParser(object):
     def __init__(self):
         self.genes = dict()
 
-    def _get_hgnc_data_from_json(self):
+    def _get_hgnc_data_from_json(self, HGNC_genes_set):
 
-        r = requests.get('http://ftp.ebi.ac.uk/pub/databases/genenames/new/json/hgnc_complete_set.json')
+        r = requests.get(HGNC_genes_set)
         data = r.json()
 
         for row in tqdm(data['response']['docs'],
