@@ -36,18 +36,29 @@ class ontoma_efo_lookup():
     def __init__(self):
         self.otmap = OnToma()
 
-    def get_mapping(self, label):
-        try:
-            mappings = self.otmap.find_term(label, verbose=True)
-        except Exception:
-            time.sleep(3)
-            mappings = self.otmap.find_term(label, verbose=True)
+    def get_mapping(self, disease_lable, disease_id):
+
+        mappings = self.query_ontoma(disease_id)
+
+        if mappings and 'EFO' in mappings['source']:
+            return mappings['term'].split('/')[-1]
+        else:
+            mappings = self.query_ontoma(disease_id)
 
         if mappings and 'EFO' in mappings['source']:
             return mappings['term'].split('/')[-1]
         else:
             return None
 
+    def query_ontoma(self, term):
+
+        try:
+            mappings = self.otmap.find_term(term, verbose=True)
+        except Exception:
+            time.sleep(3)
+            mappings = self.otmap.find_term(term, verbose=True)
+
+        return mappings
 
 def check_data(orphanet_df) -> None:
     '''
@@ -194,9 +205,10 @@ def main(input_file: str, output_file: str, local: bool = False) -> None:
     # Map diseases:
     orphanet_mapping = (
         orphanet_df
-        .select('diseaseFromSourceId')
+        .select('diseaseFromSourceId', 'diseaseFromSource')
         .distinct()
-        .withColumn('diseaseFromSourceMappedId', ont_udf(F.col('diseaseFromSourceId')))
+        .withColumn('diseaseFromSourceMappedId', ont_udf(F.col('diseaseFromSourceId'), F.col('diseaseFromSource')))
+        .drop('diseaseFromSource')
     )
 
     # Join mapping:
