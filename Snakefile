@@ -295,7 +295,7 @@ rule fetchPhewas:
         GS.remote(logFile)
     shell:
         """
-        curl  {params.diseaseMapping} > {output.diseaseMapping}
+        curl {params.diseaseMapping} > {output.diseaseMapping}
         gsutil cp {input.inputFile} {output.inputFile}
         gsutil cp {input.consequencesFile} {output.consequencesFile}
         """
@@ -338,13 +338,13 @@ rule fetchGene2Phenotype:
         GS.remote(logFile)
     shell:
         """
-        curl  {params.webSource_dd_panel} > {output.ddLocal}
+        curl {params.webSource_dd_panel} > {output.ddLocal}
         gsutil cp {output.ddLocal} {output.ddBucket}
-        curl  {params.webSource_eye_panel} > {output.eyeLocal}
+        curl {params.webSource_eye_panel} > {output.eyeLocal}
         gsutil cp {output.eyeLocal} {output.eyeBucket}
-        curl  {params.webSource_skin_panel} > {output.skinLocal}
+        curl {params.webSource_skin_panel} > {output.skinLocal}
         gsutil cp {output.skinLocal} {output.skinBucket}
-        curl  {params.webSource_cancer_panel} > {output.cancerLocal}
+        curl {params.webSource_cancer_panel} > {output.cancerLocal}
         gsutil cp {output.cancerLocal} {output.cancerBucket}
         """
 
