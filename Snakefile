@@ -1,6 +1,9 @@
 from datetime import datetime
 from snakemake.remote.GS import RemoteProvider as GSRemoteProvider
+from snakemake.remote.HTTP import RemoteProvider as HTTPRemoteProvider
+
 GS = GSRemoteProvider()
+HTTP = HTTPRemoteProvider()
 
 # --- Settings --- #
 # Current date in YYYY-MM-DD format:
@@ -445,4 +448,20 @@ rule fetchEpmc:
     shell:
         """
         gsutil cp -r {input.inputCooccurences} {output.inputCooccurences}
+        """
+
+## Orphanet                  : Processing disease/target evidence from Orphanet
+rule Orphanet:
+    input:
+        HTTP.remote(config['Orphanet']['webSource'])
+    output:
+        GS.remote(f"{config['Orphanet']['outputBucket']}/Orphanet-{timeStamp}"),
+    log:
+        GS.remote(logFile)
+    shell:
+        """
+        python modules/Orphanet.py \
+            --input_file {input} \
+            --output_file {output} \
+            --local
         """
