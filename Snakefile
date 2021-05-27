@@ -41,8 +41,6 @@ rule clingen:
     output:
         evidenceFile=GS.remote(f"{config['ClinGen']['outputBucket']}/ClinGen-{timeStamp}.json.gz"),
         unmappedDiseases=f"tmp/unmappedDiseases/clingen_unmapped_diseases-{timeStamp}.lst"
-    conda:
-        'envs/conda-env.yml'
     log:
         GS.remote(logFile)
     shell:
@@ -93,8 +91,6 @@ rule phewas:
         genesSet=f"{config['global']['genesHGNC']}"
     output:
         evidenceFile=GS.remote(f"{config['PheWAS']['outputBucket']}/phewas_catalog-{timeStamp}.json.gz")
-    conda:
-        'envs/conda-env.yml'
     log:
         GS.remote(logFile)
     shell:
@@ -114,8 +110,6 @@ rule slapenrich:
         diseaseMapping=f"tmp/cancer2EFO_mappings-{timeStamp}.tsv"
     output:
         evidenceFile=GS.remote(f"{config['SLAPEnrich']['outputBucket']}/slapenrich-{timeStamp}.json.gz")
-    conda:
-        'envs/conda-env.yml'
     log:
         GS.remote(logFile)
     shell:
@@ -136,8 +130,6 @@ rule gene2Phenotype:
     output:
         evidenceFile=GS.remote(f"{config['Gene2Phenotype']['outputBucket']}/gene2phenotype-{timeStamp}.json.gz"),
         unmappedDiseases=f"tmp/unmappedDiseases/gene2phenotype_unmapped_diseases-{timeStamp}.txt"
-    conda:
-        'envs/conda-env.yml'
     log:
         GS.remote(logFile)
     shell:
@@ -159,8 +151,6 @@ rule crispr:
         cellTypesFile=f"tmp/crispr_cell_lines-{timeStamp}.tsv"
     output:
         evidenceFile=GS.remote(f"{config['CRISPR']['outputBucket']}/crispr-{timeStamp}.json.gz")
-    conda:
-        'envs/conda-env.yml'
     log:
         GS.remote(logFile)
     shell:
@@ -180,8 +170,6 @@ rule progeny:
         pathwayMapping=f"tmp/pathway2Reactome_mappings-{timeStamp}.tsv"
     output:
         evidenceFile=GS.remote(f"{config['PROGENy']['outputBucket']}/progeny-{timeStamp}.json.gz")
-    conda:
-        'envs/conda-env.yml'
     log:
         GS.remote(logFile)
     shell:
@@ -197,8 +185,6 @@ rule progeny:
 rule phenodigm:
     output:
         evidenceFile=GS.remote(f"{config['Phenodigm']['outputBucket']}/phenodigm-{timeStamp}.json.gz")
-    conda:
-        'envs/conda-env.yml'
     log:
         GS.remote(logFile)
     shell:
@@ -215,8 +201,6 @@ rule sysbio:
         studyFile=f"tmp/sysbio_publication_info-{timeStamp}.tsv"
     output:
         evidenceFile=GS.remote(f"{config['SysBio']['outputBucket']}/sysbio-{timeStamp}.json.gz")
-    conda:
-        'envs/conda-env.yml'
     log:
         GS.remote(logFile)
     shell:
@@ -233,8 +217,6 @@ rule panelApp:
         inputFile=f"tmp/panelapp_gene_panels-{timeStamp}.tsv"
     output:
         evidenceFile = GS.remote(f"{config['PanelApp']['outputBucket']}/genomics_england-{timeStamp}.json.gz")
-    conda:
-        'envs/conda-env.yml'
     log:
         GS.remote(logFile)
     shell:
@@ -252,8 +234,6 @@ rule intogen:
         diseaseMapping=f"tmp/intogen_cancer2EFO_mappings-{timeStamp}.tsv"
     output:
         evidenceFile = GS.remote(f"{config['intOGen']['outputBucket']}/intogen-{timeStamp}.json.gz")
-    conda:
-        'envs/conda-env.yml'
     log:
         GS.remote(logFile)
     shell:
@@ -272,8 +252,6 @@ rule epmc:
         inputCooccurences = directory(f"tmp/epmc_cooccurrences-{timeStamp}")
     output:
         evidenceFile = directory(GS.remote(f"{config['EPMC']['outputBucket']}/epmc-{timeStamp}"))
-    conda:
-        'envs/conda-env.yml'
     log:
         GS.remote(logFile)
     shell:
@@ -294,8 +272,6 @@ rule fetchClingen:
     output:
         bucket=GS.remote(f"{config['ClinGen']['inputBucket']}/ClinGen-Gene-Disease-Summary-{timeStamp}.csv"),
         local=f"tmp/ClinGen-Gene-Disease-Summary-{timeStamp}.csv"    
-    conda:
-        'envs/conda-env.yml'
     log:
         GS.remote(logFile)
     shell:
@@ -315,8 +291,6 @@ rule fetchPhewas:
         inputFile=f"tmp/phewas_catalog-{timeStamp}.csv",
         consequencesFile=f"tmp/phewas_w_consequences-{timeStamp}.csv",
         diseaseMapping=f"tmp/phewascat_mappings-{timeStamp}.tsv"
-    conda:
-        'envs/conda-env.yml'
     log:
         GS.remote(logFile)
     shell:
@@ -335,8 +309,6 @@ rule fetchSlapenrich:
     output:
         inputFile=f"tmp/slapenrich-{timeStamp}.csv",
         diseaseMapping=f"tmp/cancer2EFO_mappings-{timeStamp}.tsv"
-    conda:
-        'envs/conda-env.yml'
     log:
         GS.remote(logFile)
     shell:
@@ -362,8 +334,6 @@ rule fetchGene2Phenotype:
         skinLocal=f"tmp/SkinG2P-{timeStamp}.csv.gz",
         cancerBucket=GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/CancerG2P-{timeStamp}.csv.gz"),
         cancerLocal=f"tmp/CancerG2P-{timeStamp}.csv.gz"
-    conda:
-        'envs/conda-env.yml'
     log:
         GS.remote(logFile)
     shell:
@@ -388,8 +358,6 @@ rule fetchCrispr:
         evidenceFile=f"tmp/crispr_evidence-{timeStamp}.csv",
         descriptionsFile=f"tmp/crispr_descriptions-{timeStamp}.tsv",
         cellTypesFile=f"tmp/crispr_cell_lines-{timeStamp}.tsv"
-    conda:
-        'envs/conda-env.yml'
     log:
         GS.remote(logFile)
     shell:
@@ -409,8 +377,6 @@ rule fetchProgeny:
         inputFile=f"tmp/progeny_normalVStumor_opentargets-{timeStamp}.txt",
         diseaseMapping=f"tmp/progeny_cancer2EFO_mappings-{timeStamp}.tsv", # solve ambiguity between progeny and slapenrich
         pathwayMapping=f"tmp/pathway2Reactome_mappings-{timeStamp}.tsv"
-    conda:
-        'envs/conda-env.yml'
     log:
         GS.remote(logFile)
     shell:
@@ -428,8 +394,6 @@ rule fetchSysbio:
     output:
         evidenceFile=f"tmp/sysbio_evidence-{timeStamp}.tsv",
         studyFile=f"tmp/sysbio_publication_info-{timeStamp}.tsv"
-    conda:
-        'envs/conda-env.yml'
     log:
         GS.remote(logFile)
     shell:
@@ -444,8 +408,6 @@ rule fetchPanelApp:
         inputFile = GS.remote(f"{config['PanelApp']['inputBucket']}/All_genes_20200928-1959.tsv")
     output:
         inputFile=f"tmp/panelapp_gene_panels-{timeStamp}.tsv"
-    conda:
-        'envs/conda-env.yml'
     log:
         GS.remote(logFile)
     shell:
@@ -463,8 +425,6 @@ rule fetchIntogen:
         inputGenes = f"tmp/Compendium_Cancer_Genes-{timeStamp}.tsv",
         inputCohorts = f"tmp/cohorts-{timeStamp}.tsv",
         diseaseMapping=f"tmp/intogen_cancer2EFO_mappings-{timeStamp}.tsv"
-    conda:
-        'envs/conda-env.yml'
     log:
         GS.remote(logFile)
     shell:
@@ -480,8 +440,6 @@ rule fetchEpmc:
         inputCooccurences = GS.remote(config['EPMC']['inputBucket'])
     output:
         inputCooccurences = directory(f"tmp/epmc_cooccurrences-{timeStamp}")
-    conda:
-        'envs/conda-env.yml'
     log:
         GS.remote(logFile)
     shell:
