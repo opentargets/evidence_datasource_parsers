@@ -57,7 +57,7 @@ rule clingen:
 rule geneticsPortal:
     shell:
         """
-        gcloud beta dataproc clusters create \
+        gcloud dataproc clusters create \
             snakemake-cluster-l2g-data \
             --image-version=1.4 \
             --properties=spark:spark.debug.maxToStringFields=100,spark:spark.executor.cores=31,spark:spark.executor.instances=1 \
@@ -65,7 +65,7 @@ rule geneticsPortal:
             --master-boot-disk-size=1TB \
             --zone=europe-west1-d \
             --single-node \
-            --max-idle=10m \
+            --max-idle=5m \
             --region=europe-west1 \
             --project=open-targets-genetics
         
@@ -81,11 +81,6 @@ rule geneticsPortal:
             --variantIndex gs://genetics-portal-data/variant-annotation/190129/variant-annotation.parquet  \
             --ecoCodes gs://genetics-portal-data/lut/vep_consequences.tsv \
             --outputFile gs://genetics-portal-analysis/l2g-platform-export/data/genetics_portal_evidence.json.gz
-
-        gcloud dataproc clusters delete \
-            snakemake-cluster-l2g-data \
-            --region=europe-west1 \
-            --project=open-targets-genetics
         """ 
 
 ## phewas           : processes phenome-wide association studies data from PheWAS
