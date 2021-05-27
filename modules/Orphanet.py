@@ -197,7 +197,7 @@ def main(input_file: str, output_file: str, local: bool = False) -> None:
         )
         .withColumn('dataSourceId', F.lit('orphanet'))
         .withColumn('datatypeId', F.lit('genetic_association'))
-        .withColumn('AlleleOrigins', F.split(F.lit('germline'), "_"))
+        .withColumn('alleleOrigins', F.split(F.lit('germline'), "_"))
         .withColumn('variantFunctionalConsequenceId', so_map(F.col('associationType')))
         .drop(*['associationType', 'type'])
     )
@@ -209,7 +209,14 @@ def main(input_file: str, output_file: str, local: bool = False) -> None:
         .distinct()
         .withColumn('diseaseFromSourceMappedId', ont_udf(F.col('diseaseFromSourceId'), F.col('diseaseFromSource')))
         .drop('diseaseFromSource')
+        .persist()
     )
+
+    # Do some logging:
+    all_count = orphanet_mapping.count()
+    mapped_count = orphanet_mapping.filter(F.col("diseaseFromSourceMappedId").isNotNull()).count()
+    logging.info(f'Number of unique disease terms: {all_count}')
+    logging.info(f'Number of mapped terms: {mapped_count}')
 
     # Join mapping:
     orphanet_df = (
@@ -220,6 +227,11 @@ def main(input_file: str, output_file: str, local: bool = False) -> None:
     # Save data:
     (
         orphanet_df
+        .select(
+            'datasourceId', 'datatypeId', 'alleleOrigins', 'confidence', 'diseaseFromSource',
+            'diseaseFromSourceId', 'diseaseFromSourceMappedId', 'literature', 'targetFromSource',
+            'targetFromSourceId'
+        )
         .write.format('json').mode('overwrite').option('compression', 'gzip')
         .save(output_file)
     )
