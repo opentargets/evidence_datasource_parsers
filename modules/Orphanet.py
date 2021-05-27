@@ -60,26 +60,6 @@ class ontoma_efo_lookup():
 
         return mappings
 
-def check_data(orphanet_df) -> None:
-    '''
-    Function to generate basic stats about the data to the log
-
-    Args:
-        orphanet_df (pd.DataFrame): parsed orphanet data with mapped diseases
-    '''
-
-    logging.info(f"Number of evidence: {len(orphanet_df)}")
-    logging.info(f"Number of unique diseases: {len(orphanet_df.diseaseFromSourceId.unique)}")
-    logging.info(f"Number of unique targets: {len(orphanet_df.targetFromSource.unique())}")
-
-    genes_notmapped = orphanet_df.loc[lambda df: df['targetFromSourceIds'].apply(lambda x: len(x) == 0)]
-    logging.info(f"Number of targets without ensembl gene ID: {len(genes_notmapped)}")
-
-    disease_unmapped = orphanet_df.loc[df['diseaseFromSourceMappedId'].notnull()]
-    logging.info(f"Number of diseases without EFO mapping: {len(disease_unmapped)}")
-
-    # Number of associations
-
 
 def parserOrphanetXml(orphanet_file: str) -> list:
     '''
