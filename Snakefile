@@ -22,7 +22,8 @@ rule all:
         GS.remote(f"{config['Gene2Phenotype']['outputBucket']}/gene2phenotype-{timeStamp}.json.gz"),
         GS.remote(f"{config['CRISPR']['outputBucket']}/crispr-{timeStamp}.json.gz"),
         GS.remote(f"{config['SysBio']['outputBucket']}/sysbio-{timeStamp}.json.gz"),
-        GS.remote(f"{config['Phenodigm']['outputBucket']}/phenodigm-{timeStamp}.json.gz")
+        GS.remote(f"{config['Phenodigm']['outputBucket']}/phenodigm-{timeStamp}.json.gz"),
+        GS.remote(f"{config['Orphanet']['outputBucket']}/Orphanet-{timeStamp}")
 
 # --- Auxiliary Rules --- #
 ## help               : prints help comments for Snakefile
@@ -455,7 +456,7 @@ rule Orphanet:
     input:
         HTTP.remote(config['Orphanet']['webSource'])
     output:
-        GS.remote(f"{config['Orphanet']['outputBucket']}/Orphanet-{timeStamp}"),
+        GS.remote(f"{config['Orphanet']['outputBucket']}/Orphanet-{timeStamp}")
     log:
         GS.remote(logFile)
     shell:
