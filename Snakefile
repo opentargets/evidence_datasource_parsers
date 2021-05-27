@@ -8,7 +8,7 @@ timeStamp = datetime.now().strftime("%Y-%m-%d")
 
 # Configuration is read from the config yaml:
 configfile: 'configuration.yaml'
-logFile = f"{config['global']['logDir']}/evidence_parser.{timeStamp}.log"
+logFile = f"{config['global']['logDir']}/evidence_parser-{timeStamp}.log"
 
 # --- All rules --- #
 rule all:

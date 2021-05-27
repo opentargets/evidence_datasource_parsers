@@ -1,5 +1,5 @@
 global:
-  logDir: gs://ot-team/irene/evidence_test
+  logDir: gs://otar000-evidence_input/parser_logs
   genesHGNC: http://ftp.ebi.ac.uk/pub/databases/genenames/new/json/hgnc_complete_set.json
 
 # Parameters for OT Gentics Portal evidence generation:
