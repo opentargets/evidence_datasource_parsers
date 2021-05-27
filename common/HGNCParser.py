@@ -1,9 +1,7 @@
 import logging
 
 import requests
-from tqdm import tqdm
 
-from settings import Config
 
 logger = logging.getLogger(__name__)
 
@@ -81,15 +79,12 @@ class GeneParser(object):
     def __init__(self):
         self.genes = dict()
 
-    def _get_hgnc_data_from_json(self):
+    def _get_hgnc_data_from_json(self, HGNC_genes_set):
 
-        r = requests.get(Config.GENES_HGNC)
+        r = requests.get(HGNC_genes_set)
         data = r.json()
 
-        for row in tqdm(data['response']['docs'],
-                desc='Downloading HGNC genes from json response',
-                unit='genes'):
-
+        for row in data['response']['docs']:
             ensembl_gene_id = ''
 
             if 'ensembl_gene_id' in row:

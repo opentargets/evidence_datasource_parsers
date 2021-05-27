@@ -4,23 +4,6 @@ import os
 import pkg_resources as res
 from datetime import datetime
 
-# from envparse import env, ConfigurationError
-
-# def read_option(option, cast=None,
-#                 **kwargs):
-
-#     try:
-#         default_value = kwargs.pop('default')
-#     except KeyError:
-#         default_value = None
-
-#     try:
-#         # reading the environment variable with envparse
-#         return env(option, cast=cast, **kwargs)
-#     except ConfigurationError:
-#        return default_value
-
-
 def file_or_resource(fname=None):
     # get filename and check if in getcwd then get from the package resources folder
     filename = os.path.expanduser(fname)
