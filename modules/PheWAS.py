@@ -1,17 +1,18 @@
 #!/usr/bin/env python
 
-from common.HGNCParser import GeneParser
 import logging
-import requests
-import argparse
-import sys
-import json
-import numpy as np
 import gzip
+import json
+import sys
+
+import argparse
+import numpy as np
 from pyspark import SparkContext, SparkFiles
 from pyspark.sql import SparkSession, Row
 from pyspark.sql.functions import *
 from pyspark.sql.types import *
+
+from common.HGNCParser import GeneParser
 
 class phewasEvidenceGenerator():
     def __init__(self, genesSet):

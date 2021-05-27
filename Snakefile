@@ -7,7 +7,7 @@ GS = GSRemoteProvider()
 timeStamp = datetime.now().strftime("%Y-%m-%d")
 
 # Configuration is read from the config yaml:
-config: 'configuration.yaml'
+configfile: 'configuration.yaml'
 logFile = f"{config['global']['logDir']}/evidence_parser.{timeStamp}.log"
 
 # --- All rules --- #
@@ -88,7 +88,8 @@ rule phewas:
     input:
         inputFile=f"tmp/phewas_catalog-{timeStamp}.csv",
         consequencesFile=f"tmp/phewas_w_consequences-{timeStamp}.csv",
-        diseaseMapping=f"tmp/phewascat_mappings-{timeStamp}.tsv"
+        diseaseMapping=f"tmp/phewascat_mappings-{timeStamp}.tsv",
+    params:
         genesSet=f"{config['global']['genesHGNC']}"
     output:
         evidenceFile=GS.remote(f"{config['PheWAS']['outputBucket']}/phewas_catalog-{timeStamp}.json.gz")
@@ -102,7 +103,7 @@ rule phewas:
             --inputFile {input.inputFile} \
             --consequencesFile {input.consequencesFile} \
             --diseaseMapping {input.diseaseMapping} \
-            --genesSet {input.genesSet} \
+            --genesSet {params.genesSet} \
             --outputFile {output.evidenceFile}
         '''
 
@@ -202,13 +203,9 @@ rule phenodigm:
         GS.remote(logFile)
     shell:
         """
-        wget https://github.com/opentargets/ontology-utils/archive/bff0f189a4c6e8613e99a5d47e9ad4ceb6a375fc.zip
-        pip3 install bff0f189a4c6e8613e99a5d47e9ad4ceb6a375fc.zip
-        export PYTHONPATH=.
-
-        python modules/MouseModels.py \
-        --update-cache \
-        --outputFile {output.evidenceFile}
+        python modules/PhenoDigm.py \
+        --cache-dir phenodigm_cache \
+        --output {output.evidenceFile}
         """
 
 ## sysbio           : processes key driver genes for specific diseases that have been curated from Systems Biology papers
