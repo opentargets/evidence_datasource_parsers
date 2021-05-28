@@ -2,12 +2,13 @@ import argparse
 import logging
 import sys
 import time
+from itertools import chain
 
 import xml.etree.ElementTree as ET
 from pyspark.conf import SparkConf
 from pyspark.sql import SparkSession, Row
 from pyspark.sql.types import StringType
-import pyspark.sql.functions as F
+from pyspark.sql.functions import col, udf, lit, create_map, split
 
 from ontoma import OnToma
 
@@ -36,14 +37,15 @@ class ontoma_efo_lookup():
     def __init__(self):
         self.otmap = OnToma()
 
-    def get_mapping(self, disease_lable, disease_id):
+    def get_mapping(self, terms=[]):
+        disease_label, disease_id = terms
 
         mappings = self.query_ontoma(disease_id)
 
         if mappings and 'EFO' in mappings['source']:
             return mappings['term'].split('/')[-1]
         else:
-            mappings = self.query_ontoma(disease_id)
+            mappings = self.query_ontoma(disease_label)
 
         if mappings and 'EFO' in mappings['source']:
             return mappings['term'].split('/')[-1]
@@ -161,10 +163,9 @@ def main(input_file: str, output_file: str, local: bool = False) -> None:
 
     # Initialize mapping object:
     ol_obj = ontoma_efo_lookup()
-    ont_udf = F.udf(ol_obj.get_mapping, StringType())
 
     # UDF to map association type to sequence ontology:
-    so_map = F.udf(lambda x: CONSEQUENCE_MAP[x], StringType())
+    so_mapping_expr = create_map([lit(x) for x in chain(*CONSEQUENCE_MAP.items())])
 
     # Parsing xml file:s
     orphanet_disorders = parserOrphanetXml(input_file)
@@ -173,35 +174,30 @@ def main(input_file: str, output_file: str, local: bool = False) -> None:
     orphanet_df = (
         spark.createDataFrame(Row(**x) for x in orphanet_disorders)
         .filter(
-            ~F.col('associationType').isin(EXCLUDED_ASSOCIATIONTYPES)
+            ~col('associationType').isin(EXCLUDED_ASSOCIATIONTYPES)
         )
-        .withColumn('dataSourceId', F.lit('orphanet'))
-        .withColumn('datatypeId', F.lit('genetic_association'))
-        .withColumn('alleleOrigins', F.split(F.lit('germline'), "_"))
-        .withColumn('variantFunctionalConsequenceId', so_map(F.col('associationType')))
+        .withColumn('dataSourceId', lit('orphanet'))
+        .withColumn('datatypeId', lit('genetic_association'))
+        .withColumn('alleleOrigins', split(lit('germline'), "_"))
+        .withColumn('variantFunctionalConsequenceId', so_mapping_expr.getItem(col('associationType')))
         .drop(*['associationType', 'type'])
-    )
-
-    # Map diseases:
-    orphanet_mapping = (
-        orphanet_df
-        .select('diseaseFromSourceId', 'diseaseFromSource')
-        .distinct()
-        .withColumn('diseaseFromSourceMappedId', ont_udf(F.col('diseaseFromSourceId'), F.col('diseaseFromSource')))
-        .drop('diseaseFromSource')
         .persist()
     )
 
-    # Do some logging:
-    all_count = orphanet_mapping.count()
-    mapped_count = orphanet_mapping.filter(F.col("diseaseFromSourceMappedId").isNotNull()).count()
-    logging.info(f'Number of unique disease terms: {all_count}')
-    logging.info(f'Number of mapped terms: {mapped_count}')
+    # Generating a lookup table for the mapped orphanet terms:
+    orphanet_diseases = (
+        orphanet_df
+        .select('diseaseFromSource', 'diseaseFromSourceId')
+        .distinct()
+        .collect()
+    )
+    mapped_diseases = {x[1]: ol_obj.get_mapping(x) for x in orphanet_diseases}
+    disease_mapping_expr = create_map([lit(x) for x in chain(*mapped_diseases.items())])
 
-    # Join mapping:
+    # Adding EFO mapping as new column:
     orphanet_df = (
         orphanet_df
-        .join(orphanet_mapping, on='diseaseFromSourceId', how='right')
+        .withColumn('diseaseFromSourceMappedId', disease_mapping_expr.getItem(col('diseaseFromSourceId')))
     )
 
     # Save data:
