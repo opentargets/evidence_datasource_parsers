@@ -100,7 +100,7 @@ def parserOrphanetXml(orphanet_file: str) -> list:
         # One disease might be mapped to multiple genes:
         for association in disorder.find('DisorderGeneAssociationList'):
 
-            # For each mapped genes, an evidence is created:
+            # For each mapped gene, an evidence is created:
             evidence = parsed_disorder.copy()
 
             # Not all gene/disease association is backed up by publication:
@@ -164,7 +164,7 @@ def main(input_file: str, output_file: str, local: bool = False) -> None:
     # Initialize mapping object:
     ol_obj = ontoma_efo_lookup()
 
-    # UDF to map association type to sequence ontology:
+    # Map association type to sequence ontology ID:
     so_mapping_expr = create_map([lit(x) for x in chain(*CONSEQUENCE_MAP.items())])
 
     # Parsing xml file:s
@@ -180,7 +180,7 @@ def main(input_file: str, output_file: str, local: bool = False) -> None:
         .withColumn('datatypeId', lit('genetic_association'))
         .withColumn('alleleOrigins', split(lit('germline'), "_"))
         .withColumn('variantFunctionalConsequenceId', so_mapping_expr.getItem(col('associationType')))
-        .drop(*['associationType', 'type'])
+        .drop('associationType', 'type')
         .persist()
     )
 
@@ -208,6 +208,7 @@ def main(input_file: str, output_file: str, local: bool = False) -> None:
             'diseaseFromSourceId', 'diseaseFromSourceMappedId', 'literature', 'targetFromSource',
             'targetFromSourceId'
         )
+        .coalesce(1)
         .write.format('json').mode('overwrite').option('compression', 'gzip')
         .save(output_file)
     )

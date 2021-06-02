@@ -452,7 +452,7 @@ rule fetchEpmc:
         """
 
 ## Orphanet                  : Processing disease/target evidence from Orphanet
-rule Orphanet:
+rule orphanet:
     input:
         HTTP.remote(config['Orphanet']['webSource'])
     output:
