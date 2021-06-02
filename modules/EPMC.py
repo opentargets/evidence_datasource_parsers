@@ -72,8 +72,7 @@ def main(cooccurrenceFile, outputFile, local=False):
         .filter(
             (pf.col('type') == 'GP-DS') &  # Filter gene/protein - disease cooccurrence
             (pf.col('isMapped')) &  # Filtering for mapped cooccurrences
-            # Making sure at least the pmid or the pmcid is given:
-            (pf.col('pmid').isNotNull() | pf.col('pmcid').isNotNull()) &
+            (pf.col('publicationIdentifier').isNotNull()) &  # Making sure at least the pmid or the pmcid is given:
             (pf.length(pf.col('text')) < 600) &  # Exclude sentences with more than 600 characters
             (pf.col('label1').isin(EXCLUDED_TARGET_TERMS) == False)  # Excluding target labels from the exclusion list
         )
@@ -84,7 +83,7 @@ def main(cooccurrenceFile, outputFile, local=False):
     )
 
     # Report on the number of diseases, targets and associations if loglevel == "debug" to avoid cost on computation time:
-    logging.debug(f"Number of publications: {filtered_cooccurrence_df.select(pf.col('pmid')).distinct().count()}")
+    logging.debug(f"Number of publications: {filtered_cooccurrence_df.select(pf.col('publicationIdentifier')).distinct().count()}")
     logging.debug(f"Number of targets: {filtered_cooccurrence_df.select(pf.col('targetFromSourceId')).distinct().count()}")
     logging.debug(f"Number of diseases: {filtered_cooccurrence_df.select(pf.col('diseaseFromSourceMappedId')).distinct().count()}")
     logging.debug(f"Number of associations: {filtered_cooccurrence_df.select(pf.col('diseaseFromSourceMappedId'), pf.col('targetFromSourceId')).dropDuplicates().count()}")
