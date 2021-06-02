@@ -63,17 +63,17 @@ class ontoma_efo_lookup():
         return mappings
 
 
-def parserOrphanetXml(orphanet_file: str) -> list:
-    '''
+def parse_orphanet_xml(orphanet_file: str) -> list:
+    """
     Function to parse Orphanet xml dump and return the parsed
-    data as a pandas dataframe.
+    data as a list of dictionaries.
 
     Args:
         orphanet_file (str): Orphanet XML filename
 
     Returns:
-        parsed data as a list of dictionary
-    '''
+        parsed data as a list of dictionaries
+    """
 
     # Reading + validating xml:
     tree = ET.parse(orphanet_file)
