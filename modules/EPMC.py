@@ -61,7 +61,7 @@ def main(cooccurrenceFile, outputFile, local=False):
         # Casting integer pmid column to string:
         .withColumn("pmid", pf.col('pmid').cast(StringType()))
 
-        # publication identifier is a pmid if available otherwise pmcid
+        # Publication identifier is a pmid if available, otherwise pmcid
         .withColumn(
             'publicationIdentifier',
             pf.when(pf.col('pmid').isNull(), pf.col('pmcid'))
@@ -128,8 +128,8 @@ def main(cooccurrenceFile, outputFile, local=False):
         .withColumn('datatypeId', pf.lit('literature'))
 
         # Reorder columns:
-        .select(['datasourceId', 'datatypeId', 'targetFromSourceId', 'diseaseFromSourceMappedId',
-            'resourceScore', 'literature', 'textMiningSentences', 'pmcIds'])
+        .select(['datasourceId', 'datatypeId', 'targetFromSourceId', 'diseaseFromSourceMappedId', 'resourceScore',
+                 'literature', 'textMiningSentences', 'pmcIds'])
 
         # Save output:
         .write.format('json').mode('overwrite').option('compression', 'gzip').save(outputFile)
