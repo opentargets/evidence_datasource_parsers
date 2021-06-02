@@ -6,14 +6,12 @@ import argparse
 import re
 import gzip
 import json
-import multiprocessing as mp # from multiprocessing import Pool
+import multiprocessing as mp
 import numpy as np
 import pandas as pd
-from pyspark import SparkContext
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import *
 from pyspark.sql.types import *
-import time
 
 class PanelAppEvidenceGenerator():
     def __init__(self, phenotypesMappings):
@@ -73,7 +71,7 @@ class PanelAppEvidenceGenerator():
         logging.info("Generating evidence:")
         evidences = (self.dataframe
                         # Removing redundant evidence after the explosion of phenotypes
-                        .dropDuplicates(["Panel Id", "Symbol", "ontomaUrl"])
+                        .dropDuplicates(["Panel Id", "Symbol", "ontomaUrl", "cohortPhenotypes"])
                         # Build evidence strings per row
                         .rdd.map(
                             PanelAppEvidenceGenerator.parseEvidenceString)
