@@ -198,47 +198,50 @@ class G2P():
                 pmids = row["pmids"]
                 panel = row["panel"]
 
+                # Preparing evidence:
+                evidence = {
+                    'datasourceId': 'gene2phenotype',
+                    'datatypeId': 'genetic_literature',
+                    'targetFromSourceId': gene_symbol.rstrip(),
+                    'diseaseFromSource': disease_name,
+                    'diseaseFromSourceId': disease_mim,
+                    'confidence': confidence,
+                    'studyId': panel
+                }
+
+                # Parse literature:
+                if len(pmids) != 0:
+                    evidence['literature'] = pmids.split(";")
+
+                # Ignore allelic requirement if it's empty string
+                if allelic_requirement:
+                    evidence['allelicRequirements'] = [allelic_requirement]
+                else:
+                    logging.warn('Empty allelic requirement, ignoring the value')
+
+                # Assign SO code based on mutation consequence field
+                if mutation_consequence in G2P_mutationCsq2functionalCsq:
+                    if G2P_mutationCsq2functionalCsq[mutation_consequence]:
+                        evidence['variantFunctionalConsequenceId'] = G2P_mutationCsq2functionalCsq[mutation_consequence]
+                    else:
+                        logging.error('Ignoring empty mutation consequence: {}'.format(mutation_consequence))
+                else:
+                    logging.error('{} is not a recognised G2P mutation consequence, ignoring the value'.format(mutation_consequence))
+
                 # Map disease to ontology terms
                 disease_mapping = self.map_disease_name_to_ontology(disease_name, disease_mim)
                 if disease_mapping:
                     total_efo += 1
-
                     logging.info(f"{gene_symbol}, {gene_symbol}, '{disease_name}', {disease_mapping['id']}")
-
-                    evidence = {
-                        'datasourceId': 'gene2phenotype',
-                        'datatypeId': 'genetic_literature',
-                        'targetFromSourceId': gene_symbol.rstrip(),
-                        'diseaseFromSource': disease_name,
-                        'diseaseFromSourceId': disease_mim,
-                        'diseaseFromSourceMappedId': ontoma.interface.make_uri(disease_mapping['id']).split("/")[-1],
-                        'confidence': confidence,
-                        'studyId': panel
-                    }
-
-                    # Add literature provenance if there are PMIDs
-                    if len(pmids) != 0:
-                        evidence['literature'] = pmids.split(";")
-
-                    # Ignore allelic requirement if it's empty string
-                    evidence['allelicRequirements'] = [allelic_requirement] if allelic_requirement else logging.warn('Empty allelic requirement, ignoring the value')
-
-                    # Assign SO code based on mutation consequence field
-                    if mutation_consequence in G2P_mutationCsq2functionalCsq:
-                        if G2P_mutationCsq2functionalCsq[mutation_consequence]:
-                            evidence['variantFunctionalConsequenceId'] = G2P_mutationCsq2functionalCsq[mutation_consequence]
-                        else:
-                            logging.error('Ignoring empty mutation consequence: {}'.format(mutation_consequence))
-                    else:
-                        logging.error('{} is not a recognised G2P mutation consequence, ignoring the value'.format(mutation_consequence))
-
-                    self.evidence_strings.append(evidence)
+                    evidence['diseaseFromSourceMappedId'] = ontoma.interface.make_uri(disease_mapping['id']).split("/")[-1]
+                
+                self.evidence_strings.append(evidence)
 
             logging.info(f"Processed {c} diseases, mapped {total_efo}\n")
 
     def write_evidence_strings(self, filename):
         logging.info("Writing Gene2Phenotype evidence strings to %s", filename)
-        with gzip.open(filename, 'w') as tp_file:
+        with gzip.open(filename, 'wt') as tp_file:
             n = 0
             for evidence_string in self.evidence_strings:
                 n += 1
