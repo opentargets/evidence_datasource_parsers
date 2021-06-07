@@ -1,10 +1,10 @@
 import ontoma
 import logging
-import pandas as pd
 import argparse
 import json
 import gzip
 
+import pandas as pd
 
 class ClinGen():
     def __init__(self):
@@ -29,28 +29,35 @@ class ClinGen():
 
         # When reading csv file skip header lines that don't contain column names
         gene_validity_curation_df = pd.read_csv(filename, skiprows=[0, 1, 2, 3, 5], quotechar='"')
+
         for index, row in gene_validity_curation_df.iterrows():
             logging.info('{} - {}'.format(row['GENE SYMBOL'], row['DISEASE LABEL']))
 
-            gene_symbol = row['GENE SYMBOL']
             disease_name = row['DISEASE LABEL']
             disease_id = row['DISEASE ID (MONDO)']
-            mode_of_inheritance = row['MOI']
-            classification = row['CLASSIFICATION']
-            expert_panel_name = row['GCEP']
-            report_url = row['ONLINE REPORT']
 
-            gene_symbol.rstrip()
+            evidence = {
+                'datasourceId': 'clingen',
+                'datatypeId': 'genetic_literature',
+                'targetFromSourceId': row['GENE SYMBOL'].rstrip(),
+                'diseaseFromSource': disease_name,
+                'diseaseFromSourceId': disease_id,
+                'allelicRequirements': [row['MOI']],
+                'confidence': row['CLASSIFICATION'],
+                'studyId': row['GCEP'],
+                'urls': [{'url': row['ONLINE REPORT']}]
+            }
 
-            # Check that disease id exists in EFO or find equivalent term
-            # If id is not found in EFO OBO file the function returns None
+            # Looking up disease in Ontoma usig disease id and label:
             if self.ontoma.get_efo_label(disease_id):
                 disease_label = self.ontoma.get_efo_label(disease_id)
                 # Create list of single disease to mimic what is returned by next step
                 efo_mappings = [{'id': disease_id, 'name': disease_label}]
+
             elif self.ontoma.get_efo_from_xref(disease_id):
                 efo_mappings = self.ontoma.get_efo_from_xref(disease_id)
                 logging.info('{} mapped to {} EFO ids based on xrefs.'.format(disease_id, len(efo_mappings)))
+
             else:
                 # Search disease label using OnToma and accept perfect matches
                 ontoma_mapping = self.ontoma.find_term(disease_name, verbose=True)
@@ -70,21 +77,13 @@ class ClinGen():
                     self.unmapped_diseases.add((disease_id, disease_name))
                     continue
 
-            for efo_mapping in efo_mappings:
-
-                evidence = {
-                    'datasourceId': 'clingen',
-                    'datatypeId': 'genetic_literature',
-                    'targetFromSourceId': gene_symbol,
-                    'diseaseFromSource': disease_name,
-                    'diseaseFromSourceId': disease_id,
-                    'diseaseFromSourceMappedId': ontoma.interface.make_uri(efo_mapping['id']).split('/')[-1],
-                    'allelicRequirements': [mode_of_inheritance],
-                    'confidence': classification,
-                    'studyId': expert_panel_name,
-                    'urls': [{'url': report_url}]
-                }
-
+            # Generating evidence for all mapped efo:
+            if efo_mappings:
+                for efo_mapping in efo_mappings:
+                    evidence_with_efo = evidence.copy()
+                    evidence_with_efo['diseaseFromSourceMappedId'] = ontoma.interface.make_uri(efo_mapping['id']).split('/')[-1]
+                    self.evidence_strings.append(evidence_with_efo)
+            else:
                 self.evidence_strings.append(evidence)
 
     def write_evidence_strings(self, filename):
@@ -95,10 +94,10 @@ class ClinGen():
                 tp_file.write('\n')
 
 
-def main(infile, outfile, unmapped_diseases_file):
+def main(infile, outfile):
 
     clingen = ClinGen()
-    clingen.process_gene_validity_curations(infile, outfile, unmapped_diseases_file)
+    clingen.process_gene_validity_curations(infile, outfile)
 
 
 if __name__ == "__main__":

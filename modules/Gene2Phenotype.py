@@ -180,9 +180,6 @@ class G2P():
             for row in reader:
                 c += 1
 
-                if c == 20:
-                    break
-
                 logging.info(f"Parsing row {c}")
 
                 # Column names are:
