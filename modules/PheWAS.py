@@ -9,18 +9,20 @@ import argparse
 import numpy as np
 from pyspark import SparkContext, SparkFiles
 from pyspark.sql import SparkSession, Row
-from pyspark.sql.functions import *
-from pyspark.sql.types import *
+from pyspark.sql.functions import udf, col, element_at, split, lit, count, concat
+from pyspark.sql.types import StringType, IntegerType, DoubleType
 
 from common.HGNCParser import GeneParser
 
 class phewasEvidenceGenerator():
     def __init__(self, genesSet):
-        # Create spark session     
-        self.spark = (SparkSession.builder
-                .appName('phewas')
-                .getOrCreate())
-        
+        # Create spark session
+        self.spark = (
+            SparkSession.builder
+            .appName('phewas')
+            .getOrCreate()
+        )
+
         # Initialize gene parser
         gene_parser = GeneParser()
         gene_parser._get_hgnc_data_from_json(genesSet)
@@ -40,17 +42,20 @@ class phewasEvidenceGenerator():
             evidences (array): Object with all the generated evidences strings from source file
         '''
         # Read input file
-        self.dataframe = (self.spark
-                            .read.csv(inputFile, header=True)
-                            .select(
-                                "gene", "snp", "phewas_code", "phewas_string",
-                                col("cases").cast(IntegerType()),
-                                col("odds_ratio").cast(DoubleType()),
-                                col("p").cast(DoubleType())
-                            )
-                            # Filter out null genes & p-value > 0.05
-                            .filter(col("gene").isNotNull())
-                            .filter(col("p") < 0.05)
+        self.dataframe = (
+            self.spark
+            .read.csv(inputFile, header=True)
+            .select(
+                "gene", "snp", "phewas_code", "phewas_string",
+                col("cases").cast(IntegerType()),
+                col("odds_ratio").cast(DoubleType()),
+                col("p").cast(DoubleType())
+            )
+            # Filter out null genes & p-value > 0.05
+            .filter(
+                (col("gene").isNotNull()) &
+                (col("p") < 0.05)
+            )
         )
 
         # Mapping step
@@ -59,55 +64,50 @@ class phewasEvidenceGenerator():
                 self.spark.sparkContext.addFile(diseaseMapping)
                 phewasMapping = (
                     self.spark.read.csv(SparkFiles.get(diseaseMapping.split("/")[-1]), sep=r'\t', header=True)
-                    .select(
-                        "Phewas_string", col("EFO_id").alias("EFO_link")
-                    )
-                    .withColumn(
-                        "EFO_id",
-                        element_at(split(col("EFO_link"), "/"), -1)
-                    )
+                    .select("Phewas_string", col("EFO_id").alias("EFO_link"))
+                    .withColumn("EFO_id", element_at(split(col("EFO_link"), "/"), -1))
                 )
-                self.dataframe = self.dataframe.join(
-                    phewasMapping,
-                    on=["Phewas_string"],
-                    how="inner"
-                )
+                self.dataframe = self.dataframe.join(phewasMapping, on=["Phewas_string"], how="inner")
                 logging.info("Disease mappings have been imported.")
+
             except Exception as e:
                 logging.error(f"An error occurred while importing disease mappings: \n{e}.")
+                
             else:
                 # Filter out invalid disease IDs: MPATH_579, CHEBI_36047
                 pattern = "(^NCIT_C\d+$|^Orphanet_\d+$|^GO_\d+$|^HP_\d+$|^EFO_\d+$|^MONDO_\d+$|^DOID_\d+$|^MP_\d+$)"
                 self.dataframe = self.dataframe.filter(col("EFO_id").rlike(pattern))
         else:
             logging.info("Disease mapping has been skipped.")
-            self.dataframe = self.dataframe.withColumn(
-                "EFO_id",
-                lit(None)
-            )
+            self.dataframe = self.dataframe.withColumn("EFO_id", lit(None))
 
         # Parse gene symbols to ENSID to join with the consequences table
-        self.dataframe = (self.dataframe
-            .withColumn(
-                "ens_id",
-                self.udfGeneParser(col("gene"))
-            )
+        self.dataframe = (
+            self.dataframe
+            .withColumn("ens_id", self.udfGeneParser(col("gene")))
             # Remove rows where the target is not valid
             .filter(col("ens_id") != "NaN")
         )
 
         # Get functional consequence per variant from OT Genetics Portal
-        cols = ["phewas_string", "phewas_code", "EFO_id", "odds_ratio", "p", "cases", "ens_id", "consequence_id", "variantId", "snp"]
-        self.enrichedDataframe = (self.enrichVariantData(consequencesFile)
-                                        .dropDuplicates(cols))
+        cols = [
+            "phewas_string", "phewas_code", "EFO_id", "odds_ratio", 
+            "p", "cases", "ens_id", "consequence_id", "variantId", "snp"
+        ]
+        self.enrichedDataframe = (
+            self.enrichVariantData(consequencesFile)
+            .dropDuplicates(cols)
+        )
         logging.info("Functional consequences have been imported.")
 
         # Build evidence strings per row
         logging.info("Generating evidence:")
-        evidences = (self.enrichedDataframe.rdd
+        evidences = (
+            self.enrichedDataframe.rdd
             .map(phewasEvidenceGenerator.parseEvidenceString)
-            .collect()) # list of dictionaries
-        
+            .collect()
+        )
+
         for evidence in evidences:
             if skipMapping:
                 # Delete empty keys if mapping is skipped
@@ -136,12 +136,13 @@ class phewasEvidenceGenerator():
         )
 
         # We want to remove all the SNPs associated with many variants
-        one2manyVariants = (phewasWithConsequences
-                                    .groupBy("snp")
-                                    .agg(count("snp"))
-                                    .filter(col("count(snp)") > 1)
-                                    .toPandas()["snp"]
-                                    .tolist()
+        one2manyVariants = (
+            phewasWithConsequences
+            .groupBy("snp")
+            .agg(count("snp"))
+            .filter(col("count(snp)") > 1)
+            .toPandas()["snp"]
+            .tolist()
         )
         phewasWithConsequences = phewasWithConsequences.filter(
             ~col("snp").isin(one2manyVariants)
@@ -175,23 +176,23 @@ class phewasEvidenceGenerator():
     def parseEvidenceString(row):
         try:
             evidence = {
-                "datasourceId" : "phewas_catalog",
-                "datatypeId" : "genetic_association",
-                "diseaseFromSource" : row["phewas_string"],
-                "diseaseFromSourceId" : row["phewas_code"],
-                "diseaseFromSourceMappedId" : row["EFO_id"],
-                "oddsRatio" : row["odds_ratio"],
-                "resourceScore" : row["p"],
-                "studyCases" : row["cases"],
-                "targetFromSource" : row["gene"].strip("*"),
-                "targetFromSourceId" : row["ens_id"],
-                "variantFunctionalConsequenceId" : row["consequence_id"] if row["consequence_id"] else "SO_0001060",
-                "variantId" : row["variantId"],
-                "variantRsId" : row["snp"]
+                "datasourceId": "phewas_catalog",
+                "datatypeId": "genetic_association",
+                "diseaseFromSource": row["phewas_string"],
+                "diseaseFromSourceId": row["phewas_code"],
+                "diseaseFromSourceMappedId": row["EFO_id"],
+                "oddsRatio": row["odds_ratio"],
+                "resourceScore": row["p"],
+                "studyCases": row["cases"],
+                "targetFromSource": row["gene"].strip("*"),
+                "targetFromSourceId": row["ens_id"],
+                "variantFunctionalConsequenceId": row["consequence_id"] if row["consequence_id"] else "SO_0001060",
+                "variantId": row["variantId"],
+                "variantRsId": row["snp"]
             }
             return evidence
         except Exception as e:
-            raise        
+            raise
 
 def main():
     # Initiating parser
@@ -218,15 +219,15 @@ def main():
 
     # Initialize logging:
     logging.basicConfig(
-    level=logging.INFO,
-    format='%(name)s - %(levelname)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S',
+        level=logging.INFO,
+        format='%(name)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S',
     )
     if args.logFile:
         logging.config.fileConfig(filename=args.logFile)
     else:
         logging.StreamHandler(sys.stderr)
-    
+
     # Logging parameters
     logging.info(f"PheWAS input table: {inputFile}")
     logging.info(f"Phewas enriched with consequences input file: {consequencesFile}")
@@ -239,7 +240,7 @@ def main():
 
     # Writing evidence strings into a json file
     evidences = evidenceBuilder.generateEvidenceFromSource(inputFile, consequencesFile, diseaseMapping, skipMapping)
-        
+
     with gzip.open(outputFile, "wt") as f:
         for evidence in evidences:
             json.dump(evidence, f)
@@ -248,4 +249,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-    
+
