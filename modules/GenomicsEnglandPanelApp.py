@@ -86,12 +86,15 @@ class PanelAppEvidenceGenerator():
 
         for evidence in evidences:
             # Delete empty keys
-            if skipMapping:
+            if skipMapping or evidence['diseaseFromSourceMappedId'] is None:
                 del evidence['diseaseFromSourceMappedId']
+
             if not evidence['diseaseFromSourceId']:
                 del evidence['diseaseFromSourceId']
+
             if len(evidence['literature']) == 0:
                 del evidence['literature']
+
             if evidence['allelicRequirements'] == [None]:
                 del evidence['allelicRequirements']
 
@@ -120,7 +123,7 @@ class PanelAppEvidenceGenerator():
         for row in pdf['publications'].to_list():
             try:
                 tmp = [re.match(r'(\d{8})', e)[0] for e in row]
-                cleaned_publication.append(list(set(tmp))) # Removing duplicated publications
+                cleaned_publication.append(list(set(tmp)))  # Removing duplicated publications
             except Exception as e:
                 cleaned_publication.append([])
                 continue
@@ -343,8 +346,8 @@ class PanelAppEvidenceGenerator():
 
 def main():
     # Initiating parser
-    parser = argparse.ArgumentParser(description=
-    'This script generates Genomics England PanelApp sourced evidences.')
+    parser = argparse.ArgumentParser(
+        description='This script generates Genomics England PanelApp sourced evidences.')
 
     parser.add_argument('-i', '--inputFile', required=True, type=str, help='Input .tsv file with the table containing association details.')
     parser.add_argument('-o', '--outputFile', required=True, type=str, help='Name of the compressed json.gz output file containing the evidence strings.')
