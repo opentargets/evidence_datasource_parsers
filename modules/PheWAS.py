@@ -41,6 +41,7 @@ class phewasEvidenceGenerator():
         Returns:
             evidences (array): Object with all the generated evidences strings from source file
         '''
+
         # Read input file
         self.dataframe = (
             self.spark
@@ -67,7 +68,7 @@ class phewasEvidenceGenerator():
                     .select('Phewas_string', col('EFO_id').alias('EFO_link'))
                     .withColumn('EFO_id', element_at(split(col('EFO_link'), '/'), -1))
                 )
-                self.dataframe = self.dataframe.join(phewasMapping, on=['Phewas_string'], how='inner')
+                self.dataframe = self.dataframe.join(phewasMapping, on=['Phewas_string'], how='left')
                 logging.info('Disease mappings have been imported.')
 
             except Exception as e:
@@ -77,6 +78,7 @@ class phewasEvidenceGenerator():
                 # Filter out invalid disease IDs: MPATH_579, CHEBI_36047
                 pattern = r'(^NCIT_C\d+$|^Orphanet_\d+$|^GO_\d+$|^HP_\d+$|^EFO_\d+$|^MONDO_\d+$|^DOID_\d+$|^MP_\d+$)'
                 self.dataframe = self.dataframe.filter(col('EFO_id').rlike(pattern))
+
         else:
             logging.info('Disease mapping has been skipped.')
             self.dataframe = self.dataframe.withColumn('EFO_id', lit(None))
@@ -194,6 +196,7 @@ class phewasEvidenceGenerator():
         except Exception as e:
             raise
 
+
 def main(genesSet, inputFile, consequencesFile, diseaseMapping, skipMapping):
     # Initialize evidence builder object
     evidenceBuilder = phewasEvidenceGenerator(genesSet)
@@ -205,13 +208,14 @@ def main(genesSet, inputFile, consequencesFile, diseaseMapping, skipMapping):
         for evidence in evidences:
             json.dump(evidence, f)
             f.write('\n')
+
     logging.info(f'{len(evidences)} evidence strings saved into {outputFile}. Exiting.')
+
 
 if __name__ == '__main__':
 
     # Initiating parser
-    parser = argparse.ArgumentParser(description=
-    'This script generates evidences from the PheWAS Catalog data source.')
+    parser = argparse.ArgumentParser(description='This script generates evidences from the PheWAS Catalog data source.')
 
     parser.add_argument('-i', '--inputFile', required=True, type=str, help='Input .csv file with the table containing association details.')
     parser.add_argument('-c', '--consequencesFile', required=True, type=str, help='Input look-up table containing the variation consequences coming from the Variant Index.')
