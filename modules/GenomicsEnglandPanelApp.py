@@ -223,8 +223,15 @@ class PanelAppEvidenceGenerator():
             logging.info(f'Disease mappings have been imported.')
 
         self.codesMappings = self.diseaseToEfo(*omimCodesDistinct, dictExport='codesToEfo_results.json')
-        for i, (phenotype, code) in self.dataframe.select('omimCode', 'phenotype').toPandas().drop_duplicates().iterrows():
-            self.phenotypeCodePairCheck(phenotype, code)
+        (
+            self.dataframe
+            .select('omimCode', 'phenotype')
+            .toPandas()
+            .drop_duplicates()
+            .apply(
+                lambda row: self.phenotypeCodePairCheck(row['omimCode'], row['phenotype']), axis=1
+            )
+        )
         logging.info('Disease mappings have been checked.')
 
         # Add new columns: ontomaResult, ontomaUrl, ontomaLabel
@@ -307,8 +314,8 @@ class PanelAppEvidenceGenerator():
             ontomaResult = phenotypesMappings[phenotype]['quality']
             ontomaUrl = phenotypesMappings[phenotype]['term']
             ontomaLabel = phenotypesMappings[phenotype]['label']
-
-            return ontomaResult, ontomaUrl, ontomaLabel  # TO-DO: implement this https://stackoverflow.com/questions/42980704/pyspark-create-new-column-with-mapping-from-a-dict
+            # TO-DO: implement this https://stackoverflow.com/questions/42980704/pyspark-create-new-column-with-mapping-from-a-dict
+            return ontomaResult, ontomaUrl, ontomaLabel
 
     @staticmethod
     def parseEvidenceString(row):
@@ -353,9 +360,9 @@ def main():
 
     # Initialize logging:
     logging.basicConfig(
-    level=logging.INFO,
-    format='%(name)s - %(levelname)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S',
+        level=logging.INFO,
+        format='%(name)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S',
     )
     if args.logFile:
         logging.config.fileConfig(filename=args.logFile)
@@ -370,7 +377,7 @@ def main():
     # Import dictionary if present
     if mappingsDict:
         with open(mappingsDict, 'r') as f:
-                phenotypesMappings = json.load(f)
+            phenotypesMappings = json.load(f)
     else:
         phenotypesMappings = None
 
