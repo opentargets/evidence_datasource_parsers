@@ -19,12 +19,12 @@ rule all:
         GS.remote(f"{config['Gene2Phenotype']['outputBucket']}/gene2phenotype-{timeStamp}.json.gz"),
         GS.remote(f"{config['CRISPR']['outputBucket']}/crispr-{timeStamp}.json.gz"),
         GS.remote(f"{config['SysBio']['outputBucket']}/sysbio-{timeStamp}.json.gz"),
-        # GS.remote(f"{config['Phenodigm']['outputBucket']}/phenodigm-{timeStamp}.json.gz")
-        # directory(GS.remote(f"{config['EPMC']['outputBucket']}/epmc-{timeStamp}"))
-        # directory(GS.remote(gs://genetics-portal-analysis/l2g-platform-export/data/genetics_portal_evidence.json.gz))
-        GS.remote(f"{config['PROGENy']['outputBucket']}/progeny-{timeStamp}.json.gz")
-        GS.remote(f"{config['intOGen']['outputBucket']}/intogen-{timeStamp}.json.gz")
-        GS.remote(f"{config['PanelApp']['outputBucket']}/genomics_england-{timeStamp}.json.gz")
+        # GS.remote(f"{config['Phenodigm']['outputBucket']}/phenodigm-{timeStamp}.json.gz"),
+        # directory(GS.remote(f"{config['EPMC']['outputBucket']}/epmc-{timeStamp}")),
+        # directory(GS.remote(gs://genetics-portal-analysis/l2g-platform-export/data/genetics_portal_evidence.json.gz)),
+        GS.remote(f"{config['PROGENy']['outputBucket']}/progeny-{timeStamp}.json.gz"),
+        GS.remote(f"{config['intOGen']['outputBucket']}/intogen-{timeStamp}.json.gz"),
+        GS.remote(f"{config['PanelApp']['outputBucket']}/genomics_england-{timeStamp}.json.gz"),
 
 # --- Auxiliary Rules --- #
 ## help               : prints help comments for Snakefile
