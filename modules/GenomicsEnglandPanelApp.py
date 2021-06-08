@@ -12,7 +12,7 @@ import pandas as pd
 
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, lit, when, array_distinct, split, explode, udf, regexp_extract, trim, regexp_replace, element_at
-from pyspark.sql.types import *
+from pyspark.sql.types import StringType, ArrayType
 
 from ontoma import OnToma
 
@@ -235,18 +235,11 @@ class PanelAppEvidenceGenerator():
         self.dataframe = (
             self.dataframe
             .withColumn('ontomaResult', udfBuildMapping(col('phenotype'))[0])
-            .withColumn('ontomaUrl',
-                element_at(
-                    split(
-                        udfBuildMapping(col('phenotype'))[1],
-                        '/'),
-                    -1
-                )
-            )
+            .withColumn('ontomaUrl', element_at(split(udfBuildMapping(col('phenotype'))[1], '/'), -1))
             .withColumn('ontomaLabel', udfBuildMapping(col('phenotype'))[1])
         )
 
-        return self.dataframe.filter(col('ontomaResult') == 'match')
+        return self.dataframe
 
     def diseaseToEfo(self, *iterable, dictExport='diseaseToEfo_results.json'):
         '''
@@ -262,23 +255,23 @@ class PanelAppEvidenceGenerator():
         for e in iterable:
             try:
                 ontomaResult = self.otmap.find_term(e, verbose=True)
-                if ontomaResult != None:
+                if ontomaResult is not None:
                     mappings[e] = ontomaResult
                 else:
                     mappings[e] = {
-                    'term': None,
-                     'label': None,
-                     'source': None,
-                     'quality': None,
-                     'action': None
+                        'term': None,
+                        'label': None,
+                        'source': None,
+                        'quality': None,
+                        'action': None
                     }
             except Exception as error:
                 logging.error(f'{e} mapping has failed.')
                 continue
-        
+
         with open(dictExport, 'w') as outfile:
             json.dump(mappings, outfile)
-        
+
         return mappings
 
     def phenotypeCodePairCheck(self, phenotype, omimCode):
@@ -294,19 +287,19 @@ class PanelAppEvidenceGenerator():
             if phenotype == '':
                 return
             phenotypeResult = self.diseaseMappings[phenotype]
-            if phenotypeResult == None:
+            if phenotypeResult is None:
                 return
 
             if phenotypeResult['quality'] == 'fuzzy':
-                codeResult = self.codesMappings[code]
-                if codeResult == None:
+                codeResult = self.codesMappings[omimCode]
+                if codeResult is None:
                     return
 
                 if codeResult['term'] == phenotypeResult['term']:
                     # If both EFO terms coincide, the phenotype in mappingsDict becomes a match
                     self.diseaseMappings[phenotype]['quality'] = 'match'
                     self.diseaseMappings[phenotype]['action'] = 'checked'
-        except:
+        except Exception as e:
             logging.error(f'No OMIM code for phenotype: {phenotype}')
     
     def buildMapping(phenotype, phenotypesMappings):
@@ -315,28 +308,28 @@ class PanelAppEvidenceGenerator():
             ontomaUrl = phenotypesMappings[phenotype]['term']
             ontomaLabel = phenotypesMappings[phenotype]['label']
 
-            return ontomaResult, ontomaUrl, ontomaLabel # TO-DO: implement this https://stackoverflow.com/questions/42980704/pyspark-create-new-column-with-mapping-from-a-dict
+            return ontomaResult, ontomaUrl, ontomaLabel  # TO-DO: implement this https://stackoverflow.com/questions/42980704/pyspark-create-new-column-with-mapping-from-a-dict
 
     @staticmethod
     def parseEvidenceString(row):
         try:
             evidence = {
-                'datasourceId' : 'genomics_england',
-                'datatypeId' : 'genetic_literature',
-                'confidence' : row['List'],
-                'diseaseFromSource' : row['phenotype'],
-                'diseaseFromSourceId' : row['omimCode'],
-                'diseaseFromSourceMappedId' : row['ontomaUrl'],
-                'cohortPhenotypes' : row['cohortPhenotypes'],
-                'targetFromSourceId' : row['Symbol'],
-                'allelicRequirements' : [row['Mode of inheritance']],
-                'studyId' : row['Panel Id'],
-                'studyOverview' : row['Panel Name'],
-                'literature' : row['publications']
+                'datasourceId': 'genomics_england',
+                'datatypeId': 'genetic_literature',
+                'confidence': row['List'],
+                'diseaseFromSource': row['phenotype'],
+                'diseaseFromSourceId': row['omimCode'],
+                'diseaseFromSourceMappedId': row['ontomaUrl'],
+                'cohortPhenotypes': row['cohortPhenotypes'],
+                'targetFromSourceId': row['Symbol'],
+                'allelicRequirements': [row['Mode of inheritance']],
+                'studyId': row['Panel Id'],
+                'studyOverview': row['Panel Name'],
+                'literature': row['publications']
             }
             return evidence
         except Exception as e:
-            logging.error(f'Evidence generation failed for row: {'row'}')
+            logging.error(f'Evidence generation failed for row: {row}')
             raise
 
 def main():
