@@ -19,7 +19,12 @@ rule all:
         GS.remote(f"{config['Gene2Phenotype']['outputBucket']}/gene2phenotype-{timeStamp}.json.gz"),
         GS.remote(f"{config['CRISPR']['outputBucket']}/crispr-{timeStamp}.json.gz"),
         GS.remote(f"{config['SysBio']['outputBucket']}/sysbio-{timeStamp}.json.gz"),
-        GS.remote(f"{config['Phenodigm']['outputBucket']}/phenodigm-{timeStamp}.json.gz")
+        # GS.remote(f"{config['Phenodigm']['outputBucket']}/phenodigm-{timeStamp}.json.gz")
+        # directory(GS.remote(f"{config['EPMC']['outputBucket']}/epmc-{timeStamp}"))
+        # directory(GS.remote(gs://genetics-portal-analysis/l2g-platform-export/data/genetics_portal_evidence.json.gz))
+        GS.remote(f"{config['PROGENy']['outputBucket']}/progeny-{timeStamp}.json.gz")
+        GS.remote(f"{config['intOGen']['outputBucket']}/intogen-{timeStamp}.json.gz")
+        GS.remote(f"{config['PanelApp']['outputBucket']}/genomics_england-{timeStamp}.json.gz")
 
 # --- Auxiliary Rules --- #
 ## help               : prints help comments for Snakefile
@@ -47,8 +52,7 @@ rule clingen:
         """
         python modules/ClinGen.py \
         --input_file {input} \
-        --output_file {output.evidenceFile} \
-        --unmapped_diseases_file {output.unmappedDiseases}
+        --output_file {output.evidenceFile}
         """
 
 ## geneticsPortal           : processes lead variants from the Open Targets Genetics portal on a Dataproc cluster
@@ -139,8 +143,7 @@ rule gene2Phenotype:
             --eye_panel {input.eyePanel} \
             --skin_panel {input.skinPanel} \
             --cancer_panel {input.cancerPanel} \
-            --output_file {output.evidenceFile} \
-            --unmapped_diseases_file {output.unmappedDiseases}
+            --output_file {output.evidenceFile}
         """
 
 ## crispr           : processes cancer therapeutic targets using CRISPR–Cas9 screens
@@ -156,10 +159,10 @@ rule crispr:
     shell:
         """
         python modules/CRISPR.py \
-        --evidence_file {input.evidenceFile} \
-        --descriptions_file {input.descriptionsFile} \
-        --cell_types_file {input.cellTypesFile} \
-        --output_file {output.evidenceFile}
+            --evidence_file {input.evidenceFile} \
+            --descriptions_file {input.descriptionsFile} \
+            --cell_types_file {input.cellTypesFile} \
+            --output_file {output.evidenceFile}
         """
 
 ## progeny           : processes gene expression data from TCGA derived from PROGENy
@@ -175,10 +178,10 @@ rule progeny:
     shell:
         """
         python modules/PROGENY.py \
-        --inputFile {input.inputFile} \
-        --diseaseMapping {input.diseaseMapping} \
-        --pathwayMapping {input.pathwayMapping} \
-        --outputFile {output.evidenceFile}
+            --inputFile {input.inputFile} \
+            --diseaseMapping {input.diseaseMapping} \
+            --pathwayMapping {input.pathwayMapping} \
+            --outputFile {output.evidenceFile}
         """
 
 ## phenodigm           : processes target-disease evidence querying the IMPC SOLR API
@@ -190,8 +193,8 @@ rule phenodigm:
     shell:
         """
         python modules/PhenoDigm.py \
-        --cache-dir phenodigm_cache \
-        --output {output.evidenceFile}
+            --cache-dir phenodigm_cache \
+            --output {output.evidenceFile}
         """
 
 ## sysbio           : processes key driver genes for specific diseases that have been curated from Systems Biology papers
@@ -206,9 +209,9 @@ rule sysbio:
     shell:
         """
         python modules/SystemsBiology.py \
-        --evidenceFile {input.evidenceFile} \
-        --studyFile {input.studyFile} \
-        --outputFile {output.evidenceFile}
+            --evidenceFile {input.evidenceFile} \
+            --studyFile {input.studyFile} \
+            --outputFile {output.evidenceFile}
         """
 
 ## panelApp           : processes gene panels data curated by Genomics England
@@ -222,8 +225,8 @@ rule panelApp:
     shell:
         """
         python modules/GenomicsEnglandPanelApp.py \
-        --inputFile {input.inputFile} \
-        --outputFile {output.evidenceFile}
+            --inputFile {input.inputFile} \
+            --outputFile {output.evidenceFile}
         """
 
 ## intogen           : processes cohorts and driver genes data from intOGen
@@ -239,10 +242,10 @@ rule intogen:
     shell:
         """
         python modules/IntOGen.py \
-        --inputGenes {input.inputGenes} \
-        --inputCohorts {input.inputCohorts} \
-        --diseaseMapping {input.diseaseMapping} \
-        --outputFile {output.evidenceFile}
+            --inputGenes {input.inputGenes} \
+            --inputCohorts {input.inputCohorts} \
+            --diseaseMapping {input.diseaseMapping} \
+            --outputFile {output.evidenceFile}
         """
 inputCooccurences = directory(f"tmp/epmc_cooccurrences-{timeStamp}")
 
@@ -257,9 +260,9 @@ rule epmc:
     shell:
         """
         python modules/EPMC.py \
-        --cooccurrenceFile {input.inputCooccurences} \
-        --output {output.evidenceFile} \
-        --local
+            --cooccurrenceFile {input.inputCooccurences} \
+            --output {output.evidenceFile} \
+            --local
         """
 
 
