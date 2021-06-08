@@ -11,7 +11,9 @@ import numpy as np
 import pandas as pd
 
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, lit, when, array_distinct, split, explode, udf, regexp_extract, trim, regexp_replace, element_at
+from pyspark.sql.functions import (
+    col, lit, when, array_distinct, split, explode, udf, regexp_extract, trim, regexp_replace, element_at
+)
 from pyspark.sql.types import StringType, ArrayType
 
 from ontoma import OnToma
@@ -308,13 +310,13 @@ class PanelAppEvidenceGenerator():
                     self.diseaseMappings[phenotype]['action'] = 'checked'
         except Exception as e:
             logging.error(f'No OMIM code for phenotype: {phenotype}')
-    
+
     def buildMapping(phenotype, phenotypesMappings):
         if phenotype in phenotypesMappings.keys():
             ontomaResult = phenotypesMappings[phenotype]['quality']
             ontomaUrl = phenotypesMappings[phenotype]['term']
             ontomaLabel = phenotypesMappings[phenotype]['label']
-            # TO-DO: implement this https://stackoverflow.com/questions/42980704/pyspark-create-new-column-with-mapping-from-a-dict
+            # TO-DO: https://stackoverflow.com/questions/42980704/pyspark-create-new-column-with-mapping-from-a-dict
             return ontomaResult, ontomaUrl, ontomaLabel
 
     @staticmethod
