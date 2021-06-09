@@ -64,3 +64,7 @@ SysBio:
 EPMC:
   inputBucket: gs://ot-snapshots/literature/20210427/cooccurrences
   outputBucket: gs://otar000-evidence_input/EPMC/json
+# Parameters for Orphanet:
+Orphanet:
+  webSource: http://www.orphadata.org/data/xml/en_product6.xml
+  outputBucket: gs://otar000-evidence_input/Orphanet/json

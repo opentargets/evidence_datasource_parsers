@@ -1,6 +1,9 @@
 from datetime import datetime
 from snakemake.remote.GS import RemoteProvider as GSRemoteProvider
+from snakemake.remote.HTTP import RemoteProvider as HTTPRemoteProvider
+
 GS = GSRemoteProvider()
+HTTP = HTTPRemoteProvider()
 
 # --- Settings --- #
 # Current date in YYYY-MM-DD format:
@@ -19,12 +22,17 @@ rule all:
         GS.remote(f"{config['Gene2Phenotype']['outputBucket']}/gene2phenotype-{timeStamp}.json.gz"),
         GS.remote(f"{config['CRISPR']['outputBucket']}/crispr-{timeStamp}.json.gz"),
         GS.remote(f"{config['SysBio']['outputBucket']}/sysbio-{timeStamp}.json.gz"),
+<<<<<<< HEAD
         # GS.remote(f"{config['Phenodigm']['outputBucket']}/phenodigm-{timeStamp}.json.gz"),
         # directory(GS.remote(f"{config['EPMC']['outputBucket']}/epmc-{timeStamp}")),
         # directory(GS.remote(gs://genetics-portal-analysis/l2g-platform-export/data/genetics_portal_evidence.json.gz)),
         GS.remote(f"{config['PROGENy']['outputBucket']}/progeny-{timeStamp}.json.gz"),
         GS.remote(f"{config['intOGen']['outputBucket']}/intogen-{timeStamp}.json.gz"),
         GS.remote(f"{config['PanelApp']['outputBucket']}/genomics_england-{timeStamp}.json.gz"),
+=======
+        GS.remote(f"{config['Phenodigm']['outputBucket']}/phenodigm-{timeStamp}.json.gz"),
+        GS.remote(f"{config['Orphanet']['outputBucket']}/Orphanet-{timeStamp}")
+>>>>>>> 5ce50860833f46b150163b658218c81e6e66b714
 
 # --- Auxiliary Rules --- #
 ## help                     : prints help comments for Snakefile
@@ -83,7 +91,7 @@ rule geneticsPortal:
             --variantIndex gs://genetics-portal-data/variant-annotation/190129/variant-annotation.parquet  \
             --ecoCodes gs://genetics-portal-data/lut/vep_consequences.tsv \
             --outputFile gs://genetics-portal-analysis/l2g-platform-export/data/genetics_portal_evidence.json.gz
-        """ 
+        """
 
 ## phewas                   : processes phenome-wide association studies data from PheWAS
 rule phewas:
@@ -264,6 +272,25 @@ rule epmc:
             --local
         """
 
+<<<<<<< HEAD
+=======
+## Orphanet                  : Processing disease/target evidence from Orphanet
+rule orphanet:
+    input:
+        HTTP.remote(config['Orphanet']['webSource'])
+    output:
+        GS.remote(f"{config['Orphanet']['outputBucket']}/Orphanet-{timeStamp}")
+    log:
+        GS.remote(logFile)
+    shell:
+        """
+        python modules/Orphanet.py \
+            --input_file {input} \
+            --output_file {output} \
+            --local
+        """
+
+>>>>>>> 5ce50860833f46b150163b658218c81e6e66b714
 # --- Fetching input data and uploading to GS --- #
 ## fetchClingen             : fetches the Gene Validity Curations table from ClinGen
 rule fetchClingen:
@@ -271,7 +298,7 @@ rule fetchClingen:
         webSource=config['ClinGen']['webSource']
     output:
         bucket=GS.remote(f"{config['ClinGen']['inputBucket']}/ClinGen-Gene-Disease-Summary-{timeStamp}.csv"),
-        local=f"tmp/ClinGen-Gene-Disease-Summary-{timeStamp}.csv"    
+        local=f"tmp/ClinGen-Gene-Disease-Summary-{timeStamp}.csv"
     log:
         GS.remote(logFile)
     shell:
