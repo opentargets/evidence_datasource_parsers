@@ -81,7 +81,7 @@ def main(studyFile, evidenceFile, out_file):
         logging.warning(merged.loc[merged._merge != "both"])
 
     # Generate evidence:
-    (
+    merged = (
         merged
         .assign(
             diseaseFromSourceMappedId=merged.disease_id.apply(lambda x: x.split('/')[-1]),
