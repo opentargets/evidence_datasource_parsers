@@ -27,19 +27,19 @@ rule all:
         GS.remote(f"{config['PanelApp']['outputBucket']}/genomics_england-{timeStamp}.json.gz"),
 
 # --- Auxiliary Rules --- #
-## help               : prints help comments for Snakefile
+## help                     : prints help comments for Snakefile
 rule help:
     input: "Snakefile"
     shell:
         "sed -n 's/^##//p' {input}"
 
-## clean               : prints help comments for Snakefile
+## clean                    : prints help comments for Snakefile
 rule clean:
     shell:
         "rm -rf tmp"
 
 # --- Data sources parsers --- #
-## clingen          : processes the Gene Validity Curations table from ClinGen
+## clingen                  : processes the Gene Validity Curations table from ClinGen
 rule clingen:
     input:
         f"tmp/ClinGen-Gene-Disease-Summary-{timeStamp}.csv"
@@ -85,7 +85,7 @@ rule geneticsPortal:
             --outputFile gs://genetics-portal-analysis/l2g-platform-export/data/genetics_portal_evidence.json.gz
         """ 
 
-## phewas           : processes phenome-wide association studies data from PheWAS
+## phewas                   : processes phenome-wide association studies data from PheWAS
 rule phewas:
     input:
         inputFile=f"tmp/phewas_catalog-{timeStamp}.csv",
@@ -107,7 +107,7 @@ rule phewas:
             --outputFile {output.evidenceFile}
         '''
 
-## slapenrich           : processes cancer-target evidence strings derived from SLAPenrich
+## slapenrich               : processes cancer-target evidence strings derived from SLAPenrich
 rule slapenrich:
     input:
         inputFile=f"tmp/slapenrich-{timeStamp}.csv",
@@ -146,7 +146,7 @@ rule gene2Phenotype:
             --output_file {output.evidenceFile}
         """
 
-## crispr           : processes cancer therapeutic targets using CRISPR–Cas9 screens
+## crispr                   : processes cancer therapeutic targets using CRISPR–Cas9 screens
 rule crispr:
     input:
         evidenceFile=f"tmp/crispr_evidence-{timeStamp}.csv",
@@ -165,7 +165,7 @@ rule crispr:
             --output_file {output.evidenceFile}
         """
 
-## progeny           : processes gene expression data from TCGA derived from PROGENy
+## progeny                  : processes gene expression data from TCGA derived from PROGENy
 rule progeny:
     input:
         inputFile=f"tmp/progeny_normalVStumor_opentargets-{timeStamp}.txt",
@@ -184,7 +184,7 @@ rule progeny:
             --outputFile {output.evidenceFile}
         """
 
-## phenodigm           : processes target-disease evidence querying the IMPC SOLR API
+## phenodigm                : processes target-disease evidence querying the IMPC SOLR API
 rule phenodigm:
     output:
         evidenceFile=GS.remote(f"{config['Phenodigm']['outputBucket']}/phenodigm-{timeStamp}.json.gz")
@@ -197,7 +197,7 @@ rule phenodigm:
             --output {output.evidenceFile}
         """
 
-## sysbio           : processes key driver genes for specific diseases that have been curated from Systems Biology papers
+## sysbio                   : processes key driver genes for specific diseases that have been curated from Systems Biology papers
 rule sysbio:
     input:
         evidenceFile=f"tmp/sysbio_evidence-{timeStamp}.tsv",
@@ -214,7 +214,7 @@ rule sysbio:
             --outputFile {output.evidenceFile}
         """
 
-## panelApp           : processes gene panels data curated by Genomics England
+## panelApp                 : processes gene panels data curated by Genomics England
 rule panelApp:
     input:
         inputFile=f"tmp/panelapp_gene_panels-{timeStamp}.tsv"
@@ -229,7 +229,7 @@ rule panelApp:
             --outputFile {output.evidenceFile}
         """
 
-## intogen           : processes cohorts and driver genes data from intOGen
+## intogen                  : processes cohorts and driver genes data from intOGen
 rule intogen:
     input:
         inputGenes = f"tmp/Compendium_Cancer_Genes-{timeStamp}.tsv",
@@ -247,9 +247,8 @@ rule intogen:
             --diseaseMapping {input.diseaseMapping} \
             --outputFile {output.evidenceFile}
         """
-inputCooccurences = directory(f"tmp/epmc_cooccurrences-{timeStamp}")
 
-## epmc           : processes target/disease evidence strings from ePMC cooccurrence files
+## epmc                     : processes target/disease evidence strings from ePMC cooccurrence files
 rule epmc:
     input:
         inputCooccurences = directory(f"tmp/epmc_cooccurrences-{timeStamp}")
@@ -265,10 +264,8 @@ rule epmc:
             --local
         """
 
-
 # --- Fetching input data and uploading to GS --- #
-## fetchClingen          : fetches the Gene Validity Curations table from ClinGen
-
+## fetchClingen             : fetches the Gene Validity Curations table from ClinGen
 rule fetchClingen:
     params:
         webSource=config['ClinGen']['webSource']
@@ -283,7 +280,7 @@ rule fetchClingen:
         gsutil cp {output.local} {output.bucket}
         """
 
-## fetchPhewas           : fetches the PheWAS data and an enriched table from GS and a disease mapping look-up
+## fetchPhewas              : fetches the PheWAS data and an enriched table from GS and a disease mapping look-up
 rule fetchPhewas:
     input:
         inputFile=GS.remote(f"{config['PheWAS']['inputBucket']}/phewas-catalog-19-10-2018.csv"),
@@ -303,7 +300,7 @@ rule fetchPhewas:
         gsutil cp {input.consequencesFile} {output.consequencesFile}
         """
 
-## fetchSlapenrich           : fetches SLAPenrich table from GS
+## fetchSlapenrich          : fetches SLAPenrich table from GS
 rule fetchSlapenrich:
     input:
         inputFile=GS.remote(f"{config['SLAPEnrich']['inputBucket']}/slapenrich_opentargets-21-12-2017.tsv")
@@ -320,7 +317,7 @@ rule fetchSlapenrich:
         gsutil cp {input.inputFile} {output.inputFile}
         """
 
-## fetchGene2Phenotype           : fetches four gene panels downloaded from Gene2Phenotype
+## fetchGene2Phenotype      : fetches four gene panels downloaded from Gene2Phenotype
 rule fetchGene2Phenotype:
     params:
         webSource_dd_panel=config['Gene2Phenotype']['webSource_dd_panel'],
@@ -351,7 +348,7 @@ rule fetchGene2Phenotype:
         gsutil cp {output.cancerLocal} {output.cancerBucket}
         """
 
-## fetchCrispr           : fetches three tables from GS
+## fetchCrispr              : fetches three tables from GS
 rule fetchCrispr:
     input:
         evidenceFile=GS.remote(f"{config['CRISPR']['inputBucket']}/crispr_evidence.tsv"),
@@ -370,7 +367,7 @@ rule fetchCrispr:
         gsutil cp {input.cellTypesFile} {output.cellTypesFile}
         """
 
-## fetchProgeny           : fetches PROGENy table from GS, and two disease-mapping and pathway-mapping look-up tables
+## fetchProgeny             : fetches PROGENy table from GS, and two disease-mapping and pathway-mapping look-up tables
 rule fetchProgeny:
     input:
         inputFile=GS.remote(f"{config['PROGENy']['inputBucket']}/progeny_normalVStumor_opentargets.txt"),
@@ -389,7 +386,7 @@ rule fetchProgeny:
         gsutil cp {input.inputFile} {output.inputFile}
         """
 
-## fetchSysbio           : fetches evidence data and study level information from GS
+## fetchSysbio              : fetches evidence data and study level information from GS
 rule fetchSysbio:
     input:
         evidenceFile=GS.remote(f"{config['SysBio']['inputBucket']}/sysbio_evidence-31-01-2019.tsv"),
@@ -405,7 +402,7 @@ rule fetchSysbio:
         gsutil cp {input.studyFile} {output.studyFile}
         """
 
-## fetchPanelApp           : fetches gene panels data from GS
+## fetchPanelApp            : fetches gene panels data from GS
 rule fetchPanelApp:
     input:
         inputFile = GS.remote(f"{config['PanelApp']['inputBucket']}/All_genes_20200928-1959.tsv")
@@ -418,7 +415,7 @@ rule fetchPanelApp:
         gsutil cp {input.inputFile} {output.inputFile}
         """
 
-## fetchIntogen          : fetches cohorts and driver genes from GS
+## fetchIntogen             : fetches cohorts and driver genes from GS
 rule fetchIntogen:
     input:
         inputGenes = GS.remote(f"{config['intOGen']['inputBucket']}/Compendium_Cancer_Genes.tsv"),
@@ -437,7 +434,7 @@ rule fetchIntogen:
         gsutil cp {input.diseaseMapping} {output.diseaseMapping}
         """
 
-## fetchEpmc          : fetches the partioned parquet files with the ePMC cooccurrences
+## fetchEpmc                : fetches the partioned parquet files with the ePMC cooccurrences
 rule fetchEpmc:
     input:
         inputCooccurences = GS.remote(config['EPMC']['inputBucket'])

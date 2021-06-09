@@ -35,6 +35,7 @@ class ClinGen():
 
             disease_name = row['DISEASE LABEL']
             disease_id = row['DISEASE ID (MONDO)']
+            efo_mappings = None
 
             evidence = {
                 'datasourceId': 'clingen',
@@ -48,7 +49,7 @@ class ClinGen():
                 'urls': [{'url': row['ONLINE REPORT']}]
             }
 
-            # Looking up disease in Ontoma usig disease id and label:
+            # Looking up disease in Ontoma using disease id and label:
             if self.ontoma.get_efo_label(disease_id):
                 disease_label = self.ontoma.get_efo_label(disease_id)
                 # Create list of single disease to mimic what is returned by next step
@@ -69,13 +70,11 @@ class ClinGen():
                         logging.info('Fuzzy match from OnToma ignored. Request EFO team to import {} - {}'.format(disease_name, disease_id))
                         # Record the unmapped disease
                         self.unmapped_diseases.add((disease_id, disease_name))
-                        continue
                 else:
                     # MONDO id could not be found in EFO. Log it and continue
                     logging.info('{} - {} could not be mapped to any EFO id. Skipping it, it should be checked with the EFO team'.format(disease_name, disease_id))
                     # Record the unmapped disease
                     self.unmapped_diseases.add((disease_id, disease_name))
-                    continue
 
             # Generating evidence for all mapped efo:
             if efo_mappings:
@@ -83,8 +82,16 @@ class ClinGen():
                     evidence_with_efo = evidence.copy()
                     evidence_with_efo['diseaseFromSourceMappedId'] = ontoma.interface.make_uri(efo_mapping['id']).split('/')[-1]
                     self.evidence_strings.append(evidence_with_efo)
+                    if disease_name == 'adenosine kinase deficiency':
+                        print(evidence_with_efo)
             else:
+                print('pocok')
                 self.evidence_strings.append(evidence)
+
+        if len(self.unmapped_diseases) > 0:
+            logging.info(f'There are {len(self.unmapped_diseases)} unmapped diseases.')
+            unmapped_diseases_string = "\n- ".join([x[1] for x in self.unmapped_diseases])
+            logging.info(f'Unmapped diseases: \n- {unmapped_diseases_string}')
 
     def write_evidence_strings(self, filename):
         logging.info('Writing ClinGen evidence strings to %s', filename)

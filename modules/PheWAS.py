@@ -7,19 +7,31 @@ import sys
 
 import argparse
 import numpy as np
-from pyspark import SparkContext, SparkFiles
-from pyspark.sql import SparkSession, Row
+from pyspark import SparkFiles
+from pyspark.conf import SparkConf
+from pyspark.sql import SparkSession
 from pyspark.sql.functions import udf, col, element_at, split, lit, count, concat
 from pyspark.sql.types import StringType, IntegerType, DoubleType
 
 from common.HGNCParser import GeneParser
 
 class phewasEvidenceGenerator():
+
     def __init__(self, genesSet):
         # Create spark session
+        sparkConf = (
+            SparkConf()
+            .set('spark.driver.host', '127.0.0.1')
+            .set('spark.driver.memory', '15g')
+            .set('spark.executor.memory', '15g')
+            .set('spark.driver.maxResultSize', '0')
+            .set('spark.debug.maxToStringFields', '2000')
+            .set('spark.sql.execution.arrow.maxRecordsPerBatch', '500000')
+        )
         self.spark = (
             SparkSession.builder
-            .appName('phewas')
+            .config(conf=sparkConf)
+            .master('local[*]')
             .getOrCreate()
         )
 
