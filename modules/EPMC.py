@@ -58,39 +58,46 @@ def main(cooccurrenceFile, outputFile, local=False):
         # Reading file:
         spark.read.parquet(cooccurrenceFile)
 
+        # Casting integer pmid column to string:
+        .withColumn("pmid", pf.col('pmid').cast(StringType()))
+
+        # Publication identifier is a pmid if available, otherwise pmcid
+        .withColumn(
+            'publicationIdentifier',
+            pf.when(pf.col('pmid').isNull(), pf.col('pmcid'))
+            .otherwise(pf.col('pmid'))
+        )
+
         # Filtering for disease/target cooccurrences:
         .filter(
             (pf.col('type') == 'GP-DS') &  # Filter gene/protein - disease cooccurrence
-            (pf.col('isMapped') == True) &  # Filtering for mapped cooccurrences
-            (pf.col('pmid').isNotNull()) &  # Excluding publications without pmid
+            (pf.col('isMapped')) &  # Filtering for mapped cooccurrences
+            (pf.col('publicationIdentifier').isNotNull()) &  # Making sure at least the pmid or the pmcid is given:
             (pf.length(pf.col('text')) < 600) &  # Exclude sentences with more than 600 characters
             (pf.col('label1').isin(EXCLUDED_TARGET_TERMS) == False)  # Excluding target labels from the exclusion list
         )
+
         # Renaming columns:
         .withColumnRenamed('keywordId1', 'targetFromSourceId')
         .withColumnRenamed('keywordId2', 'diseaseFromSourceMappedId')
-        .withColumnRenamed('label1', 'targetFromSource')
-        .withColumnRenamed('label2', 'diseaseFromSource')
-
-        .withColumn('pmid_str_tmp', pf.col('pmid').cast(StringType()))
     )
 
     # Report on the number of diseases, targets and associations if loglevel == "debug" to avoid cost on computation time:
-    logging.debug(f"Number of publications: {filtered_cooccurrence_df.select(pf.col('pmid_str_tmp')).distinct().count()}")
+    logging.debug(f"Number of publications: {filtered_cooccurrence_df.select(pf.col('publicationIdentifier')).distinct().count()}")
     logging.debug(f"Number of targets: {filtered_cooccurrence_df.select(pf.col('targetFromSourceId')).distinct().count()}")
     logging.debug(f"Number of diseases: {filtered_cooccurrence_df.select(pf.col('diseaseFromSourceMappedId')).distinct().count()}")
     logging.debug(f"Number of associations: {filtered_cooccurrence_df.select(pf.col('diseaseFromSourceMappedId'), pf.col('targetFromSourceId')).dropDuplicates().count()}")
+    logging.debug(f"Number of publications without pubmed ID: {filtered_cooccurrence_df.filter(pf.col('pmid').isNull()).select('pmcid').distinct().count()}")
 
     # Aggregating cooccurrence, get score apply filter:    
     aggregated_df = (
         filtered_cooccurrence_df
 
         # Aggregating data by publication, target and disease:
-        .groupBy(['pmid', 'targetFromSourceId', 'diseaseFromSourceMappedId'])
+        .groupBy(['publicationIdentifier', 'targetFromSourceId', 'diseaseFromSourceMappedId'])
         .agg(
-            pf.first(pf.col('targetFromSource')).alias('targetFromSource'),
-            pf.first(pf.col('diseaseFromSource')).alias('diseaseFromSource'),
-            pf.collect_set(pf.col('pmid_str_tmp')).alias('literature'),
+            pf.collect_set(pf.col('pmcid')).alias('pmcIds'),
+            pf.collect_set(pf.col('pmid')).alias('literature'),
             pf.collect_set(
                 pf.struct(
                     pf.col('text'),
@@ -109,7 +116,7 @@ def main(cooccurrenceFile, outputFile, local=False):
     )
 
     # Report number of evidence:
-    logging.debug(f'Number of evidence: {aggregated_df.count()}')
+    logging.info(f'Number of evidence: {aggregated_df.count()}')
 
     # Final formatting and saving data:
     (
@@ -120,8 +127,8 @@ def main(cooccurrenceFile, outputFile, local=False):
         .withColumn('datatypeId', pf.lit('literature'))
 
         # Reorder columns:
-        .select(['datasourceId', 'datatypeId', 'targetFromSource', 'targetFromSourceId', 'resourceScore',
-                'diseaseFromSource', 'diseaseFromSourceMappedId', 'literature', 'textMiningSentences'])
+        .select(['datasourceId', 'datatypeId', 'targetFromSourceId', 'diseaseFromSourceMappedId', 'resourceScore',
+                 'literature', 'textMiningSentences', 'pmcIds'])
 
         # Save output:
         .write.format('json').mode('overwrite').option('compression', 'gzip').save(outputFile)
