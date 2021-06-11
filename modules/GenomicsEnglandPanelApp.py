@@ -31,7 +31,7 @@ class PanelAppEvidenceGenerator():
             .getOrCreate()
         )
         self.dataframe = None
-        
+
         # Initialize mapping variables
         self.diseaseMappings = phenotypesMappings
         self.codesMappings = None
