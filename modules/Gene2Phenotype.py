@@ -104,7 +104,6 @@ class disease_map(object):
             else:
                 return None
 
-            
     def search_mondo(self, disease_name):
 
         disease_name = disease_name.lower()
@@ -114,15 +113,16 @@ class disease_map(object):
             mondo_term = self.ontoma.mondo_lookup(disease_name)
             return {
                 'id': mondo_term, 
-                'name': self.ontoma.get_mondo_label(mondo_term), 
+                'name': self.ontoma.get_mondo_label(mondo_term),
                 'exact': True
             }
         except KeyError as e:
-            exact_ols_mondo = self.ontoma._ols.besthit(disease_name, ontology=['mondo'], field_list=['iri', 'label'], exact=True)
-            
+            exact_ols_mondo = self.ontoma._ols.besthit(disease_name,
+                                                       ontology=['mondo'], field_list=['iri', 'label'], exact=True)
+
             if exact_ols_mondo:
                 return {'term': exact_ols_mondo['iri'], 'name': exact_ols_mondo['label'], 'exact':True}
-            
+
             else:
                 ols_mondo = self.ontoma._ols.besthit(disease_name,
                                                      ontology=['mondo'],
@@ -145,7 +145,7 @@ def main(dd_file, eye_file, skin_file, cancer_file, outfile, local):
         if lookup:
             try:
                 return lookup['term'].split('/')[-1]
-            except:
+            except Exception as e:
                 print(lookup)
         else:
             return None
