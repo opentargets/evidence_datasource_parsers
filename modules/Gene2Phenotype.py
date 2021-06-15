@@ -37,7 +37,7 @@ def translate(mapping):
     return udf(translate_, StringType())
 
 class disease_map(object):
-    
+
     def __init__(self):
         self.ontoma = ontoma.interface.OnToma()
 
@@ -46,27 +46,27 @@ class disease_map(object):
 
         # Search disease name using OnToma and accept perfect matches
         ontoma_mapping = self.ontoma.find_term(disease_name, verbose=True)
-        
+
         # If there's some mapping available:
         if ontoma_mapping:
-            
+
             # Extracting term if no action is required:
             if ontoma_mapping['action'] is None:
                 return ontoma_mapping
-                
+
             # When there is an exact match, but action is required:
             elif ontoma_mapping['quality'] == "match":
-                
+
                 # Match in HP or ORDO, check if there is a match in MONDO too. If so, give preference to MONDO hit
                 mondo_mapping = self.search_mondo(disease_name)
-                
+
                 if mondo_mapping:
                     # Mondo mapping good - return
                     if mondo_mapping['exact']:
                         return mondo_mapping
                     # Mondo mapping bad - return ontoma
                     else:
-                        return ontoma_mapping 
+                        return ontoma_mapping
                 else:
                     # Mondo mapping bad - return ontoma
                     return ontoma_mapping
@@ -181,8 +181,8 @@ def main(dd_file, eye_file, skin_file, cancer_file, outfile, local):
             .getOrCreate()
         )
 
-    # Specify schema -> this schema is applied for all INTOGen files:
-    intogen_schema = (
+    # Specify schema -> this schema is applied for all gene2phenotype files:
+    gene2phenotype_schema = (
         StructType()
         .add('gene symbol', StringType())
         .add('gene mim', IntegerType())
@@ -201,9 +201,9 @@ def main(dd_file, eye_file, skin_file, cancer_file, outfile, local):
     )
 
     # Load all files for one go:
-    intogen_data = (
+    gene2phenotype_data = (
         spark.read.csv(
-            [dd_file, eye_file, skin_file, cancer_file], schema=intogen_schema, enforceSchema=True, header=True
+            [dd_file, eye_file, skin_file, cancer_file], schema=gene2phenotype_schema, enforceSchema=True, header=True
         )
 
         # Split pubmed IDs to list:
@@ -221,7 +221,7 @@ def main(dd_file, eye_file, skin_file, cancer_file, outfile, local):
 
     # Processing data:
     evidence_df = (
-        intogen_data
+        gene2phenotype_data
 
         # Renaming columns:
         .withColumnRenamed('gene symbol', 'targetFromSourceId')
@@ -271,7 +271,8 @@ def main(dd_file, eye_file, skin_file, cancer_file, outfile, local):
 if __name__ == "__main__":
 
     # Parse CLI arguments
-    parser = argparse.ArgumentParser(description='Parse Gene2Phenotype gene-disease files downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads/')
+    parser = argparse.ArgumentParser(
+        description='Parse Gene2Phenotype gene-disease files downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads/')
     parser.add_argument('-d', '--dd_panel',
                         help='DD panel file downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads',
                         type=str)
