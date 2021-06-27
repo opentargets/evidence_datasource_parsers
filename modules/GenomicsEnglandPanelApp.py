@@ -199,7 +199,7 @@ class PanelAppEvidenceGenerator():
             # removal of the OMIM code in 'phenotype'
             .withColumn('phenotype', regexp_replace(col('phenotype'), r'(\d{6})', ''))
             # deleting special characters in 'phenotype'
-            .withColumn('phenotype', regexp_replace(col('phenotype'), r'[^0-9a-zA-Z -]', ''))
+            .withColumn('phenotype', regexp_replace(col('phenotype'), r'[^0-9a-zA-Z *]', ''))
             .withColumn('phenotype', trim(col('phenotype')))
         )
 
