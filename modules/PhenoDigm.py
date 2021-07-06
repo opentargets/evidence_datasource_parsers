@@ -186,7 +186,8 @@ class PhenoDigm:
             # (disease_model_avg_norm). In the Results and discussion section of the Phenodigm paper, the methods are
             # compared to a number of gold standards. It is concluded that the geometric mean of both analyses is the
             # superior metric and should therefore be used as the score.
-            .withColumnRenamed('disease_model_avg_norm', 'resourceScore')
+            .withColumn('resourceScore', pf.col('disease_model_avg_norm').cast('float'))
+            .drop('disease_model_avg_norm')
             .withColumnRenamed('marker_id', 'mgi_gene_id')
         )
         self.ontology = (
