@@ -56,7 +56,7 @@ def main(desc_file, evid_file, cell_file, out_file):
     # Updating columns:
     pooled_annotation = (
         pooled_annotation
-        .drop(['method', ], axis=1)
+        .drop(['method'], axis=1)
         .rename(columns={
             'efo_id': 'diseaseFromSourceMappedId',
             'Name': 'diseaseCellLines',
