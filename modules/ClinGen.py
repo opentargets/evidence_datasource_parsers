@@ -82,10 +82,7 @@ class ClinGen():
                     evidence_with_efo = evidence.copy()
                     evidence_with_efo['diseaseFromSourceMappedId'] = ontoma.interface.make_uri(efo_mapping['id']).split('/')[-1]
                     self.evidence_strings.append(evidence_with_efo)
-                    if disease_name == 'adenosine kinase deficiency':
-                        print(evidence_with_efo)
             else:
-                print('pocok')
                 self.evidence_strings.append(evidence)
 
         if len(self.unmapped_diseases) > 0:
