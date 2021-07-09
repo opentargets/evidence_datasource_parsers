@@ -161,7 +161,7 @@ def parse_args():
 
 
 if __name__ == '__main__':
-    
+
     # Parse arguments:
     cooccurrenceFile, logFile, outputFile, local = parse_args()
 

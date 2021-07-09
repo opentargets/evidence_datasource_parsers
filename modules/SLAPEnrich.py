@@ -5,17 +5,20 @@ import argparse
 import gzip
 import logging
 import json
+
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import *
-from pyspark.sql.types import *
+import pyspark.sql.functions as F
 
 class SLAPEnrichEvidenceGenerator():
+
     def __init__(self):
-        # Create spark session     
-        self.spark = (SparkSession.builder
-                .appName('SLAPEnrich')
-                .getOrCreate())
-        logging.info(f"Spark version: {self.spark.version}")
+        # Create spark session
+        self.spark = (
+            SparkSession.builder
+            .appName('SLAPEnrich')
+            .getOrCreate()
+        )
+        logging.info(f'Spark version: {self.spark.version}')
 
         # Initialize source table
         self.dataframe = None
@@ -27,53 +30,51 @@ class SLAPEnrichEvidenceGenerator():
             evidences (array): Object with all the generated evidences strings from source file
         '''
         # Read input file
-        self.dataframe = (self.spark
-                        .read.csv(inputFile, sep=r'\t', header=True, inferSchema=True)
-                        .select("ctype", "gene", "pathway", "SLAPEnrichPval")
-                        .withColumnRenamed("ctype", "Cancer_type_acronym")
-                        .withColumnRenamed("SLAPEnrichPval", "pval")
-                        .withColumn("pathwayId", split(col("pathway"), ": ").getItem(0))
-                        .withColumn("pathwayDescription", split(col("pathway"), ": ").getItem(1)))
+        self.dataframe = (
+            self.spark
+            .read.csv(inputFile, sep=r'\t', header=True, inferSchema=True)
+            .select('ctype', 'gene', 'pathway', 'SLAPEnrichPval')
+            .withColumnRenamed('ctype', 'Cancer_type_acronym')
+            .withColumnRenamed('SLAPEnrichPval', 'pval')
+            .withColumn('pathwayId', F.split(F.col('pathway'), ': ').getItem(0))
+            .withColumn('pathwayDescription', F.split(F.col('pathway'), ': ').getItem(1))
+        )
 
         # Filter by p-value
-        self.dataframe = self.dataframe.filter(col("pval") < 1e-4) 
+        self.dataframe = self.dataframe.filter(F.col('pval') < 1e-4)
 
         # Mapping step
         if not skipMapping:
             try:
                 self.dataframe = self.cancer2EFO(diseaseMapping)
-                logging.info("Disease mappings have been imported.")
+                logging.info('Disease mappings have been imported.')
             except Exception as e:
-                logging.error(f"An error occurred while importing disease mappings: \n{e}.")
+                logging.error(f'An error occurred while importing disease mappings: \n{e}.')
         else:
-            logging.info("Disease mapping has been skipped.")
-            self.dataframe = self.dataframe.withColumn(
-                "EFO_id",
-                lit(None)
-            )
+            logging.info('Disease mapping has been skipped.')
+            self.dataframe = self.dataframe.withColumn('EFO_id', F.lit(None))
 
         # Build evidence strings per row
-        logging.info("Generating evidence:")
-        evidences = (self.dataframe.rdd
+        logging.info('Generating evidence:')
+        evidences = (
+            self.dataframe.rdd
             .map(SLAPEnrichEvidenceGenerator.parseEvidenceString)
-            .collect()) # list of dictionaries
-        
-        if skipMapping:
-            # Delete empty keys if mapping is skipped
-            for evidence in evidences:
-                del evidence["diseaseFromSourceMappedId"]
+            .collect()
+        )  # list of dictionaries
 
         return evidences
-    
+
     def cancer2EFO(self, diseaseMapping):
-        diseaseMappingsFile = (self.spark
-                        .read.csv(diseaseMapping, sep=r'\t', header=True)
-                        .select("Cancer_type_acronym", "EFO_id"))
+        diseaseMappingsFile = (
+            self.spark
+            .read.csv(diseaseMapping, sep=r'\t', header=True)
+            .select('Cancer_type_acronym', 'EFO_id')
+        )
 
         self.dataframe = self.dataframe.join(
             diseaseMappingsFile,
-            on="Cancer_type_acronym",
-            how="inner"
+            on='Cancer_type_acronym',
+            how='left'
         )
 
         return self.dataframe
@@ -82,33 +83,62 @@ class SLAPEnrichEvidenceGenerator():
     def parseEvidenceString(row):
         try:
             evidence = {
-                "datasourceId" : "slapenrich",
-                "datatypeId" : "affected_pathway",
-                "diseaseFromSourceMappedId" : row["EFO_id"],
-                "resourceScore" : row["pval"],
-                "targetFromSourceId" : row["gene"],
-                "diseaseFromSource" : row["Cancer_type_acronym"],
-                "pathways" : [
+                'datasourceId': 'slapenrich',
+                'datatypeId': 'affected_pathway',
+                'resourceScore': row['pval'],
+                'targetFromSourceId': row['gene'],
+                'diseaseFromSource': row['Cancer_type_acronym'],
+                'pathways': [
                     {
-                    "id" : row["pathwayId"],
-                    "name" : row["pathwayDescription"]
+                        'id': row['pathwayId'],
+                        'name': row['pathwayDescription']
                     }
                 ]
             }
+
+            # For unmapped diseases, we skip the mappedID key:
+            if row['EFO_id']:
+                evidence['diseaseFromSourceMappedId'] = row['EFO_id']
+
             return evidence
         except Exception as e:
             raise
 
-def main():
-    # Initiating parser
-    parser = argparse.ArgumentParser(description=
-    "This script generates evidences for the SLAPEnrich data source.")
 
-    parser.add_argument("-i", "--inputFile", required=True, type=str, help="Input source .tsv file.")
-    parser.add_argument("-d", "--diseaseMapping", required=False, type=str, help="Input look-up table containing the cancer type mappings to an EFO ID.")
-    parser.add_argument("-o", "--outputFile", required=True, type=str, help="Gzipped JSON file containing the evidence strings.")
-    parser.add_argument("-s", "--skipMapping", required=False, action="store_true", help="State whether to skip the disease to EFO mapping step.")
-    parser.add_argument("-l", "--logFile", help="Destination of the logs generated by this script.", type=str, required=False)
+def main(inputFile, diseaseMapping, outputFile, skipMapping):
+
+    # Logging parameters
+    logging.info(f'SLAPEnrich input table: {inputFile}')
+    logging.info(f'Cancer type to EFO ID table: {diseaseMapping}')
+    logging.info(f'Output file: {outputFile}')
+
+    # Initialize evidence builder object
+    evidenceBuilder = SLAPEnrichEvidenceGenerator()
+
+    # Writing evidence strings into a json file
+    evidences = evidenceBuilder.generateEvidenceFromSource(inputFile, diseaseMapping, skipMapping)
+
+    with gzip.open(outputFile, 'wt') as f:
+        for evidence in evidences:
+            json.dump(evidence, f)
+            f.write('\n')
+    logging.info(f'{len(evidences)} evidence strings saved into {outputFile}. Exiting.')
+
+
+if __name__ == '__main__':
+
+    # Initiating parser
+    parser = argparse.ArgumentParser(description='This script generates evidences for the SLAPEnrich data source.')
+
+    parser.add_argument('-i', '--inputFile', required=True, type=str, help='Input source .tsv file.')
+    parser.add_argument('-d', '--diseaseMapping', required=False, type=str,
+                        help='Input look-up table containing the cancer type mappings to an EFO ID.')
+    parser.add_argument('-o', '--outputFile', required=True, type=str,
+                        help='Gzipped JSON file containing the evidence strings.')
+    parser.add_argument('-s', '--skipMapping', required=False, action='store_true',
+                        help='State whether to skip the disease to EFO mapping step.')
+    parser.add_argument('-l', '--logFile', help='Destination of the logs generated by this script.',
+                        type=str, required=False)
 
     # Parsing parameters
     args = parser.parse_args()
@@ -119,31 +149,13 @@ def main():
 
     # Initialize logging:
     logging.basicConfig(
-    level=logging.INFO,
-    format='%(name)s - %(levelname)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S',
+        level=logging.INFO,
+        format='%(name)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S',
     )
     if args.logFile:
         logging.config.fileConfig(filename=args.logFile)
     else:
         logging.StreamHandler(sys.stderr)
 
-    # Logging parameters
-    logging.info(f"SLAPEnrich input table: {inputFile}")
-    logging.info(f"Cancer type to EFO ID table: {diseaseMapping}")
-    logging.info(f"Output file: {outputFile}")
-
-    # Initialize evidence builder object
-    evidenceBuilder = SLAPEnrichEvidenceGenerator()
-
-    # Writing evidence strings into a json file
-    evidences = evidenceBuilder.generateEvidenceFromSource(inputFile, diseaseMapping, skipMapping)
-
-    with gzip.open(outputFile, "wt") as f:
-        for evidence in evidences:
-            json.dump(evidence, f)
-            f.write('\n')
-    logging.info(f"{len(evidences)} evidence strings saved into {outputFile}. Exiting.")
-
-if __name__ == '__main__':
-    main()
+    main(inputFile, diseaseMapping, outputFile, skipMapping)

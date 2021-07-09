@@ -1,280 +1,278 @@
-import ontoma
 import logging
 import csv
 import gzip
 import argparse
 import json
+import sys
+
+from pyspark.conf import SparkConf
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import split, col, udf, lit
+from pyspark.sql.types import StringType, IntegerType, TimestampType, StructType
+
+import ontoma
+
 
 G2P_mutationCsq2functionalCsq = {
-    'loss of function' : 'SO_0002054', #loss_of_function_variant
-    'all missense/in frame' : 'SO_0001650', #inframe_variant
-    'uncertain' : 'SO_0002220', #function_uncertain_variant
-    'activating' : 'SO_0002053', #gain_of_function_variant
-    'dominant negative' : 'SO_0002052', #dominant_negative_variant
-    '' : None,
-    'gain of function' : 'SO_0002053', #gain_of_function_variant
-    'cis-regulatory or promotor mutation' : 'SO_0001566', #regulatory_region_variant
-    '5_prime or 3_prime UTR mutation' : 'SO_0001622', #UTR_variant
-    'increased gene dosage' : 'SO_0001911', #copy_number_increase
-    'part of contiguous gene duplication' : 'SO_1000173' #tandem_duplication
+    'loss of function': 'SO_0002054',  # loss_of_function_variant
+    'all missense/in frame': 'SO_0001650',  # inframe_variant
+    'uncertain': 'SO_0002220',  # function_uncertain_variant
+    'activating': 'SO_0002053',  # gain_of_function_variant
+    'dominant negative': 'SO_0002052',  # dominant_negative_variant
+    '': None,
+    'gain of function': 'SO_0002053',  # gain_of_function_variant
+    'cis-regulatory or promotor mutation': 'SO_0001566',  # regulatory_region_variant
+    '5_prime or 3_prime UTR mutation': 'SO_0001622',  # UTR_variant
+    'increased gene dosage': 'SO_0001911',  # copy_number_increase
+    'part of contiguous gene duplication': 'SO_1000173'  # tandem_duplication
 }
 
 
+def translate(mapping):
+    '''
+    Mapping consequences - to SO codes
+    '''
+    def translate_(col):
+        return mapping.get(col)
+    return udf(translate_, StringType())
 
-class G2P():
+class disease_map(object):
+
     def __init__(self):
-        super(G2P, self).__init__()
-        self.evidence_strings = list()
-        self.unmapped_diseases = set()
-
-        # Configure logging
-        # Create logger
-        self._logger = logging.getLogger(__name__)
-        self._logger.setLevel(logging.INFO)
-
-        # Create console handler
-        ch = logging.StreamHandler()
-        ch.setLevel(logging.INFO)
-
-        # Create formatter
-        formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
-
-        # Add formatter to ch
-        ch.setFormatter(formatter)
-
-        # Add ch to handler
-        self._logger.addHandler(ch)
-
-        # Create OnToma object
         self.ontoma = ontoma.interface.OnToma()
 
-    def map_disease_name_to_ontology(self, disease_name, omim_id):
-        '''
-        Searches the G2P disease name in EFO, ORDO, HP and MONDO
-
-        OnToma is used to query the ontology OBO files, the manual mapping file and the Zooma and OLS APIs. MONDO is only searched if no exact matches are found.
-
-        Args:
-            disease_name (str): Gene2Phenotype disease name extracted from the "disease name" column
-            omim_id (int): Gene2Phenotype disease OMIM id extracted from the "disease mim" column
-
-        Returns:
-            dict: Dictionary that contains id and name of mapped ontology term or `None` if not found
-        '''
-
-        self._logger.info(f"Mapping '{disease_name}'")
+    def map_disease(self, disease_name, omim_id):
+        logging.info(f"Mapping '{disease_name}'")
 
         # Search disease name using OnToma and accept perfect matches
         ontoma_mapping = self.ontoma.find_term(disease_name, verbose=True)
+
+        # If there's some mapping available:
         if ontoma_mapping:
+
+            # Extracting term if no action is required:
             if ontoma_mapping['action'] is None:
-                return {'id': ontoma_mapping['term'], 'name': ontoma_mapping['label']}
+                return ontoma_mapping
+
+            # When there is an exact match, but action is required:
             elif ontoma_mapping['quality'] == "match":
+
                 # Match in HP or ORDO, check if there is a match in MONDO too. If so, give preference to MONDO hit
-                self._logger.info(f"OnToma found match for '{disease_name}' in HP or ORDO, checking in MONDO")
                 mondo_mapping = self.search_mondo(disease_name)
+
                 if mondo_mapping:
+                    # Mondo mapping good - return
                     if mondo_mapping['exact']:
-                        self._logger.info(f"Using MONDO match")
                         return mondo_mapping
+                    # Mondo mapping bad - return ontoma
                     else:
-                        self._logger.info(f"No exact matches in MONDO, using OnToma results")
-                        return {'id': ontoma_mapping['term'], 'name': ontoma_mapping['label']}
+                        return ontoma_mapping
                 else:
-                    self._logger.info(f"No match in MONDO, using OnToma results")
-                    return {'id': ontoma_mapping['term'], 'name': ontoma_mapping['label']}
+                    # Mondo mapping bad - return ontoma
+                    return ontoma_mapping
+
             else:
-                # OnToma fuzzy match. First check if the mapping term has a xref to the OMIM id. If not, check in MONDO and if there is not match ignore evidence and report disease
-                self._logger.info(f"Fuzzy match for '{disease_name}' found in OnToma, checking if it has a xref to OMIM:{omim_id}")
+                # OnToma fuzzy match. First check if the mapping term has a xref to the OMIM id. 
+                # If not, check in MONDO and if there is not match ignore evidence and report disease
                 if self.ontoma.get_efo_from_xref(f"OMIM:{omim_id}"):
                     for efo_xref in self.ontoma.get_efo_from_xref(f"OMIM:{omim_id}"):
                         # Extract EFO id from OnToma results
                         efo_id = ontoma_mapping['term'].split('/')[-1].replace('_', ':')
+
                         if efo_id == efo_xref['id']:
-                            self._logger.info(
-                                f"{ontoma_mapping['term']} has a xref to OMIM:{omim_id}, using this term as a match for {disease_name}")
-                            return {'id': ontoma_mapping['term'], 'name': ontoma_mapping['label']}
+                            return ontoma_mapping
+
                 # xref search didn't work, try MONDO as the last resort
-                self._logger.info(f"No exact match for '{disease_name}' found in OnToma, checking in MONDO")
                 mondo_mapping = self.search_mondo(disease_name)
                 if mondo_mapping:
                     if mondo_mapping['exact']:
-                        self._logger.info(f"Using MONDO match")
                         return mondo_mapping
                     else:
-                        return
+                        return None
                 else:
-                    self._logger.info(f"Fuzzy match from OnToma ignored for '{disease_name}', recording the unmapped disease")
                     # Record the unmapped disease
-                    self.unmapped_diseases.add((disease_name, True, ontoma_mapping['term'], ontoma_mapping['label']))
-                    return
+                    return None
+
         else:
             # No match in EFO, HP or ORDO
-            self._logger.info(f"No match found in EFO, HP or ORDO for '{disease_name}' with OnToma, checking in MONDO")
             mondo_mapping = self.search_mondo(disease_name)
             if mondo_mapping:
                 if mondo_mapping['exact']:
-                    self._logger.info(f"Using MONDO match")
                     return mondo_mapping
                 else:
-                    return
+                    return None
             else:
-                self._logger.info(
-                    f"'{disease_name}' could not be mapped to any EFO, HP, ORDO or MONDO. Skipping it, it should be checked with Gene2Phenotype and/or EFO")
-                # Record the unmapped disease
-                self.unmapped_diseases.add((disease_name, False, "", ""))
-                return
+                return None
 
     def search_mondo(self, disease_name):
-        '''
-        Searches the G2P disease name in MONDO, both using the OBO file and OLS
-
-        Args:
-            disease_name (str): Gene2Phenotype disease name extracted from the "disease name" column
-
-        Returns:
-            dict: Dictionary containing MONDO id, name and whether it's exact or not, or `None` if not found
-        '''
 
         disease_name = disease_name.lower()
 
         # mondo_lookup works like a dictionary lookup so if disease is not in there it raises and error instead of returning `None`
         try:
             mondo_term = self.ontoma.mondo_lookup(disease_name)
-            self._logger.info(f"Found {mondo_term} for '{disease_name}' from MONDO OBO file - Request EFO to import it from MONDO")
-            return {'id': mondo_term, 'name': self.ontoma.get_mondo_label(mondo_term), 'exact': True}
+            return {
+                'id': mondo_term, 
+                'name': self.ontoma.get_mondo_label(mondo_term),
+                'exact': True
+            }
         except KeyError as e:
-            self._logger.info(f"No match found in MONDO OBO for '{disease_name}'")
-            if self.ontoma._ols.besthit(disease_name, ontology=['mondo'], field_list=['iri', 'label'], exact=True):
-                # Exact match
-                exact_ols_mondo = self.ontoma._ols.besthit(disease_name, ontology=['mondo'],
-                                                           field_list=['iri', 'label'],
-                                                           exact=True)
-                self._logger.info(
-                f"Found {exact_ols_mondo['iri']} as an exact match for '{disease_name}' from OLS API MONDO lookup - Request EFO to import it from MONDO")
-                return {'id': exact_ols_mondo['iri'], 'name': exact_ols_mondo['label'], 'exact':True}
-            elif self.ontoma._ols.besthit(disease_name, ontology=['mondo'], field_list=['iri', 'label'], bytype='class'):
-                # Non-exact match, treat it as fuzzy matches above, i.e. ignore and report
+            exact_ols_mondo = self.ontoma._ols.besthit(disease_name,
+                                                       ontology=['mondo'], field_list=['iri', 'label'], exact=True)
+
+            if exact_ols_mondo:
+                return {'term': exact_ols_mondo['iri'], 'name': exact_ols_mondo['label'], 'exact':True}
+
+            else:
                 ols_mondo = self.ontoma._ols.besthit(disease_name,
                                                      ontology=['mondo'],
                                                      field_list=['iri', 'label'],
                                                      bytype='class')
-                self._logger.info(f"Non-exact match from OnToma ignored for '{disease_name}', recording the unmapped disease")
-                # Record the unmapped disease
-                self.unmapped_diseases.add((disease_name, True, ols_mondo['iri'], ols_mondo['label']))
-                return {'id': ols_mondo['iri'], 'name': ols_mondo['label'], 'exact': False}
-            else:
-                self._logger.info(f"No match for '{disease_name}' in MONDO")
-                return
+                if ols_mondo:
+                    return {'term': ols_mondo['iri'], 'name': ols_mondo['label'], 'exact': False}
+                else:
+                    return None
 
-    def process_g2p(self, dd_file, eye_file, skin_file, cancer_file, evidence_file, unmapped_diseases_filename):
+def main(dd_file, eye_file, skin_file, cancer_file, outfile, local):
 
-        # Parser DD file
-        self._logger.info("Started parsing DD file")
-        self.generate_evidence_strings(dd_file)
-        # Parser eye file
-        self._logger.info("Started parsing eye file")
-        self.generate_evidence_strings(eye_file)
-        # Parser skin file
-        self._logger.info("Started parsing skin file")
-        self.generate_evidence_strings(skin_file)
-        # Parser cancer file
-        self._logger.info("Started parsing cancer file")
-        self.generate_evidence_strings(cancer_file)
+    # Initialize disease mapping object:
+    dm_obj = disease_map()
 
-        # Save results to file
-        self.write_evidence_strings(evidence_file)
+    # UDF to look up EFO mappings:
+    @udf(StringType())
+    def map_disease(label, disease_id):
+        lookup = dm_obj.map_disease(label, disease_id)
+        if lookup:
+            try:
+                return lookup['term'].split('/')[-1]
+            except Exception as e:
+                print(lookup)
+        else:
+            return None
 
-        # If selected, write unmapped diseases to file
-        if unmapped_diseases_filename:
-            self.write_unmapped_diseases(unmapped_diseases_filename)
+    # Initialize spark session
+    if local:
+        sparkConf = (
+            SparkConf()
+            .set('spark.driver.memory', '15g')
+            .set('spark.executor.memory', '15g')
+            .set('spark.driver.maxResultSize', '0')
+            .set('spark.debug.maxToStringFields', '2000')
+            .set('spark.sql.execution.arrow.maxRecordsPerBatch', '500000')
+        )
+        spark = (
+            SparkSession.builder
+            .config(conf=sparkConf)
+            .config("spark.sql.broadcastTimeout", "36000")
+            .master('local[*]')
+            .getOrCreate()
+        )
+    else:
+        sparkConf = (
+            SparkConf()
+            .set('spark.driver.maxResultSize', '0')
+            .set('spark.debug.maxToStringFields', '2000')
+            .set('spark.sql.execution.arrow.maxRecordsPerBatch', '500000')
+        )
+        spark = (
+            SparkSession.builder
+            .config(conf=sparkConf)
+            .config("spark.sql.broadcastTimeout", "36000")
+            .getOrCreate()
+        )
 
-    def generate_evidence_strings(self, filename):
+    # Specify schema -> this schema is applied for all gene2phenotype files:
+    gene2phenotype_schema = (
+        StructType()
+        .add('gene symbol', StringType())
+        .add('gene mim', IntegerType())
+        .add('disease name', StringType())
+        .add('disease mim', StringType())
+        .add('DDD category', StringType())
+        .add('allelic requirement list', StringType())
+        .add('mutation consequence', StringType())
+        .add('phenotype list', StringType())
+        .add('organ specificity list', StringType())
+        .add('pmid list', StringType())
+        .add('panel', StringType())
+        .add('prev symbol list', StringType())
+        .add('hgnc id', IntegerType())
+        .add('gene disease entry date', TimestampType())
+    )
 
-        total_efo = 0
+    # Load all files for one go:
+    gene2phenotype_data = (
+        spark.read.csv(
+            [dd_file, eye_file, skin_file, cancer_file], schema=gene2phenotype_schema, enforceSchema=True, header=True
+        )
 
-        with gzip.open(filename, mode='rt') as zf:
+        # Split pubmed IDs to list:
+        .withColumn('literature', split(col('pmid list'), ';'))
 
-            reader = csv.DictReader(zf, delimiter=',', quotechar='"')
-            c = 0
-            for row in reader:
-                c += 1
-                self._logger.info(f"Parsing row {c}")
+        # Split phenotypes:
+        .withColumn('phenotypes', split(col('phenotype list'), ';'))
 
-                # Column names are:
-                # "gene symbol","gene mim","disease name","disease mim","DDD category","allelic requirement",
-                # "mutation consequence",phenotypes,"organ specificity list",pmids,panel,"prev symbols","hgnc id",
-                # "gene disease pair entry date"
-                gene_symbol = row["gene symbol"]
-                disease_name = row["disease name"]
-                disease_mim = row["disease mim"]
-                allelic_requirement = row["allelic requirement"]
-                mutation_consequence = row["mutation consequence"]
-                confidence = row["DDD category"]
-                pmids = row["pmids"]
-                panel = row["panel"]
+        # Split organ specificity:
+        .withColumn('organ_specificities', split(col('organ specificity list'), ';'))
 
+        # Split allelic requirements:
+        .withColumn('allelicRequirements', split(col('allelic requirement list'), ';'))
+    )
 
-                # Map disease to ontology terms
-                disease_mapping = self.map_disease_name_to_ontology(disease_name, disease_mim)
-                if disease_mapping:
-                    total_efo +=1
+    # Processing data:
+    evidence_df = (
+        gene2phenotype_data
 
-                    self._logger.info(f"{gene_symbol}, {gene_symbol}, '{disease_name}', {disease_mapping['id']}")
+        # Renaming columns:
+        .withColumnRenamed('gene symbol', 'targetFromSourceId')
+        .withColumnRenamed('disease mim', 'diseaseFromSourceId')
+        .withColumnRenamed('disease name', 'diseaseFromSource')
+        .withColumnRenamed('panel', 'studyId')
+        .withColumnRenamed('DDD category', 'confidence')
 
-                    evidence = {
-                        'datasourceId': 'gene2phenotype',
-                        'datatypeId': 'genetic_literature',
-                        'targetFromSourceId': gene_symbol.rstrip(),
-                        'diseaseFromSource': disease_name,
-                        'diseaseFromSourceId': disease_mim,
-                        'diseaseFromSourceMappedId': ontoma.interface.make_uri(disease_mapping['id']).split("/")[-1],
-                        'confidence': confidence,
-                        'studyId': panel
-                    }
+        # Map functional consequences:
+        .withColumn("variantFunctionalConsequenceId", translate(G2P_mutationCsq2functionalCsq)("mutation consequence"))
 
-                    # Add literature provenance if there are PMIDs
-                    if len(pmids) != 0:
-                        evidence['literature'] = pmids.split(";")
+        # Adding literature columns:
+        .withColumn('datasourceId', lit('gene2phenotype'))
+        .withColumn('datatypeId', lit('genetic_literature'))
 
-                    # Ignore allelic requirement if it's empty string
-                    evidence['allelicRequirements'] = [allelic_requirement] if allelic_requirement else self._logger.warn('Empty allelic requirement, ignoring the value')
+        # Selecting relevant columns:
+        .select(
+            'datasourceId', 'datatypeId', 'targetFromSourceId', 'diseaseFromSource',
+            'diseaseFromSourceId', 'confidence', 'studyId', 'literature',
+            'allelicRequirements', 'variantFunctionalConsequenceId'
+        )
+        .coalesce(1)
+    )
 
-                    # Assign SO code based on mutation consequence field
-                    if mutation_consequence in G2P_mutationCsq2functionalCsq:
-                        if G2P_mutationCsq2functionalCsq[mutation_consequence]:
-                            evidence['variantFunctionalConsequenceId'] = G2P_mutationCsq2functionalCsq[mutation_consequence]
-                        else:
-                            self._logger.error('Ignoring empty mutation consequence'.format(mutation_consequence))
-                    else:
-                        self._logger.error( '{} is not a recognised G2P mutation consequence, ignoring the value'.format(mutation_consequence))
+    # Get all the diseases + map disease to EFO:
+    diseases = (
+        evidence_df
+        .select('diseaseFromSource', 'diseaseFromSourceId')
+        .distinct()
+        .withColumn('diseaseFromSourceMappedId', map_disease(col('diseaseFromSource'), col('diseaseFromSourceId')))
+        .persist()
+    )
 
-                    self.evidence_strings.append(evidence)
+    # Merge evidence with the mapped disease:
+    evidence_df = (
+        evidence_df
+        .join(diseases, how='left', on=['diseaseFromSource', 'diseaseFromSourceId'])
+    )
 
-            self._logger.info(f"Processed {c} diseases, mapped {total_efo}\n")
-
-    def write_evidence_strings(self, filename):
-        self._logger.info("Writing Gene2Phenotype evidence strings to %s", filename)
-        with gzip.open(filename, 'w') as tp_file:
-            n = 0
-            for evidence_string in self.evidence_strings:
-                n += 1
-                json.dump(evidence_string, tp_file)
-                tp_file.write("\n")
-            self._logger.info(f"{n} evidence strings saved.\n")
-
-    def write_unmapped_diseases(self, filename):
-        self._logger.info(f"Writing Gene2Phenotype diseases not mapped to EFO to {filename}")
-        with open(filename, 'w') as unmapped_diseases_file:
-            unmapped_diseases_file.write("disease_name\tontoma_mapping_bool\tontoma_disease_id\tontoma_disease_name\n")
-            for unmapped_disease in self.unmapped_diseases:
-                unmapped_diseases_file.write(unmapped_disease[0] + "\t" + str(unmapped_disease[1]) + "\t" + unmapped_disease[2] + "\t" + unmapped_disease[3] + "\n")
+    # Saving data:
+    (
+        evidence_df
+        .write.format('json').mode('overwrite').option('compression', 'gzip').save(outfile)
+    )
 
 
-def main():
+if __name__ == "__main__":
 
     # Parse CLI arguments
-    parser = argparse.ArgumentParser(description='Parse Gene2Phenotype gene-disease files downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads/')
+    parser = argparse.ArgumentParser(
+        description='Parse Gene2Phenotype gene-disease files downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads/')
     parser.add_argument('-d', '--dd_panel',
                         help='DD panel file downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads',
                         type=str)
@@ -287,24 +285,37 @@ def main():
     parser.add_argument('-c', '--cancer_panel',
                         help='Cancer panel file downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads',
                         type=str)
-    parser.add_argument('-o', '--output_file',
-                        help='Name of gzipped evidence file',
-                        type=str)
-    parser.add_argument('-u', '--unmapped_diseases_file',
-                        help='If specified, the diseases not mapped to EFO will be stored in this file',
-                        type=str, default=False)
+    parser.add_argument('--local', help='Where the ', action='store_true', required=False, default=False)
+    parser.add_argument('-o', '--output_file', help='Name of gzipped evidence file', type=str)
+    parser.add_argument('-l', '--log_file', help='Name of gzipped evidence file', type=str)
 
     args = parser.parse_args()
+
     # Get parameters
     dd_file = args.dd_panel
     eye_file = args.eye_panel
     skin_file = args.skin_panel
     cancer_file = args.cancer_panel
     outfile = args.output_file
-    unmapped_diseases_file = args.unmapped_diseases_file
+    log_file = args.log_file
+    local = args.local
 
-    g2p = G2P()
-    g2p.process_g2p(dd_file, eye_file, skin_file, cancer_file, outfile, unmapped_diseases_file)
+    # Configure logger:
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s %(levelname)s %(module)s - %(funcName)s: %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S',
+    )
+    if log_file:
+        logging.config.fileConfig(filename=log_file)
+    else:
+        logging.StreamHandler(sys.stderr)
 
-if __name__ == "__main__":
-    main()
+    # Report input data:
+    logging.info(f'DD panel file: {dd_file}')
+    logging.info(f'Eye panel file: {eye_file}')
+    logging.info(f'Skin panel file: {skin_file}')
+    logging.info(f'Cancer panel file: {cancer_file}')
+
+    # Calling main:
+    main(dd_file, eye_file, skin_file, cancer_file, outfile, local)
