@@ -92,7 +92,6 @@ class PanelAppEvidenceGenerator():
         literature_mappings = PanelAppEvidenceGenerator.build_literature_mappings(
             panelapp_df.select('Panel Id').toPandas()['Panel Id'].unique()
         )
-        print(list(literature_mappings.items())[:4])
         panelapp_df = panelapp_df.withColumn(
             #'literature', self._translate(literature_mappings, col('Panel Name'), col('Symbol'))
             'literature', PanelAppEvidenceGenerator.translate(literature_mappings)('Panel Name', 'Symbol')
