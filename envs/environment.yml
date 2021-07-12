@@ -1,0 +1,16 @@
+name: evidence_datasource_parsers
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - conda-lock=0.10.0
+  - numpy=1.19.2
+  - pandas=1.2.2
+  - pip=21.0.1
+  - pyspark=2.4.0
+  - python=3.7.9
+  - requests=2.25.1
+  - snakemake==6.0.0
+  - tqdm=4.58.0
+  - pip:
+    - ontoma==0.0.17

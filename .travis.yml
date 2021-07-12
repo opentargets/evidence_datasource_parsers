@@ -3,11 +3,17 @@ python:
   - '3.6'
 sudo: required
 install:
-  - pip install pathlib # this is a requirement of ontoma setup so must be installed separately
-  - pip install -r requirements.txt
-  - pipdeptree
-  - export PYTHONPATH=.
-script: 
+  # Instructions adopted from https://conda.io/projects/conda/en/latest/user-guide/tasks/use-conda-with-travis-ci.html
+  - wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
+  - bash miniconda.sh -b -p $HOME/miniconda
+  - source "$HOME/miniconda/etc/profile.d/conda.sh"
+  - hash -r
+  - conda config --set always_yes yes --set changeps1 no
+  - conda update -q conda
+  - conda info -a
+  - conda env create --file envs/environment-lock.yml
+  - conda activate evidence_datasource_parsers_lock
+script:
   - pytest . --fulltrace
 deploy:
   provider: pypi
