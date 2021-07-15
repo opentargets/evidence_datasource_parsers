@@ -158,6 +158,21 @@ class PanelAppEvidenceGenerator:
         literature_references = self.fetch_literature_references(all_panel_ids)
         panelapp_df = panelapp_df.join(literature_references, on=['Panel Id', 'Symbol'], how='left')
 
+        # Populate final evidence string structure.
+        panelapp_df = (
+            panelapp_df
+            .withColumnRenamed('Mode of inheritance', 'allelicRequirements')
+            .withColumnRenamed('List', 'confidence')
+            .withColumn('datasourceId', lit('genomics_england'))
+            .withColumn('datatypeId', lit('genetic_literature'))
+            .withColumnRenamed('phenotype', 'diseaseFromSource')
+            # diseaseFromSourceId populated above
+            # literature populated above
+            .withColumnRenamed('Panel Id', 'studyId')
+            .withColumnRenamed('Panel Name', 'studyOverview')
+            .withColumnRenamed('Symbol', 'targetFromSourceId')
+        )
+
         # Save data.
         with tempfile.TemporaryDirectory() as tmp_dir_name:
             (
@@ -213,194 +228,3 @@ if __name__ == '__main__':
     )
     args = parser.parse_args()
     PanelAppEvidenceGenerator().generate_panelapp_evidence(input_file=args.input_file, output_file=args.output_file)
-
-
-
-########################################################################################################################
-
-
-
-class PanelAppEvidenceGenerator:
-
-    def writeEvidenceFromSource(self, inputFile, skipMapping):
-        # Map the diseases to an EFO term if necessary
-        if not skipMapping:
-            self.dataframe = self.diseaseMappingStep()
-        else:
-            logging.info('Disease mapping has been skipped.')
-            self.dataframe = self.dataframe.withColumn(
-                'ontomaUrl',
-                lit(None)
-            )
-
-        logging.info('Generating evidence:')
-        evidences = (
-            self.dataframe
-            # Removing redundant evidence after the explosion of phenotypes
-            .dropDuplicates(['Panel Id', 'Symbol', 'ontomaUrl', 'cohortPhenotypes'])
-            # Build evidence strings per row
-            .rdd.map(PanelAppEvidenceGenerator.parseEvidenceString)
-            .collect()  # list of dictionaries
-        )
-
-        for evidence in evidences:
-            # Delete empty keys
-            if skipMapping or evidence['diseaseFromSourceMappedId'] is None:
-                del evidence['diseaseFromSourceMappedId']
-
-            if not evidence['diseaseFromSourceId']:
-                del evidence['diseaseFromSourceId']
-
-            if len(evidence['literature']) == 0:
-                del evidence['literature']
-
-            if evidence['allelicRequirements'] == [None]:
-                del evidence['allelicRequirements']
-
-        return evidences
-
-    def diseaseMappingStep(self):
-        '''
-        Runs the disease mapping step from phenotypes and OMIM codes to an EFO ID - 3 steps:
-            1. Querying OnToma with all distinct codes and phenotypes
-            2. Xref between the results of every phenotype/OMIM code pair for a better coverage
-            3. Mappings are built into the dataframe
-
-        Args:
-            dataframe (pyspark.DataFrame): DataFrame with transformed PanelApp data
-        Returns:
-            dataframe (pyspark.DataFrame): DataFrame with the mapping results filtered by only matches
-        '''
-
-        omimCodesDistinct = list(self.dataframe.select('omimCode').distinct().toPandas()['omimCode'])
-        phenotypesDistinct = list(self.dataframe.select('phenotype').distinct().toPandas()['phenotype'])
-
-        if self.diseaseMappings is None:
-            # Checks whether the dictionary is not provided as a parameter
-            try:
-                pool = mp.Pool(mp.cpu_count())
-                self.diseaseMappings = pool.map(self.diseaseToEfo, phenotypesDistinct)  # list of dictionaries
-                self.diseaseMappings = {k: v for dct in self.diseaseMappings for (k, v) in self.diseaseMappings.items()}
-                pool.close()
-            except Exception as e:
-                logging.error(f'Processing the mappings without multithreading. Following error occurred: \n{e}.')
-                self.diseaseMappings = self.diseaseToEfo(*phenotypesDistinct)
-        else:
-            logging.info('Disease mappings have been imported.')
-
-        self.codesMappings = self.diseaseToEfo(*omimCodesDistinct, dictExport='codesToEfo_results.json')
-        (
-            self.dataframe
-            .select('omimCode', 'phenotype')
-            .toPandas()
-            .drop_duplicates()
-            .apply(
-                lambda row: self.phenotypeCodePairCheck(row['omimCode'], row['phenotype']), axis=1
-            )
-        )
-        logging.info('Disease mappings have been checked.')
-
-        # Add new columns: ontomaResult, ontomaUrl, ontomaLabel
-        phenotypesMappings = self.diseaseMappings
-        udfBuildMapping = udf(
-            lambda X: PanelAppEvidenceGenerator.buildMapping(X, phenotypesMappings),
-            ArrayType(StringType()))
-        self.dataframe = (
-            self.dataframe
-            .withColumn('ontomaResult', udfBuildMapping(col('phenotype'))[0])
-            .withColumn('ontomaUrl', element_at(split(udfBuildMapping(col('phenotype'))[1], '/'), -1))
-            .withColumn('ontomaLabel', udfBuildMapping(col('phenotype'))[1])
-        )
-
-        return self.dataframe
-
-    def diseaseToEfo(self, *iterable, dictExport='diseaseToEfo_results.json'):
-        '''
-        Queries the OnToma utility to map a phenotype to an EFO ID.
-
-        Args:
-            iterable (array): Array or column of a dataframe containing the strings to query
-            dictExport (str): Name of the output file where the OnToma queries will be saved
-        Returns:
-            mappings (dict): Output file. Keys: queried term (phenotype or OMIM code), Values: OnToma output
-        '''
-        mappings = dict()
-        for e in iterable:
-            try:
-                ontomaResult = self.otmap.find_term(e, verbose=True)
-                if ontomaResult is not None:
-                    mappings[e] = ontomaResult
-                else:
-                    mappings[e] = {
-                        'term': None,
-                        'label': None,
-                        'source': None,
-                        'quality': None,
-                        'action': None
-                    }
-            except Exception as error:
-                logging.error(f'{e} mapping has failed.')
-                continue
-
-        with open(dictExport, 'w') as outfile:
-            json.dump(mappings, outfile)
-
-        return mappings
-
-    def phenotypeCodePairCheck(self, phenotype, omimCode):
-        '''
-        Among the Fuzzy results of a phenotype query, it checks if the phenotype and the respective code points
-        to the same EFO term and changes the dictionary with the mappings
-
-        Args:
-            phenotype (str): Phenotype of each phenotype-OMIM code pair
-            omimCode (str): Code of each phenotype-OMIM code pair
-        '''
-        try:
-            if phenotype == '':
-                return
-            phenotypeResult = self.diseaseMappings[phenotype]
-            if phenotypeResult is None:
-                return
-
-            if phenotypeResult['quality'] == 'fuzzy':
-                codeResult = self.codesMappings[omimCode]
-                if codeResult is None:
-                    return
-
-                if codeResult['term'] == phenotypeResult['term']:
-                    # If both EFO terms coincide, the phenotype in mappingsDict becomes a match
-                    self.diseaseMappings[phenotype]['quality'] = 'match'
-                    self.diseaseMappings[phenotype]['action'] = 'checked'
-        except Exception as e:
-            logging.error(f'No OMIM code for phenotype: {phenotype}')
-
-    def buildMapping(phenotype, phenotypesMappings):
-        if phenotype in phenotypesMappings.keys():
-            ontomaResult = phenotypesMappings[phenotype]['quality']
-            ontomaUrl = phenotypesMappings[phenotype]['term']
-            ontomaLabel = phenotypesMappings[phenotype]['label']
-            # TO-DO: https://stackoverflow.com/questions/42980704/pyspark-create-new-column-with-mapping-from-a-dict
-            return ontomaResult, ontomaUrl, ontomaLabel
-
-    @staticmethod
-    def parseEvidenceString(row):
-        try:
-            evidence = {
-                'datasourceId': 'genomics_england',
-                'datatypeId': 'genetic_literature',
-                'confidence': row['List'],
-                'diseaseFromSource': row['phenotype'],
-                'diseaseFromSourceId': row['omimCode'],
-                'diseaseFromSourceMappedId': row['ontomaUrl'],
-                'cohortPhenotypes': row['cohortPhenotypes'],
-                'targetFromSourceId': row['Symbol'],
-                'allelicRequirements': [row['Mode of inheritance']],
-                'studyId': row['Panel Id'],
-                'studyOverview': row['Panel Name'],
-                'literature': row['publications']
-            }
-            return evidence
-        except Exception as e:
-            logging.error(f'Evidence generation failed for row: {row}')
-            raise
