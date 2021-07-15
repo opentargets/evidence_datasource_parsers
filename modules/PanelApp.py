@@ -105,47 +105,41 @@ class PanelAppEvidenceGenerator:
             panelapp_df
 
             # Extract Orphanet/MONDO/HP ontology identifiers and remove them from the phenotype string.
+            .withColumn('ontology_namespace', regexp_extract(col('phenotype'), self.OTHER_REGEXP, 1))
+            .withColumn('ontology_namespace', regexp_replace(col('ontology_namespace'), 'OrphaNet: ORPHA', 'ORPHA'))
+            .withColumn('ontology_id', regexp_extract(col('phenotype'), self.OTHER_REGEXP, 2))
             .withColumn(
                 'ontology',
-                concat(
-                    regexp_extract(col('phenotype'), self.OTHER_REGEXP, 1),
-                    lit(':'),
-                    regexp_extract(col('phenotype'), self.OTHER_REGEXP, 2)
+                when(
+                    col('ontology_namespace').isNotNull() & col('ontology_id').isNotNull(),
+                    concat(col('ontology_namespace'), lit(':'), col('ontology_id'))
                 )
             )
-            .withColumn('ontology', regexp_replace(col('ontology'), 'OrphaNet: ORPHA', 'ORPHA'))
-            .withColumn('ontology', regexp_replace(col('ontology'), '^:$', ''))
             .withColumn('phenotype', regexp_replace(col('phenotype'), f'({self.OTHER_REGEXP})', ''))
 
             # Extract OMIM identifiers and remove them from the phenotype string.
-            .withColumn(
-                'omim_id',
-                concat(
-                    lit('OMIM:'),
-                    regexp_extract(col('phenotype'), self.OMIM_REGEXP, 2)
-                )
-            )
-            .withColumn('omim_id', regexp_replace(col('omim_id'), '^OMIM:$', ''))
+            .withColumn('omim_id', regexp_extract(col('phenotype'), self.OMIM_REGEXP, 2))
+            .withColumn('omim', when(col('omim_id').isNotNull(), concat(lit('OMIM:'), col('omim_id'))))
             .withColumn('phenotype', regexp_replace(col('phenotype'), f'({self.OMIM_REGEXP})', ''))
 
             # Choose one of the ontology identifiers, keeping OMIM as a priority.
-            .withColumn('diseaseFromSourceId', when(col('omim_id') != '', col('omim_id')).otherwise(col('ontology')))
-            .drop('ontology', 'omim_id')
+            .withColumn('diseaseFromSourceId', when(col('omim').isNotNull(), col('omim')).otherwise(col('ontology')))
+            .drop('ontology_namespace', 'ontology_id', 'ontology', 'omim_id', 'omim')
 
             # Clean up the final split phenotypes.
             .withColumn('phenotype', regexp_replace(col('phenotype'), r'\(\)', ''))
             .withColumn('phenotype', trim(col('phenotype')))
+            .withColumn('phenotype', when(col('phenotype') != '', col('phenotype')))
 
             # Remove empty or low quality records.
             .filter(
                 ~(
-                    # There is neither a string, nor an OMIM identifier, nor some other ontology identifier.
-                    ((col('phenotype') == '') & (col('omim_id') == '') & (col('ontology') == '')) |
+                    # There is neither a phenotype string nor an ontology identifier.
+                    ((col('phenotype').isNull()) & (col('diseaseFromSourceId').isNull())) |
                     # The name of the phenotype string starts with a question mark, indicating low quality.
                     col('phenotype').startswith('?')
                 )
             )
-
             .persist()
         )
 
