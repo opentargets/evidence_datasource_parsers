@@ -1,63 +1,101 @@
 #!/usr/bin/env python3
+"""Evidence parser for the Genomics England PanelApp data."""
 
 import argparse
-import logging
-import gzip
 import json
+import logging
 import multiprocessing as mp
 import re
-from sys import stderr
 
+import requests
+from ontoma import OnToma
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import (
-    col, lit, when, array_distinct, split, explode, udf, regexp_extract, trim, regexp_replace, element_at
+    col, lit, when, array_distinct, split, explode, udf, regexp_extract, trim, regexp_replace, element_at, length
 )
 from pyspark.sql.types import StringType, ArrayType
-import requests
-
-from ontoma import OnToma
 
 
 class PanelAppEvidenceGenerator:
+
+    REPLACE_BEFORE_SPLITTING = {
+        # Fix separator errors for specific records in the source data.
+        r'\(HP:0006574;\);': r'(HP:0006574);',
+        r'Deafness, autosomal recessive; 12': r'Deafness, autosomal recessive, 12',
+        # Fix cases like "Aarskog-Scott syndrome, 305400Mental retardation, X-linked syndromic 16, 305400", where
+        # several phenotypes are glued to each other due to a formatting error.
+        r'(\d{6})([A-Za-z])': r'$1;$2',
+    }
+
+    TO_REMOVE = (
+        r' \(no OMIM number\)',
+        r' \(NO phenotype number in OMIM\)',
+        r'(No|no) OMIM (phenotype|number|entry)',
+        r'[( ]*(from )?PMID:? *\d+[ ).]*'
+    )
+
+    ONTOLOGY_REGEXP = (
+        r'(,? *((HP|MONDO)'
+        r'[:_]?'  # Optional separator
+        r'\d+),? *)'
+    )
+
     def __init__(self):
         self.spark = SparkSession.builder.appName('panelapp_parser').getOrCreate()
-        self.evidence = None
 
     def generate_panelapp_evidence(
             self,
             input_file: str,
             output_file: str,
     ):
+        # Filter and extract the necessary columns.
         panelapp_df = (
             self.spark.read.csv(input_file, sep=r'\t', header=True)
-                .filter(
+            .filter(
                 ((col('List') == 'green') | (col('List') == 'amber')) &
                 (col('Panel Version') > 1) &
                 (col('Panel Status') == 'PUBLIC')
             )
-                .select(
-                'Symbol', 'Panel Id', 'Panel Name',
-                'Mode of inheritance', 'Phenotypes'
-            )
-                # If Phenotypes is empty, Panel Name is assigned
-                .withColumn(
-                'Phenotypes',
-                when(((col('Phenotypes') == 'No OMIM phenotype') | (col('Phenotypes').isNull())), col('Panel Name'))
-                    .otherwise(col('Phenotypes'))
-            )
-                .withColumn('cohortPhenotypes', array_distinct(split(col('Phenotypes'), ';')))
-                .withColumn('phenotype', explode(col('cohortPhenotypes')))
-                # Extract OMIM code
-                .withColumn('omim_code', regexp_extract(col('phenotype'), r'(\d{6})', 1))
-                # Remove OMIM code from phenotype
-                .withColumn('phenotype', regexp_replace(col('phenotype'), r'(\d{6})', ''))
-                # Clean phenotype from special characters
-                .withColumn('phenotype',
-                            trim(
-                                regexp_replace(col('phenotype'), r'[^0-9a-zA-Z -]', '')
-                            ))
-                .drop('Phenotypes')
-                .persist()
+            .select('Symbol', 'Panel Id', 'Panel Name', 'Mode of inheritance', 'Phenotypes')
+        )
+
+        # Fix typos and formatting errors which interfere with phenotype splitting.
+        for regexp, replacement in self.REPLACE_BEFORE_SPLITTING.items():
+            panelapp_df = panelapp_df.withColumn('Phenotypes', regexp_replace(col('Phenotypes'), regexp, replacement))
+
+        # Split and explode the phenotypes.
+        panelapp_df = (
+            panelapp_df
+            .withColumn('cohortPhenotypes', array_distinct(split(col('Phenotypes'), ';')))
+            .withColumn('phenotype', explode(col('cohortPhenotypes')))
+            .drop('Phenotypes')
+        )
+
+        # Remove specific patterns and phrases which will interfere with ontology extraction and mapping.
+        for regexp in self.TO_REMOVE:
+            panelapp_df = panelapp_df.withColumn('phenotype', regexp_replace(col('phenotype'), f'({regexp})', ''))
+
+        panelapp_df.select('phenotype').coalesce(1).write.format('csv').mode('overwrite').option('compression', 'gzip').save(output_file)
+        return
+
+        # Drop records where phenotypes are empty after cleaning up.
+        panelapp_df = panelapp_df.filter((length(col('phenotype')) != ''))
+
+        panelapp_df = (
+            panelapp_df
+
+            # Extract HP/MONDO ontology codes and remove them from the phenotype string.
+            .withColumn('ontology_curie', regexp_extract(col('phenotype'), r',? *((HP|MONDO)[:_]\d+),? *', 1))
+            .withColumn('phenotype', regexp_replace(col('phenotype'), r'(,? *((HP|MONDO)[:_]\d+),? *)', ''))
+            # Extract OMIM code and remove it from the phenotype string.
+            .withColumn('omim_code', regexp_extract(col('phenotype'), r'(\d{6})', 1))
+            .withColumn('phenotype', regexp_replace(col('phenotype'), r'OMIM(\d{6})', ''))
+
+            # Clean phenotype from special characters.
+            #
+            .withColumn('phenotype', trim(regexp_replace(col('phenotype'), r',? *$', '')))
+
+            .persist()
         )
 
         # Map literature mappings
