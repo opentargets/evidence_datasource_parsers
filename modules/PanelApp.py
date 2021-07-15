@@ -22,6 +22,9 @@ class PanelAppEvidenceGenerator:
         # Fix separator errors for specific records in the source data.
         r'\(HP:0006574;\);': r'(HP:0006574);',
         r'Deafness, autosomal recessive; 12': r'Deafness, autosomal recessive, 12',
+        r'Waardenburg syndrome, type; 3': r'Waardenburg syndrome, type 3',
+        r'Ectrodactyly, ectodermal dysplasia, and cleft lip/palate syndrome; 3':
+            r'Ectrodactyly, ectodermal dysplasia, and cleft lip/palate syndrome, 3',
 
         # Remove curly braces. They are *sometimes* (not consistently) used to separate disease name and OMIM code, for
         # example: "{Bladder cancer, somatic}, 109800".
@@ -43,15 +46,13 @@ class PanelAppEvidenceGenerator:
         r'[( ]*(from )?PMID:? *\d+[ ).]*'
     )
 
-    ONTOLOGY_REGEXP = (
-        r'('                     # The entire thing is one big capture group
-        r'[ ,]*'                 # Optional leading characters
-        r'(HP|MONDO|MIM|OMIM)?'  # Optional ontology name
-        r'[:_ #]*'               # Optional separator
-        r'\d{6,7}'               # Identifier: either 6 or 7 digits
-        r'[ ,:]*'                # Optional trailing characters
-        r')'                     # End of one big capture group
-    )
+    # Regular expressions for extracting ontology information.
+    ONT_LEADING = r'[ ,-]*'
+    ONT_SEPARATOR = r'[:_ #]*'
+    ONT_TRAILING = r'[:.]*'
+
+    OMIM_REGEXP = ONT_LEADING + r'(OMIM|MIM)?' + ONT_SEPARATOR + r'(\d{6})' + ONT_TRAILING
+    OTHER_REGEXP = ONT_LEADING + r'(OrphaNet: ORPHA|Orphanet|ORPHA|HP|MONDO)' + ONT_SEPARATOR + r'(\d+)' + ONT_TRAILING
 
     def __init__(self):
         self.spark = SparkSession.builder.appName('panelapp_parser').getOrCreate()
