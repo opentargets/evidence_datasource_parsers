@@ -180,23 +180,6 @@ if __name__ == '__main__':
 
 class PanelAppEvidenceGenerator:
 
-    def __init__(self, phenotypesMappings, limit=None):
-        # Create OnToma object
-        self.otmap = OnToma()
-
-        # Create spark session
-        self.spark = (
-            SparkSession.builder
-            .appName('evidence_builder')
-            .getOrCreate()
-        )
-        self.dataframe = None
-
-        # Initialize mapping variables
-        self.diseaseMappings = phenotypesMappings
-        self.codesMappings = None
-        self.limit = limit
-
     def writeEvidenceFromSource(self, inputFile, skipMapping):
         '''
         Processing of the dataframe to build all the evidences from its data
@@ -215,10 +198,6 @@ class PanelAppEvidenceGenerator:
                 & (col('Panel Version') > 1) & (col('Panel Status') == 'PUBLIC')
             )
         )
-
-        # Applying limit is present:
-        if self.limit is not None:
-            self.dataframe = self.dataframe.sample(False, 1.0, 829348).limit(self.limit)
 
         logging.info('Fetching publications from the API...')
         pdf = PanelAppEvidenceGenerator.buildPublications(self.dataframe.toPandas())  # TODO: write in pyspark
