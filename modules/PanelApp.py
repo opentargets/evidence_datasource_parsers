@@ -11,7 +11,7 @@ import requests
 from ontoma import OnToma
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import (
-    col, lit, when, array_distinct, split, explode, udf, regexp_extract, trim, regexp_replace, element_at, length
+    col, concat, lit, when, array_distinct, split, explode, udf, regexp_extract, trim, regexp_replace, element_at
 )
 from pyspark.sql.types import StringType, ArrayType
 
@@ -58,10 +58,10 @@ class PanelAppEvidenceGenerator:
         self.spark = SparkSession.builder.appName('panelapp_parser').getOrCreate()
 
     def generate_panelapp_evidence(
-            self,
-            input_file: str,
-            output_file: str,
-    ):
+        self,
+        input_file: str,
+        output_file: str,
+    ) -> None:
         # Filter and extract the necessary columns.
         panelapp_df = (
             self.spark.read.csv(input_file, sep=r'\t', header=True)
@@ -94,8 +94,16 @@ class PanelAppEvidenceGenerator:
             panelapp_df
 
             # Extract Orphanet/MONDO/HP ontology identifiers and remove them from the phenotype string.
-            .withColumn('ontology_namespace', regexp_extract(col('phenotype'), self.OTHER_REGEXP, 1))
-            .withColumn('ontology_id', regexp_extract(col('phenotype'), self.OTHER_REGEXP, 2))
+            .withColumn(
+                'ontology',
+                concat(
+                    regexp_extract(col('phenotype'), self.OTHER_REGEXP, 1),
+                    lit(':'),
+                    regexp_extract(col('phenotype'), self.OTHER_REGEXP, 2)
+                )
+            )
+            .withColumn('ontology', regexp_replace(col('ontology'), 'OrphaNet: ORPHA', 'ORPHA'))
+            .withColumn('ontology', regexp_replace(col('ontology'), '^:$', ''))
             .withColumn('phenotype', regexp_replace(col('phenotype'), f'({self.OTHER_REGEXP})', ''))
 
             # Extract OMIM identifiers and remove them from the phenotype string.
@@ -110,7 +118,7 @@ class PanelAppEvidenceGenerator:
             .filter(
                 ~(
                     # There is neither a string, nor an OMIM identifier, nor some other ontology identifier.
-                    ((col('phenotype') == '') & (col('omim_id') == '') & (col('ontology_id') == '')) |
+                    ((col('phenotype') == '') & (col('omim_id') == '') & (col('ontology') == '')) |
                     # The name of the phenotype string starts with a question mark, indicating low quality.
                     col('phenotype').startswith('?')
                 )
@@ -119,7 +127,7 @@ class PanelAppEvidenceGenerator:
             .persist()
         )
 
-        panelapp_df.select('phenotype', 'omim_id', 'ontology_namespace', 'ontology_id').coalesce(1).write.option("delimiter", "\t").format('csv').mode('overwrite').option('compression', 'gzip').save(output_file)
+        panelapp_df.select('phenotype', 'omim_id', 'ontology').coalesce(1).write.option("delimiter", "\t").format('csv').mode('overwrite').option('compression', 'gzip').save(output_file)
         return
 
         # Map literature mappings
@@ -205,24 +213,6 @@ if __name__ == '__main__':
 class PanelAppEvidenceGenerator:
 
     def writeEvidenceFromSource(self, inputFile, skipMapping):
-        '''
-        Processing of the dataframe to build all the evidences from its data
-
-        Args:
-            dataframe (pyspark.DataFrame): Initial .tsv file
-        Returns:
-            evidences (array): Object with all the generated evidences strings
-        '''
-
-        # Reading and filtering input file
-        self.dataframe = (
-            self.spark.read.csv(inputFile, sep=r'\t', header=True)
-            .filter(
-                ((col('List') == 'green') | (col('List') == 'amber'))
-                & (col('Panel Version') > 1) & (col('Panel Status') == 'PUBLIC')
-            )
-        )
-
         logging.info('Fetching publications from the API...')
         pdf = PanelAppEvidenceGenerator.buildPublications(self.dataframe.toPandas())  # TODO: write in pyspark
         pdf.dropna(axis=1, how='all', inplace=True)
@@ -334,39 +324,6 @@ class PanelAppEvidenceGenerator:
             if gene['gene_data']['gene_symbol'] == symbol:
                 publication = gene['publications']
                 return publication
-
-    @staticmethod
-    def cleanDataframe(dataframe):
-        '''
-        Args:
-            dataframe (pyspark.DataFrame): Initial .tsv data
-        Returns:
-            dataframe (pyspark.DataFrame): Transformed initial dataframe
-        '''
-
-        dataframe = (
-            dataframe
-            .withColumn(
-                # NaNs and 'No OMIM phenotype' in 'Phenotypes' column --> Assignment of Panel Name
-                'Phenotypes',
-                when(col('Phenotypes') == 'No OMIM phenotype', col('Panel Name'))
-                .when(col('Phenotypes').isNull(), col('Panel Name'))
-                .otherwise(col('Phenotypes'))
-            )
-            # cohortPhenotypes --> array of the original string separated by phenotypes
-            .withColumn('cohortPhenotypes', array_distinct(split(col('Phenotypes'), ';')))
-            # phenotype --> explosion of cohortPhenotypes
-            .withColumn('phenotype', explode(col('cohortPhenotypes')))
-            # omimCode --> OMIM code present in 'phenotype'
-            .withColumn('omimCode', regexp_extract(col('phenotype'), r'(\d{6})', 1))
-            # removal of the OMIM code in 'phenotype'
-            .withColumn('phenotype', regexp_replace(col('phenotype'), r'(\d{6})', ''))
-            # deleting special characters in 'phenotype'
-            .withColumn('phenotype', regexp_replace(col('phenotype'), r'[^0-9a-zA-Z *]', ''))
-            .withColumn('phenotype', trim(col('phenotype')))
-        )
-
-        return dataframe
 
     def diseaseMappingStep(self):
         '''
