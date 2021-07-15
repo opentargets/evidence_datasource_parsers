@@ -89,34 +89,38 @@ class PanelAppEvidenceGenerator:
         for regexp in self.TO_REMOVE:
             panelapp_df = panelapp_df.withColumn('phenotype', regexp_replace(col('phenotype'), f'({regexp})', ''))
 
-        # Extract OMIM/MONDO/HP ontology identifiers and remove them from the phenotype string.
-        panelapp_df = (
-            panelapp_df
-            .withColumn('ontology', regexp_extract(col('phenotype'), self.ONTOLOGY_REGEXP, 1))
-            .withColumn('phenotype2', regexp_replace(col('phenotype'), self.ONTOLOGY_REGEXP, ''))
-        )
-
-        panelapp_df.select('phenotype', 'phenotype2', 'ontology').coalesce(1).write.option("delimiter", "\t").format('csv').mode('overwrite').option('compression', 'gzip').save(output_file)
-        return
-
-        # Drop records where phenotypes are empty after cleaning up.
-        panelapp_df = panelapp_df.filter((length(col('phenotype')) != ''))
-
+        # Extract ontology information, clean up and filter the split phenotypes.
         panelapp_df = (
             panelapp_df
 
-            # Extract HP/MONDO ontology codes and remove them from the phenotype string.
+            # Extract Orphanet/MONDO/HP ontology identifiers and remove them from the phenotype string.
+            .withColumn('ontology_namespace', regexp_extract(col('phenotype'), self.OTHER_REGEXP, 1))
+            .withColumn('ontology_id', regexp_extract(col('phenotype'), self.OTHER_REGEXP, 2))
+            .withColumn('phenotype', regexp_replace(col('phenotype'), f'({self.OTHER_REGEXP})', ''))
 
-            # Extract OMIM code and remove it from the phenotype string.
-            .withColumn('omim_code', regexp_extract(col('phenotype'), r'(\d{6})', 1))
-            .withColumn('phenotype', regexp_replace(col('phenotype'), r'OMIM(\d{6})', ''))
+            # Extract OMIM identifiers and remove them from the phenotype string.
+            .withColumn('omim_id', regexp_extract(col('phenotype'), self.OMIM_REGEXP, 2))
+            .withColumn('phenotype', regexp_replace(col('phenotype'), f'({self.OMIM_REGEXP})', ''))
 
-            # Clean phenotype from special characters.
-            #
-            .withColumn('phenotype', trim(regexp_replace(col('phenotype'), r',? *$', '')))
+            # Clean up the final split phenotypes.
+            .withColumn('phenotype', regexp_replace(col('phenotype'), r'\(\)', ''))
+            .withColumn('phenotype', trim(col('phenotype')))
+
+            # Remove empty or low quality records.
+            .filter(
+                ~(
+                    # There is neither a string, nor an OMIM identifier, nor some other ontology identifier.
+                    ((col('phenotype') == '') & (col('omim_id') == '') & (col('ontology_id') == '')) |
+                    # The name of the phenotype string starts with a question mark, indicating low quality.
+                    col('phenotype').startswith('?')
+                )
+            )
 
             .persist()
         )
+
+        panelapp_df.select('phenotype', 'omim_id', 'ontology_namespace', 'ontology_id').coalesce(1).write.option("delimiter", "\t").format('csv').mode('overwrite').option('compression', 'gzip').save(output_file)
+        return
 
         # Map literature mappings
         literature_mappings = PanelAppEvidenceGenerator.build_literature_mappings(
