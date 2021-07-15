@@ -2,20 +2,16 @@
 """Evidence parser for the Genomics England PanelApp data."""
 
 import argparse
-import json
 import logging
-import multiprocessing as mp
 import os
 import re
 import tempfile
 
 import requests
-from ontoma import OnToma
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import (
-    col, collect_set, concat, lit, when, array_distinct, split, explode, udf, regexp_extract, trim, regexp_replace, element_at
+    col, collect_set, concat, lit, when, array_distinct, split, explode, regexp_extract, trim, regexp_replace
 )
-from pyspark.sql.types import StringType, ArrayType
 
 
 class PanelAppEvidenceGenerator:
