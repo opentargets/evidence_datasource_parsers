@@ -108,7 +108,7 @@ class PanelAppEvidenceGenerator:
         )
 
         # Save data
-        panelapp_df.write.format('json').mode('overwrite').option('compression', 'gzip').save(output_file)
+        panelapp_df.coalesce(1).write.format('json').mode('overwrite').option('compression', 'gzip').save(output_file)
 
     @staticmethod
     def build_literature_mappings(
@@ -158,14 +158,14 @@ class PanelAppEvidenceGenerator:
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Generate Genomics England PanelApp sourced evidences.')
+    parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         '--input-file', required=True, type=str,
-        help='Input .tsv file with the table containing association details.'
+        help='Input TSV file with the table containing association details.'
     )
     parser.add_argument(
         '--output-file', required=True, type=str,
-        help='Gzip compressed json output file with the evidence strings.'
+        help='Output JSON file (gzip-compressed) with the evidence strings.'
     )
     args = parser.parse_args()
     PanelAppEvidenceGenerator().generate_panelapp_evidence(
