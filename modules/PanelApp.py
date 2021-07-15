@@ -10,7 +10,7 @@ import tempfile
 import requests
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import (
-    col, collect_set, concat, lit, when, array_distinct, split, explode, regexp_extract, trim, regexp_replace
+    array, array_distinct, col, collect_set, concat, explode, lit, regexp_extract, regexp_replace, split, trim, when
 )
 
 
@@ -111,7 +111,7 @@ class PanelAppEvidenceGenerator:
             .withColumn(
                 'ontology',
                 when(
-                    col('ontology_namespace').isNotNull() & col('ontology_id').isNotNull(),
+                    (col('ontology_namespace') != '') & (col('ontology_id') != ''),
                     concat(col('ontology_namespace'), lit(':'), col('ontology_id'))
                 )
             )
@@ -119,7 +119,7 @@ class PanelAppEvidenceGenerator:
 
             # Extract OMIM identifiers and remove them from the phenotype string.
             .withColumn('omim_id', regexp_extract(col('phenotype'), self.OMIM_REGEXP, 2))
-            .withColumn('omim', when(col('omim_id').isNotNull(), concat(lit('OMIM:'), col('omim_id'))))
+            .withColumn('omim', when(col('omim_id') != '', concat(lit('OMIM:'), col('omim_id'))))
             .withColumn('phenotype', regexp_replace(col('phenotype'), f'({self.OMIM_REGEXP})', ''))
 
             # Choose one of the ontology identifiers, keeping OMIM as a priority.
@@ -151,7 +151,13 @@ class PanelAppEvidenceGenerator:
         # Populate final evidence string structure.
         panelapp_df = (
             panelapp_df
-            .withColumnRenamed('Mode of inheritance', 'allelicRequirements')
+            # allelicRequirements requires a list, but we always only have one value from PanelApp.
+            .withColumn(
+                'allelicRequirements',
+                when(col('Mode of inheritance').isNotNull(), array(col('Mode of inheritance')))
+            )
+            .drop('Mode of inheritance')
+
             .withColumnRenamed('List', 'confidence')
             .withColumn('datasourceId', lit('genomics_england'))
             .withColumn('datatypeId', lit('genetic_literature'))
