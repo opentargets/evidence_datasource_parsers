@@ -16,8 +16,9 @@ from pyspark.sql.functions import (
 
 class PanelAppEvidenceGenerator:
 
-    REPLACE_BEFORE_SPLITTING = {
-        # Fix separator errors for specific records in the source data.
+    # Fixes which are applied to original PanelApp phenotype strings *before* splitting them by semicolon.
+    PHENOTYPE_BEFORE_SPLIT_RE = {
+        # Fixes for specific records.
         r'\(HP:0006574;\);': r'(HP:0006574);',
         r'Deafness, autosomal recessive; 12': r'Deafness, autosomal recessive, 12',
         r'Waardenburg syndrome, type; 3': r'Waardenburg syndrome, type 3',
@@ -25,19 +26,19 @@ class PanelAppEvidenceGenerator:
             r'Ectrodactyly, ectodermal dysplasia, and cleft lip/palate syndrome, 3',
 
         # Remove curly braces. They are *sometimes* (not consistently) used to separate disease name and OMIM code, for
-        # example: "{Bladder cancer, somatic}, 109800".
+        # example: "{Bladder cancer, somatic}, 109800", and interfere with regular expressions for extraction.
         r'[{}]': r'',
 
         # Fix cases like "Aarskog-Scott syndrome, 305400Mental retardation, X-linked syndromic 16, 305400", where
         # several phenotypes are glued to each other due to formatting errors.
         r'(\d{6})([A-Za-z])': r'$1;$2',
 
-        # Replace all tabs with spaces and multiple spaces with one space.
-        r'\t': r' ',
-        r' +': r' ',
+        # Replace all tab/space sequences with a single space.
+        r'[\t ]+': r' ',
     }
 
-    TO_REMOVE = (
+    # Cleanup regular expressions which are applied to the phenotypes *after* splitting.
+    PHENOTYPE_AFTER_SPLIT_RE = (
         r' \(no OMIM number\)',
         r' \(NO phenotype number in OMIM\)',
         r'(No|no) OMIM (phenotype|number|entry)',
@@ -45,23 +46,23 @@ class PanelAppEvidenceGenerator:
     )
 
     # Regular expressions for extracting ontology information.
-    ONT_LEADING = r'[ ,-]*'
-    ONT_SEPARATOR = r'[:_ #]*'
-    ONT_TRAILING = r'[:.]*'
-    OMIM_REGEXP = ONT_LEADING + r'(OMIM|MIM)?' + ONT_SEPARATOR + r'(\d{6})' + ONT_TRAILING
-    OTHER_REGEXP = ONT_LEADING + r'(OrphaNet: ORPHA|Orphanet|ORPHA|HP|MONDO)' + ONT_SEPARATOR + r'(\d+)' + ONT_TRAILING
+    LEADING = r'[ ,-]*'
+    SEPARATOR = r'[:_ #]*'
+    TRAILING = r'[:.]*'
+    OMIM_RE = LEADING + r'(OMIM|MIM)?' + SEPARATOR + r'(\d{6})' + TRAILING
+    OTHER_RE = LEADING + r'(OrphaNet: ORPHA|Orphanet|ORPHA|HP|MONDO)' + SEPARATOR + r'(\d+)' + TRAILING
 
-    # Regular expressions for extracting publication information.
-    PMID_REGEXPS = [
+    # Regular expressions for extracting publication information from the API raw strings.
+    PMID_RE = [
         (
-            r'^'        # Start of the string
-            r'[\d, ]+'  # Followed by a sequence of digits, commas and spaces
-            r'(?: |$)'  # Ending either with a space, or with the end of the string
+            r'^'                # Start of the string.
+            r'[\d, ]+'          # A sequence of digits, commas and spaces.
+            r'(?: |$)'          # Ending either with a space, or with the end of the string.
         ),
         (
-            r'(?:PubMed|PMID)'  # PubMed or a PMID prefix
-            r'[: ]*'            # An optional separator (spaces/colons)
-            r'[\d, ]'           # A sequence of digits, commas and spaces
+            r'(?:PubMed|PMID)'  # PubMed or a PMID prefix.
+            r'[: ]*'            # An optional separator (spaces/colons).
+            r'[\d, ]'           # A sequence of digits, commas and spaces.
         )
     ]
 
@@ -85,7 +86,7 @@ class PanelAppEvidenceGenerator:
         )
 
         # Fix typos and formatting errors which interfere with phenotype splitting.
-        for regexp, replacement in self.REPLACE_BEFORE_SPLITTING.items():
+        for regexp, replacement in self.PHENOTYPE_BEFORE_SPLIT_RE.items():
             panelapp_df = panelapp_df.withColumn('Phenotypes', regexp_replace(col('Phenotypes'), regexp, replacement))
 
         # Split and explode the phenotypes.
@@ -97,7 +98,7 @@ class PanelAppEvidenceGenerator:
         )
 
         # Remove specific patterns and phrases which will interfere with ontology extraction and mapping.
-        for regexp in self.TO_REMOVE:
+        for regexp in self.PHENOTYPE_AFTER_SPLIT_RE:
             panelapp_df = panelapp_df.withColumn('phenotype', regexp_replace(col('phenotype'), f'({regexp})', ''))
 
         # Extract ontology information, clean up and filter the split phenotypes.
@@ -105,9 +106,9 @@ class PanelAppEvidenceGenerator:
             panelapp_df
 
             # Extract Orphanet/MONDO/HP ontology identifiers and remove them from the phenotype string.
-            .withColumn('ontology_namespace', regexp_extract(col('phenotype'), self.OTHER_REGEXP, 1))
+            .withColumn('ontology_namespace', regexp_extract(col('phenotype'), self.OTHER_RE, 1))
             .withColumn('ontology_namespace', regexp_replace(col('ontology_namespace'), 'OrphaNet: ORPHA', 'ORPHA'))
-            .withColumn('ontology_id', regexp_extract(col('phenotype'), self.OTHER_REGEXP, 2))
+            .withColumn('ontology_id', regexp_extract(col('phenotype'), self.OTHER_RE, 2))
             .withColumn(
                 'ontology',
                 when(
@@ -115,12 +116,12 @@ class PanelAppEvidenceGenerator:
                     concat(col('ontology_namespace'), lit(':'), col('ontology_id'))
                 )
             )
-            .withColumn('phenotype', regexp_replace(col('phenotype'), f'({self.OTHER_REGEXP})', ''))
+            .withColumn('phenotype', regexp_replace(col('phenotype'), f'({self.OTHER_RE})', ''))
 
             # Extract OMIM identifiers and remove them from the phenotype string.
-            .withColumn('omim_id', regexp_extract(col('phenotype'), self.OMIM_REGEXP, 2))
+            .withColumn('omim_id', regexp_extract(col('phenotype'), self.OMIM_RE, 2))
             .withColumn('omim', when(col('omim_id') != '', concat(lit('OMIM:'), col('omim_id'))))
-            .withColumn('phenotype', regexp_replace(col('phenotype'), f'({self.OMIM_REGEXP})', ''))
+            .withColumn('phenotype', regexp_replace(col('phenotype'), f'({self.OMIM_RE})', ''))
 
             # Choose one of the ontology identifiers, keeping OMIM as a priority.
             .withColumn('diseaseFromSourceId', when(col('omim').isNotNull(), col('omim')).otherwise(col('ontology')))
@@ -183,7 +184,7 @@ class PanelAppEvidenceGenerator:
         """Queries the PanelApp API to extract all literature references for (panel ID, gene symbol) combinations."""
         publications = []  # Contains tuples of (panel ID, gene symbol, PubMed ID).
         for panel_id in all_panel_ids:
-            logging.info(f'Fetching literature references for panel {panel_id!r}.')
+            logging.debug(f'Fetching literature references for panel {panel_id!r}.')
             url = f'https://panelapp.genomicsengland.co.uk/api/v1/panels/{panel_id}'
             for gene in requests.get(url).json()['genes']:
                 for publication_string in gene['publications']:
@@ -191,7 +192,7 @@ class PanelAppEvidenceGenerator:
                         (panel_id, gene['gene_data']['gene_symbol'], pubmed_id)
                         for pubmed_id in self.extract_pubmed_ids(publication_string)
                     ])
-        # Group by (panel ID, gene symbol) pairs and convert into a PySpark dataframe
+        # Group by (panel ID, gene symbol) pairs and convert into a PySpark dataframe.
         return (
             self.spark
             .createDataFrame(publications, schema=('Panel ID', 'Symbol', 'literature'))
@@ -204,9 +205,9 @@ class PanelAppEvidenceGenerator:
         publication_string = publication_string.strip()
         pubmed_ids = []
 
-        for regexp in self.PMID_REGEXPS:  # For every known representation pattern...
+        for regexp in self.PMID_RE:  # For every known representation pattern...
             for occurrence in re.findall(regexp, publication_string):  # For every occurrence of this pattern, if any...
-                pubmed_ids.extend(re.findall(r'(\d+)', occurrence))  # Extract all digit sequences = PMIDs.
+                pubmed_ids.extend(re.findall(r'(\d+)', occurrence))  # Extract all digit sequences (PubMed IDs).
 
         # Filter out '0' as a value, because it is a placeholder for a missing ID.
         return {pubmed_id for pubmed_id in pubmed_ids if pubmed_id != '0'}
