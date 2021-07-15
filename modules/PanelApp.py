@@ -22,9 +22,18 @@ class PanelAppEvidenceGenerator:
         # Fix separator errors for specific records in the source data.
         r'\(HP:0006574;\);': r'(HP:0006574);',
         r'Deafness, autosomal recessive; 12': r'Deafness, autosomal recessive, 12',
+
+        # Remove curly braces. They are *sometimes* (not consistently) used to separate disease name and OMIM code, for
+        # example: "{Bladder cancer, somatic}, 109800".
+        r'[{}]': r'',
+
         # Fix cases like "Aarskog-Scott syndrome, 305400Mental retardation, X-linked syndromic 16, 305400", where
-        # several phenotypes are glued to each other due to a formatting error.
+        # several phenotypes are glued to each other due to formatting errors.
         r'(\d{6})([A-Za-z])': r'$1;$2',
+
+        # Replace all tabs with spaces and multiple spaces with one space.
+        r'\t': r' ',
+        r' +': r' ',
     }
 
     TO_REMOVE = (
@@ -35,9 +44,13 @@ class PanelAppEvidenceGenerator:
     )
 
     ONTOLOGY_REGEXP = (
-        r'(,? *((HP|MONDO)'
-        r'[:_]?'  # Optional separator
-        r'\d+),? *)'
+        r'('                     # The entire thing is one big capture group
+        r'[ ,]*'                 # Optional leading characters
+        r'(HP|MONDO|MIM|OMIM)?'  # Optional ontology name
+        r'[:_ #]*'               # Optional separator
+        r'\d{6,7}'               # Identifier: either 6 or 7 digits
+        r'[ ,:]*'                # Optional trailing characters
+        r')'                     # End of one big capture group
     )
 
     def __init__(self):
@@ -75,7 +88,14 @@ class PanelAppEvidenceGenerator:
         for regexp in self.TO_REMOVE:
             panelapp_df = panelapp_df.withColumn('phenotype', regexp_replace(col('phenotype'), f'({regexp})', ''))
 
-        panelapp_df.select('phenotype').coalesce(1).write.format('csv').mode('overwrite').option('compression', 'gzip').save(output_file)
+        # Extract OMIM/MONDO/HP ontology identifiers and remove them from the phenotype string.
+        panelapp_df = (
+            panelapp_df
+            .withColumn('ontology', regexp_extract(col('phenotype'), self.ONTOLOGY_REGEXP, 1))
+            .withColumn('phenotype2', regexp_replace(col('phenotype'), self.ONTOLOGY_REGEXP, ''))
+        )
+
+        panelapp_df.select('phenotype', 'phenotype2', 'ontology').coalesce(1).write.option("delimiter", "\t").format('csv').mode('overwrite').option('compression', 'gzip').save(output_file)
         return
 
         # Drop records where phenotypes are empty after cleaning up.
@@ -85,8 +105,7 @@ class PanelAppEvidenceGenerator:
             panelapp_df
 
             # Extract HP/MONDO ontology codes and remove them from the phenotype string.
-            .withColumn('ontology_curie', regexp_extract(col('phenotype'), r',? *((HP|MONDO)[:_]\d+),? *', 1))
-            .withColumn('phenotype', regexp_replace(col('phenotype'), r'(,? *((HP|MONDO)[:_]\d+),? *)', ''))
+
             # Extract OMIM code and remove it from the phenotype string.
             .withColumn('omim_code', regexp_extract(col('phenotype'), r'(\d{6})', 1))
             .withColumn('phenotype', regexp_replace(col('phenotype'), r'OMIM(\d{6})', ''))
