@@ -5,13 +5,15 @@ import argparse
 import json
 import logging
 import multiprocessing as mp
+import os
 import re
+import tempfile
 
 import requests
 from ontoma import OnToma
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import (
-    col, concat, lit, when, array_distinct, split, explode, udf, regexp_extract, trim, regexp_replace, element_at
+    col, collect_set, concat, lit, when, array_distinct, split, explode, udf, regexp_extract, trim, regexp_replace, element_at
 )
 from pyspark.sql.types import StringType, ArrayType
 
@@ -50,9 +52,22 @@ class PanelAppEvidenceGenerator:
     ONT_LEADING = r'[ ,-]*'
     ONT_SEPARATOR = r'[:_ #]*'
     ONT_TRAILING = r'[:.]*'
-
     OMIM_REGEXP = ONT_LEADING + r'(OMIM|MIM)?' + ONT_SEPARATOR + r'(\d{6})' + ONT_TRAILING
     OTHER_REGEXP = ONT_LEADING + r'(OrphaNet: ORPHA|Orphanet|ORPHA|HP|MONDO)' + ONT_SEPARATOR + r'(\d+)' + ONT_TRAILING
+
+    # Regular expressions for extracting publication information.
+    PMID_REGEXPS = [
+        (
+            r'^'        # Start of the string
+            r'[\d, ]+'  # Followed by a sequence of digits, commas and spaces
+            r'(?: |$)'  # Ending either with a space, or with the end of the string
+        ),
+        (
+            r'(?:PubMed|PMID)'  # PubMed or a PMID prefix
+            r'[: ]*'            # An optional separator (spaces/colons)
+            r'[\d, ]'           # A sequence of digits, commas and spaces
+        )
+    ]
 
     def __init__(self):
         self.spark = SparkSession.builder.appName('panelapp_parser').getOrCreate()
@@ -127,66 +142,52 @@ class PanelAppEvidenceGenerator:
             .persist()
         )
 
-        panelapp_df.select('phenotype', 'omim_id', 'ontology').coalesce(1).write.option("delimiter", "\t").format('csv').mode('overwrite').option('compression', 'gzip').save(output_file)
-        return
+        # Fetch and join literature references.
+        all_panel_ids = panelapp_df.select('Panel Id').toPandas()['Panel Id'].unique()
+        literature_references = self.fetch_literature_references(all_panel_ids)
+        panelapp_df = panelapp_df.join(literature_references, on=['Panel Id', 'Symbol'], how='left')
 
-        # Map literature mappings
-        literature_mappings = PanelAppEvidenceGenerator.build_literature_mappings(
-            panelapp_df.select('Panel Id').toPandas()['Panel Id'].unique()
+        # Save data.
+        with tempfile.TemporaryDirectory() as tmp_dir_name:
+            (
+                panelapp_df.coalesce(1).write.format('json').mode('overwrite')
+                .option('compression', 'org.apache.hadoop.io.compress.GzipCodec').save(tmp_dir_name)
+            )
+            json_chunks = [f for f in os.listdir(tmp_dir_name) if f.endswith('.json.gz')]
+            assert len(json_chunks) == 1, f'Expected one JSON file, but found {len(json_chunks)}.'
+            os.rename(os.path.join(tmp_dir_name, json_chunks[0]), output_file)
+
+    def fetch_literature_references(self, all_panel_ids):
+        """Queries the PanelApp API to extract all literature references for (panel ID, gene symbol) combinations."""
+        publications = []  # Contains tuples of (panel ID, gene symbol, PubMed ID).
+        for panel_id in all_panel_ids:
+            logging.info(f'Fetching literature references for panel {panel_id!r}.')
+            url = f'https://panelapp.genomicsengland.co.uk/api/v1/panels/{panel_id}'
+            for gene in requests.get(url).json()['genes']:
+                for publication_string in gene['publications']:
+                    publications.extend([
+                        (panel_id, gene['gene_data']['gene_symbol'], pubmed_id)
+                        for pubmed_id in self.extract_pubmed_ids(publication_string)
+                    ])
+        # Group by (panel ID, gene symbol) pairs and convert into a PySpark dataframe
+        return (
+            self.spark
+            .createDataFrame(publications, schema=('Panel ID', 'Symbol', 'literature'))
+            .groupby(['Panel ID', 'Symbol'])
+            .agg(collect_set('literature').alias('literature'))
         )
-        panelapp_df = panelapp_df.withColumn(
-            # 'literature', self._translate(literature_mappings, col('Panel Name'), col('Symbol'))
-            'literature', PanelAppEvidenceGenerator.translate(literature_mappings)('Panel Name', 'Symbol')
-        )
 
-        # Save data
-        panelapp_df.coalesce(1).write.format('json').mode('overwrite').option('compression', 'gzip').save(output_file)
+    def extract_pubmed_ids(self, publication_string):
+        """Parses the publication information from the PanelApp API and extracts PubMed IDs."""
+        publication_string = publication_string.strip()
+        pubmed_ids = []
 
-    @staticmethod
-    def build_literature_mappings(
-            panel_ids: 'list[str]'
-    ) -> dict:
-        literature_mappings = dict()
-        for panel_id in panel_ids:
-            res = PanelAppEvidenceGenerator.query_literature(panel_id)
-            for gene in res:
-                gene_symbol = gene['gene_data']['gene_symbol']
-                pubs = gene.get('publications', default=None)
-                literature_mappings[panel_id] = {
-                    gene_symbol: list({re.match(r'(\d{8})', e)[0] for e in pubs if re.match(r'(\d{8})', e) is not None})
-                }
-        return literature_mappings
+        for regexp in self.PMID_REGEXPS:  # For every known representation pattern...
+            for occurrence in re.findall(regexp, publication_string):  # For every occurrence of this pattern, if any...
+                pubmed_ids.extend(re.findall(r'(\d+)', occurrence))  # Extract all digit sequences = PMIDs.
 
-    @staticmethod
-    def query_literature(
-            panel_id: str
-    ) -> 'list[str]':
-        """
-        Queries the PanelApp API to obtain a list of the publications for every gene within a panelId
-        """
-        try:
-            url = f'http://panelapp.genomicsengland.co.uk/api/v1/panels/{panel_id}/'
-            return requests.get(url).json()['genes']
-        except Exception:
-            print('Query of the PanelApp API has failed.')
-
-    @staticmethod
-    def translate(
-            literature_mappings: dict
-    ):
-        """
-        Mapping panel/gene pairs to literature
-        """
-
-        def translate_(panel, gene):
-            return literature_mappings.get(panel).get(gene)
-
-        return udf(translate_, ArrayType(StringType()))
-
-    @staticmethod
-    @udf(ArrayType(StringType()))
-    def _translate(self, literature_mappings, panel, gene):
-        return literature_mappings.get(panel).get(gene)
+        # Filter out '0' as a value, because it is a placeholder for a missing ID.
+        return {pubmed_id for pubmed_id in pubmed_ids if pubmed_id != '0'}
 
 
 if __name__ == '__main__':
@@ -200,9 +201,7 @@ if __name__ == '__main__':
         help='Output JSON file (gzip-compressed) with the evidence strings.'
     )
     args = parser.parse_args()
-    PanelAppEvidenceGenerator().generate_panelapp_evidence(
-        input_file=args.input_file, output_file=args.output_file
-    )
+    PanelAppEvidenceGenerator().generate_panelapp_evidence(input_file=args.input_file, output_file=args.output_file)
 
 
 
@@ -213,15 +212,6 @@ if __name__ == '__main__':
 class PanelAppEvidenceGenerator:
 
     def writeEvidenceFromSource(self, inputFile, skipMapping):
-        logging.info('Fetching publications from the API...')
-        pdf = PanelAppEvidenceGenerator.buildPublications(self.dataframe.toPandas())  # TODO: write in pyspark
-        pdf.dropna(axis=1, how='all', inplace=True)
-        self.dataframe = self.spark.createDataFrame(pdf)
-        logging.info('Publications loaded.')
-
-        # Cleaning the phenotype related data of the dataframe
-        self.dataframe = PanelAppEvidenceGenerator.cleanDataframe(self.dataframe)
-
         # Map the diseases to an EFO term if necessary
         if not skipMapping:
             self.dataframe = self.diseaseMappingStep()
@@ -257,73 +247,6 @@ class PanelAppEvidenceGenerator:
                 del evidence['allelicRequirements']
 
         return evidences
-
-    @staticmethod
-    def buildPublications(pdf):
-        '''
-        Populates a dataframe with the publications fetched from the PanelApp API and cleans them to match PubMed IDs.
-
-        Args:
-            dataframe (pandas.DataFrame): DataFrame with transformed PanelApp data
-        Returns:
-            dataframe (pandas.DataFrame): DataFrame with an 'publications' column added
-        '''
-        populated_groups = []
-
-        for (PanelId), group in pdf.groupby('Panel Id'):
-            request = PanelAppEvidenceGenerator.publicationsFromPanel(PanelId)
-            group['publications'] = group.apply(
-                lambda X: PanelAppEvidenceGenerator.publicationFromSymbol(X.Symbol, request), axis=1
-            )
-            populated_groups.append(group)
-
-        pdf = pd.concat(populated_groups, ignore_index=True, sort=False)
-
-        cleaned_publication = []
-        for row in pdf['publications'].to_list():
-            try:
-                tmp = [re.match(r'(\d{8})', e)[0] for e in row]
-                cleaned_publication.append(list(set(tmp)))  # Removing duplicated publications
-            except Exception as e:
-                cleaned_publication.append([])
-                continue
-
-        pdf['publications'] = cleaned_publication
-
-        return pdf
-
-    @staticmethod
-    def publicationsFromPanel(panelId):
-        '''
-        Queries the PanelApp API to obtain a list of the publications for every gene within a panelId
-
-        Args:
-            panelId (str): Panel ID extracted from the 'Panel Id' column
-        Returns:
-            response (dict): Response of the API containing all genes related to a panel and their publications
-        '''
-        try:
-            url = f'http://panelapp.genomicsengland.co.uk/api/v1/panels/{panelId}/'
-            res = requests.get(url).json()
-            return res['genes']
-        except Exception as e:
-            logging.error('Query of the PanelApp API has failed.')
-            return None
-
-    @staticmethod
-    def publicationFromSymbol(symbol, response):
-        '''
-        Returns the list of publications for a given symbol in a PanelApp query response.
-        Args:
-            symbol (str): Gene symbol extracted from the 'Symbol' column
-            response (dict): Response of the API containing all genes related to a panel and their publications
-        Returns:
-            publication (list): Array with all publications for a particular gene in the corresponding Panel ID
-        '''
-        for gene in response:
-            if gene['gene_data']['gene_symbol'] == symbol:
-                publication = gene['publications']
-                return publication
 
     def diseaseMappingStep(self):
         '''
