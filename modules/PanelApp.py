@@ -8,8 +8,7 @@ import multiprocessing as mp
 import re
 from sys import stderr
 
-from pyspark.conf import SparkConf
-from pyspark.sql import SparkSession, DataFrame
+from pyspark.sql import SparkSession
 from pyspark.sql.functions import (
     col, lit, when, array_distinct, split, explode, udf, regexp_extract, trim, regexp_replace, element_at
 )
@@ -21,35 +20,7 @@ from ontoma import OnToma
 
 class PanelAppEvidenceGenerator:
     def __init__(self):
-        # Initialize spark session
-        local = True
-        if local:
-            sparkConf = (
-                SparkConf()
-                    .set('spark.driver.memory', '15g')
-                    .set('spark.executor.memory', '15g')
-                    .set('spark.driver.maxResultSize', '0')
-                    .set('spark.debug.maxToStringFields', '2000')
-                    .set('spark.sql.execution.arrow.maxRecordsPerBatch', '500000')
-            )
-            self.spark = (
-                SparkSession.builder
-                    .config(conf=sparkConf)
-                    .master('local[*]')
-                    .getOrCreate()
-            )
-        else:
-            sparkConf = (
-                SparkConf()
-                    .set('spark.driver.maxResultSize', '0')
-                    .set('spark.debug.maxToStringFields', '2000')
-                    .set('spark.sql.execution.arrow.maxRecordsPerBatch', '500000')
-            )
-            self.spark = (
-                SparkSession.builder
-                    .config(conf=sparkConf)
-                    .getOrCreate()
-            )
+        self.spark = SparkSession.builder.appName('panelapp_parser').getOrCreate()
         self.evidence = None
 
     def generate_panelapp_evidence(
@@ -167,9 +138,6 @@ if __name__ == '__main__':
 
 ########################################################################################################################
 
-
-
-raise SystemExit
 
 
 class PanelAppEvidenceGenerator:
@@ -504,48 +472,3 @@ class PanelAppEvidenceGenerator:
         except Exception as e:
             logging.error(f'Evidence generation failed for row: {row}')
             raise
-
-
-def main():
-    # Initiating parser
-    inputFile = args.inputFile
-    outputFile = args.outputFile
-    skipMapping = args.skipMapping
-    mappingsDict = args.mappingsDict
-    limit = args.limit
-
-    # Initialize logging:
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(name)s - %(levelname)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S',
-    )
-    if args.logFile:
-        logging.config.fileConfig(filename=args.logFile)
-    else:
-        logging.StreamHandler(stderr)
-
-    # Logging parameters
-    logging.info(f'Panel app input table: {inputFile}')
-    logging.info(f'Phenotypes mapped to EFO look-up file: {mappingsDict}')
-    logging.info(f'Output file: {outputFile}')
-
-    # Import dictionary if present
-    if mappingsDict:
-        with open(mappingsDict, 'r') as f:
-            phenotypesMappings = json.load(f)
-    else:
-        phenotypesMappings = None
-
-    # Initialize evidence builder object
-    evidenceBuilder = PanelAppEvidenceGenerator(phenotypesMappings, limit)
-
-    # Writing evidence strings into a json file
-    evidences = evidenceBuilder.writeEvidenceFromSource(inputFile, skipMapping)
-
-    # Exporting the outfile
-    with gzip.open(outputFile, 'wt') as f:
-        for evidence in evidences:
-            json.dump(evidence, f)
-            f.write('\n')
-    logging.info(f'{len(evidences)} evidence strings have been generated.')
