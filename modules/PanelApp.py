@@ -122,8 +122,19 @@ class PanelAppEvidenceGenerator:
             .withColumn('phenotype', regexp_replace(col('phenotype'), f'({self.OTHER_REGEXP})', ''))
 
             # Extract OMIM identifiers and remove them from the phenotype string.
-            .withColumn('omim_id', regexp_extract(col('phenotype'), self.OMIM_REGEXP, 2))
+            .withColumn(
+                'omim_id',
+                concat(
+                    lit('OMIM:'),
+                    regexp_extract(col('phenotype'), self.OMIM_REGEXP, 2)
+                )
+            )
+            .withColumn('omim_id', regexp_replace(col('omim_id'), '^OMIM:$', ''))
             .withColumn('phenotype', regexp_replace(col('phenotype'), f'({self.OMIM_REGEXP})', ''))
+
+            # Choose one of the ontology identifiers, keeping OMIM as a priority.
+            .withColumn('diseaseFromSourceId', when(col('omim_id') != '', col('omim_id')).otherwise(col('ontology')))
+            .drop('ontology', 'omim_id')
 
             # Clean up the final split phenotypes.
             .withColumn('phenotype', regexp_replace(col('phenotype'), r'\(\)', ''))
