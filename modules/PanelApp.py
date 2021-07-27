@@ -58,14 +58,16 @@ class PanelAppEvidenceGenerator:
     # Regular expressions for extracting publication information from the API raw strings.
     PMID_RE = [
         (
+            # Pattern 1, e.g. '15643612' or '28055140, 27333055, 23063529'.
             r'^'                # Start of the string.
             r'[\d, ]+'          # A sequence of digits, commas and spaces.
             r'(?: |$)'          # Ending either with a space, or with the end of the string.
         ),
         (
+            # Pattern 2, e.g. '... observed in the patient. PMID: 1908107 - publication describing function of ...'
             r'(?:PubMed|PMID)'  # PubMed or a PMID prefix.
             r'[: ]*'            # An optional separator (spaces/colons).
-            r'[\d, ]+'           # A sequence of digits, commas and spaces.
+            r'[\d, ]+'          # A sequence of digits, commas and spaces.
         )
     ]
 
@@ -219,8 +221,8 @@ class PanelAppEvidenceGenerator:
                 pubmed_ids.extend(re.findall(r'(\d+)', occurrence))  # Extract all digit sequences (PubMed IDs).
 
         # Filter out:
-        # 0 as a value, because it is a placeholder for a missing ID;
-        # PubMed IDs which are too short or too long.
+        # * 0 as a value, because it is a placeholder for a missing ID;
+        # * PubMed IDs which are too short or too long.
         pubmed_ids = {
             pubmed_id for pubmed_id in pubmed_ids
             if pubmed_id != '0' and len(pubmed_id) <= 8
