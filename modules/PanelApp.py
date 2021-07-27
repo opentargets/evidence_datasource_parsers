@@ -20,6 +20,7 @@ class PanelAppEvidenceGenerator:
     PHENOTYPE_BEFORE_SPLIT_RE = {
         # Fixes for specific records.
         r'\(HP:0006574;\);': r'(HP:0006574);',
+        r'Abruzzo-Erickson;syndrome': r'Abruzzo-Erickson syndrome',
         r'Deafness, autosomal recessive; 12': r'Deafness, autosomal recessive, 12',
         r'Waardenburg syndrome, type; 3': r'Waardenburg syndrome, type 3',
         r'Ectrodactyly, ectodermal dysplasia, and cleft lip/palate syndrome; 3':
@@ -44,7 +45,7 @@ class PanelAppEvidenceGenerator:
     PHENOTYPE_AFTER_SPLIT_RE = (
         r' \(no OMIM number\)',
         r' \(NO phenotype number in OMIM\)',
-        r'(No|no) OMIM (phenotype|number|entry)',
+        r'(no|No|NO) OMIM( phenotype|number|entry|NUMBER|NUMBER OR DISEASE)?',
         r'[( ]*(from )?PMID:? *\d+[ ).]*'
     )
 
@@ -101,8 +102,11 @@ class PanelAppEvidenceGenerator:
         )
 
         # Fix typos and formatting errors which interfere with phenotype splitting.
+        panelapp_df = panelapp_df.withColumn('CleanedUpPhenotypes', col('Phenotypes'))
         for regexp, replacement in self.PHENOTYPE_BEFORE_SPLIT_RE.items():
-            panelapp_df = panelapp_df.withColumn('CleanedUpPhenotypes', regexp_replace(col('Phenotypes'), regexp, replacement))
+            panelapp_df = panelapp_df.withColumn(
+                'CleanedUpPhenotypes', regexp_replace(col('CleanedUpPhenotypes'), regexp, replacement)
+            )
 
         # Split and explode the phenotypes.
         panelapp_df = (
@@ -112,8 +116,9 @@ class PanelAppEvidenceGenerator:
         )
 
         # Remove specific patterns and phrases which will interfere with ontology extraction and mapping.
+        panelapp_df = panelapp_df.withColumn('phenotype', col('splitPhenotype'))
         for regexp in self.PHENOTYPE_AFTER_SPLIT_RE:
-            panelapp_df = panelapp_df.withColumn('phenotype', regexp_replace(col('splitPhenotype'), f'({regexp})', ''))
+            panelapp_df = panelapp_df.withColumn('phenotype', regexp_replace(col('phenotype'), f'({regexp})', ''))
 
         # Extract ontology information, clean up and filter the split phenotypes.
         panelapp_df = (
