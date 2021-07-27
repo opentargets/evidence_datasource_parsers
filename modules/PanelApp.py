@@ -35,6 +35,9 @@ class PanelAppEvidenceGenerator:
 
         # Replace all tab/space sequences with a single space.
         r'[\t ]+': r' ',
+
+        # Remove leading and/or trailing spaces around semicolons.
+        r' ?; ?': r';',
     }
 
     # Cleanup regular expressions which are applied to the phenotypes *after* splitting.
@@ -83,6 +86,8 @@ class PanelAppEvidenceGenerator:
                 (col('Panel Status') == 'PUBLIC')
             )
             .select('Symbol', 'Panel Id', 'Panel Name', 'Mode of inheritance', 'Phenotypes')
+            # The original records are not redundant; however, uniqueness on this subset of fields is not guaranteed.
+            .distinct()
         )
 
         # Fix typos and formatting errors which interfere with phenotype splitting.
@@ -168,6 +173,11 @@ class PanelAppEvidenceGenerator:
             .withColumnRenamed('Panel Id', 'studyId')
             .withColumnRenamed('Panel Name', 'studyOverview')
             .withColumnRenamed('Symbol', 'targetFromSourceId')
+
+            # Some residual duplication is caused by slightly different representations from `cohortPhenotypes` being
+            # cleaned up to the same representation in `diseaseFromSource`, for example "Pontocerebellar hypoplasia type
+            # 2D (613811)" and "Pontocerebellar hypoplasia type 2D, 613811".
+            .distinct()
         )
 
         # Save data.
