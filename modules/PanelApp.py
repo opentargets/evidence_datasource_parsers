@@ -80,11 +80,15 @@ class PanelAppEvidenceGenerator:
         output_file: str,
     ) -> None:
         # Filter and extract the necessary columns.
+        panelapp_df = self.spark.read.csv(input_file, sep=r'\t', header=True)
+        panelapp_df = panelapp_df.withColumn(
+            'Panel Version', panelapp_df['Panel Version'].cast('float').alias('Panel Version')
+        )
         panelapp_df = (
-            self.spark.read.csv(input_file, sep=r'\t', header=True)
+            panelapp_df
             .filter(
                 ((col('List') == 'green') | (col('List') == 'amber')) &
-                (col('Panel Version') > 1) &
+                (col('Panel Version') >= 1.0) &
                 (col('Panel Status') == 'PUBLIC')
             )
             .select('Symbol', 'Panel Id', 'Panel Name', 'Mode of inheritance', 'Phenotypes')
