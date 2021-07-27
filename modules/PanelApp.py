@@ -65,7 +65,7 @@ class PanelAppEvidenceGenerator:
         (
             r'(?:PubMed|PMID)'  # PubMed or a PMID prefix.
             r'[: ]*'            # An optional separator (spaces/colons).
-            r'[\d, ]'           # A sequence of digits, commas and spaces.
+            r'[\d, ]+'           # A sequence of digits, commas and spaces.
         )
     ]
 
@@ -214,13 +214,19 @@ class PanelAppEvidenceGenerator:
         """Parses the publication information from the PanelApp API and extracts PubMed IDs."""
         publication_string = publication_string.strip()
         pubmed_ids = []
-
         for regexp in self.PMID_RE:  # For every known representation pattern...
             for occurrence in re.findall(regexp, publication_string):  # For every occurrence of this pattern, if any...
                 pubmed_ids.extend(re.findall(r'(\d+)', occurrence))  # Extract all digit sequences (PubMed IDs).
 
-        # Filter out '0' as a value, because it is a placeholder for a missing ID.
-        return {pubmed_id for pubmed_id in pubmed_ids if pubmed_id != '0'}
+        # Filter out:
+        # 0 as a value, because it is a placeholder for a missing ID;
+        # PubMed IDs which are too short or too long.
+        pubmed_ids = {
+            pubmed_id for pubmed_id in pubmed_ids
+            if pubmed_id != '0' and len(pubmed_id) <= 8
+        }
+
+        return pubmed_ids
 
 
 if __name__ == '__main__':
