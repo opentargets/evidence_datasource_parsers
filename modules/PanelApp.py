@@ -78,9 +78,13 @@ class PanelAppEvidenceGenerator:
         self,
         input_file: str,
         output_file: str,
+        debug_output_prefix: str = None,
     ) -> None:
         # Filter and extract the necessary columns.
         panelapp_df = self.spark.read.csv(input_file, sep=r'\t', header=True)
+        # Panel version can be either a single number (e.g. 1), or two numbers separated by a dot (e.g. 3.14). We cast
+        # either representation to float to ensure correct filtering below. (Note that conversion to float would not
+        # work in the general case, because 3.4 > 3.14, but we only need to compare relative to 1.0.)
         panelapp_df = panelapp_df.withColumn(
             'Panel Version', panelapp_df['Panel Version'].cast('float').alias('Panel Version')
         )
@@ -98,19 +102,18 @@ class PanelAppEvidenceGenerator:
 
         # Fix typos and formatting errors which interfere with phenotype splitting.
         for regexp, replacement in self.PHENOTYPE_BEFORE_SPLIT_RE.items():
-            panelapp_df = panelapp_df.withColumn('Phenotypes', regexp_replace(col('Phenotypes'), regexp, replacement))
+            panelapp_df = panelapp_df.withColumn('CleanedUpPhenotypes', regexp_replace(col('Phenotypes'), regexp, replacement))
 
         # Split and explode the phenotypes.
         panelapp_df = (
             panelapp_df
-            .withColumn('cohortPhenotypes', array_distinct(split(col('Phenotypes'), ';')))
-            .withColumn('phenotype', explode(col('cohortPhenotypes')))
-            .drop('Phenotypes')
+            .withColumn('cohortPhenotypes', array_distinct(split(col('CleanedUpPhenotypes'), ';')))
+            .withColumn('splitPhenotype', explode(col('cohortPhenotypes')))
         )
 
         # Remove specific patterns and phrases which will interfere with ontology extraction and mapping.
         for regexp in self.PHENOTYPE_AFTER_SPLIT_RE:
-            panelapp_df = panelapp_df.withColumn('phenotype', regexp_replace(col('phenotype'), f'({regexp})', ''))
+            panelapp_df = panelapp_df.withColumn('phenotype', regexp_replace(col('splitPhenotype'), f'({regexp})', ''))
 
         # Extract ontology information, clean up and filter the split phenotypes.
         panelapp_df = (
@@ -141,15 +144,15 @@ class PanelAppEvidenceGenerator:
             # Clean up the final split phenotypes.
             .withColumn('phenotype', regexp_replace(col('phenotype'), r'\(\)', ''))
             .withColumn('phenotype', trim(col('phenotype')))
-            .withColumn('phenotype', when(col('phenotype') != '', col('phenotype')))
+            .withColumn('diseaseFromSource', when(col('phenotype') != '', col('phenotype')))
 
             # Remove empty or low quality records.
             .filter(
                 ~(
                     # There is neither a phenotype string nor an ontology identifier.
-                    ((col('phenotype').isNull()) & (col('diseaseFromSourceId').isNull())) |
+                    ((col('diseaseFromSource').isNull()) & (col('diseaseFromSourceId').isNull())) |
                     # The name of the phenotype string starts with a question mark, indicating low quality.
-                    col('phenotype').startswith('?')
+                    col('diseaseFromSource').startswith('?')
                 )
             )
             .persist()
@@ -160,20 +163,35 @@ class PanelAppEvidenceGenerator:
         literature_references = self.fetch_literature_references(all_panel_ids)
         panelapp_df = panelapp_df.join(literature_references, on=['Panel Id', 'Symbol'], how='left')
 
-        # Populate final evidence string structure.
+        # Output tables for debugging purposes, if requested.
+        if debug_output_prefix:
+            (
+                panelapp_df
+                .select(
+                    'Phenotypes',           # Original, unaltered string with all phenotypes.
+                    'CleanedUpPhenotypes',  # String with phenotypes after pre-split cleanup.
+                    'splitPhenotype',       # Individual phenotypes split.
+                    'diseaseFromSource',    # Final cleaned up disease name.
+                    'diseaseFromSourceId',  # Final cleaned up disease ID.
+                )
+                .distinct()
+                .toPandas()
+                .to_csv(f'{debug_output_prefix}.phenotypes.tsv', sep='\t', index=False)
+            )
+
+        # Drop unnecessary fields and populate the final evidence string structure.
         panelapp_df = (
             panelapp_df
+            .drop('Phenotypes', 'CleanedUpPhenotypes', 'splitPhenotype')
             # allelicRequirements requires a list, but we always only have one value from PanelApp.
             .withColumn(
                 'allelicRequirements',
                 when(col('Mode of inheritance').isNotNull(), array(col('Mode of inheritance')))
             )
             .drop('Mode of inheritance')
-
             .withColumnRenamed('List', 'confidence')
             .withColumn('datasourceId', lit('genomics_england'))
             .withColumn('datatypeId', lit('genetic_literature'))
-            .withColumnRenamed('phenotype', 'diseaseFromSource')
             # diseaseFromSourceId populated above
             # literature populated above
             .withColumnRenamed('Panel Id', 'studyId')
@@ -245,5 +263,12 @@ if __name__ == '__main__':
         '--output-file', required=True, type=str,
         help='Output JSON file (gzip-compressed) with the evidence strings.'
     )
+    parser.add_argument(
+        '--debug-output-prefix', required=False, type=str,
+        help='If specified, a number of files will be created with this prefix to store phenotype/PMID cleanup data '
+             'for debugging purposes.'
+    )
     args = parser.parse_args()
-    PanelAppEvidenceGenerator().generate_panelapp_evidence(input_file=args.input_file, output_file=args.output_file)
+    PanelAppEvidenceGenerator().generate_panelapp_evidence(
+        input_file=args.input_file, output_file=args.output_file, debug_output_prefix=args.debug_output_prefix
+    )
