@@ -7,6 +7,7 @@ import os
 import re
 import tempfile
 
+import pandas as pd
 import requests
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import (
@@ -56,6 +57,9 @@ class PanelAppEvidenceGenerator:
     OMIM_RE = LEADING + r'(OMIM|MIM)?' + SEPARATOR + r'(\d{6})' + TRAILING
     OTHER_RE = LEADING + r'(OrphaNet: ORPHA|Orphanet|ORPHA|HP|MONDO)' + SEPARATOR + r'(\d+)' + TRAILING
 
+    # Regular expression for filtering out bad PMID records.
+    PMID_FILTER_OUT_RE = r'224,614,752,030,146,000,000,000'
+
     # Regular expressions for extracting publication information from the API raw strings.
     PMID_RE = [
         (
@@ -72,14 +76,26 @@ class PanelAppEvidenceGenerator:
         )
     ]
 
-    def __init__(self):
+    def __init__(self, debug_output_prefix=None):
         self.spark = SparkSession.builder.appName('panelapp_parser').getOrCreate()
+        self.debug_output_phenotypes_filename = None
+        self.debug_output_pmids_filename = None
+        self.debug_output_pmids_data = set()
+        if debug_output_prefix:
+            self.debug_output_phenotypes_filename = f'{debug_output_prefix}.phenotypes.tsv'
+            self.debug_output_pmids_filename = f'{debug_output_prefix}.pmids.tsv'
+
+    def __del__(self):
+        if self.debug_output_pmids_filename:
+            with open(self.debug_output_pmids_filename, 'w') as outfile:
+                outfile.write('Source PMID string\tExtracted PMIDs\tNumber of extracted PMIDs\n')
+                for line in sorted(set(self.debug_output_pmids_data)):
+                    outfile.write(line)
 
     def generate_panelapp_evidence(
         self,
         input_file: str,
         output_file: str,
-        debug_output_prefix: str = None,
     ) -> None:
         # Filter and extract the necessary columns.
         panelapp_df = self.spark.read.csv(input_file, sep=r'\t', header=True)
@@ -169,7 +185,7 @@ class PanelAppEvidenceGenerator:
         panelapp_df = panelapp_df.join(literature_references, on=['Panel Id', 'Symbol'], how='left')
 
         # Output tables for debugging purposes, if requested.
-        if debug_output_prefix:
+        if self.debug_output_phenotypes_filename:
             (
                 panelapp_df
                 .select(
@@ -181,7 +197,7 @@ class PanelAppEvidenceGenerator:
                 )
                 .distinct()
                 .toPandas()
-                .to_csv(f'{debug_output_prefix}.phenotypes.tsv', sep='\t', index=False)
+                .to_csv(self.debug_output_phenotypes_filename, sep='\t', index=False)
             )
 
         # Drop unnecessary fields and populate the final evidence string structure.
@@ -241,11 +257,18 @@ class PanelAppEvidenceGenerator:
 
     def extract_pubmed_ids(self, publication_string):
         """Parses the publication information from the PanelApp API and extracts PubMed IDs."""
-        publication_string = publication_string.strip()
+        publication_string = (
+            publication_string
+            .encode('ascii', 'ignore').decode()  # To get rid of zero width spaces and other special characters.
+            .strip()
+            .replace('\n', '').replace('\r', '')
+        )
         pubmed_ids = []
-        for regexp in self.PMID_RE:  # For every known representation pattern...
-            for occurrence in re.findall(regexp, publication_string):  # For every occurrence of this pattern, if any...
-                pubmed_ids.extend(re.findall(r'(\d+)', occurrence))  # Extract all digit sequences (PubMed IDs).
+
+        if not re.match(self.PMID_FILTER_OUT_RE, publication_string):
+            for regexp in self.PMID_RE:  # For every known representation pattern...
+                for occurrence in re.findall(regexp, publication_string):  # For every occurrence of this pattern...
+                    pubmed_ids.extend(re.findall(r'(\d+)', occurrence))  # Extract all digit sequences (PubMed IDs).
 
         # Filter out:
         # * 0 as a value, because it is a placeholder for a missing ID;
@@ -254,6 +277,15 @@ class PanelAppEvidenceGenerator:
             pubmed_id for pubmed_id in pubmed_ids
             if pubmed_id != '0' and len(pubmed_id) <= 8
         }
+
+        if self.debug_output_pmids_filename:
+            # Output the original PMID string, the extracted PMIDs, and the total number of the records extracted.
+            self.debug_output_pmids_data.add(
+                f'{publication_string}\t{" ".join(sorted(pubmed_ids))}\t{len(pubmed_ids)}\n'
+            )
+
+        if '11553050' in publication_string and not pubmed_ids:
+            print('WTF')
 
         return pubmed_ids
 
@@ -274,6 +306,6 @@ if __name__ == '__main__':
              'for debugging purposes.'
     )
     args = parser.parse_args()
-    PanelAppEvidenceGenerator().generate_panelapp_evidence(
-        input_file=args.input_file, output_file=args.output_file, debug_output_prefix=args.debug_output_prefix
+    PanelAppEvidenceGenerator(args.debug_output_prefix).generate_panelapp_evidence(
+        input_file=args.input_file, output_file=args.output_file
     )
