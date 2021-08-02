@@ -111,7 +111,7 @@ class PanelAppEvidenceGenerator:
                 (col('Panel Version') >= 1.0) &
                 (col('Panel Status') == 'PUBLIC')
             )
-            .select('Symbol', 'Panel Id', 'Panel Name', 'Mode of inheritance', 'Phenotypes')
+            .select('Symbol', 'Panel Id', 'Panel Name', 'List', 'Mode of inheritance', 'Phenotypes')
             # The full original records are not redundant; however, uniqueness on a subset of fields is not guaranteed.
             .distinct()
         )
