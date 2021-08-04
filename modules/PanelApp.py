@@ -96,7 +96,7 @@ class PanelAppEvidenceGenerator:
         input_file: str,
         output_file: str,
     ) -> None:
-        # Filter and extract the necessary columns.
+        logging.info('Filter and extract the necessary columns.')
         panelapp_df = self.spark.read.csv(input_file, sep=r'\t', header=True)
         # Panel version can be either a single number (e.g. 1), or two numbers separated by a dot (e.g. 3.14). We cast
         # either representation to float to ensure correct filtering below. (Note that conversion to float would not
@@ -116,28 +116,28 @@ class PanelAppEvidenceGenerator:
             .distinct()
         )
 
-        # Fix typos and formatting errors which would interfere with phenotype splitting.
+        logging.info('Fix typos and formatting errors which would interfere with phenotype splitting.')
         panelapp_df = panelapp_df.withColumn('cleanedUpPhenotypes', col('Phenotypes'))
         for regexp, replacement in self.PHENOTYPE_BEFORE_SPLIT_RE.items():
             panelapp_df = panelapp_df.withColumn(
                 'cleanedUpPhenotypes', regexp_replace(col('cleanedUpPhenotypes'), regexp, replacement)
             )
 
-        # Split and explode the phenotypes.
+        logging.info('Split and explode the phenotypes.')
         panelapp_df = (
             panelapp_df
             .withColumn('cohortPhenotypes', array_distinct(split(col('cleanedUpPhenotypes'), ';')))
             .withColumn('phenotype', explode(col('cohortPhenotypes')))
         )
 
-        # Remove specific patterns and phrases which will interfere with ontology extraction and mapping.
+        logging.info('Remove specific patterns and phrases which will interfere with ontology extraction and mapping.')
         panelapp_df = panelapp_df.withColumn('diseaseFromSource', col('phenotype'))
         for regexp in self.PHENOTYPE_AFTER_SPLIT_RE:
             panelapp_df = panelapp_df.withColumn(
                 'diseaseFromSource', regexp_replace(col('diseaseFromSource'), f'({regexp})', '')
             )
 
-        # Extract ontology information, clean up and filter the split phenotypes.
+        logging.info('Extract ontology information, clean up and filter the split phenotypes.')
         panelapp_df = (
             panelapp_df
 
@@ -192,13 +192,13 @@ class PanelAppEvidenceGenerator:
             .persist()
         )
 
-        # Fetch and join literature references.
+        logging.info('Fetch and join literature references.')
         all_panel_ids = panelapp_df.select('Panel Id').toPandas()['Panel Id'].unique()
         literature_references = self.fetch_literature_references(all_panel_ids)
         panelapp_df = panelapp_df.join(literature_references, on=['Panel Id', 'Symbol'], how='left')
 
-        # Output tables for debugging purposes, if requested.
         if self.debug_output_phenotypes_filename:
+            logging.info('Output tables for debugging purposes, if requested.')
             (
                 panelapp_df
                 .select(
@@ -213,7 +213,7 @@ class PanelAppEvidenceGenerator:
                 .to_csv(self.debug_output_phenotypes_filename, sep='\t', index=False)
             )
 
-        # Drop unnecessary fields and populate the final evidence string structure.
+        logging.info('Drop unnecessary fields and populate the final evidence string structure.')
         panelapp_df = (
             panelapp_df
             .drop('Phenotypes', 'cleanedUpPhenotypes', 'phenotype')
@@ -238,7 +238,7 @@ class PanelAppEvidenceGenerator:
             .distinct()
         )
 
-        # Save data.
+        logging.info('Save data.')
         with tempfile.TemporaryDirectory() as tmp_dir_name:
             (
                 panelapp_df.coalesce(1).write.format('json').mode('overwrite')
