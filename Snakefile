@@ -229,8 +229,8 @@ rule panelApp:
     shell:
         """
         python modules/PanelApp.py \
-            --inputFile {input.inputFile} \
-            --outputFile {output.evidenceFile}
+            --input-file {input.inputFile} \
+            --output-file {output.evidenceFile}
         """
 
 ## intogen                  : processes cohorts and driver genes data from intOGen
