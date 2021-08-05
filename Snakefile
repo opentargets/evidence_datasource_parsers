@@ -228,9 +228,9 @@ rule panelApp:
         GS.remote(logFile)
     shell:
         """
-        python modules/GenomicsEnglandPanelApp.py \
-            --inputFile {input.inputFile} \
-            --outputFile {output.evidenceFile}
+        python modules/PanelApp.py \
+            --input-file {input.inputFile} \
+            --output-file {output.evidenceFile}
         """
 
 ## intogen                  : processes cohorts and driver genes data from intOGen
