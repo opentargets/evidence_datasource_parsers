@@ -11,6 +11,7 @@ import urllib.request
 
 import pyspark
 import pyspark.sql.functions as pf
+from pyspark.sql.types import StructType, StructField, StringType
 import requests
 from retry import retry
 
@@ -98,13 +99,18 @@ class PhenoDigm:
     MGI_DATASET_URI = 'http://www.informatics.jax.org/downloads/reports/MGI_Gene_Model_Coord.rpt'
     MGI_DATASET_FILENAME = 'MGI_Gene_Model_Coord.rpt'
 
+    # Mouse PubMed references.
+    MGI_PUBMED_URI = 'http://www.informatics.jax.org/downloads/reports/MGI_PhenoGenoMP.rpt'
+    MGI_PUBMED_FILENAME = 'MGI_PhenoGenoMP.rpt'
+
     IMPC_FILENAME = 'impc_solr_{data_type}.csv'
 
     def __init__(self, logger, cache_dir):
         self.logger = logger
         self.cache_dir = cache_dir
         self.spark = pyspark.sql.SparkSession.builder.appName('phenodigm_parser').getOrCreate()
-        self.hgnc_gene_id_to_ensembl_human_gene_id, self.mgi_gene_id_to_ensembl_mouse_gene_id = [None] * 2
+        self.hgnc_gene_id_to_ensembl_human_gene_id, self.mgi_gene_id_to_ensembl_mouse_gene_id, self.mgi_pubmed = \
+            [None] * 3
         self.mouse_gene_to_human_gene, self.mouse_phenotype_to_human_phenotype = [None] * 2
         self.mouse_model, self.disease, self.disease_model_summary, self.ontology = [None] * 4
         self.evidence = None
@@ -119,6 +125,9 @@ class PhenoDigm:
         self.logger.info('Fetching mouse gene ID mappings from MGI.')
         urllib.request.urlretrieve(self.MGI_DATASET_URI, os.path.join(self.cache_dir, self.MGI_DATASET_FILENAME))
 
+        self.logger.info('Fetching mouse PubMed references from MGI.')
+        urllib.request.urlretrieve(self.MGI_PUBMED_URI, os.path.join(self.cache_dir, self.MGI_PUBMED_FILENAME))
+
         self.logger.info('Fetching PhenoDigm data from IMPC SOLR.')
         impc_solr_retriever = ImpcSolrRetriever()
         for data_type in IMPC_SOLR_TABLES:
@@ -126,8 +135,18 @@ class PhenoDigm:
             filename = os.path.join(self.cache_dir, self.IMPC_FILENAME.format(data_type=data_type))
             impc_solr_retriever.fetch_data(data_type, filename)
 
-    def load_tsv(self, filename):
-        return self.spark.read.csv(os.path.join(self.cache_dir, filename), sep='\t', header=True, nullValue='null')
+    def load_tsv(self, filename, column_names=None):
+        if column_names:
+            schema = StructType([
+                StructField(column_name, StringType(), True)
+                for column_name in column_names
+            ])
+            header = False
+        else:
+            schema = None
+            header = True
+        return self.spark.read.csv(os.path.join(self.cache_dir, filename), sep='\t', header=header, schema=schema,
+                                   nullValue='null')
 
     def load_solr_csv(self, data_type):
         """Load the CSV from SOLR; rename and select columns as specified."""
@@ -160,6 +179,15 @@ class PhenoDigm:
             .withColumnRenamed('11. Ensembl gene id', 'targetInModelId')  # Using the final name.
             .filter(pf.col('targetInModelId').isNotNull())
             .select('mgi_gene_id', 'targetInModel', 'targetInModelId')
+        )
+        self.mgi_pubmed = (
+            self.load_tsv(
+                self.MGI_PUBMED_FILENAME,
+                column_names=['_0', '_1', '_2', 'modelPhenotypeId', 'literature', 'targetInModelMgiId']
+            )
+            .select('modelPhenotypeId', 'literature', 'targetInModelMgiId')
+            .withColumn('targetInModelMgiId', pf.split(pf.col('targetInModelMgiId'), '|').alias('targetInModelMgiId'))
+            .withColumn('targetInModelMgiId', pf.explode('targetInModelMgiId'))
         )
 
         # Mouse to human gene mappings, e.g. 'MGI:1346074', 'HGNC:4024'.
@@ -333,6 +361,12 @@ class PhenoDigm:
             assert len(json_chunks) == 1, f'Expected one JSON file, but found {len(json_chunks)}.'
             os.rename(os.path.join(tmp_dir_name, json_chunks[0]), evidence_strings_filename)
 
+    def generate_mouse_phenotypes_dataset(self, mouse_phenotypes_filename):
+        """Based on the evidence string, generate the related mousePhenotypes dataset for the corresponding widget in
+        the target object."""
+
+
+
 
 def main(cache_dir, evidence_output, mouse_phenotypes_output, score_cutoff, use_cached=False, log_file=None):
     # Initialize the logger based on the provided log file. If no log file is specified, logs are written to STDERR.
@@ -359,6 +393,9 @@ def main(cache_dir, evidence_output, mouse_phenotypes_output, score_cutoff, use_
 
     logging.info('Collect and write the evidence strings.')
     phenodigm.write_evidence_strings(evidence_output)
+
+    logging.info('Generate the mousePhenotypes dataset.')
+    phenodigm.generate_mouse_phenotypes_dataset(mouse_phenotypes_output)
 
 
 if __name__ == '__main__':
