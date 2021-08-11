@@ -165,38 +165,51 @@ class PhenoDigm:
 
     def load_data_from_cache(self):
         """Load the Ensembl gene ID and SOLR data from the downloaded TSV/CSV files into Spark."""
-        # Mappings from HGNC/MGI gene IDs to Ensembl gene IDs.
-        self.hgnc_gene_id_to_ensembl_human_gene_id = (  # E.g. 'HGNC:5', 'ENSG00000121410'.
+        # Mapping from HGNC gene ID to Ensembl human gene ID.
+        self.hgnc_gene_id_to_ensembl_human_gene_id = (
             self.load_tsv(self.HGNC_DATASET_FILENAME)
             .withColumnRenamed('hgnc_id', 'hgnc_gene_id')
-            .withColumnRenamed('ensembl_gene_id', 'targetFromSourceId')  # Using the final name.
+            .withColumnRenamed('ensembl_gene_id', 'targetFromSourceId')
             .select('hgnc_gene_id', 'targetFromSourceId')
+            # E.g. 'HGNC:5', 'ENSG00000121410'.
         )
-        self.mgi_gene_id_to_ensembl_mouse_gene_id = (  # E.g. 'MGI:87853', 'ENSMUSG00000027596'.
+        # Mapping from MGI gene ID to MGI gene name and Ensembl mouse gene ID.
+        self.mgi_gene_id_to_ensembl_mouse_gene_id = (
             self.load_tsv(self.MGI_DATASET_FILENAME)
-            .withColumnRenamed('1. MGI accession id', 'mgi_gene_id')
-            .withColumnRenamed('3. marker symbol', 'targetInModel')  # Using the final name.
-            .withColumnRenamed('11. Ensembl gene id', 'targetInModelId')  # Using the final name.
-            .filter(pf.col('targetInModelId').isNotNull())
-            .select('mgi_gene_id', 'targetInModel', 'targetInModelId')
+            .withColumnRenamed('1. MGI accession id', 'targetInModelMgiId')
+            .withColumnRenamed('3. marker symbol', 'targetInModel')
+            .withColumnRenamed('11. Ensembl gene id', 'targetInModelEnsemblId')
+            .filter(pf.col('targetInModelMgiId').isNotNull())
+            .select('targetInModelMgiId', 'targetInModel', 'targetInModelEnsemblId')
+            # E.g. 'MGI:87859', 'Abl1', 'ENSMUSG00000026842'.
         )
+        # Literature cross-references which link a given mouse phenotype and a given mouse target.
         self.mgi_pubmed = (
             self.load_tsv(
                 self.MGI_PUBMED_FILENAME,
                 column_names=['_0', '_1', '_2', 'modelPhenotypeId', 'literature', 'targetInModelMgiId']
             )
             .select('modelPhenotypeId', 'literature', 'targetInModelMgiId')
+            .distinct()
             .withColumn('targetInModelMgiId', pf.split(pf.col('targetInModelMgiId'), '|').alias('targetInModelMgiId'))
             .withColumn('targetInModelMgiId', pf.explode('targetInModelMgiId'))
+            .select('modelPhenotypeId', 'literature', 'targetInModelMgiId')
+            # E.g. 'MP:0000600', '12529408', 'MGI:97874'.
         )
 
-        # Mouse to human gene mappings, e.g. 'MGI:1346074', 'HGNC:4024'.
+        # Mouse to human gene mappings.
         self.mouse_gene_to_human_gene = (
             self.load_solr_csv('gene_gene')
-            .withColumnRenamed('gene_id', 'mgi_gene_id')
+            .withColumnRenamed('gene_id', 'targetInModelMgiId')
+            .select('targetInModelMgiId', 'hgnc_gene_id')
+            # E.g. 'MGI:1346074', 'HGNC:4024'.
         )
-        # Mouse to human phenotype mappings, e.g. 'MP:0000745','HP:0100033'.
-        self.mouse_phenotype_to_human_phenotype = self.load_solr_csv('ontology_ontology')
+        # Mouse to human phenotype mappings.
+        self.mouse_phenotype_to_human_phenotype = (
+            self.load_solr_csv('ontology_ontology')
+            .select('mp_id', 'hp_id')
+            # E.g. 'MP:0000745', 'HP:0100033'.
+        )
 
         # Mouse model and disease data.
         # Note that the models are accessioned with the same prefix ('MGI:') as genes, but they are separate entities.
@@ -216,7 +229,7 @@ class PhenoDigm:
             # superior metric and should therefore be used as the score.
             .withColumn('resourceScore', pf.col('disease_model_avg_norm').cast('float'))
             .drop('disease_model_avg_norm')
-            .withColumnRenamed('marker_id', 'mgi_gene_id')
+            .withColumnRenamed('marker_id', 'targetInModelMgiId')
         )
         self.ontology = (
             self.load_solr_csv('ontology')  # E.g. 'HP', 'HP:0000002', 'Abnormality of body height'.
@@ -237,7 +250,7 @@ class PhenoDigm:
             for ontology_name in ('MP', 'HP')
         )
 
-        # Split lists of phenotypes in the `mouse_model` and `disease` tables and keep only the ID. For example, one row
+        # Split lists of phenotypes in the 'mouse_model' and 'disease' tables and keep only the ID. For example, one row
         # with 'MP:0001529 abnormal vocalization,MP:0002981 increased liver weight' becomes two rows with 'MP:0001529'
         # and 'MP:0002981'.
         model_mouse_phenotypes = (
@@ -305,23 +318,23 @@ class PhenoDigm:
             # Add the mouse gene mapping information. The mappings are not necessarily one to one, because a single MGI
             # can map to multiple Ensembl mouse genes. When this happens, join will handle the necessary explosions, and
             # a single row from the original table will generate multiple evidence strings. This adds the fields
-            # `targetInModel` and `targetInModelId`.
-            .join(self.mgi_gene_id_to_ensembl_mouse_gene_id, on='mgi_gene_id', how='inner')
+            # 'targetInModel' and 'targetInModelEnsemblId'.
+            .join(self.mgi_gene_id_to_ensembl_mouse_gene_id, on='targetInModelMgiId', how='inner')
             # Add the human gene mapping information. This is added in two stages: MGI → HGNC → Ensembl human gene.
             # Similarly to mouse gene mappings, at each stage there is a possibility of a row explosion.
-            .join(self.mouse_gene_to_human_gene, on='mgi_gene_id', how='inner')
-            .join(self.hgnc_gene_id_to_ensembl_human_gene_id, on='hgnc_gene_id', how='inner')  # `targetFromSourceId`.
-            .drop('mgi_gene_id', 'hgnc_gene_id')
+            .join(self.mouse_gene_to_human_gene, on='targetInModelMgiId', how='inner')
+            .join(self.hgnc_gene_id_to_ensembl_human_gene_id, on='hgnc_gene_id', how='inner')  # 'targetFromSourceId'.
+            .drop('hgnc_gene_id')
 
-            # Add all mouse phenotypes of the model → `diseaseModelAssociatedModelPhenotypes`.
+            # Add all mouse phenotypes of the model → 'diseaseModelAssociatedModelPhenotypes'.
             .join(all_mouse_phenotypes, on='model_id', how='left')
-            # Add the matched model/disease human phenotypes → 'diseaseModelAssociatedHumanPhenotypes`.
+            # Add the matched model/disease human phenotypes → 'diseaseModelAssociatedHumanPhenotypes'.
             .join(matched_human_phenotypes, on=['model_id', 'disease_id'], how='left')
 
             # Model ID adjustments. First, strip the trailing modifiers, where present. The original ID, used for table
             # joins, may look like 'MGI:6274930#hom#early', where the first part is the allele ID and the second
             # specifies the zygotic state. There can be several models for the same allele ID with different phenotypes.
-            # However, this information is also duplicated in `biologicalModelGeneticBackground` (for example:
+            # However, this information is also duplicated in 'biologicalModelGeneticBackground' (for example:
             # 'C57BL/6NCrl,Ubl7<em1(IMPC)Tcp> hom early'), so in this field we strip those modifiers.
             .withColumn(
                 'biologicalModelId',
@@ -346,7 +359,7 @@ class PhenoDigm:
             .select('biologicalModelAllelicComposition', 'biologicalModelGeneticBackground', 'biologicalModelId',
                     'datasourceId', 'datatypeId', 'diseaseFromSource', 'diseaseFromSourceId',
                     'diseaseModelAssociatedHumanPhenotypes', 'diseaseModelAssociatedModelPhenotypes', 'resourceScore',
-                    'targetFromSourceId', 'targetInModel', 'targetInModelId')
+                    'targetFromSourceId', 'targetInModel', 'targetInModelEnsemblId', 'targetInModelMgiId')
         )
 
     def write_evidence_strings(self, evidence_strings_filename):
