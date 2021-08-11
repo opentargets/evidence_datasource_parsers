@@ -187,13 +187,17 @@ class PhenoDigm:
         self.mgi_pubmed = (
             self.load_tsv(
                 self.MGI_PUBMED_FILENAME,
-                column_names=['_0', '_1', '_2', 'modelPhenotypeId', 'literature', 'targetInModelMgiId']
+                column_names=['_0', '_1', '_2', 'mp_id', 'literature', 'targetInModelMgiId']
             )
-            .select('modelPhenotypeId', 'literature', 'targetInModelMgiId')
+            .select('mp_id', 'literature', 'targetInModelMgiId')
             .distinct()
-            .withColumn('targetInModelMgiId', pf.split(pf.col('targetInModelMgiId'), '|').alias('targetInModelMgiId'))
+            # Separate and explode targets.
+            .withColumn('targetInModelMgiId', pf.split(pf.col('targetInModelMgiId'), r'\|'))
             .withColumn('targetInModelMgiId', pf.explode('targetInModelMgiId'))
-            .select('modelPhenotypeId', 'literature', 'targetInModelMgiId')
+            # Separate and explode literature references.
+            .withColumn('literature', pf.split(pf.col('literature'), r'\|'))
+            .withColumn('literature', pf.explode('literature'))
+            .select('mp_id', 'literature', 'targetInModelMgiId')
             # E.g. 'MP:0000600', '12529408', 'MGI:97874'.
         )
 
@@ -307,6 +311,18 @@ class PhenoDigm:
             .select('model_id', 'disease_id', 'diseaseModelAssociatedHumanPhenotypes')
         )
 
+        # Literature references for a given (model, gene) combination.
+        literature = (
+            self.disease_model_summary
+            .select('model_id', 'targetInModelMgiId')
+            .distinct()
+            .join(model_mouse_phenotypes, on='model_id', how='inner')
+            .join(self.mgi_pubmed, on=['targetInModelMgiId', 'mp_id'], how='inner')
+            .groupby('model_id', 'targetInModelMgiId')
+            .agg(pf.collect_set(pf.col('literature')).alias('literature'))
+            .select('model_id', 'targetInModelMgiId', 'literature')
+        )
+
         self.evidence = (
             # This table contains all unique (model_id, disease_id) associations which form the base of the evidence
             # strings.
@@ -330,6 +346,9 @@ class PhenoDigm:
             .join(all_mouse_phenotypes, on='model_id', how='left')
             # Add the matched model/disease human phenotypes → 'diseaseModelAssociatedHumanPhenotypes'.
             .join(matched_human_phenotypes, on=['model_id', 'disease_id'], how='left')
+
+            # Add literature references → 'literature'.
+            .join(literature, on=['model_id', 'targetInModelMgiId'], how='left')
 
             # Model ID adjustments. First, strip the trailing modifiers, where present. The original ID, used for table
             # joins, may look like 'MGI:6274930#hom#early', where the first part is the allele ID and the second
@@ -358,8 +377,9 @@ class PhenoDigm:
             # Ensure stable column order.
             .select('biologicalModelAllelicComposition', 'biologicalModelGeneticBackground', 'biologicalModelId',
                     'datasourceId', 'datatypeId', 'diseaseFromSource', 'diseaseFromSourceId',
-                    'diseaseModelAssociatedHumanPhenotypes', 'diseaseModelAssociatedModelPhenotypes', 'resourceScore',
-                    'targetFromSourceId', 'targetInModel', 'targetInModelEnsemblId', 'targetInModelMgiId')
+                    'diseaseModelAssociatedHumanPhenotypes', 'diseaseModelAssociatedModelPhenotypes', 'literature',
+                    'resourceScore', 'targetFromSourceId', 'targetInModel', 'targetInModelEnsemblId',
+                    'targetInModelMgiId')
         )
 
     def write_evidence_strings(self, evidence_strings_filename):
