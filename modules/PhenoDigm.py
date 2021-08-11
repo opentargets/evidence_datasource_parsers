@@ -334,7 +334,7 @@ class PhenoDigm:
             os.rename(os.path.join(tmp_dir_name, json_chunks[0]), evidence_strings_filename)
 
 
-def main(cache_dir, output, score_cutoff, use_cached=False, log_file=None):
+def main(cache_dir, evidence_output, mouse_phenotypes_output, score_cutoff, use_cached=False, log_file=None):
     # Initialize the logger based on the provided log file. If no log file is specified, logs are written to STDERR.
     logging_config = {
         'level': logging.INFO,
@@ -358,14 +358,17 @@ def main(cache_dir, output, score_cutoff, use_cached=False, log_file=None):
     phenodigm.generate_phenodigm_evidence_strings(score_cutoff)
 
     logging.info('Collect and write the evidence strings.')
-    phenodigm.write_evidence_strings(output)
+    phenodigm.write_evidence_strings(evidence_output)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     req = parser.add_argument_group('required arguments')
-    req.add_argument('--cache-dir', help='Directory to store the HGNC/MGI/SOLR cache files in.', required=True)
-    req.add_argument('--output', help='Name of the json.gz file to output the evidence strings into.', required=True)
+    req.add_argument('--cache-dir', required=True, help='Directory to store the HGNC/MGI/SOLR cache files in.')
+    req.add_argument('--output-evidence', required=True,
+                     help='Name of the json.gz file to output the evidence strings into.')
+    req.add_argument('--output-mouse-phenotypes', required=True,
+                     help='Name of the json.gz file to output the mousePhenotypes dataset into.')
     parser.add_argument('--score-cutoff', help=(
         'Discard model-disease associations with the `disease_model_avg_norm` score less than this value. The score '
         'ranges from 0 to 100.'
@@ -373,4 +376,5 @@ if __name__ == '__main__':
     parser.add_argument('--use-cached', help='Use the existing cache and do not update it.', action='store_true')
     parser.add_argument('--log-file', help='Optional filename to redirect the logs into.')
     args = parser.parse_args()
-    main(args.cache_dir, args.output, args.score_cutoff, args.use_cached, args.log_file)
+    main(args.cache_dir, args.output_evidence, args.output_mouse_phenotypes, args.score_cutoff, args.use_cached,
+         args.log_file)
