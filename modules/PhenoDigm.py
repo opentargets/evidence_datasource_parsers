@@ -254,7 +254,7 @@ class PhenoDigm:
             for ontology_name in ('MP', 'HP')
         )
 
-        # Split lists of phenotypes in the 'mouse_model' and 'disease' tables and keep only the ID. For example, one row
+        # Split lists of phenotypes in the `mouse_model` and `disease` tables and keep only the ID. For example, one row
         # with 'MP:0001529 abnormal vocalization,MP:0002981 increased liver weight' becomes two rows with 'MP:0001529'
         # and 'MP:0002981'.
         model_mouse_phenotypes = (
@@ -334,7 +334,7 @@ class PhenoDigm:
             # Add the mouse gene mapping information. The mappings are not necessarily one to one, because a single MGI
             # can map to multiple Ensembl mouse genes. When this happens, join will handle the necessary explosions, and
             # a single row from the original table will generate multiple evidence strings. This adds the fields
-            # 'targetInModel' and 'targetInModelEnsemblId'.
+            # `targetInModel` and `targetInModelEnsemblId`.
             .join(self.mgi_gene_id_to_ensembl_mouse_gene_id, on='targetInModelMgiId', how='inner')
             # Add the human gene mapping information. This is added in two stages: MGI → HGNC → Ensembl human gene.
             # Similarly to mouse gene mappings, at each stage there is a possibility of a row explosion.
@@ -342,9 +342,9 @@ class PhenoDigm:
             .join(self.hgnc_gene_id_to_ensembl_human_gene_id, on='hgnc_gene_id', how='inner')  # 'targetFromSourceId'.
             .drop('hgnc_gene_id')
 
-            # Add all mouse phenotypes of the model → 'diseaseModelAssociatedModelPhenotypes'.
+            # Add all mouse phenotypes of the model → `diseaseModelAssociatedModelPhenotypes`.
             .join(all_mouse_phenotypes, on='model_id', how='left')
-            # Add the matched model/disease human phenotypes → 'diseaseModelAssociatedHumanPhenotypes'.
+            # Add the matched model/disease human phenotypes → `diseaseModelAssociatedHumanPhenotypes`.
             .join(matched_human_phenotypes, on=['model_id', 'disease_id'], how='left')
 
             # Add literature references → 'literature'.
@@ -353,7 +353,7 @@ class PhenoDigm:
             # Model ID adjustments. First, strip the trailing modifiers, where present. The original ID, used for table
             # joins, may look like 'MGI:6274930#hom#early', where the first part is the allele ID and the second
             # specifies the zygotic state. There can be several models for the same allele ID with different phenotypes.
-            # However, this information is also duplicated in 'biologicalModelGeneticBackground' (for example:
+            # However, this information is also duplicated in `biologicalModelGeneticBackground` (for example:
             # 'C57BL/6NCrl,Ubl7<em1(IMPC)Tcp> hom early'), so in this field we strip those modifiers.
             .withColumn(
                 'biologicalModelId',
