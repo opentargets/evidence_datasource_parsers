@@ -9,6 +9,7 @@ import shutil
 import tempfile
 import urllib.request
 
+import pronto
 import pyspark
 import pyspark.sql.functions as pf
 from pyspark.sql.types import StructType, StructField, StringType
@@ -103,6 +104,10 @@ class PhenoDigm:
     MGI_PUBMED_URI = 'http://www.informatics.jax.org/downloads/reports/MGI_PhenoGenoMP.rpt'
     MGI_PUBMED_FILENAME = 'MGI_PhenoGenoMP.rpt'
 
+    # Mammalian Phenotype ontology.
+    MGI_MP_URI = 'http://www.informatics.jax.org/downloads/reports/mp.owl'
+    MGI_MP_FILENAME = 'MGI_mp.owl'
+
     IMPC_FILENAME = 'impc_solr_{data_type}.csv'
 
     def __init__(self, logger, cache_dir):
@@ -111,7 +116,7 @@ class PhenoDigm:
         self.spark = pyspark.sql.SparkSession.builder.appName('phenodigm_parser').getOrCreate()
         self.gene_mapping, self.literature, self.mouse_phenotype_to_human_phenotype = [None] * 3
         self.model_mouse_phenotypes, self.disease_human_phenotypes, self.disease_model_summary = [None] * 3
-        self.ontology, self.mp_terms, self.hp_terms = [None] * 3
+        self.ontology, self.mp_terms, self.hp_terms, self.mp_class = [None] * 4
         self.evidence, self.mouse_phenotypes = [None] * 2
 
     def update_cache(self):
@@ -126,6 +131,9 @@ class PhenoDigm:
 
         self.logger.info('Fetching mouse PubMed references from MGI.')
         urllib.request.urlretrieve(self.MGI_PUBMED_URI, os.path.join(self.cache_dir, self.MGI_PUBMED_FILENAME))
+
+        self.logger.info('Fetching Mammalian Phenotype ontology definitions from MGI.')
+        urllib.request.urlretrieve(self.MGI_MP_URI, os.path.join(self.cache_dir, self.MGI_MP_FILENAME))
 
         self.logger.info('Fetching PhenoDigm data from IMPC SOLR.')
         impc_solr_retriever = ImpcSolrRetriever()
@@ -258,6 +266,17 @@ class PhenoDigm:
             .withColumnRenamed('phenotype_term', f'{ontology_name.lower()}_term')
             .select(f'{ontology_name.lower()}_id', f'{ontology_name.lower()}_term')
             for ontology_name in ('MP', 'HP')
+        )
+        # Process MP definitions to extract high level classes for each term.
+        mp = pronto.Ontology(os.path.join(self.cache_dir, self.MGI_MP_FILENAME))
+        mp_class = [
+            [term.id, mp_high_level_class.id, mp_high_level_class.name]
+            for mp_high_level_class in mp['MP:0000001'].subclasses(distance=1)
+            for term in mp_high_level_class.subclasses()
+        ]
+        self.mp_class = self.spark.createDataFrame(
+            data=mp_class, schema=['modelPhenotypeId', 'modelPhenotypeClassId', 'modelPhenotypeClassLabel']
+            # E.g. 'MP:0000275', 'MP:0005385', 'cardiovascular system phenotype'
         )
 
         # Literature cross-references which link a given mouse phenotype and a given mouse target.
@@ -419,6 +438,9 @@ class PhenoDigm:
             # Rename fields.
             .withColumnRenamed('mp_id', 'modelPhenotypeId')
             .withColumnRenamed('mp_term', 'modelPhenotypeLabel')
+
+            # Join phenotype class information.
+            .join(self.mp_class, on='modelPhenotypeId', how='inner')
         )
         # Post-process model ID field.
         self.mouse_phenotypes = self._cleanup_model_identifier(mouse_phenotypes)
