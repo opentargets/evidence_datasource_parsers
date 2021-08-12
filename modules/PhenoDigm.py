@@ -204,6 +204,8 @@ class PhenoDigm:
             mgi_gene_id_to_ensembl_mouse_gene_id
             .join(mouse_gene_to_human_gene, on='targetInModelMgiId', how='inner')
             .join(hgnc_gene_id_to_ensembl_human_gene_id, on='hgnc_gene_id', how='inner')
+            # For both the evidence and mousePhenotypes datasets, entries without human gene mapping are unusable.
+            .filter(pf.col('targetFromSourceId').isNotNull())
             .select('targetInModelMgiId', 'targetInModel', 'targetInModelEnsemblId', 'targetFromSourceId')
             # E.g. 'MGI:87859', 'Abl1', 'ENSMUSG00000026842', 'ENSG00000121410'.
         )
