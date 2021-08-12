@@ -109,7 +109,7 @@ class PhenoDigm:
         self.logger = logger
         self.cache_dir = cache_dir
         self.spark = pyspark.sql.SparkSession.builder.appName('phenodigm_parser').getOrCreate()
-        self.gene_mapping, self.mgi_pubmed, self.mouse_phenotype_to_human_phenotype = [None] * 3
+        self.gene_mapping, self.literature, self.mouse_phenotype_to_human_phenotype = [None] * 3
         self.model_mouse_phenotypes, self.disease_human_phenotypes, self.disease_model_summary, self.ontology = \
             [None] * 4
         self.evidence, self.mouse_phenotypes = [None] * 2
@@ -200,24 +200,6 @@ class PhenoDigm:
             # E.g. 'MGI:87859', 'Abl1', 'ENSMUSG00000026842', 'ENSG00000121410'.
         )
 
-        # Literature cross-references which link a given mouse phenotype and a given mouse target.
-        self.mgi_pubmed = (
-            self.load_tsv(
-                self.MGI_PUBMED_FILENAME,
-                column_names=['_0', '_1', '_2', 'mp_id', 'literature', 'targetInModelMgiId']
-            )
-            .select('mp_id', 'literature', 'targetInModelMgiId')
-            .distinct()
-            # Separate and explode targets.
-            .withColumn('targetInModelMgiId', pf.split(pf.col('targetInModelMgiId'), r'\|'))
-            .withColumn('targetInModelMgiId', pf.explode('targetInModelMgiId'))
-            # Separate and explode literature references.
-            .withColumn('literature', pf.split(pf.col('literature'), r'\|'))
-            .withColumn('literature', pf.explode('literature'))
-            .select('mp_id', 'literature', 'targetInModelMgiId')
-            # E.g. 'MP:0000600', '12529408', 'MGI:97874'.
-        )
-
         # Mouse to human phenotype mappings.
         self.mouse_phenotype_to_human_phenotype = (
             self.load_solr_csv('ontology_ontology')
@@ -267,6 +249,35 @@ class PhenoDigm:
         )
         assert self.ontology.select('phenotype_id').distinct().count() == self.ontology.count(), \
             f'Encountered multiple names for the same term in the ontology table.'
+
+        # Literature cross-references which link a given mouse phenotype and a given mouse target.
+        mgi_pubmed = (
+            self.load_tsv(
+                self.MGI_PUBMED_FILENAME,
+                column_names=['_0', '_1', '_2', 'mp_id', 'literature', 'targetInModelMgiId']
+            )
+            .select('mp_id', 'literature', 'targetInModelMgiId')
+            .distinct()
+            # Separate and explode targets.
+            .withColumn('targetInModelMgiId', pf.split(pf.col('targetInModelMgiId'), r'\|'))
+            .withColumn('targetInModelMgiId', pf.explode('targetInModelMgiId'))
+            # Separate and explode literature references.
+            .withColumn('literature', pf.split(pf.col('literature'), r'\|'))
+            .withColumn('literature', pf.explode('literature'))
+            .select('mp_id', 'literature', 'targetInModelMgiId')
+            # E.g. 'MP:0000600', '12529408', 'MGI:97874'.
+        )
+        # Literature references for a given (model, gene) combination.
+        self.literature = (
+            self.disease_model_summary
+            .select('model_id', 'targetInModelMgiId')
+            .distinct()
+            .join(self.model_mouse_phenotypes, on='model_id', how='inner')
+            .join(mgi_pubmed, on=['targetInModelMgiId', 'mp_id'], how='inner')
+            .groupby('model_id', 'targetInModelMgiId')
+            .agg(pf.collect_set(pf.col('literature')).alias('literature'))
+            .select('model_id', 'targetInModelMgiId', 'literature')
+        )
 
     def generate_phenodigm_evidence_strings(self, score_cutoff):
         """Generate the evidence by renaming, transforming and joining the columns."""
@@ -322,18 +333,6 @@ class PhenoDigm:
             .select('model_id', 'disease_id', 'diseaseModelAssociatedHumanPhenotypes')
         )
 
-        # Literature references for a given (model, gene) combination.
-        literature = (
-            self.disease_model_summary
-            .select('model_id', 'targetInModelMgiId')
-            .distinct()
-            .join(self.model_mouse_phenotypes, on='model_id', how='inner')
-            .join(self.mgi_pubmed, on=['targetInModelMgiId', 'mp_id'], how='inner')
-            .groupby('model_id', 'targetInModelMgiId')
-            .agg(pf.collect_set(pf.col('literature')).alias('literature'))
-            .select('model_id', 'targetInModelMgiId', 'literature')
-        )
-
         self.evidence = (
             # This table contains all unique (model_id, disease_id) associations which form the base of the evidence
             # strings.
@@ -354,7 +353,7 @@ class PhenoDigm:
             .join(matched_human_phenotypes, on=['model_id', 'disease_id'], how='left')
 
             # Add literature references → 'literature'.
-            .join(literature, on=['model_id', 'targetInModelMgiId'], how='left')
+            .join(self.literature, on=['model_id', 'targetInModelMgiId'], how='left')
 
             # Model ID adjustments. First, strip the trailing modifiers, where present. The original ID, used for table
             # joins, may look like 'MGI:6274930#hom#early', where the first part is the allele ID and the second
@@ -400,6 +399,11 @@ class PhenoDigm:
             .join(self.gene_mapping, on='targetInModelMgiId', how='inner')
 
             # Add mouse phenotypes.
+            .join(self.model_mouse_phenotypes, on='model_id', how='inner')
+
+            # Add literature references.
+            .join(self.literature, on=['model_id', 'targetInModelMgiId'], how='left')
+
         )
 
     def write_datasets(self, evidence_strings_filename, mouse_phenotypes_filename):
