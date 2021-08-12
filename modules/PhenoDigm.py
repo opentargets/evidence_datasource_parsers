@@ -113,7 +113,7 @@ class PhenoDigm:
             [None] * 3
         self.mouse_gene_to_human_gene, self.mouse_phenotype_to_human_phenotype = [None] * 2
         self.mouse_model, self.disease, self.disease_model_summary, self.ontology = [None] * 4
-        self.evidence = None
+        self.evidence, self.mouse_phenotypes = [None] * 2
 
     def update_cache(self):
         """Fetch the Ensembl gene ID and SOLR data into the local cache directory."""
@@ -382,23 +382,23 @@ class PhenoDigm:
                     'targetInModelMgiId')
         )
 
-    def write_evidence_strings(self, evidence_strings_filename):
+    def generate_mouse_phenotypes_dataset(self):
+        """Generate the related mousePhenotypes dataset for the corresponding widget in the target object."""
+        pass
+
+    def write_datasets(self, evidence_strings_filename, mouse_phenotypes_filename):
         """Dump the Spark evidence dataframe as a compressed JSON file. The order of the evidence strings is not
         maintained, and they are returned in random order as collected by Spark."""
-        with tempfile.TemporaryDirectory() as tmp_dir_name:
-            (
-                self.evidence.coalesce(1).write.format('json').mode('overwrite')
-                .option('compression', 'org.apache.hadoop.io.compress.GzipCodec').save(tmp_dir_name)
-            )
-            json_chunks = [f for f in os.listdir(tmp_dir_name) if f.endswith('.json.gz')]
-            assert len(json_chunks) == 1, f'Expected one JSON file, but found {len(json_chunks)}.'
-            os.rename(os.path.join(tmp_dir_name, json_chunks[0]), evidence_strings_filename)
-
-    def generate_mouse_phenotypes_dataset(self, mouse_phenotypes_filename):
-        """Based on the evidence string, generate the related mousePhenotypes dataset for the corresponding widget in
-        the target object."""
-
-
+        for dataset, outfile in ((self.evidence, evidence_strings_filename),
+                                 (self.mouse_phenotypes, mouse_phenotypes_filename)):
+            with tempfile.TemporaryDirectory() as tmp_dir_name:
+                (
+                    dataset.coalesce(1).write.format('json').mode('overwrite')
+                    .option('compression', 'org.apache.hadoop.io.compress.GzipCodec').save(tmp_dir_name)
+                )
+                json_chunks = [f for f in os.listdir(tmp_dir_name) if f.endswith('.json.gz')]
+                assert len(json_chunks) == 1, f'Expected one JSON file, but found {len(json_chunks)}.'
+                os.rename(os.path.join(tmp_dir_name, json_chunks[0]), outfile)
 
 
 def main(cache_dir, evidence_output, mouse_phenotypes_output, score_cutoff, use_cached=False, log_file=None):
@@ -424,11 +424,11 @@ def main(cache_dir, evidence_output, mouse_phenotypes_output, score_cutoff, use_
     logging.info('Build the evidence strings.')
     phenodigm.generate_phenodigm_evidence_strings(score_cutoff)
 
-    logging.info('Collect and write the evidence strings.')
-    phenodigm.write_evidence_strings(evidence_output)
-
     logging.info('Generate the mousePhenotypes dataset.')
-    phenodigm.generate_mouse_phenotypes_dataset(mouse_phenotypes_output)
+    phenodigm.generate_mouse_phenotypes_dataset()
+
+    logging.info('Collect and write the datasets.')
+    phenodigm.write_datasets(evidence_output, mouse_phenotypes_output)
 
 
 if __name__ == '__main__':
