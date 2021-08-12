@@ -196,7 +196,7 @@ class PhenoDigm:
             mgi_gene_id_to_ensembl_mouse_gene_id
             .join(mouse_gene_to_human_gene, on='targetInModelMgiId', how='inner')
             .join(hgnc_gene_id_to_ensembl_human_gene_id, on='hgnc_gene_id', how='inner')
-            .select('targetInModelMgiId', 'targetFromSourceId', 'targetInModelEnsemblId', 'targetFromSourceId')
+            .select('targetInModelMgiId', 'targetInModel', 'targetInModelEnsemblId', 'targetFromSourceId')
             # E.g. 'MGI:87859', 'Abl1', 'ENSMUSG00000026842', 'ENSG00000121410'.
         )
 
@@ -279,6 +279,29 @@ class PhenoDigm:
             .select('model_id', 'targetInModelMgiId', 'literature')
         )
 
+    @staticmethod
+    def _cleanup_model_identifier(dataset):
+        return (
+            # Model ID adjustments. First, strip the trailing modifiers, where present. The original ID, used for table
+            # joins, may look like 'MGI:6274930#hom#early', where the first part is the allele ID and the second
+            # specifies the zygotic state. There can be several models for the same allele ID with different phenotypes.
+            # However, this information is also duplicated in `biologicalModelGeneticBackground` (for example:
+            # 'C57BL/6NCrl,Ubl7<em1(IMPC)Tcp> hom early'), so in this field we strip those modifiers.
+            dataset
+            .withColumn(
+                'biologicalModelId',
+                pf.split(pf.col('model_id'), '#').getItem(0)
+            )
+            .drop('model_id')
+
+            # Second, we only want to output the model names from the MGI namespace. An example of something we *don't*
+            # want is 'NOT-RELEASED-025eb4a791'. This will be converted to null.
+            .withColumn(
+                'biologicalModelId',
+                pf.when(pf.col('biologicalModelId').rlike(r'^MGI:\d+$'), pf.col('biologicalModelId'))
+            )
+        )
+
     def generate_phenodigm_evidence_strings(self, score_cutoff):
         """Generate the evidence by renaming, transforming and joining the columns."""
         # Process ontology information to enable MP and HP term lookup based on the ID.
@@ -354,23 +377,10 @@ class PhenoDigm:
 
             # Add literature references → 'literature'.
             .join(self.literature, on=['model_id', 'targetInModelMgiId'], how='left')
-
-            # Model ID adjustments. First, strip the trailing modifiers, where present. The original ID, used for table
-            # joins, may look like 'MGI:6274930#hom#early', where the first part is the allele ID and the second
-            # specifies the zygotic state. There can be several models for the same allele ID with different phenotypes.
-            # However, this information is also duplicated in `biologicalModelGeneticBackground` (for example:
-            # 'C57BL/6NCrl,Ubl7<em1(IMPC)Tcp> hom early'), so in this field we strip those modifiers.
-            .withColumn(
-                'biologicalModelId',
-                pf.split(pf.col('model_id'), '#').getItem(0)
-            )
-            .drop('model_id')
-            # Second, we only want to output the model names from the MGI namespace. An example of something we *don't*
-            # want is 'NOT-RELEASED-025eb4a791'. This will be converted to null.
-            .withColumn(
-                'biologicalModelId',
-                pf.when(pf.col('biologicalModelId').rlike(r'^MGI:\d+$'), pf.col('biologicalModelId'))
-            )
+        )
+        self.evidence = (
+            # Post-process model ID field.
+            self._cleanup_model_identifier(self.evidence)
 
             # Rename the disease data columns.
             .withColumnRenamed('disease_id', 'diseaseFromSourceId')
@@ -389,7 +399,7 @@ class PhenoDigm:
 
     def generate_mouse_phenotypes_dataset(self):
         """Generate the related mousePhenotypes dataset for the corresponding widget in the target object."""
-        self.mouse_phenotypes = (
+        mouse_phenotypes = (
             # Extract base model-target associations.
             self.disease_model_summary
             .select('model_id', 'biologicalModelAllelicComposition', 'biologicalModelGeneticBackground',
@@ -403,8 +413,9 @@ class PhenoDigm:
 
             # Add literature references.
             .join(self.literature, on=['model_id', 'targetInModelMgiId'], how='left')
-
         )
+        # Post-process model ID field.
+        self.mouse_phenotypes = self._cleanup_model_identifier(mouse_phenotypes)
 
     def write_datasets(self, evidence_strings_filename, mouse_phenotypes_filename):
         """Dump the Spark evidence dataframe as a compressed JSON file. The order of the evidence strings is not
