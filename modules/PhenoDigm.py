@@ -110,7 +110,8 @@ class PhenoDigm:
         self.cache_dir = cache_dir
         self.spark = pyspark.sql.SparkSession.builder.appName('phenodigm_parser').getOrCreate()
         self.gene_mapping, self.mgi_pubmed, self.mouse_phenotype_to_human_phenotype = [None] * 3
-        self.mouse_model, self.disease, self.disease_model_summary, self.ontology = [None] * 4
+        self.model_mouse_phenotypes, self.disease_human_phenotypes, self.disease_model_summary, self.ontology = \
+            [None] * 4
         self.evidence, self.mouse_phenotypes = [None] * 2
 
     def update_cache(self):
@@ -224,10 +225,24 @@ class PhenoDigm:
             # E.g. 'MP:0000745', 'HP:0100033'.
         )
 
-        # Mouse model and disease data.
-        # Note that the models are accessioned with the same prefix ('MGI:') as genes, but they are separate entities.
-        self.mouse_model = self.load_solr_csv('mouse_model')  # E. g. 'MGI:3800884', ['MP:0001304 cataract'].
-        self.disease = self.load_solr_csv('disease')  # E.g. 'OMIM:609258', ['HP:0000545 Myopia'].
+        # Mouse model and disease data. On loading, we split lists of phenotypes in the `mouse_model` and `disease`
+        # tables and keep only the ID. For example, one row with 'MP:0001529 abnormal vocalization,MP:0002981 increased
+        # liver weight' becomes two rows with 'MP:0001529' and 'MP:0002981'. Also note that the models are accessioned
+        # with the same prefix ('MGI:') as genes, but they are separate entities.
+        self.model_mouse_phenotypes = (
+            self.load_solr_csv('mouse_model')
+            .withColumn('mp_id', pf.expr(r"regexp_extract_all(model_phenotypes, '(MP:\\d+)', 1)"))
+            .withColumn('mp_id', pf.explode('mp_id'))
+            .select('model_id', 'mp_id')
+            # E. g. 'MGI:3800884', 'MP:0001304'.
+        )
+        self.disease_human_phenotypes = (
+            self.load_solr_csv('disease')
+            .withColumn('hp_id', pf.expr(r"regexp_extract_all(disease_phenotypes, '(HP:\\d+)', 1)"))
+            .withColumn('hp_id', pf.explode('hp_id'))
+            .select('disease_id', 'hp_id')
+            # E.g. 'OMIM:609258', 'HP:0000545 Myopia'.
+        )
         self.disease_model_summary = (
             self.load_solr_csv('disease_model_summary')
             .withColumnRenamed('model_genetic_background', 'biologicalModelGeneticBackground')
@@ -265,24 +280,9 @@ class PhenoDigm:
             for ontology_name in ('MP', 'HP')
         )
 
-        # Split lists of phenotypes in the `mouse_model` and `disease` tables and keep only the ID. For example, one row
-        # with 'MP:0001529 abnormal vocalization,MP:0002981 increased liver weight' becomes two rows with 'MP:0001529'
-        # and 'MP:0002981'.
-        model_mouse_phenotypes = (
-            self.mouse_model
-            .withColumn('mp_id', pf.expr(r"regexp_extract_all(model_phenotypes, '(MP:\\d+)', 1)"))
-            .withColumn('mp_id', pf.explode('mp_id'))
-            .select('model_id', 'mp_id')
-        )
-        disease_human_phenotypes = (
-            self.disease
-            .withColumn('hp_id', pf.expr(r"regexp_extract_all(disease_phenotypes, '(HP:\\d+)', 1)"))
-            .withColumn('hp_id', pf.explode('hp_id'))
-            .select('disease_id', 'hp_id')
-        )
         # Map mouse model phenotypes into human terms.
         model_human_phenotypes = (
-            model_mouse_phenotypes
+            self.model_mouse_phenotypes
             .join(self.mouse_phenotype_to_human_phenotype, on='mp_id', how='inner')
             .select('model_id', 'hp_id')
         )
@@ -290,7 +290,7 @@ class PhenoDigm:
         # We are reporting all mouse phenotypes for a model, regardless of whether they can be mapped into any human
         # disease.
         all_mouse_phenotypes = (
-            model_mouse_phenotypes
+            self.model_mouse_phenotypes
             .join(mp_terms, on='mp_id', how='inner')
             .groupby('model_id')
             .agg(
@@ -307,7 +307,7 @@ class PhenoDigm:
             # We start with all possible pairs of model-disease associations.
             self.disease_model_summary.select('model_id', 'disease_id')
             # Add all disease phenotypes. Now we have: model_id, disease_id, hp_id (from disease).
-            .join(disease_human_phenotypes, on='disease_id', how='inner')
+            .join(self.disease_human_phenotypes, on='disease_id', how='inner')
             # Only keep the phenotypes which also appear in the mouse model (after mapping).
             .join(model_human_phenotypes, on=['model_id', 'hp_id'], how='inner')
             # Add ontology terms in addition to IDs. Now we have: model_id, disease_id, hp_id, hp_term.
@@ -327,7 +327,7 @@ class PhenoDigm:
             self.disease_model_summary
             .select('model_id', 'targetInModelMgiId')
             .distinct()
-            .join(model_mouse_phenotypes, on='model_id', how='inner')
+            .join(self.model_mouse_phenotypes, on='model_id', how='inner')
             .join(self.mgi_pubmed, on=['targetInModelMgiId', 'mp_id'], how='inner')
             .groupby('model_id', 'targetInModelMgiId')
             .agg(pf.collect_set(pf.col('literature')).alias('literature'))
@@ -391,9 +391,15 @@ class PhenoDigm:
     def generate_mouse_phenotypes_dataset(self):
         """Generate the related mousePhenotypes dataset for the corresponding widget in the target object."""
         self.mouse_phenotypes = (
+            # Extract base model-target associations.
             self.disease_model_summary
             .select('model_id', 'biologicalModelAllelicComposition', 'biologicalModelGeneticBackground',
                     'targetInModelMgiId')
+
+            # Add gene mapping information.
+            .join(self.gene_mapping, on='targetInModelMgiId', how='inner')
+
+            # Add mouse phenotypes.
         )
 
     def write_datasets(self, evidence_strings_filename, mouse_phenotypes_filename):
