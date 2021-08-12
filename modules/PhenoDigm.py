@@ -110,8 +110,8 @@ class PhenoDigm:
         self.cache_dir = cache_dir
         self.spark = pyspark.sql.SparkSession.builder.appName('phenodigm_parser').getOrCreate()
         self.gene_mapping, self.literature, self.mouse_phenotype_to_human_phenotype = [None] * 3
-        self.model_mouse_phenotypes, self.disease_human_phenotypes, self.disease_model_summary, self.ontology = \
-            [None] * 4
+        self.model_mouse_phenotypes, self.disease_human_phenotypes, self.disease_model_summary = [None] * 3
+        self.ontology, self.mp_terms, self.hp_terms = [None] * 3
         self.evidence, self.mouse_phenotypes = [None] * 2
 
     def update_cache(self):
@@ -243,12 +243,22 @@ class PhenoDigm:
                     'disease_term', 'resourceScore', 'targetInModelMgiId')
             # E. g. 'MGI:2681494', 'C57BL/6JY-smk', 'smk/smk', 'ORPHA:3097', 'Meacham Syndrome', 91.6, 'MGI:98324'.
         )
+
         self.ontology = (
             self.load_solr_csv('ontology')  # E.g. 'HP', 'HP:0000002', 'Abnormality of body height'.
             .filter((pf.col('ontology') == 'MP') | (pf.col('ontology') == 'HP'))
         )
         assert self.ontology.select('phenotype_id').distinct().count() == self.ontology.count(), \
             f'Encountered multiple names for the same term in the ontology table.'
+        # Process ontology information to enable MP and HP term lookup based on the ID.
+        self.mp_terms, self.hp_terms = (
+            self.ontology
+            .filter(pf.col('ontology') == ontology_name)
+            .withColumnRenamed('phenotype_id', f'{ontology_name.lower()}_id')
+            .withColumnRenamed('phenotype_term', f'{ontology_name.lower()}_term')
+            .select(f'{ontology_name.lower()}_id', f'{ontology_name.lower()}_term')
+            for ontology_name in ('MP', 'HP')
+        )
 
         # Literature cross-references which link a given mouse phenotype and a given mouse target.
         mgi_pubmed = (
@@ -304,16 +314,6 @@ class PhenoDigm:
 
     def generate_phenodigm_evidence_strings(self, score_cutoff):
         """Generate the evidence by renaming, transforming and joining the columns."""
-        # Process ontology information to enable MP and HP term lookup based on the ID.
-        mp_terms, hp_terms = (
-            self.ontology
-            .filter(pf.col('ontology') == ontology_name)
-            .withColumnRenamed('phenotype_id', f'{ontology_name.lower()}_id')
-            .withColumnRenamed('phenotype_term', f'{ontology_name.lower()}_term')
-            .select(f'{ontology_name.lower()}_id', f'{ontology_name.lower()}_term')
-            for ontology_name in ('MP', 'HP')
-        )
-
         # Map mouse model phenotypes into human terms.
         model_human_phenotypes = (
             self.model_mouse_phenotypes
@@ -325,7 +325,7 @@ class PhenoDigm:
         # disease.
         all_mouse_phenotypes = (
             self.model_mouse_phenotypes
-            .join(mp_terms, on='mp_id', how='inner')
+            .join(self.mp_terms, on='mp_id', how='inner')
             .groupby('model_id')
             .agg(
                 pf.collect_set(pf.struct(
@@ -345,7 +345,7 @@ class PhenoDigm:
             # Only keep the phenotypes which also appear in the mouse model (after mapping).
             .join(model_human_phenotypes, on=['model_id', 'hp_id'], how='inner')
             # Add ontology terms in addition to IDs. Now we have: model_id, disease_id, hp_id, hp_term.
-            .join(hp_terms, on='hp_id', how='inner')
+            .join(self.hp_terms, on='hp_id', how='inner')
             .groupby('model_id', 'disease_id')
             .agg(
                 pf.collect_set(pf.struct(
@@ -404,15 +404,21 @@ class PhenoDigm:
             self.disease_model_summary
             .select('model_id', 'biologicalModelAllelicComposition', 'biologicalModelGeneticBackground',
                     'targetInModelMgiId')
+            .distinct()
 
             # Add gene mapping information.
             .join(self.gene_mapping, on='targetInModelMgiId', how='inner')
 
             # Add mouse phenotypes.
             .join(self.model_mouse_phenotypes, on='model_id', how='inner')
+            .join(self.mp_terms, on='mp_id', how='inner')
 
             # Add literature references.
             .join(self.literature, on=['model_id', 'targetInModelMgiId'], how='left')
+
+            # Rename fields.
+            .withColumnRenamed('mp_id', 'modelPhenotypeId')
+            .withColumnRenamed('mp_term', 'modelPhenotypeLabel')
         )
         # Post-process model ID field.
         self.mouse_phenotypes = self._cleanup_model_identifier(mouse_phenotypes)
@@ -422,6 +428,7 @@ class PhenoDigm:
         maintained, and they are returned in random order as collected by Spark."""
         for dataset, outfile in ((self.evidence, evidence_strings_filename),
                                  (self.mouse_phenotypes, mouse_phenotypes_filename)):
+            logging.info(f'Processing dataset {outfile}')
             with tempfile.TemporaryDirectory() as tmp_dir_name:
                 (
                     dataset.coalesce(1).write.format('json').mode('overwrite')
