@@ -191,14 +191,17 @@ rule progeny:
 ## phenodigm                : processes target-disease evidence querying the IMPC SOLR API
 rule phenodigm:
     output:
-        evidenceFile=GS.remote(f"{config['Phenodigm']['outputBucket']}/phenodigm-{timeStamp}.json.gz")
+        evidenceFile=GS.remote(f"{config['Phenodigm']['outputBucket']}/phenodigm-{timeStamp}.json.gz"),
+        mousePhenotypes=GS.remote(f"{config['Phenodigm']['outputBucket']}/phenodigm-{timeStamp}."
+                                  f"mousePhenotypes.json.gz")
     log:
         GS.remote(logFile)
     shell:
         """
         python modules/PhenoDigm.py \
             --cache-dir phenodigm_cache \
-            --output {output.evidenceFile}
+            --output-evidence {output.evidenceFile} \
+            --output-mouse-phenotypes {output.mousePhenotypes}
         """
 
 ## sysbio                   : processes key driver genes for specific diseases that have been curated from Systems Biology papers

@@ -11,6 +11,7 @@ import urllib.request
 
 import pyspark
 import pyspark.sql.functions as pf
+from pyspark.sql.types import StructType, StructField, StringType
 import requests
 from retry import retry
 
@@ -98,13 +99,18 @@ class PhenoDigm:
     MGI_DATASET_URI = 'http://www.informatics.jax.org/downloads/reports/MGI_Gene_Model_Coord.rpt'
     MGI_DATASET_FILENAME = 'MGI_Gene_Model_Coord.rpt'
 
+    # Mouse PubMed references.
+    MGI_PUBMED_URI = 'http://www.informatics.jax.org/downloads/reports/MGI_PhenoGenoMP.rpt'
+    MGI_PUBMED_FILENAME = 'MGI_PhenoGenoMP.rpt'
+
     IMPC_FILENAME = 'impc_solr_{data_type}.csv'
 
     def __init__(self, logger, cache_dir):
         self.logger = logger
         self.cache_dir = cache_dir
         self.spark = pyspark.sql.SparkSession.builder.appName('phenodigm_parser').getOrCreate()
-        self.hgnc_gene_id_to_ensembl_human_gene_id, self.mgi_gene_id_to_ensembl_mouse_gene_id = [None] * 2
+        self.hgnc_gene_id_to_ensembl_human_gene_id, self.mgi_gene_id_to_ensembl_mouse_gene_id, self.mgi_pubmed = \
+            [None] * 3
         self.mouse_gene_to_human_gene, self.mouse_phenotype_to_human_phenotype = [None] * 2
         self.mouse_model, self.disease, self.disease_model_summary, self.ontology = [None] * 4
         self.evidence = None
@@ -119,6 +125,9 @@ class PhenoDigm:
         self.logger.info('Fetching mouse gene ID mappings from MGI.')
         urllib.request.urlretrieve(self.MGI_DATASET_URI, os.path.join(self.cache_dir, self.MGI_DATASET_FILENAME))
 
+        self.logger.info('Fetching mouse PubMed references from MGI.')
+        urllib.request.urlretrieve(self.MGI_PUBMED_URI, os.path.join(self.cache_dir, self.MGI_PUBMED_FILENAME))
+
         self.logger.info('Fetching PhenoDigm data from IMPC SOLR.')
         impc_solr_retriever = ImpcSolrRetriever()
         for data_type in IMPC_SOLR_TABLES:
@@ -126,8 +135,18 @@ class PhenoDigm:
             filename = os.path.join(self.cache_dir, self.IMPC_FILENAME.format(data_type=data_type))
             impc_solr_retriever.fetch_data(data_type, filename)
 
-    def load_tsv(self, filename):
-        return self.spark.read.csv(os.path.join(self.cache_dir, filename), sep='\t', header=True, nullValue='null')
+    def load_tsv(self, filename, column_names=None):
+        if column_names:
+            schema = StructType([
+                StructField(column_name, StringType(), True)
+                for column_name in column_names
+            ])
+            header = False
+        else:
+            schema = None
+            header = True
+        return self.spark.read.csv(os.path.join(self.cache_dir, filename), sep='\t', header=header, schema=schema,
+                                   nullValue='null')
 
     def load_solr_csv(self, data_type):
         """Load the CSV from SOLR; rename and select columns as specified."""
@@ -146,29 +165,55 @@ class PhenoDigm:
 
     def load_data_from_cache(self):
         """Load the Ensembl gene ID and SOLR data from the downloaded TSV/CSV files into Spark."""
-        # Mappings from HGNC/MGI gene IDs to Ensembl gene IDs.
-        self.hgnc_gene_id_to_ensembl_human_gene_id = (  # E.g. 'HGNC:5', 'ENSG00000121410'.
+        # Mapping from HGNC gene ID to Ensembl human gene ID.
+        self.hgnc_gene_id_to_ensembl_human_gene_id = (
             self.load_tsv(self.HGNC_DATASET_FILENAME)
             .withColumnRenamed('hgnc_id', 'hgnc_gene_id')
-            .withColumnRenamed('ensembl_gene_id', 'targetFromSourceId')  # Using the final name.
+            .withColumnRenamed('ensembl_gene_id', 'targetFromSourceId')
             .select('hgnc_gene_id', 'targetFromSourceId')
+            # E.g. 'HGNC:5', 'ENSG00000121410'.
         )
-        self.mgi_gene_id_to_ensembl_mouse_gene_id = (  # E.g. 'MGI:87853', 'ENSMUSG00000027596'.
+        # Mapping from MGI gene ID to MGI gene name and Ensembl mouse gene ID.
+        self.mgi_gene_id_to_ensembl_mouse_gene_id = (
             self.load_tsv(self.MGI_DATASET_FILENAME)
-            .withColumnRenamed('1. MGI accession id', 'mgi_gene_id')
-            .withColumnRenamed('3. marker symbol', 'targetInModel')  # Using the final name.
-            .withColumnRenamed('11. Ensembl gene id', 'targetInModelId')  # Using the final name.
-            .filter(pf.col('targetInModelId').isNotNull())
-            .select('mgi_gene_id', 'targetInModel', 'targetInModelId')
+            .withColumnRenamed('1. MGI accession id', 'targetInModelMgiId')
+            .withColumnRenamed('3. marker symbol', 'targetInModel')
+            .withColumnRenamed('11. Ensembl gene id', 'targetInModelEnsemblId')
+            .filter(pf.col('targetInModelMgiId').isNotNull())
+            .select('targetInModelMgiId', 'targetInModel', 'targetInModelEnsemblId')
+            # E.g. 'MGI:87859', 'Abl1', 'ENSMUSG00000026842'.
+        )
+        # Literature cross-references which link a given mouse phenotype and a given mouse target.
+        self.mgi_pubmed = (
+            self.load_tsv(
+                self.MGI_PUBMED_FILENAME,
+                column_names=['_0', '_1', '_2', 'mp_id', 'literature', 'targetInModelMgiId']
+            )
+            .select('mp_id', 'literature', 'targetInModelMgiId')
+            .distinct()
+            # Separate and explode targets.
+            .withColumn('targetInModelMgiId', pf.split(pf.col('targetInModelMgiId'), r'\|'))
+            .withColumn('targetInModelMgiId', pf.explode('targetInModelMgiId'))
+            # Separate and explode literature references.
+            .withColumn('literature', pf.split(pf.col('literature'), r'\|'))
+            .withColumn('literature', pf.explode('literature'))
+            .select('mp_id', 'literature', 'targetInModelMgiId')
+            # E.g. 'MP:0000600', '12529408', 'MGI:97874'.
         )
 
-        # Mouse to human gene mappings, e.g. 'MGI:1346074', 'HGNC:4024'.
+        # Mouse to human gene mappings.
         self.mouse_gene_to_human_gene = (
             self.load_solr_csv('gene_gene')
-            .withColumnRenamed('gene_id', 'mgi_gene_id')
+            .withColumnRenamed('gene_id', 'targetInModelMgiId')
+            .select('targetInModelMgiId', 'hgnc_gene_id')
+            # E.g. 'MGI:1346074', 'HGNC:4024'.
         )
-        # Mouse to human phenotype mappings, e.g. 'MP:0000745','HP:0100033'.
-        self.mouse_phenotype_to_human_phenotype = self.load_solr_csv('ontology_ontology')
+        # Mouse to human phenotype mappings.
+        self.mouse_phenotype_to_human_phenotype = (
+            self.load_solr_csv('ontology_ontology')
+            .select('mp_id', 'hp_id')
+            # E.g. 'MP:0000745', 'HP:0100033'.
+        )
 
         # Mouse model and disease data.
         # Note that the models are accessioned with the same prefix ('MGI:') as genes, but they are separate entities.
@@ -188,7 +233,7 @@ class PhenoDigm:
             # superior metric and should therefore be used as the score.
             .withColumn('resourceScore', pf.col('disease_model_avg_norm').cast('float'))
             .drop('disease_model_avg_norm')
-            .withColumnRenamed('marker_id', 'mgi_gene_id')
+            .withColumnRenamed('marker_id', 'targetInModelMgiId')
         )
         self.ontology = (
             self.load_solr_csv('ontology')  # E.g. 'HP', 'HP:0000002', 'Abnormality of body height'.
@@ -266,6 +311,18 @@ class PhenoDigm:
             .select('model_id', 'disease_id', 'diseaseModelAssociatedHumanPhenotypes')
         )
 
+        # Literature references for a given (model, gene) combination.
+        literature = (
+            self.disease_model_summary
+            .select('model_id', 'targetInModelMgiId')
+            .distinct()
+            .join(model_mouse_phenotypes, on='model_id', how='inner')
+            .join(self.mgi_pubmed, on=['targetInModelMgiId', 'mp_id'], how='inner')
+            .groupby('model_id', 'targetInModelMgiId')
+            .agg(pf.collect_set(pf.col('literature')).alias('literature'))
+            .select('model_id', 'targetInModelMgiId', 'literature')
+        )
+
         self.evidence = (
             # This table contains all unique (model_id, disease_id) associations which form the base of the evidence
             # strings.
@@ -277,18 +334,21 @@ class PhenoDigm:
             # Add the mouse gene mapping information. The mappings are not necessarily one to one, because a single MGI
             # can map to multiple Ensembl mouse genes. When this happens, join will handle the necessary explosions, and
             # a single row from the original table will generate multiple evidence strings. This adds the fields
-            # `targetInModel` and `targetInModelId`.
-            .join(self.mgi_gene_id_to_ensembl_mouse_gene_id, on='mgi_gene_id', how='inner')
+            # `targetInModel` and `targetInModelEnsemblId`.
+            .join(self.mgi_gene_id_to_ensembl_mouse_gene_id, on='targetInModelMgiId', how='inner')
             # Add the human gene mapping information. This is added in two stages: MGI → HGNC → Ensembl human gene.
             # Similarly to mouse gene mappings, at each stage there is a possibility of a row explosion.
-            .join(self.mouse_gene_to_human_gene, on='mgi_gene_id', how='inner')
-            .join(self.hgnc_gene_id_to_ensembl_human_gene_id, on='hgnc_gene_id', how='inner')  # `targetFromSourceId`.
-            .drop('mgi_gene_id', 'hgnc_gene_id')
+            .join(self.mouse_gene_to_human_gene, on='targetInModelMgiId', how='inner')
+            .join(self.hgnc_gene_id_to_ensembl_human_gene_id, on='hgnc_gene_id', how='inner')  # 'targetFromSourceId'.
+            .drop('hgnc_gene_id')
 
             # Add all mouse phenotypes of the model → `diseaseModelAssociatedModelPhenotypes`.
             .join(all_mouse_phenotypes, on='model_id', how='left')
-            # Add the matched model/disease human phenotypes → 'diseaseModelAssociatedHumanPhenotypes`.
+            # Add the matched model/disease human phenotypes → `diseaseModelAssociatedHumanPhenotypes`.
             .join(matched_human_phenotypes, on=['model_id', 'disease_id'], how='left')
+
+            # Add literature references → 'literature'.
+            .join(literature, on=['model_id', 'targetInModelMgiId'], how='left')
 
             # Model ID adjustments. First, strip the trailing modifiers, where present. The original ID, used for table
             # joins, may look like 'MGI:6274930#hom#early', where the first part is the allele ID and the second
@@ -317,8 +377,9 @@ class PhenoDigm:
             # Ensure stable column order.
             .select('biologicalModelAllelicComposition', 'biologicalModelGeneticBackground', 'biologicalModelId',
                     'datasourceId', 'datatypeId', 'diseaseFromSource', 'diseaseFromSourceId',
-                    'diseaseModelAssociatedHumanPhenotypes', 'diseaseModelAssociatedModelPhenotypes', 'resourceScore',
-                    'targetFromSourceId', 'targetInModel', 'targetInModelId')
+                    'diseaseModelAssociatedHumanPhenotypes', 'diseaseModelAssociatedModelPhenotypes', 'literature',
+                    'resourceScore', 'targetFromSourceId', 'targetInModel', 'targetInModelEnsemblId',
+                    'targetInModelMgiId')
         )
 
     def write_evidence_strings(self, evidence_strings_filename):
@@ -333,8 +394,14 @@ class PhenoDigm:
             assert len(json_chunks) == 1, f'Expected one JSON file, but found {len(json_chunks)}.'
             os.rename(os.path.join(tmp_dir_name, json_chunks[0]), evidence_strings_filename)
 
+    def generate_mouse_phenotypes_dataset(self, mouse_phenotypes_filename):
+        """Based on the evidence string, generate the related mousePhenotypes dataset for the corresponding widget in
+        the target object."""
 
-def main(cache_dir, output, score_cutoff, use_cached=False, log_file=None):
+
+
+
+def main(cache_dir, evidence_output, mouse_phenotypes_output, score_cutoff, use_cached=False, log_file=None):
     # Initialize the logger based on the provided log file. If no log file is specified, logs are written to STDERR.
     logging_config = {
         'level': logging.INFO,
@@ -358,14 +425,20 @@ def main(cache_dir, output, score_cutoff, use_cached=False, log_file=None):
     phenodigm.generate_phenodigm_evidence_strings(score_cutoff)
 
     logging.info('Collect and write the evidence strings.')
-    phenodigm.write_evidence_strings(output)
+    phenodigm.write_evidence_strings(evidence_output)
+
+    logging.info('Generate the mousePhenotypes dataset.')
+    phenodigm.generate_mouse_phenotypes_dataset(mouse_phenotypes_output)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     req = parser.add_argument_group('required arguments')
-    req.add_argument('--cache-dir', help='Directory to store the HGNC/MGI/SOLR cache files in.', required=True)
-    req.add_argument('--output', help='Name of the json.gz file to output the evidence strings into.', required=True)
+    req.add_argument('--cache-dir', required=True, help='Directory to store the HGNC/MGI/SOLR cache files in.')
+    req.add_argument('--output-evidence', required=True,
+                     help='Name of the json.gz file to output the evidence strings into.')
+    req.add_argument('--output-mouse-phenotypes', required=True,
+                     help='Name of the json.gz file to output the mousePhenotypes dataset into.')
     parser.add_argument('--score-cutoff', help=(
         'Discard model-disease associations with the `disease_model_avg_norm` score less than this value. The score '
         'ranges from 0 to 100.'
@@ -373,4 +446,5 @@ if __name__ == '__main__':
     parser.add_argument('--use-cached', help='Use the existing cache and do not update it.', action='store_true')
     parser.add_argument('--log-file', help='Optional filename to redirect the logs into.')
     args = parser.parse_args()
-    main(args.cache_dir, args.output, args.score_cutoff, args.use_cached, args.log_file)
+    main(args.cache_dir, args.output_evidence, args.output_mouse_phenotypes, args.score_cutoff, args.use_cached,
+         args.log_file)
