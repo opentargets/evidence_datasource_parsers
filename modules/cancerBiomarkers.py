@@ -8,8 +8,8 @@ import tempfile
 
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.functions import (
-    array_distinct, coalesce, col, collect_set, concat, explode, flatten, lit, initcap,
-    regexp_extract, regexp_replace, split, struct, translate, trim, upper, when
+    array_distinct, coalesce, col, collect_set, concat, explode, expr, flatten, lit,
+    initcap, regexp_extract, regexp_replace, split, struct, translate, trim, upper, when
 )
 
 ALTERATIONTYPE2FUNCTIONCSQ = {
@@ -93,6 +93,10 @@ class cancerBiomarkersEvidenceGenerator():
                 collect_set('variantAminoacidDescriptions').alias('variantAminoacidDescriptions')
             )
             .withColumn('variantAminoacidDescriptions', flatten(col('variantAminoacidDescriptions')))
+            # Replace empty lists with null values
+            .withColumn('literature', expr('filter(literature, x -> x is not null)'))
+            .withColumn('urls', expr('filter(urls, x -> x is not null)'))
+            .withColumn('variantAminoacidDescriptions', expr('filter(urls, x -> x is not null)'))
         )
 
         with tempfile.TemporaryDirectory() as tmp_dir_name:
