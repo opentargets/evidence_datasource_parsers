@@ -92,6 +92,7 @@ class cancerBiomarkersEvidenceGenerator():
                 collect_set('urls').alias('urls'),
                 collect_set('variantAminoacidDescriptions').alias('variantAminoacidDescriptions')
             )
+            .withColumn('variantFunctionalConsequenceId', explode(col('variantFunctionalConsequenceId')))
             .withColumn('variantAminoacidDescriptions', flatten(col('variantAminoacidDescriptions')))
             # Replace empty lists with null values
             .withColumn('literature', expr('filter(literature, x -> x is not null)'))
