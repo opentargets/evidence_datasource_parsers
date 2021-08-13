@@ -78,7 +78,7 @@ class cancerBiomarkersEvidenceGenerator():
             .withColumnRenamed('alteration_type', 'variantFunctionalConsequenceId')
             # literature and urls populated above
             .withColumnRenamed('gene', 'targetFromSourceId')
-            .withColumnRenamed('info', 'variantAminoacidDescriptions')
+            .withColumnRenamed('Transcript', 'variantAminoacidDescriptions')
             .drop('tumor_type', 'source', 'Alteration', 'DrugFullName', 'niceName', 'url')
         )
 
@@ -126,8 +126,7 @@ class cancerBiomarkersEvidenceGenerator():
                 array_distinct(split(col('AlterationType'), ';')).alias('alteration_type'),
                 array_distinct(split(col("PrimaryTumorTypeFullName"), ";")).alias('tumor_type_full_name'),
                 array_distinct(split(col('Drug'), ';')).alias('drug'),
-                'DrugFullName', 'Association', 'EvidenceLevel',
-                array_distinct(split(col('Info'), ';')).alias('info'),
+                'DrugFullName', 'Association', 'EvidenceLevel', 'Transcript',
                 array_distinct(split(col('Source'), ';')).alias('source')
             )
             .withColumn('tumor_type_full_name', explode(col('tumor_type_full_name')))
