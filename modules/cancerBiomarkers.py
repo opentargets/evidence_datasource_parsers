@@ -53,7 +53,7 @@ class cancerBiomarkersEvidenceGenerator():
     ) -> None:
         """Ingests the processed tables to compute the evidence generation"""
 
-    # Import data
+        # Import data
         biomarkers_df = self.spark.read.csv(biomarkers_table, sep='\t', header=True)
         source_df = self.spark.read.json(source_table).select(
             col('label').alias('niceName'),
@@ -64,8 +64,10 @@ class cancerBiomarkersEvidenceGenerator():
         drugs_df = self.spark.read.parquet(drug_index).select(
             col('id').alias('drugId'), col('name').alias('drug'))
         
-        # Process tables
+        logging.info('Preparing and enriching the biomarkers table.')
         biomarkers_enriched = self.process_biomarkers(biomarkers_df, source_df, disease_df, drugs_df)
+
+        logging.info('Processing table to align with evidence schema')
         evidence = (biomarkers_enriched
             .withColumn('datasourceId', lit('cancer_genome_interpreter'))
             .withColumn('datatypeId', lit('affected_pathway'))
@@ -82,7 +84,6 @@ class cancerBiomarkersEvidenceGenerator():
             .drop('tumor_type', 'source', 'Alteration', 'DrugFullName', 'niceName', 'url')
         )
 
-        # Group evidence
         out_evidence = (evidence
             .groupBy('datasourceId', 'datatypeId', 'biomarker', 'drugFromSource', 
                     'drugResponse', 'targetFromSourceId', 'diseaseFromSource', 'diseaseFromSourceMappedId', 'drugId', 'confidence')
@@ -100,6 +101,7 @@ class cancerBiomarkersEvidenceGenerator():
             .withColumn('variantAminoacidDescriptions', expr('filter(urls, x -> x is not null)'))
         )
 
+        logging.info(f'Saving data to {output_file}.')
         with tempfile.TemporaryDirectory() as tmp_dir_name:
                 (
                     out_evidence.coalesce(1).write.format('json').mode('overwrite')
@@ -108,6 +110,8 @@ class cancerBiomarkersEvidenceGenerator():
                 json_chunks = [f for f in os.listdir(tmp_dir_name) if f.endswith('.json.gz')]
                 assert len(json_chunks) == 1, f'Expected one JSON file, but found {len(json_chunks)}.'
                 os.rename(os.path.join(tmp_dir_name, json_chunks[0]), output_file)
+
+        logging.info(f'{out_evidence.count()} evidence strings have been generated.')
 
     def process_biomarkers(
         self,
