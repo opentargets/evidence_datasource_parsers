@@ -127,7 +127,7 @@ class OTAR_CRISPR_study_parser(object):
 
         json_list = [json.dumps(row.dropna().to_dict()) for _, row in self.merged_dataset.iterrows()]
         with gzip.open(output_file, 'wt') as f:
-            f.write('\n'.join(json_list))
+            f.write('\n'.join(json_list) + '\n')
 
 
 def main(study_table, output_file, data_folder) -> None:
