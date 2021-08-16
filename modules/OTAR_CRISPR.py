@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
 import argparse
+from datetime import datetime
+import gzip
+import json
 import logging
 import sys
-import json
-import gzip
-from datetime import datetime
 
 import pandas as pd
 
