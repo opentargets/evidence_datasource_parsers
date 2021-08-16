@@ -97,7 +97,7 @@ class OTAR_CRISPR_study_parser(object):
 
     @staticmethod
     def parse_MAGeCK_file(row: pd.Series) -> pd.DataFrame:
-        """This function returns with a pandas dataframe with the datafile and with properly named columns"""
+        """This function returns a pandas dataframe with the datafile and with properly named columns"""
 
         datafile = row['dataFile']
         filterColumn = row['filterColumn']
