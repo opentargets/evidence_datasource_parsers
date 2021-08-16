@@ -9,6 +9,7 @@ import sys
 
 import pandas as pd
 
+# The statisticalTestTail is inferred by the column name wich is being filtered on:
 FILTER_COLUMN_MAP = {
     'pos|fdr': 'upper tail',
     'neg|fdr': 'lower tail',
@@ -22,14 +23,8 @@ class OTAR_CRISPR_study_parser(object):
         self.study_file = study_file
 
         # Read and process study table:
-        study_df = pd.read_csv(study_file, sep='\t')
+        study_df = pd.read_csv(study_file, sep='\t', skiprows=[1])
 
-        # If present, the column description row is dropped:
-        if 'Studied cell type' in study_df.loc[0].tolist():
-            logging.info('Dropping column descriptions')
-            study_df.drop(0, axis=0, inplace=True)
-
-        logging.info(f'Number of studies processed: {len(study_df.studyId.unique())}')
         self.study_df = (
             study_df
 
@@ -42,20 +37,11 @@ class OTAR_CRISPR_study_parser(object):
                 # Split data files to list:
                 dataFiles=study_df.dataFile.str.replace(' ', '').str.split('|')
             )
-
-            # rename columns:
-            .rename(
-                columns={
-                    'isDerived': 'isCellTypeDerived',
-                    'library': 'crisprScreenLibrary',
-                    'mode': 'crisprStudyMode',
-                    'populations': 'contrast',
-                    'studyDescription': 'studyOverview'
-                }
-            )
         )
 
-    def generate_evidence(self, data_folder) -> None:
+        logging.info(f'Number of studies processed: {len(self.study_df.studyId.unique())}')
+
+    def generate_evidence(self, data_folder: str) -> None:
         """Processing the study dataframe"""
 
         # Looping through the studies and generating evidence:
@@ -79,7 +65,7 @@ class OTAR_CRISPR_study_parser(object):
         # Merging:
         self.merged_dataset = (
             self.study_df
-            .assign(direction=lambda df: df.filterColumn.map(FILTER_COLUMN_MAP))
+            .assign(statisticalTestTail=lambda df: df.filterColumn.map(FILTER_COLUMN_MAP))
             .merge(hits_df, on='studyId', how='inner')
             .explode('diseaseFromSourceMappedId')
             .assign(
@@ -90,14 +76,14 @@ class OTAR_CRISPR_study_parser(object):
                 'targetFromSourceId', 'diseaseFromSourceMappedId',
                 'projectId', 'studyId', 'studyOverview', 'contrast', 'crisprScreenLibrary',
                 'cellType', 'cellLineBackground', 'geneticBackground',
-                'direction', 'resourceScore',
+                'statisticalTestTail', 'resourceScore',
                 'datasourceId', 'datatypeId'
             ]]
         )
 
     @staticmethod
-    def parse_MAGeCK_file(row) -> pd.DataFrame:
-        """This function returns with a pandas dataframe with the datafile and with properly named columns"""
+    def parse_MAGeCK_file(row: pd.Series) -> pd.DataFrame:
+        """This function returns a pandas dataframe of the filtered datafile"""
 
         datafile = row['dataFile']
         filterColumn = row['filterColumn']
@@ -105,22 +91,15 @@ class OTAR_CRISPR_study_parser(object):
         studyId = row['studyId']
 
         # Read data, filter and rename columns:
-        try:
-            mageck_df = (
-                pd.read_csv(datafile, sep='\t')
-                .rename(columns={filterColumn: 'resourceScore', 'id': 'targetFromSourceId'})
-                .loc[lambda df: df.resourceScore <= threshold]
-                [['targetFromSourceId', 'resourceScore']]
-                .assign(studyId=studyId)
-            )
-            logging.info(f'Number of genes reach threshold: {len(mageck_df)}')
-            return mageck_df
-        except FileNotFoundError:
-            logging.info(f'Study skipped as file was not found: {datafile}')
-
-    def get_evidence_data(self) -> pd.DataFrame:
-        """Returning the merged dataset"""
-        return self.merged_dataset
+        mageck_df = (
+            pd.read_csv(datafile, sep='\t')
+            .rename(columns={filterColumn: 'resourceScore', 'id': 'targetFromSourceId'})
+            .loc[lambda df: df.resourceScore <= threshold]
+            [['targetFromSourceId', 'resourceScore']]
+            .assign(studyId=studyId)
+        )
+        logging.info(f'Number of genes reach threshold: {len(mageck_df)}')
+        return mageck_df
 
     def write_evidence(self, output_file: str) -> None:
         """Write the merged evidence to file"""
