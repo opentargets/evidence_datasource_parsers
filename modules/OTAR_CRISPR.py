@@ -59,7 +59,7 @@ class OTAR_CRISPR_study_parser(object):
         """Processing the study dataframe"""
 
         # Looping through the studies and generating evidence:
-        # Reading all data file and filter for significant hits:
+        # Reading all data files and filter for significant hits:
         hits = (
             self.study_df[['studyId', 'dataFiles', 'dataFileType', 'filterColumn', 'threshold', 'projectId']]
             .explode('dataFiles')
