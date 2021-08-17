@@ -8,8 +8,8 @@ import tempfile
 
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.functions import (
-    array_distinct, coalesce, col, collect_set, concat, explode, expr, flatten, lit,
-    initcap, regexp_extract, regexp_replace, split, struct, translate, trim, upper, when
+    array_distinct, coalesce, col, collect_set, concat, explode, flatten, lit, initcap,
+    regexp_extract, regexp_replace, size, split, struct, translate, trim, upper, when
 )
 
 ALTERATIONTYPE2FUNCTIONCSQ = {
@@ -96,9 +96,9 @@ class cancerBiomarkersEvidenceGenerator():
             .withColumn('variantFunctionalConsequenceId', explode(col('variantFunctionalConsequenceId')))
             .withColumn('variantAminoacidDescriptions', flatten(col('variantAminoacidDescriptions')))
             # Replace empty lists with null values
-            .withColumn('literature', expr('filter(literature, x -> x is not null)'))
-            .withColumn('urls', expr('filter(urls, x -> x is not null)'))
-            .withColumn('variantAminoacidDescriptions', expr('filter(urls, x -> x is not null)'))
+            .withColumn('literature', when(size(col('literature')) == 0, lit(None)).otherwise(col('literature')))
+            .withColumn('urls', when(size(col('urls')) == 0, lit(None)).otherwise(col('urls')))
+            .withColumn('variantAminoacidDescriptions', when(size(col('variantAminoacidDescriptions')) == 0, lit(None)).otherwise(col('variantAminoacidDescriptions')))
         )
 
         logging.info(f'Saving data to {output_file}.')
@@ -124,13 +124,12 @@ class cancerBiomarkersEvidenceGenerator():
 
         return (biomarkers_df
             .select(
-                coalesce(col('IndividualMutation'), col('Biomarker')).alias('biomarker'),
+                'Biomarker', 'IndividualMutation', 'Alteration',
                 array_distinct(split(col('Gene'), ';')).alias('gene'),
-                'Alteration',
                 array_distinct(split(col('AlterationType'), ';')).alias('alteration_type'),
                 array_distinct(split(col("PrimaryTumorTypeFullName"), ";")).alias('tumor_type_full_name'),
                 array_distinct(split(col('Drug'), ';')).alias('drug'),
-                'DrugFullName', 'Association', 'EvidenceLevel', 'Transcript',
+                'DrugFullName', 'Association', 'EvidenceLevel', 'Transcript', 'gDNA',
                 array_distinct(split(col('Source'), ';')).alias('source')
             )
             .withColumn('tumor_type_full_name', explode(col('tumor_type_full_name')))
@@ -173,6 +172,16 @@ class cancerBiomarkersEvidenceGenerator():
                 when(col('drug') == '[]', col('DrugFullName')).otherwise(col('drug')))
             .join(drugs_df, on='drug', how='left')
             .withColumn('drug', initcap(col('drug')))
+            # Translate variantId
+            .withColumn('variantId', when(~col('gDNA').isNull(), col('gDNA')))
+            # Build biomarkers struct
+            .withColumn(
+                'biomarkers',
+                struct(
+                    col('')
+                )
+            )
+
         )
 
 if __name__ == '__main__':
