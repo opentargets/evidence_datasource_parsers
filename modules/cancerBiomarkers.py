@@ -43,6 +43,8 @@ class cancerBiomarkersEvidenceGenerator():
             .getOrCreate()
         )
 
+        self.evidence = None
+
     def main(
         self,
         biomarkers_table: str,
@@ -51,7 +53,7 @@ class cancerBiomarkersEvidenceGenerator():
         drug_index: str,
         output_file: str
     ) -> None:
-        """Ingests the processed tables to compute the evidence generation"""
+        """Loads and processes inputs to generate the Cancer Biomarkers evidence strings"""
 
         # Import data
         biomarkers_df = self.spark.read.csv(biomarkers_table, sep='\t', header=True)
@@ -64,58 +66,16 @@ class cancerBiomarkersEvidenceGenerator():
         drugs_df = self.spark.read.parquet(drug_index).select(
             col('id').alias('drugId'), col('name').alias('drug'))
 
-        # Process tables
-        biomarkers_enriched = self.process_biomarkers(biomarkers_df, source_df, disease_df, drugs_df)
-        evidence = (
-            biomarkers_enriched
-            .withColumn('datasourceId', lit('cancer_genome_interpreter'))
-            .withColumn('datatypeId', lit('affected_pathway'))
-            # biomarker populated above
-            .withColumnRenamed('tumor_type_full_name', 'diseaseFromSource')
-            .withColumnRenamed('drug', 'drugFromSource')
-            # diseaseFromSourceMappedId, drugId populated above
-            .withColumnRenamed('Association', 'drugResponse')
-            .withColumnRenamed('EvidenceLevel', 'confidence')
-            .withColumnRenamed('alteration_type', 'variantFunctionalConsequenceId')
-            # literature and urls populated above
-            .withColumnRenamed('gene', 'targetFromSourceId')
-            .withColumnRenamed('Transcript', 'variantAminoacidDescriptions')
-            .drop('tumor_type', 'source', 'Alteration', 'DrugFullName', 'niceName', 'url')
+        # Process inputs to generate evidence strings
+        evidence = self.compute_biomarkers(
+            biomarkers_df, source_df, disease_df, drugs_df
         )
 
-        # Group evidence
-        out_evidence = (
-            evidence
-            .groupBy('datasourceId', 'datatypeId', 'biomarker', 'drugFromSource',
-                     'drugResponse', 'targetFromSourceId', 'diseaseFromSource',
-                     'diseaseFromSourceMappedId', 'drugId', 'confidence')
-            .agg(
-                collect_set('variantFunctionalConsequenceId').alias('variantFunctionalConsequenceId'),
-                collect_set('literature').alias('literature'),
-                collect_set('urls').alias('urls'),
-                collect_set('variantAminoacidDescriptions').alias('variantAminoacidDescriptions')
-            )
-            .withColumn('variantFunctionalConsequenceId', explode(col('variantFunctionalConsequenceId')))
-            .withColumn('variantAminoacidDescriptions', flatten(col('variantAminoacidDescriptions')))
-            # Replace empty lists with null values
-            .withColumn('literature', when(size(col('literature')) == 0, lit(None)).otherwise(col('literature')))
-            .withColumn('urls', when(size(col('urls')) == 0, lit(None)).otherwise(col('urls')))
-            .withColumn('variantAminoacidDescriptions', when(size(col('variantAminoacidDescriptions')) == 0, lit(None)).otherwise(col('variantAminoacidDescriptions')))
-        )
+        # Write evidence strings
+        self.write_evidence_strings(output_file)
+        logging.info(f'{evidence.count()} evidence strings have been saved to {output_file}.')
 
-        logging.info(f'Saving data to {output_file}.')
-        with tempfile.TemporaryDirectory() as tmp_dir_name:
-            (
-                out_evidence.coalesce(1).write.format('json').mode('overwrite')
-                .option('compression', 'org.apache.hadoop.io.compress.GzipCodec').save(tmp_dir_name)
-            )
-            json_chunks = [f for f in os.listdir(tmp_dir_name) if f.endswith('.json.gz')]
-            assert len(json_chunks) == 1, f'Expected one JSON file, but found {len(json_chunks)}.'
-            os.rename(os.path.join(tmp_dir_name, json_chunks[0]), output_file)
-
-        logging.info(f'{out_evidence.count()} evidence strings have been generated.')
-
-    def process_biomarkers(
+    def compute_biomarkers(
         self,
         biomarkers_df: DataFrame,
         source_df: DataFrame,
@@ -124,7 +84,7 @@ class cancerBiomarkersEvidenceGenerator():
     ) -> DataFrame:
         """The diverse steps to prepare and enrich the input table are computed"""
 
-        return (
+        biomarkers_enriched = (
             biomarkers_df
             .select(
                 'Biomarker', 'IndividualMutation', 'Alteration',
@@ -195,6 +155,54 @@ class cancerBiomarkersEvidenceGenerator():
             )
 
         )
+
+        evidence = (
+            biomarkers_enriched
+            .withColumn('datasourceId', lit('cancer_genome_interpreter'))
+            .withColumn('datatypeId', lit('affected_pathway'))
+            # biomarker populated above
+            .withColumnRenamed('tumor_type_full_name', 'diseaseFromSource')
+            .withColumnRenamed('drug', 'drugFromSource')
+            # diseaseFromSourceMappedId, drugId populated above
+            .withColumnRenamed('Association', 'drugResponse')
+            .withColumnRenamed('EvidenceLevel', 'confidence')
+            .withColumnRenamed('alteration_type', 'variantFunctionalConsequenceId')
+            # literature and urls populated above
+            .withColumnRenamed('gene', 'targetFromSourceId')
+            .withColumnRenamed('Transcript', 'variantAminoacidDescriptions')
+            .drop('tumor_type', 'source', 'Alteration', 'DrugFullName', 'niceName', 'url')
+        )
+
+        # Group evidence
+        out_evidence = (
+            evidence
+            .groupBy('datasourceId', 'datatypeId', 'biomarker', 'drugFromSource',
+                     'drugResponse', 'targetFromSourceId', 'diseaseFromSource',
+                     'diseaseFromSourceMappedId', 'drugId', 'confidence')
+            .agg(
+                collect_set('variantFunctionalConsequenceId').alias('variantFunctionalConsequenceId'),
+                collect_set('literature').alias('literature'),
+                collect_set('urls').alias('urls'),
+                collect_set('variantAminoacidDescriptions').alias('variantAminoacidDescriptions')
+            )
+            .withColumn('variantFunctionalConsequenceId', explode(col('variantFunctionalConsequenceId')))
+            .withColumn('variantAminoacidDescriptions', flatten(col('variantAminoacidDescriptions')))
+            # Replace empty lists with null values
+            .withColumn('literature', when(size(col('literature')) == 0, lit(None)).otherwise(col('literature')))
+            .withColumn('urls', when(size(col('urls')) == 0, lit(None)).otherwise(col('urls')))
+            .withColumn('variantAminoacidDescriptions', when(size(col('variantAminoacidDescriptions')) == 0, lit(None)).otherwise(col('variantAminoacidDescriptions')))
+        )
+    
+    def write_evidence_strings(self, output_file):
+        '''Exports the table to a compressed JSON file containing the evidence strings'''
+        with tempfile.TemporaryDirectory() as tmp_dir_name:
+            (
+                self.evidence.coalesce(1).write.format('json').mode('overwrite')
+                .option('compression', 'org.apache.hadoop.io.compress.GzipCodec').save(tmp_dir_name)
+            )
+            json_chunks = [f for f in os.listdir(tmp_dir_name) if f.endswith('.json.gz')]
+            assert len(json_chunks) == 1, f'Expected one JSON file, but found {len(json_chunks)}.'
+            os.rename(os.path.join(tmp_dir_name, json_chunks[0]), output_file)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
