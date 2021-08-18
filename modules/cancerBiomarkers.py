@@ -185,7 +185,7 @@ class cancerBiomarkersEvidenceGenerator():
                      'IndividualMutation', 'variantId', 'drugResponse','targetFromSourceId',
                      'diseaseFromSource', 'diseaseFromSourceMappedId', 'confidence')
             .agg(
-                collect_set('variantFunctionalConsequenceId').alias('variantFunctionalConsequenceId'),
+                collect_set('variantFunctionalConsequenceId').alias('variantFunctionalConsequenceIds'),
                 collect_set('literature').alias('literature'),
                 collect_set('urls').alias('urls')
             )
@@ -199,9 +199,9 @@ class cancerBiomarkersEvidenceGenerator():
                     col('Biomarker').alias('name'),
                     col('individualMutation'),
                     col('variantId'),
-                    col('variantFunctionalConsequenceId')
+                    col('variantFunctionalConsequenceIds')
                 ))
-            .drop('variantFunctionalConsequenceId', 'Biomarker', 'individualMutation', 'variantId')
+            .drop('variantFunctionalConsequenceIds', 'Biomarker', 'individualMutation', 'variantId')
             .distinct()
         )
 
