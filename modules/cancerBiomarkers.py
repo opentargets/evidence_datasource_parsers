@@ -4,13 +4,15 @@
 import argparse
 import logging
 import os
+import re
 import tempfile
 
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.functions import (
     array_distinct, coalesce, col, collect_set, concat, explode, flatten, lit, initcap,
-    regexp_extract, regexp_replace, size, split, struct, translate, trim, upper, when
+    regexp_extract, regexp_replace, size, split, struct, translate, trim, udf, upper, when
 )
+from pyspark.sql.types import StringType
 
 ALTERATIONTYPE2FUNCTIONCSQ = {
     # TODO: Map BIA
@@ -33,6 +35,7 @@ DRUGRESPONSE2EFO = {
     'Increased Toxicity (Haemolytic Anemia)': 'EFO_0005558'  # hemolytic anemia
 }
 
+
 class cancerBiomarkersEvidenceGenerator():
 
     def __init__(self):
@@ -44,6 +47,11 @@ class cancerBiomarkersEvidenceGenerator():
         )
 
         self.evidence = None
+
+        self.get_variantId_udf = udf(
+            cancerBiomarkersEvidenceGenerator.get_variantId,
+            StringType()
+        )
 
     def main(
         self,
@@ -96,7 +104,7 @@ class cancerBiomarkersEvidenceGenerator():
                 array_distinct(split(col('Source'), ';')).alias('source')
             )
             .withColumn('tumor_type_full_name', explode(col('tumor_type_full_name')))
-            .withColumn('tumor_type', translate(col("tumor_type_full_name"), " -", ""))
+            .withColumn('tumor_type', translate(col('tumor_type_full_name'), ' -', ''))
             .withColumn('gene', explode(col('gene')))
             .withColumn('drug', explode(col('drug')))
             # Override specific genes
@@ -145,55 +153,56 @@ class cancerBiomarkersEvidenceGenerator():
             .join(drugs_df, on='drug', how='left')
             .withColumn('drug', initcap(col('drug')))
             # Translate variantId
-            .withColumn('variantId', when(~col('gDNA').isNull(), col('gDNA')))
-            # Build biomarkers struct
             .withColumn(
-                'biomarkers',
-                struct(
-                    col('')
-                )
+                'variantId',
+                when(~col('gDNA').isNull(), self.get_variantId_udf(col('gDNA')))
             )
-
         )
 
-        evidence = (
+        pre_evidence = (
             biomarkers_enriched
             .withColumn('datasourceId', lit('cancer_genome_interpreter'))
             .withColumn('datatypeId', lit('affected_pathway'))
-            # biomarker populated above
             .withColumnRenamed('tumor_type_full_name', 'diseaseFromSource')
             .withColumnRenamed('drug', 'drugFromSource')
             # diseaseFromSourceMappedId, drugId populated above
             .withColumnRenamed('Association', 'drugResponse')
             .withColumnRenamed('EvidenceLevel', 'confidence')
-            .withColumnRenamed('alteration_type', 'variantFunctionalConsequenceId')
             # literature and urls populated above
             .withColumnRenamed('gene', 'targetFromSourceId')
-            .withColumnRenamed('Transcript', 'variantAminoacidDescriptions')
+            # Biomarker, IndividualMutation, variantId populated above
+            .withColumnRenamed('alteration_type', 'variantFunctionalConsequenceId')
             .drop('tumor_type', 'source', 'Alteration', 'DrugFullName', 'niceName', 'url')
         )
 
         # Group evidence
-        out_evidence = (
-            evidence
-            .groupBy('datasourceId', 'datatypeId', 'biomarker', 'drugFromSource',
-                     'drugResponse', 'targetFromSourceId', 'diseaseFromSource',
-                     'diseaseFromSourceMappedId', 'drugId', 'confidence')
+        self.evidence = (
+            pre_evidence
+            .groupBy('datasourceId', 'datatypeId', 'drugFromSource', 'drugId', 'Biomarker',
+                     'IndividualMutation', 'variantId', 'drugResponse','targetFromSourceId',
+                     'diseaseFromSource', 'diseaseFromSourceMappedId', 'confidence')
             .agg(
                 collect_set('variantFunctionalConsequenceId').alias('variantFunctionalConsequenceId'),
                 collect_set('literature').alias('literature'),
-                collect_set('urls').alias('urls'),
-                collect_set('variantAminoacidDescriptions').alias('variantAminoacidDescriptions')
+                collect_set('urls').alias('urls')
             )
-            .withColumn('variantFunctionalConsequenceId', explode(col('variantFunctionalConsequenceId')))
-            .withColumn('variantAminoacidDescriptions', flatten(col('variantAminoacidDescriptions')))
             # Replace empty lists with null values
             .withColumn('literature', when(size(col('literature')) == 0, lit(None)).otherwise(col('literature')))
             .withColumn('urls', when(size(col('urls')) == 0, lit(None)).otherwise(col('urls')))
-            .withColumn('variantAminoacidDescriptions', when(size(col('variantAminoacidDescriptions')) == 0, lit(None)).otherwise(col('variantAminoacidDescriptions')))
+            # Collect variant info into biomarkers array of structs
+            .withColumn(
+                'biomarkers',
+                struct(
+                    col('Biomarker').alias('name'),
+                    col('individualMutation'),
+                    col('variantId'),
+                    col('variantFunctionalConsequenceId')
+                ))
         )
+
+        return self.evidence
     
-    def write_evidence_strings(self, output_file):
+    def write_evidence_strings(self, output_file: str) -> None:
         '''Exports the table to a compressed JSON file containing the evidence strings'''
         with tempfile.TemporaryDirectory() as tmp_dir_name:
             (
@@ -203,6 +212,22 @@ class cancerBiomarkersEvidenceGenerator():
             json_chunks = [f for f in os.listdir(tmp_dir_name) if f.endswith('.json.gz')]
             assert len(json_chunks) == 1, f'Expected one JSON file, but found {len(json_chunks)}.'
             os.rename(os.path.join(tmp_dir_name, json_chunks[0]), output_file)
+
+    @staticmethod
+    def get_variantId(gDNA: str) -> str:
+        '''
+        Converts the genomic coordinates to the CHROM_POS_REF_ALT notation
+        Ex.: 'chr14:g.105243048G_T' --> '14_105243048_G_T'
+        '''
+        translate_dct = {'chr': '', ':g.': '_', '>': '_'}
+        try:
+            for k, v in translate_dct.items():
+                gDNA = gDNA.replace(k, v)
+            x, head, tail = re.split('^(.*_\d+)', gDNA)
+            return head + '_' + tail
+        except AttributeError:
+            return
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
