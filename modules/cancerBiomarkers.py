@@ -199,6 +199,7 @@ class cancerBiomarkersEvidenceGenerator():
                     col('variantFunctionalConsequenceId')
                 ))
             .drop('variantFunctionalConsequenceId', 'Biomarker', 'individualMutation', 'variantId')
+            .distinct()
         )
 
         return self.evidence
