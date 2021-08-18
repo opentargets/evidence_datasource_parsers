@@ -17,6 +17,7 @@ logFile = f"{config['global']['logDir']}/evidence_parser-{timeStamp}.log"
 rule all:
     input:
         GS.remote(f"{config['ClinGen']['outputBucket']}/ClinGen-{timeStamp}.json.gz"),
+        GS.remote(f"{config['PheWAS']['outputBucket']}/cancer_biomarkers-{timeStamp}.json.gz"),
         GS.remote(f"{config['PheWAS']['outputBucket']}/phewas_catalog-{timeStamp}.json.gz"),
         GS.remote(f"{config['SLAPEnrich']['outputBucket']}/slapenrich-{timeStamp}.json.gz"),
         GS.remote(f"{config['Gene2Phenotype']['outputBucket']}/gene2phenotype-{timeStamp}.json.gz"),
@@ -43,6 +44,28 @@ rule clean:
         "rm -rf tmp"
 
 # --- Data sources parsers --- #
+## cancerBiomarkers          : processes the Cancers Biomarkers database from Cancer Genome Interpreter
+rule cancerBiomarkers:
+    input:
+        biomarkers_table = f'tmp/biomarkers_table-{timeStamp}.tsv',
+        source_table = f'tmp/biomarkers_source-{timeStamp}.jsonl',
+        disease_table = f'tmp/biomarkers_disease-{timeStamp}.json',
+        drug_index = = FTPRemoteProvider().remote(
+            'ftp://ftp.ebi.ac.uk/pub/databases/opentargets/platform/21.06/output/etl/parquet/diseases')
+    output:
+        GS.remote(f"{config['cancerBiomarkers']['outputBucket']}/cancer_biomarkers-{timeStamp}.json.gz")
+    log:
+        GS.remote(logFile)
+    shell:
+        """
+        python modules/cancerBiomarkers.py \
+        --biomarkers_table {input.biomarkers_table} \
+        --source_table {input.source_table} \
+        --disease_table {input.disease_table} \
+        --drug_index {input.drug_index} \
+        --output_file {output}
+        """
+
 ## clingen                  : processes the Gene Validity Curations table from ClinGen
 rule clingen:
     input:
