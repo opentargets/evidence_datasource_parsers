@@ -49,7 +49,7 @@ rule cancerBiomarkers:
     input:
         biomarkers_table = f'tmp/biomarkers_table-{timeStamp}.tsv',
         source_table = f'tmp/biomarkers_source-{timeStamp}.jsonl',
-        disease_table = f'tmp/biomarkers_disease-{timeStamp}.json',
+        disease_table = f'tmp/biomarkers_disease-{timeStamp}.jsonl',
         drug_index = = FTPRemoteProvider().remote(
             'ftp://ftp.ebi.ac.uk/pub/databases/opentargets/platform/21.06/output/etl/parquet/diseases')
     output:
@@ -309,6 +309,24 @@ rule orphanet:
         """
 
 # --- Fetching input data and uploading to GS --- #
+## fetchCancerBiomarkers     : fetches the Cancer Biomarkers data from GS
+rule fetchCancerBiomarkers:
+    input:
+        biomarkers_table = GS.remote(f"{config['cancerBiomarkers']['inputBucket']}/cancerbiomarkers-2018-05-01.tsv"),
+        source_table = GS.remote(f"{config['cancerBiomarkers']['inputBucket']}/cancer_biomarker_source.jsonl"),
+    output:
+        biomarkers_table = f'tmp/biomarkers_table-{timeStamp}.tsv',
+        source_table = f'tmp/biomarkers_source-{timeStamp}.jsonl',
+        disease_table = source_table = f'tmp/biomarkers_disease-{timeStamp}.jsonl'
+    log:
+        GS.remote(logFile)
+    shell:
+        """
+        gsutil cp {input.biomarkers_table} {output.biomarkers_table}
+        gsutil cp {input.source_table} {output.source_table}
+        gsutil cp {input.disease_table} {output.disease_table}
+        """
+
 ## fetchClingen             : fetches the Gene Validity Curations table from ClinGen
 rule fetchClingen:
     params:

@@ -140,6 +140,9 @@ class cancerBiomarkersEvidenceGenerator():
                     struct(col('niceName'), col('url'))
                 )
             )
+            # The previous conditional clause creates a struct regardless of
+            # whether any condition is met. The empty struct is replaced with null 
+            .withColumn('urls', when(~col('urls.niceName').isNull(), col('urls')))
             # Enrich data
             .withColumn('alteration_type', explode(col('alteration_type')))
             .replace(to_replace=ALTERATIONTYPE2FUNCTIONCSQ, subset=['alteration_type'])
