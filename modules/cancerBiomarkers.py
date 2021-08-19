@@ -201,14 +201,15 @@ class cancerBiomarkersEvidenceGenerator():
                     col('variantId'),
                     col('variantFunctionalConsequenceIds')
                 ))
-            .drop('variantFunctionalConsequenceIds', 'Biomarker', 'individualMutation', 'variantId')
+            .drop('variantFunctionalConsequenceIds', 'individualMutation', 'variantId')
             # Collect biomarkers into array of structs
             .groupBy('datasourceId', 'datatypeId', 'drugFromSource', 'drugId',
                      'drugResponse','targetFromSourceId', 'diseaseFromSource',
-                     'diseaseFromSourceMappedId', 'confidence', 'literature', 'urls')
+                     'diseaseFromSourceMappedId', 'confidence', 'literature', 'urls', 'Biomarker')
             .agg(
                 collect_set('biomarkers').alias('biomarkers')
             )
+            .drop('Biomarker')
             .distinct()
         )
 
