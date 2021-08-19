@@ -60,6 +60,9 @@ class OTAR_CRISPR_study_parser(object):
         hits_df = (
             pd.concat(hits.to_list())
             .reset_index(drop=True)
+
+            # Cleaning gene id column:
+            .assign(targetFromSourceId=lambda df: df.targetFromSourceId.apply(self.cleaning_gene_id))
         )
 
         # Merging:
@@ -80,6 +83,14 @@ class OTAR_CRISPR_study_parser(object):
                 'datasourceId', 'datatypeId'
             ]]
         )
+
+    @staticmethod
+    def cleaning_gene_id(gene_id: str) -> str:
+        """Expandable set of string processing steps to clean gene identifiers"""
+
+        gene_id = gene_id.split('_')[0]  # ENSG00000187123_LYPD6 -> ENSG00000187123
+
+        return gene_id
 
     @staticmethod
     def parse_MAGeCK_file(row: pd.Series) -> pd.DataFrame:
