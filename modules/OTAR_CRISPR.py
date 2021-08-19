@@ -9,7 +9,7 @@ import sys
 
 import pandas as pd
 
-# The statisticalTestTail is inferred by the column name wich is being filtered on:
+# The statisticalTestTail is inferred by the column name which is being filtered on:
 FILTER_COLUMN_MAP = {
     'pos|fdr': 'upper tail',
     'neg|fdr': 'lower tail',
