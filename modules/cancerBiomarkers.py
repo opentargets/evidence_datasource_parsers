@@ -192,7 +192,7 @@ class cancerBiomarkersEvidenceGenerator():
             # Replace empty lists with null values
             .withColumn('literature', when(size(col('literature')) == 0, lit(None)).otherwise(col('literature')))
             .withColumn('urls', when(size(col('urls')) == 0, lit(None)).otherwise(col('urls')))
-            # Collect variant info into biomarkers array of structs
+            # Collect variant info into biomarkers struct
             .withColumn(
                 'biomarkers',
                 struct(
@@ -202,6 +202,13 @@ class cancerBiomarkersEvidenceGenerator():
                     col('variantFunctionalConsequenceIds')
                 ))
             .drop('variantFunctionalConsequenceIds', 'Biomarker', 'individualMutation', 'variantId')
+            # Collect biomarkers into array of structs
+            .groupBy('datasourceId', 'datatypeId', 'drugFromSource', 'drugId',
+                     'drugResponse','targetFromSourceId', 'diseaseFromSource',
+                     'diseaseFromSourceMappedId', 'confidence', 'literature', 'urls')
+            .agg(
+                collect_set('biomarkers').alias('biomarkers')
+            )
             .distinct()
         )
 
