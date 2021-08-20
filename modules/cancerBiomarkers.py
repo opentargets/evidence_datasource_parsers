@@ -83,6 +83,8 @@ class cancerBiomarkersEvidenceGenerator():
         self.write_evidence_strings(output_file)
         logging.info(f'{evidence.count()} evidence strings have been saved to {output_file}.')
 
+        print(self.evidence.first())
+
     def compute_biomarkers(
         self,
         biomarkers_df: DataFrame,
@@ -173,7 +175,8 @@ class cancerBiomarkersEvidenceGenerator():
             .withColumnRenamed('EvidenceLevel', 'confidence')
             # literature and urls populated above
             .withColumnRenamed('gene', 'targetFromSourceId')
-            # Biomarker, IndividualMutation, variantId populated above
+            .withColumnRenamed('Biomarker', 'biomarkerName')
+            # IndividualMutation, variantId populated above
             .withColumnRenamed('alteration_type', 'variantFunctionalConsequenceId')
             .drop('tumor_type', 'source', 'Alteration', 'DrugFullName', 'niceName', 'url')
         )
@@ -181,7 +184,7 @@ class cancerBiomarkersEvidenceGenerator():
         # Group evidence
         self.evidence = (
             pre_evidence
-            .groupBy('datasourceId', 'datatypeId', 'drugFromSource', 'drugId', 'Biomarker',
+            .groupBy('datasourceId', 'datatypeId', 'drugFromSource', 'drugId', 'biomarkerName',
                      'IndividualMutation', 'variantId', 'drugResponse','targetFromSourceId',
                      'diseaseFromSource', 'diseaseFromSourceMappedId', 'confidence')
             .agg(
@@ -196,7 +199,7 @@ class cancerBiomarkersEvidenceGenerator():
             .withColumn(
                 'biomarkers',
                 struct(
-                    col('Biomarker').alias('name'),
+                    col('biomarkerName').alias('name'),
                     col('individualMutation'),
                     col('variantId'),
                     col('variantFunctionalConsequenceIds')
@@ -205,11 +208,10 @@ class cancerBiomarkersEvidenceGenerator():
             # Collect biomarkers into array of structs
             .groupBy('datasourceId', 'datatypeId', 'drugFromSource', 'drugId',
                      'drugResponse','targetFromSourceId', 'diseaseFromSource',
-                     'diseaseFromSourceMappedId', 'confidence', 'literature', 'urls', 'Biomarker')
+                     'diseaseFromSourceMappedId', 'confidence', 'literature', 'urls', 'biomarkerName')
             .agg(
                 collect_set('biomarkers').alias('biomarkers')
             )
-            .drop('Biomarker')
             .distinct()
         )
 
