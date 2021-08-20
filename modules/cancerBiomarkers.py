@@ -103,7 +103,7 @@ class cancerBiomarkersEvidenceGenerator():
                 array_distinct(split(col('AlterationType'), ';')).alias('alteration_type'),
                 array_distinct(split(col("PrimaryTumorTypeFullName"), ";")).alias('tumor_type_full_name'),
                 array_distinct(split(col('Drug'), ';')).alias('drug'),
-                'DrugFullName', 'Association', 'EvidenceLevel', 'Transcript', 'gDNA',
+                'DrugFullName', 'Association', 'EvidenceLevel', 'gDNA',
                 array_distinct(split(col('Source'), ';')).alias('source')
             )
             .withColumn('tumor_type_full_name', explode(col('tumor_type_full_name')))
@@ -148,7 +148,8 @@ class cancerBiomarkersEvidenceGenerator():
             .withColumn('urls', when(~col('urls.niceName').isNull(), col('urls')))
             # Enrich data
             .withColumn('alteration_type', explode(col('alteration_type')))
-            .replace(to_replace=ALTERATIONTYPE2FUNCTIONCSQ, subset=['alteration_type'])
+            .withColumn('variantFunctionalConsequenceId', col('alteration_type'))
+            .replace(to_replace=ALTERATIONTYPE2FUNCTIONCSQ, subset=['variantFunctionalConsequenceId'])
             .replace(to_replace=DRUGRESPONSE2EFO, subset=['Association'])
             .join(disease_df, on='tumor_type', how='left')
             .withColumn('drug', upper(col('drug')))
@@ -163,7 +164,18 @@ class cancerBiomarkersEvidenceGenerator():
                 'variantId',
                 when(~col('gDNA').isNull(), self.get_variantId_udf(col('gDNA')))
             )
-            # TODO: Create variant struct
+            # Create variant struct
+            .withColumn(
+                'variant',
+                when(
+                    col('alteration_type') != 'EXPR',
+                    struct(
+                        col('IndividualMutation').alias('name'),
+                        col('variantId').alias('id'),
+                        col('variantFunctionalConsequenceId').alias('functionalConsequenceId')
+                    )
+                )
+            )
             # Assign a GO ID when a gene expression data is reported
             .withColumn('alteration', explode(col('alteration')))
             .withColumn(
@@ -182,7 +194,7 @@ class cancerBiomarkersEvidenceGenerator():
                 )
             )
         )
-
+        print(biomarkers_enriched.columns)
         pre_evidence = (
             biomarkers_enriched
             .withColumn('datasourceId', lit('cancer_genome_interpreter'))
@@ -195,9 +207,10 @@ class cancerBiomarkersEvidenceGenerator():
             # literature and urls populated above
             .withColumnRenamed('gene', 'targetFromSourceId')
             .withColumnRenamed('Biomarker', 'biomarkerName')
-            # IndividualMutation, variantId populated above
-            .withColumnRenamed('alteration_type', 'variantFunctionalConsequenceId')
-            .drop('tumor_type', 'source', 'Alteration', 'DrugFullName', 'niceName', 'url')
+            # variant, geneExpressionId populated above
+            .drop(
+                'tumor_type', 'source', 'alteration', 'alteration_type', 'IndividualMutation',
+                'gDNA', 'variantFunctionalConsequenceId', 'variantId', 'DrugFullName', 'niceName', 'url')
         )
 
         # Group evidence
