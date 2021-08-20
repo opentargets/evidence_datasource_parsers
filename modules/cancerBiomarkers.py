@@ -194,7 +194,7 @@ class cancerBiomarkersEvidenceGenerator():
                 )
             )
         )
-        print(biomarkers_enriched.columns)
+
         pre_evidence = (
             biomarkers_enriched
             .withColumn('datasourceId', lit('cancer_genome_interpreter'))
@@ -216,13 +216,14 @@ class cancerBiomarkersEvidenceGenerator():
         # Group evidence
         self.evidence = (
             pre_evidence
-            .groupBy('datasourceId', 'datatypeId', 'drugFromSource', 'drugId', 'biomarkerName',
-                     'IndividualMutation', 'variantId', 'drugResponse','targetFromSourceId',
-                     'diseaseFromSource', 'diseaseFromSourceMappedId', 'confidence')
+            .groupBy('datasourceId', 'datatypeId', 'drugFromSource', 'drugId',
+                     'drugResponse', 'targetFromSourceId', 'diseaseFromSource', 
+                     'diseaseFromSourceMappedId', 'confidence', 'biomarkerName')
             .agg(
-                collect_set('variantFunctionalConsequenceId').alias('variantFunctionalConsequenceIds'),
                 collect_set('literature').alias('literature'),
-                collect_set('urls').alias('urls')
+                collect_set('urls').alias('urls'),
+                collect_set('variant').alias('variant'),
+                collect_set('geneExpressionId').alias('geneExpressionId'),
             )
             # Replace empty lists with null values
             .withColumn('literature', when(size(col('literature')) == 0, lit(None)).otherwise(col('literature')))
@@ -231,19 +232,10 @@ class cancerBiomarkersEvidenceGenerator():
             .withColumn(
                 'biomarkers',
                 struct(
-                    col('biomarkerName').alias('name'),
-                    col('individualMutation'),
-                    col('variantId'),
-                    col('variantFunctionalConsequenceIds')
+                    'variant',
+                    'geneExpressionId'
                 ))
-            .drop('variantFunctionalConsequenceIds', 'individualMutation', 'variantId')
-            # Collect biomarkers into array of structs
-            .groupBy('datasourceId', 'datatypeId', 'drugFromSource', 'drugId',
-                     'drugResponse','targetFromSourceId', 'diseaseFromSource',
-                     'diseaseFromSourceMappedId', 'confidence', 'literature', 'urls', 'biomarkerName')
-            .agg(
-                collect_set('biomarkers').alias('biomarkers')
-            )
+            .drop('variant', 'geneExpressionId')
             .distinct()
         )
 
