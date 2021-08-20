@@ -19,7 +19,7 @@ ALTERATIONTYPE2FUNCTIONCSQ = {
     'MUT': 'SO_0001777',  # somatic_variant
     'CNA': 'SO_0001563',  # copy_number_change
     'FUS': 'SO_0001882',  # feature_fusion
-    'EXPR': 'SO_0001540',  # level_of_transcript_variant
+    'EXPR': None,
     'BIA': None
 }
 
@@ -97,7 +97,8 @@ class cancerBiomarkersEvidenceGenerator():
         biomarkers_enriched = (
             biomarkers_df
             .select(
-                'Biomarker', 'IndividualMutation', 'Alteration',
+                'Biomarker', 'IndividualMutation',
+                array_distinct(split(col('Alteration'), ';')).alias('alteration'),
                 array_distinct(split(col('Gene'), ';')).alias('gene'),
                 array_distinct(split(col('AlterationType'), ';')).alias('alteration_type'),
                 array_distinct(split(col("PrimaryTumorTypeFullName"), ";")).alias('tumor_type_full_name'),
@@ -143,7 +144,7 @@ class cancerBiomarkersEvidenceGenerator():
                 )
             )
             # The previous conditional clause creates a struct regardless of
-            # whether any condition is met. The empty struct is replaced with null 
+            # whether any condition is met. The empty struct is replaced with null
             .withColumn('urls', when(~col('urls.niceName').isNull(), col('urls')))
             # Enrich data
             .withColumn('alteration_type', explode(col('alteration_type')))
@@ -161,6 +162,24 @@ class cancerBiomarkersEvidenceGenerator():
             .withColumn(
                 'variantId',
                 when(~col('gDNA').isNull(), self.get_variantId_udf(col('gDNA')))
+            )
+            # TODO: Create variant struct
+            # Assign a GO ID when a gene expression data is reported
+            .withColumn('alteration', explode(col('alteration')))
+            .withColumn(
+                'geneExpressionId',
+                when(
+                    (col('alteration_type') == 'EXPR') & (col('alteration').contains('over')),
+                    'GO_0010628'
+                )
+                .when(
+                    (col('alteration_type') == 'EXPR') & (col('alteration').contains('under')),
+                    'GO_0010629'
+                )
+                .when(
+                    (col('alteration_type') == 'EXPR') & (col('alteration').contains('norm')),
+                    'GO_0010467'
+                )
             )
         )
 
