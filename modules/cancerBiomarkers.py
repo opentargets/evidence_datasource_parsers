@@ -12,7 +12,7 @@ from pyspark.sql.functions import (
     array_distinct, coalesce, col, collect_set, concat, element_at, explode, flatten, lit,
     initcap, regexp_extract, regexp_replace, size, split, struct, translate, trim, udf, upper, when
 )
-from pyspark.sql.types import StringType, ArrayType, TupleType
+from pyspark.sql.types import StringType, ArrayType
 
 ALTERATIONTYPE2FUNCTIONCSQ = {
     # TODO: Map BIA
@@ -182,18 +182,6 @@ class cancerBiomarkersEvidenceGenerator():
                 'variantId',
                 when(~col('gDNA').isNull(), self.get_variantId_udf(col('gDNA')))
             )
-            # Create variant struct
-            .withColumn(
-                'variant',
-                when(
-                    col('alteration_type') != 'EXPR',
-                    struct(
-                        col('alteration').alias('name'),
-                        col('variantId').alias('id'),
-                        col('variantFunctionalConsequenceId').alias('functionalConsequenceId')
-                    )
-                )
-            )
             # Assign a GO ID when a gene expression data is reported
             .withColumn(
                 'geneExpressionId',
@@ -210,6 +198,28 @@ class cancerBiomarkersEvidenceGenerator():
                     'GO_0010467'
                 )
             )
+            # Create variant struct
+            .withColumn(
+                'variant',
+                when(
+                    col('alteration_type') != 'EXPR',
+                    struct(
+                        col('alteration').alias('name'),
+                        col('variantId').alias('id'),
+                        col('variantFunctionalConsequenceId').alias('functionalConsequenceId')
+                    )
+                )
+            )
+            # Create geneExpression struct
+            .withColumn(
+                'geneExpression',
+                when(
+                    col('alteration_type') == 'EXPR',
+                    struct(
+                        col('alteration').alias('name'),
+                        col('geneExpressionId').alias('id'))
+                )
+            )
         )
 
         pre_evidence = (
@@ -224,9 +234,9 @@ class cancerBiomarkersEvidenceGenerator():
             # literature and urls populated above
             .withColumnRenamed('gene', 'targetFromSourceId')
             .withColumnRenamed('Biomarker', 'biomarkerName')
-            # variant, geneExpressionId populated above
+            # variant, geneExpression populated above
             .drop(
-                'tumor_type', 'source', 'alteration', 'alteration_type', 'IndividualMutation',
+                'tumor_type', 'source', 'alteration', 'alteration_type', 'IndividualMutation', 'geneExpressionId',
                 'gDNA', 'variantFunctionalConsequenceId', 'variantId', 'DrugFullName', 'niceName', 'url')
         )
 
@@ -240,19 +250,21 @@ class cancerBiomarkersEvidenceGenerator():
                 collect_set('literature').alias('literature'),
                 collect_set('urls').alias('urls'),
                 collect_set('variant').alias('variant'),
-                collect_set('geneExpressionId').alias('geneExpressionId'),
+                collect_set('geneExpression').alias('geneExpression'),
             )
             # Replace empty lists with null values
             .withColumn('literature', when(size(col('literature')) == 0, lit(None)).otherwise(col('literature')))
             .withColumn('urls', when(size(col('urls')) == 0, lit(None)).otherwise(col('urls')))
+            .withColumn('variant', when(size(col('variant')) == 0, lit(None)).otherwise(col('variant')))
+            .withColumn('geneExpression', when(size(col('geneExpression')) == 0, lit(None)).otherwise(col('geneExpression')))
             # Collect variant info into biomarkers struct
             .withColumn(
                 'biomarkers',
                 struct(
                     'variant',
-                    'geneExpressionId'
+                    'geneExpression'
                 ))
-            .drop('variant', 'geneExpressionId')
+            .drop('variant', 'geneExpression')
             .distinct()
         )
 
