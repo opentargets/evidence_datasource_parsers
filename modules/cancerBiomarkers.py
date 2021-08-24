@@ -87,8 +87,6 @@ class cancerBiomarkersEvidenceGenerator():
         self.write_evidence_strings(output_file)
         logging.info(f'{evidence.count()} evidence strings have been saved to {output_file}.')
 
-        print(self.evidence.first())
-
     def compute_biomarkers(
         self,
         biomarkers_df: DataFrame,
@@ -138,6 +136,24 @@ class cancerBiomarkersEvidenceGenerator():
                 .otherwise(element_at(col('tmp'), 1))
             )
             .drop('tmp')
+            # Clean special cases on the alteration string
+            .withColumn(
+                'alteration',
+                when(
+                    col('alteration').contains(':.'),
+                    translate(col('alteration'), ':.', '')
+                )
+                .when(
+                    col('alteration') == 'NRAS:.12.,.13.,.59.,.61.,.117.,.146.',
+                    col('Biomarker')  # 'NRAS (12,13,59,61,117,146)'
+                )
+                .when(
+                    # Fusion genes are described with '__'
+                    # biomarker is a cleaner representation when there's one alteration
+                    (col('alteration').contains('__')) & (~col('Biomarker').contains('+')),
+                    col('Biomarker')
+                )
+            )
             # Split source into literature and urls
             # literature contains PMIDs
             # urls are enriched from the source table if not a CT
