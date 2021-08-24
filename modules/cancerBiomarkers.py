@@ -153,6 +153,7 @@ class cancerBiomarkersEvidenceGenerator():
                     (col('alteration').contains('__')) & (~col('Biomarker').contains('+')),
                     col('Biomarker')
                 )
+                .otherwise(col('alteration'))
             )
             # Split source into literature and urls
             # literature contains PMIDs
