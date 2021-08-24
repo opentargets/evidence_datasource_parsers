@@ -9,10 +9,10 @@ import tempfile
 
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.functions import (
-    array_distinct, coalesce, col, collect_set, concat, explode, flatten, lit, initcap,
-    regexp_extract, regexp_replace, size, split, struct, translate, trim, udf, upper, when
+    array_distinct, coalesce, col, collect_set, concat, element_at, explode, flatten, lit,
+    initcap, regexp_extract, regexp_replace, size, split, struct, translate, trim, udf, upper, when
 )
-from pyspark.sql.types import StringType
+from pyspark.sql.types import StringType, ArrayType, TupleType
 
 ALTERATIONTYPE2FUNCTIONCSQ = {
     # TODO: Map BIA
@@ -51,6 +51,10 @@ class cancerBiomarkersEvidenceGenerator():
         self.get_variantId_udf = udf(
             cancerBiomarkersEvidenceGenerator.get_variantId,
             StringType()
+        )
+        self.zip_alterations_with_type_udf = udf(
+            cancerBiomarkersEvidenceGenerator.zip_alterations_with_type,
+            ArrayType(ArrayType(StringType()))
         )
 
     def main(
@@ -98,9 +102,9 @@ class cancerBiomarkersEvidenceGenerator():
             biomarkers_df
             .select(
                 'Biomarker', 'IndividualMutation',
-                array_distinct(split(col('Alteration'), ';')).alias('alteration'),
+                array_distinct(split(col('Alteration'), ';')).alias('alterations'),
                 array_distinct(split(col('Gene'), ';')).alias('gene'),
-                array_distinct(split(col('AlterationType'), ';')).alias('alteration_type'),
+                split(col('AlterationType'), ';').alias('alteration_types'),
                 array_distinct(split(col("PrimaryTumorTypeFullName"), ";")).alias('tumor_type_full_name'),
                 array_distinct(split(col('Drug'), ';')).alias('drug'),
                 'DrugFullName', 'Association', 'EvidenceLevel', 'gDNA',
@@ -119,6 +123,21 @@ class cancerBiomarkersEvidenceGenerator():
                 .otherwise(col('gene'))
             )
             .withColumn('gene', upper(col('gene')))
+            # Disambiguate alteration_type when biomarker consists of multiple alterations
+            .withColumn(
+                'tmp',
+                self.zip_alterations_with_type_udf(col('alterations'), col('alteration_types')))
+            .withColumn('tmp', explode(col('tmp')))
+            .withColumn('alteration_type', element_at(col('tmp'), 2))
+            .withColumn(
+                'alteration',
+                when(
+                    ~col('IndividualMutation').isNull(),
+                    col('IndividualMutation')
+                )
+                .otherwise(element_at(col('tmp'), 1))
+            )
+            .drop('tmp')
             # Split source into literature and urls
             # literature contains PMIDs
             # urls are enriched from the source table if not a CT
@@ -147,7 +166,6 @@ class cancerBiomarkersEvidenceGenerator():
             # whether any condition is met. The empty struct is replaced with null
             .withColumn('urls', when(~col('urls.niceName').isNull(), col('urls')))
             # Enrich data
-            .withColumn('alteration_type', explode(col('alteration_type')))
             .withColumn('variantFunctionalConsequenceId', col('alteration_type'))
             .replace(to_replace=ALTERATIONTYPE2FUNCTIONCSQ, subset=['variantFunctionalConsequenceId'])
             .replace(to_replace=DRUGRESPONSE2EFO, subset=['Association'])
@@ -170,14 +188,13 @@ class cancerBiomarkersEvidenceGenerator():
                 when(
                     col('alteration_type') != 'EXPR',
                     struct(
-                        col('IndividualMutation').alias('name'),
+                        col('alteration').alias('name'),
                         col('variantId').alias('id'),
                         col('variantFunctionalConsequenceId').alias('functionalConsequenceId')
                     )
                 )
             )
             # Assign a GO ID when a gene expression data is reported
-            .withColumn('alteration', explode(col('alteration')))
             .withColumn(
                 'geneExpressionId',
                 when(
@@ -267,6 +284,16 @@ class cancerBiomarkersEvidenceGenerator():
         except AttributeError:
             return
 
+    @staticmethod
+    def zip_alterations_with_type(alterations, alteration_type):
+        '''
+        Zips in a tuple the combination of the alteration w/ its correspondent type 
+        so that when multiple alterations are reported, these can be disambiguated.
+        By expanding the array of alteration types it accounts for the cases when
+        several alterations are reported but only one type is given
+        '''
+        alteration_types = alteration_type * len(alterations)
+        return list(zip(alterations, alteration_types))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
