@@ -244,7 +244,7 @@ class cancerBiomarkersEvidenceGenerator():
 
         pre_evidence = (
             biomarkers_enriched
-            .withColumn('datasourceId', lit('cancer_genome_interpreter'))
+            .withColumn('datasourceId', lit('cancer_biomarkers'))
             .withColumn('datatypeId', lit('affected_pathway'))
             .withColumnRenamed('tumor_type_full_name', 'diseaseFromSource')
             .withColumnRenamed('drug', 'drugFromSource')
