@@ -194,7 +194,7 @@ class cancerBiomarkersEvidenceGenerator():
             .withColumn(
                 # drug class is coalesced when the precise name of the medicine is not provided
                 'drug',
-                when(col('drug') == '[]', col('DrugFullName')).otherwise(col('drug')))
+                when(col('drug') == '', col('DrugFullName')).otherwise(col('drug')))
             .join(drugs_df, on='drug', how='left')
             .withColumn('drug', initcap(col('drug')))
             # Translate variantId
