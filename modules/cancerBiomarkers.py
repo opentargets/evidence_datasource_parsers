@@ -188,7 +188,7 @@ class cancerBiomarkersEvidenceGenerator():
             # Enrich data
             .withColumn('variantFunctionalConsequenceId', col('alteration_type'))
             .replace(to_replace=ALTERATIONTYPE2FUNCTIONCSQ, subset=['variantFunctionalConsequenceId'])
-            .replace(to_replace=DRUGRESPONSE2EFO, subset=['Association'])
+            # .replace(to_replace=DRUGRESPONSE2EFO, subset=['Association'])
             .join(disease_df, on='tumor_type', how='left')
             .withColumn('drug', upper(col('drug')))
             .withColumn(
