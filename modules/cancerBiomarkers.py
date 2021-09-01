@@ -148,12 +148,13 @@ class cancerBiomarkersEvidenceGenerator():
             .withColumn(
                 'alteration',
                 when(
-                    col('alteration').contains(':.'),
-                    translate(col('alteration'), ':.', '')
-                )
-                .when(
                     col('alteration') == 'NRAS:.12.,.13.,.59.,.61.,.117.,.146.',
                     col('Biomarker')  # 'NRAS (12,13,59,61,117,146)'
+                )
+                .when(
+                    # Cleans strings like 'ARAF:.'
+                    col('alteration').contains(':.'),
+                    translate(col('alteration'), ':.', '')
                 )
                 .when(
                     # Fusion genes are described with '__'
