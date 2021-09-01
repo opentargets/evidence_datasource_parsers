@@ -51,7 +51,7 @@ rule cancerBiomarkers:
         source_table = f'tmp/biomarkers_source-{timeStamp}.jsonl',
         disease_table = f'tmp/biomarkers_disease-{timeStamp}.jsonl',
         drug_index = = FTPRemoteProvider().remote(
-            'ftp://ftp.ebi.ac.uk/pub/databases/opentargets/platform/21.06/output/etl/parquet/diseases')
+            f"{config['cancerBiomarkers']['drugIndex']}")
     output:
         GS.remote(f"{config['cancerBiomarkers']['outputBucket']}/cancer_biomarkers-{timeStamp}.json.gz")
     log:

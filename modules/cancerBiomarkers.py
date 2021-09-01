@@ -9,8 +9,8 @@ import tempfile
 
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.functions import (
-    array_distinct, coalesce, col, collect_set, concat, element_at, explode, flatten, lit,
-    initcap, regexp_extract, regexp_replace, size, split, struct, translate, trim, udf, upper, when
+    array_distinct, coalesce, col, collect_set, concat, element_at, explode, lit, initcap,
+    regexp_extract, regexp_replace, size, split, struct, translate, trim, udf, upper, when
 )
 from pyspark.sql.types import StringType, ArrayType
 
@@ -57,7 +57,7 @@ class cancerBiomarkersEvidenceGenerator():
             ArrayType(ArrayType(StringType()))
         )
 
-    def main(
+    def compute(
         self,
         biomarkers_table: str,
         source_table: str,
@@ -74,12 +74,12 @@ class cancerBiomarkersEvidenceGenerator():
             'source', 'url')
         disease_df = self.spark.read.json(disease_table).select(
             regexp_replace(col('name'), '_', '').alias('tumor_type'),
-            regexp_extract(col('url'), '[^/]+$', 0).alias('diseaseFromSourceMappedId'))
+            regexp_extract(col('url'), r'[^/]+$', 0).alias('diseaseFromSourceMappedId'))
         drugs_df = self.spark.read.parquet(drug_index).select(
             col('id').alias('drugId'), col('name').alias('drug'))
 
         # Process inputs to generate evidence strings
-        evidence = self.compute_biomarkers(
+        evidence = self.process_biomarkers(
             biomarkers_df, source_df, disease_df, drugs_df
         )
 
@@ -87,14 +87,14 @@ class cancerBiomarkersEvidenceGenerator():
         self.write_evidence_strings(output_file)
         logging.info(f'{evidence.count()} evidence strings have been saved to {output_file}.')
 
-    def compute_biomarkers(
+    def process_biomarkers(
         self,
         biomarkers_df: DataFrame,
         source_df: DataFrame,
         disease_df: DataFrame,
         drugs_df: DataFrame
     ) -> DataFrame:
-        """The diverse steps to prepare and enrich the input table are computed"""
+        """The diverse steps to prepare and enrich the input table"""
 
         biomarkers_enriched = (
             biomarkers_df
@@ -124,7 +124,12 @@ class cancerBiomarkersEvidenceGenerator():
                 .otherwise(col('gene'))
             )
             .withColumn('gene', upper(col('gene')))
-            # Disambiguate alteration_type when biomarker consists of multiple alterations
+            # At this stage alterations and alteration_types are both arrays
+            # Disambiguation when the biomarker consists of multiple alterations is needed
+            # This is solved by:
+            # 1. Zipping both fields - tmp consists of a list of alteration/type tuples
+            # 2. tmp is exploded - tmp consists of the alteration/type tuple
+            # 3. alteration & alteration_type columns are overwritten with the elements in the tuple
             .withColumn(
                 'tmp',
                 self.zip_alterations_with_type_udf(col('alterations'), col('alteration_types')))
@@ -313,9 +318,9 @@ class cancerBiomarkersEvidenceGenerator():
         try:
             for k, v in translate_dct.items():
                 gDNA = gDNA.replace(k, v)
-            x, head, tail = re.split('^(.*?_\d+)', gDNA)
-            if bool(re.search('\d+', tail)):
-                tail = re.split('^(_\d+_)', tail)[-1]
+            x, head, tail = re.split(r'^(.*?_\d+)', gDNA)
+            if bool(re.search(r'\d+', tail)):
+                tail = re.split(r'^(_\d+_)', tail)[-1]
             return head + '_' + tail
         except AttributeError:
             return
@@ -323,10 +328,14 @@ class cancerBiomarkersEvidenceGenerator():
     @staticmethod
     def zip_alterations_with_type(alterations, alteration_type):
         '''
-        Zips in a tuple the combination of the alteration w/ its correspondent type 
+        Zips in a tuple the combination of the alteration w/ its correspondent type
         so that when multiple alterations are reported, these can be disambiguated.
         By expanding the array of alteration types it accounts for the cases when
-        several alterations are reported but only one type is given
+        several alterations are reported but only one type is given.
+        Ex.:
+        alterations = ['MET:Y1230C', 'Y1235D']
+        alteration_type = ['MUT']
+        --> [('MET:Y1230C', 'MUT'), ('Y1235D', 'MUT')]
         '''
         alteration_types = alteration_type * len(alterations)
         return list(zip(alterations, alteration_types))
@@ -350,7 +359,7 @@ if __name__ == '__main__':
         datefmt='%Y-%m-%d %H:%M:%S',
     )
 
-    cancerBiomarkersEvidenceGenerator().main(
+    cancerBiomarkersEvidenceGenerator().compute(
         args.biomarkers_table,
         args.source_table,
         args.disease_table,

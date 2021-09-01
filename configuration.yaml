@@ -72,3 +72,4 @@ Orphanet:
 cancerBiomarkers:
   inputBucket: gs://otar000-evidence_input/cancerBiomarkers/data_files
   outputBucket: gs://otar000-evidence_input/cancerBiomarkers/json
+  drugIndex: ftp://ftp.ebi.ac.uk/pub/databases/opentargets/platform/21.06/output/etl/parquet/diseases
