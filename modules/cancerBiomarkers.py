@@ -309,11 +309,13 @@ class cancerBiomarkersEvidenceGenerator():
         Converts the genomic coordinates to the CHROM_POS_REF_ALT notation
         Ex.: 'chr14:g.105243048G_T' --> '14_105243048_G_T'
         '''
-        translate_dct = {'chr': '', ':g.': '_', '>': '_'}
+        translate_dct = {'chr': '', ':g.': '_', '>': '_', 'del': '_', 'ins': '_'}
         try:
             for k, v in translate_dct.items():
                 gDNA = gDNA.replace(k, v)
-            x, head, tail = re.split('^(.*_\d+)', gDNA)
+            x, head, tail = re.split('^(.*?_\d+)', gDNA)
+            if bool(re.search('\d+', tail)):
+                tail = re.split('^(_\d+_)', tail)[-1]
             return head + '_' + tail
         except AttributeError:
             return
