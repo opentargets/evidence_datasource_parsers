@@ -104,14 +104,17 @@ class cancerBiomarkersEvidenceGenerator():
                 array_distinct(split(col('Gene'), ';')).alias('gene'),
                 split(col('AlterationType'), ';').alias('alteration_types'),
                 array_distinct(split(col("PrimaryTumorTypeFullName"), ";")).alias('tumor_type_full_name'),
-                array_distinct(split(col('Drug'), ';')).alias('drug'),
-                'DrugFullName', 'Association', 'EvidenceLevel', 'gDNA',
+                array_distinct(split(col('Drug'), ';|,')).alias('drug'),
+                'DrugFullName', 'Association', 'gDNA',
+                array_distinct(split(col('EvidenceLevel'), ',')).alias('confidence'),
                 array_distinct(split(col('Source'), ';')).alias('source')
             )
+            .withColumn('confidence', explode(col('confidence')))
             .withColumn('tumor_type_full_name', explode(col('tumor_type_full_name')))
             .withColumn('tumor_type', translate(col('tumor_type_full_name'), ' -', ''))
             .withColumn('gene', explode(col('gene')))
             .withColumn('drug', explode(col('drug')))
+            .withColumn('drug', translate(col('drug'), '[]', ''))
             # Override specific genes
             .withColumn(
                 'gene',
@@ -247,8 +250,7 @@ class cancerBiomarkersEvidenceGenerator():
             .withColumnRenamed('drug', 'drugFromSource')
             # diseaseFromSourceMappedId, drugId populated above
             .withColumnRenamed('Association', 'drugResponse')
-            .withColumnRenamed('EvidenceLevel', 'confidence')
-            # literature and urls populated above
+            # confidence, literature and urls populated above
             .withColumnRenamed('gene', 'targetFromSourceId')
             .withColumnRenamed('Biomarker', 'biomarkerName')
             # variant, geneExpression populated above
@@ -273,7 +275,10 @@ class cancerBiomarkersEvidenceGenerator():
             .withColumn('literature', when(size(col('literature')) == 0, lit(None)).otherwise(col('literature')))
             .withColumn('urls', when(size(col('urls')) == 0, lit(None)).otherwise(col('urls')))
             .withColumn('variant', when(size(col('variant')) == 0, lit(None)).otherwise(col('variant')))
-            .withColumn('geneExpression', when(size(col('geneExpression')) == 0, lit(None)).otherwise(col('geneExpression')))
+            .withColumn(
+                'geneExpression',
+                when(size(col('geneExpression')) == 0, lit(None))
+                .otherwise(col('geneExpression')))
             # Collect variant info into biomarkers struct
             .withColumn(
                 'biomarkers',
