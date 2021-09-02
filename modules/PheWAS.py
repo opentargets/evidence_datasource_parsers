@@ -13,8 +13,6 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import udf, col, element_at, split, lit, count, concat
 from pyspark.sql.types import StringType, IntegerType, DoubleType
 
-from common.HGNCParser import GeneParser
-
 class phewasEvidenceGenerator():
 
     def __init__(self, genesSet):
@@ -33,14 +31,6 @@ class phewasEvidenceGenerator():
             .config(conf=sparkConf)
             .master('local[*]')
             .getOrCreate()
-        )
-
-        # Initialize gene parser
-        gene_parser = GeneParser()
-        gene_parser._get_hgnc_data_from_json(genesSet)
-        self.udfGeneParser = udf(
-            lambda x: gene_parser.genes.get(x.strip('*'), np.nan),
-            StringType()
         )
 
         # Initialize variables
@@ -94,14 +84,6 @@ class phewasEvidenceGenerator():
         else:
             logging.info('Disease mapping has been skipped.')
             self.dataframe = self.dataframe.withColumn('EFO_id', lit(None))
-
-        # Parse gene symbols to ENSID to join with the consequences table
-        self.dataframe = (
-            self.dataframe
-            .withColumn('ens_id', self.udfGeneParser(col('gene')))
-            # Remove rows where the target is not valid
-            .filter(col('ens_id') != 'NaN')
-        )
 
         # Get functional consequence per variant from OT Genetics Portal
         cols = [
