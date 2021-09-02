@@ -445,8 +445,34 @@ class PhenoDigm:
             # Join phenotype class information.
             .join(self.mp_class, on='modelPhenotypeId', how='inner')
         )
+
         # Post-process model ID field.
-        self.mouse_phenotypes = self._cleanup_model_identifier(mouse_phenotypes)
+        mouse_phenotypes = self._cleanup_model_identifier(mouse_phenotypes)
+
+        # Convert the schema from flat to partially nested, grouping related models and phenotype classes.
+        self.mouse_phenotypes = (
+            mouse_phenotypes
+            .groupby(
+                'targetInModel', 'targetInModelMgiId', 'targetInModelEnsemblId', 'targetFromSourceId',
+                'modelPhenotypeId', 'modelPhenotypeLabel'
+            )
+            .agg(
+                pf.collect_set(
+                    pf.struct(
+                        pf.col('biologicalModelAllelicComposition').alias('allelicComposition'),
+                        pf.col('biologicalModelGeneticBackground').alias('geneticBackground'),
+                        pf.col('biologicalModelId').alias('id'),
+                        pf.col('literature')
+                    ).alias('biologicalModels')
+                ),
+                pf.collect_set(
+                    pf.struct(
+                        pf.col('modelPhenotypeClassId').alias('id'),
+                        pf.col('modelPhenotypeClassLabel').alias('label')
+                    ).alias('modelPhenotypeClasses')
+                )
+            )
+        )
 
     def write_datasets(self, evidence_strings_filename, mouse_phenotypes_filename):
         """Dump the Spark evidence dataframe as a compressed JSON file. The order of the evidence strings is not
