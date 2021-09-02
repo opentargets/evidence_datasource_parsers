@@ -271,9 +271,10 @@ class PhenoDigm:
         )
         # Process MP definitions to extract high level classes for each term.
         mp = pronto.Ontology(os.path.join(self.cache_dir, self.MGI_MP_FILENAME))
+        high_level_classes = set(mp['MP:0000001'].subclasses(distance=1)) - {mp['MP:0000001']}
         mp_class = [
             [term.id, mp_high_level_class.id, mp_high_level_class.name]
-            for mp_high_level_class in mp['MP:0000001'].subclasses(distance=1)
+            for mp_high_level_class in high_level_classes
             for term in mp_high_level_class.subclasses()
         ]
         self.mp_class = self.spark.createDataFrame(
