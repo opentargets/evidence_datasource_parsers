@@ -463,14 +463,14 @@ class PhenoDigm:
                         pf.col('biologicalModelGeneticBackground').alias('geneticBackground'),
                         pf.col('biologicalModelId').alias('id'),
                         pf.col('literature')
-                    ).alias('biologicalModels')
-                ),
+                    )
+                ).alias('biologicalModels'),
                 pf.collect_set(
                     pf.struct(
                         pf.col('modelPhenotypeClassId').alias('id'),
                         pf.col('modelPhenotypeClassLabel').alias('label')
-                    ).alias('modelPhenotypeClasses')
-                )
+                    )
+                ).alias('modelPhenotypeClasses')
             )
         )
 
