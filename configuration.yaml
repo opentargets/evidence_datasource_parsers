@@ -68,3 +68,8 @@ EPMC:
 Orphanet:
   webSource: http://www.orphadata.org/data/xml/en_product6.xml
   outputBucket: gs://otar000-evidence_input/Orphanet/json
+# Parameters for Cancer Biomarkers:
+cancerBiomarkers:
+  inputBucket: gs://otar000-evidence_input/cancerBiomarkers/data_files
+  outputBucket: gs://otar000-evidence_input/cancerBiomarkers/json
+  drugIndex: ftp://ftp.ebi.ac.uk/pub/databases/opentargets/platform/21.06/output/etl/parquet/diseases
