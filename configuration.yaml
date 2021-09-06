@@ -55,7 +55,8 @@ CRISPR:
   outputBucket: gs://otar000-evidence_input/CRISPR/json
 # Parameters for Phenodigm:
 Phenodigm:
-  outputBucket: gs://otar000-evidence_input/PhenoDigm/json
+  evidenceOutputBucket: gs://otar000-evidence_input/PhenoDigm/json
+  phenotypesOutputBucket: gs://otar001-core/MousePhenotypes
 # Parameters for SysBio:
 SysBio:
   inputBucket: gs://otar000-evidence_input/SysBio/data_files
