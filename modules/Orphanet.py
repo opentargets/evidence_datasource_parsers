@@ -1,13 +1,19 @@
+#!/usr/bin/env python3
+"""Evidence parser for Orphanet's gene-disease associations."""
+
 import argparse
 import logging
+import os
 import sys
+import tempfile
 import time
 from itertools import chain
 
 import xml.etree.ElementTree as ET
 from pyspark.conf import SparkConf
-from pyspark.sql import SparkSession, Row
-from pyspark.sql.functions import col, lit, create_map, split
+from pyspark.sql import DataFrame, Row, SparkSession
+from pyspark.sql.functions import array_distinct, col, create_map, explode, first, lit, split
+from pyspark.sql.types import ArrayType, StringType, StructField, StructType
 
 from ontoma import OnToma
 
@@ -32,36 +38,24 @@ CONSEQUENCE_MAP = {
 
 class ontoma_efo_lookup():
     """
-    Simple class to map orphanet ids to efo
+    Map orphanet diseases to the EFO ontology
     """
     def __init__(self):
         self.otmap = OnToma()
 
     def get_mapping(self, terms=[]):
         disease_label, disease_id = terms
+        label_mapping = [
+            result.id_ot_schema
+            for result in self.otmap.find_term(disease_label)]
 
-        mappings = self.query_ontoma(disease_id)
-
-        if mappings and 'EFO' in mappings['source']:
-            return mappings['term'].split('/')[-1]
+        if len(label_mapping) != 0:
+            return (disease_label, disease_id, label_mapping)
         else:
-            mappings = self.query_ontoma(disease_label)
-
-        if mappings and 'EFO' in mappings['source']:
-            return mappings['term'].split('/')[-1]
-        else:
-            return None
-
-    def query_ontoma(self, term):
-
-        try:
-            mappings = self.otmap.find_term(term, verbose=True)
-        except Exception:
-            time.sleep(3)
-            mappings = self.otmap.find_term(term, verbose=True)
-
-        return mappings
-
+            id_mapping = [
+                result.id_ot_schema
+                for result in self.otmap.find_term(disease_id)]
+            return (disease_label, disease_id, id_mapping)
 
 def parse_orphanet_xml(orphanet_file: str) -> list:
     """
@@ -106,7 +100,7 @@ def parse_orphanet_xml(orphanet_file: str) -> list:
             # Not all gene/disease association is backed up by publication:
             try:
                 evidence['literature'] = [
-                    pmid.replace('[PMID]', '') for pmid in association.find('SourceOfValidation').text.split('_') if '[PMID]' in pmid
+                    pmid.replace('[PMID]', '').rstrip() for pmid in association.find('SourceOfValidation').text.split('_') if '[PMID]' in pmid
                 ]
             except AttributeError:
                 evidence['literature'] = None
@@ -170,15 +164,17 @@ def main(input_file: str, output_file: str, local: bool = False) -> None:
     # Parsing xml file:s
     orphanet_disorders = parse_orphanet_xml(input_file)
 
-    # Crete a spark dataframe from the parsed data:
+    # Create a spark dataframe from the parsed data:
     orphanet_df = (
         spark.createDataFrame(Row(**x) for x in orphanet_disorders)
         .filter(
             ~col('associationType').isin(EXCLUDED_ASSOCIATIONTYPES)
         )
+        .filter(~col('targetFromSourceId').isNull())
         .withColumn('dataSourceId', lit('orphanet'))
         .withColumn('datatypeId', lit('genetic_association'))
         .withColumn('alleleOrigins', split(lit('germline'), "_"))
+        .withColumn('literature', array_distinct(col('literature')))
         .withColumn('variantFunctionalConsequenceId', so_mapping_expr.getItem(col('associationType')))
         .drop('associationType', 'type')
         .persist()
@@ -191,27 +187,50 @@ def main(input_file: str, output_file: str, local: bool = False) -> None:
         .distinct()
         .collect()
     )
-    mapped_diseases = {x[1]: ol_obj.get_mapping(x) for x in orphanet_diseases}
-    disease_mapping_expr = create_map([lit(x) for x in chain(*mapped_diseases.items())])
 
-    # Adding EFO mapping as new column:
-    orphanet_df = (
-        orphanet_df
-        .withColumn('diseaseFromSourceMappedId', disease_mapping_expr.getItem(col('diseaseFromSourceId')))
+    mapped_diseases = [ol_obj.get_mapping(x) for x in orphanet_diseases]
+    
+    schema = StructType([
+        StructField('diseaseFromSource', StringType(), True),
+        StructField('diseaseFromSourceId', StringType(), True),
+        StructField('diseaseFromSourceMappedId', ArrayType(StringType()), True)
+    ])
+    mapped_diseases_df = (
+        # Dataframe from list of label/id/mapped_id tuples
+        spark.createDataFrame(mapped_diseases, schema=schema)
+        # Coalesce df row-wise
+        .groupBy(
+            'diseaseFromSource', 'diseaseFromSourceId')
+        .agg(first("diseaseFromSourceMappedId", ignorenulls=True).alias("diseaseFromSourceMappedId"))
+        # Explode cases where one diseaseFromSource maps to many EFO terms
+        .withColumn('diseaseFromSourceMappedId', explode('diseaseFromSourceMappedId'))
     )
 
-    # Save data:
-    (
+    # Adding EFO mapping as new column and prepare evidence:
+    evidence = (
         orphanet_df
+        .join(mapped_diseases_df, on=['diseaseFromSource', 'diseaseFromSourceId'], how='left')
         .select(
             'datasourceId', 'datatypeId', 'alleleOrigins', 'confidence', 'diseaseFromSource',
             'diseaseFromSourceId', 'diseaseFromSourceMappedId', 'literature', 'targetFromSource',
             'targetFromSourceId'
         )
-        .coalesce(1)
-        .write.format('json').mode('overwrite').option('compression', 'gzip')
-        .save(output_file)
     )
+
+    # Save data
+    write_evidence_strings(evidence, output_file)
+    logging.info(f'{orphanet_df.count()} evidence strings have been saved to {output_file}')
+
+def write_evidence_strings(evidence: DataFrame, output_file: str) -> None:
+    '''Exports the table to a compressed JSON file containing the evidence strings'''
+    with tempfile.TemporaryDirectory() as tmp_dir_name:
+        (
+            evidence.coalesce(1).write.format('json').mode('overwrite')
+            .option('compression', 'org.apache.hadoop.io.compress.GzipCodec').save(tmp_dir_name)
+        )
+        json_chunks = [f for f in os.listdir(tmp_dir_name) if f.endswith('.json.gz')]
+        assert len(json_chunks) == 1, f'Expected one JSON file, but found {len(json_chunks)}.'
+        os.rename(os.path.join(tmp_dir_name, json_chunks[0]), output_file)
 
 
 if __name__ == '__main__':
@@ -219,7 +238,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=('Parse Orphanet gene-disease annotation downloaded from '
                                                   'http://www.orphadata.org/data/xml/en_product6.xml'))
     parser.add_argument('--input_file', help='Xml file containing target/disease associations.', type=str)
-    parser.add_argument('--output_file', help='Name of the gzipped, JSON evidence file.', type=str)
+    parser.add_argument('--output_file', help='Absolute path of the gzipped, JSON evidence file.', type=str)
     parser.add_argument('--logFile', help='Destination of the logs generated by this script.', type=str, required=False)
     parser.add_argument(
         '--local', action='store_true', required=False, default=False,
