@@ -211,12 +211,12 @@ rule progeny:
             --outputFile {output.evidenceFile}
         """
 
-## phenodigm                : processes target-disease evidence querying the IMPC SOLR API
+## phenodigm                : processes target-disease evidence and mouseModels dataset by querying the IMPC SOLR API
 rule phenodigm:
     output:
-        evidenceFile=GS.remote(f"{config['Phenodigm']['outputBucket']}/phenodigm-{timeStamp}.json.gz"),
-        mousePhenotypes=GS.remote(f"{config['Phenodigm']['outputBucket']}/phenodigm-{timeStamp}."
-                                  f"mousePhenotypes.json.gz")
+        evidenceFile=GS.remote(f"{config['Phenodigm']['evidenceOutputBucket']}/phenodigm-{timeStamp}.json.gz"),
+        mousePhenotypes=GS.remote(f"{config['Phenodigm']['phenotypesOutputBucket']}/mousePhenotypes.{timeStamp}."
+                                  f"json.gz")
     log:
         GS.remote(logFile)
     shell:
