@@ -55,7 +55,8 @@ CRISPR:
   outputBucket: gs://otar000-evidence_input/CRISPR/json
 # Parameters for Phenodigm:
 Phenodigm:
-  outputBucket: gs://otar000-evidence_input/PhenoDigm/json
+  evidenceOutputBucket: gs://otar000-evidence_input/PhenoDigm/json
+  phenotypesOutputBucket: gs://otar001-core/MousePhenotypes
 # Parameters for SysBio:
 SysBio:
   inputBucket: gs://otar000-evidence_input/SysBio/data_files
@@ -68,3 +69,8 @@ EPMC:
 Orphanet:
   webSource: http://www.orphadata.org/data/xml/en_product6.xml
   outputBucket: gs://otar000-evidence_input/Orphanet/json
+# Parameters for Cancer Biomarkers:
+cancerBiomarkers:
+  inputBucket: gs://otar000-evidence_input/cancerBiomarkers/data_files
+  outputBucket: gs://otar000-evidence_input/cancerBiomarkers/json
+  drugIndex: ftp://ftp.ebi.ac.uk/pub/databases/opentargets/platform/21.06/output/etl/parquet/diseases

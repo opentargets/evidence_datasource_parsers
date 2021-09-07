@@ -17,6 +17,7 @@ logFile = f"{config['global']['logDir']}/evidence_parser-{timeStamp}.log"
 rule all:
     input:
         GS.remote(f"{config['ClinGen']['outputBucket']}/ClinGen-{timeStamp}.json.gz"),
+        GS.remote(f"{config['PheWAS']['outputBucket']}/cancer_biomarkers-{timeStamp}.json.gz"),
         GS.remote(f"{config['PheWAS']['outputBucket']}/phewas_catalog-{timeStamp}.json.gz"),
         GS.remote(f"{config['SLAPEnrich']['outputBucket']}/slapenrich-{timeStamp}.json.gz"),
         GS.remote(f"{config['Gene2Phenotype']['outputBucket']}/gene2phenotype-{timeStamp}.json.gz"),
@@ -43,13 +44,35 @@ rule clean:
         "rm -rf tmp"
 
 # --- Data sources parsers --- #
+## cancerBiomarkers          : processes the Cancers Biomarkers database from Cancer Genome Interpreter
+rule cancerBiomarkers:
+    input:
+        biomarkers_table = f'tmp/biomarkers_table-{timeStamp}.tsv',
+        source_table = f'tmp/biomarkers_source-{timeStamp}.jsonl',
+        disease_table = f'tmp/biomarkers_disease-{timeStamp}.jsonl',
+        drug_index = = FTPRemoteProvider().remote(
+            f"{config['cancerBiomarkers']['drugIndex']}")
+    output:
+        GS.remote(f"{config['cancerBiomarkers']['outputBucket']}/cancer_biomarkers-{timeStamp}.json.gz")
+    log:
+        GS.remote(logFile)
+    shell:
+        """
+        python modules/cancerBiomarkers.py \
+        --biomarkers_table {input.biomarkers_table} \
+        --source_table {input.source_table} \
+        --disease_table {input.disease_table} \
+        --drug_index {input.drug_index} \
+        --output_file {output}
+        """
+
 ## clingen                  : processes the Gene Validity Curations table from ClinGen
 rule clingen:
     input:
         f"tmp/ClinGen-Gene-Disease-Summary-{timeStamp}.csv"
     output:
-        evidenceFile=GS.remote(f"{config['ClinGen']['outputBucket']}/ClinGen-{timeStamp}.json.gz"),
-        unmappedDiseases=f"tmp/unmappedDiseases/clingen_unmapped_diseases-{timeStamp}.lst"
+        evidenceFile = GS.remote(f"{config['ClinGen']['outputBucket']}/ClinGen-{timeStamp}.json.gz"),
+        unmappedDiseases = f"tmp/unmappedDiseases/clingen_unmapped_diseases-{timeStamp}.lst"
     log:
         GS.remote(logFile)
     shell:
@@ -92,13 +115,13 @@ rule geneticsPortal:
 ## phewas                   : processes phenome-wide association studies data from PheWAS
 rule phewas:
     input:
-        inputFile=f"tmp/phewas_catalog-{timeStamp}.csv",
-        consequencesFile=f"tmp/phewas_w_consequences-{timeStamp}.csv",
-        diseaseMapping=f"tmp/phewascat_mappings-{timeStamp}.tsv",
+        inputFile = f"tmp/phewas_catalog-{timeStamp}.csv",
+        consequencesFile = f"tmp/phewas_w_consequences-{timeStamp}.csv",
+        diseaseMapping = f"tmp/phewascat_mappings-{timeStamp}.tsv",
     params:
-        genesSet=f"{config['global']['genesHGNC']}"
+        genesSet = f"{config['global']['genesHGNC']}"
     output:
-        evidenceFile=GS.remote(f"{config['PheWAS']['outputBucket']}/phewas_catalog-{timeStamp}.json.gz")
+        evidenceFile = GS.remote(f"{config['PheWAS']['outputBucket']}/phewas_catalog-{timeStamp}.json.gz")
     log:
         GS.remote(logFile)
     shell:
@@ -114,10 +137,10 @@ rule phewas:
 ## slapenrich               : processes cancer-target evidence strings derived from SLAPenrich
 rule slapenrich:
     input:
-        inputFile=f"tmp/slapenrich-{timeStamp}.csv",
-        diseaseMapping=f"tmp/cancer2EFO_mappings-{timeStamp}.tsv"
+        inputFile = f"tmp/slapenrich-{timeStamp}.csv",
+        diseaseMapping = f"tmp/cancer2EFO_mappings-{timeStamp}.tsv"
     output:
-        evidenceFile=GS.remote(f"{config['SLAPEnrich']['outputBucket']}/slapenrich-{timeStamp}.json.gz")
+        evidenceFile = GS.remote(f"{config['SLAPEnrich']['outputBucket']}/slapenrich-{timeStamp}.json.gz")
     log:
         GS.remote(logFile)
     shell:
@@ -131,13 +154,13 @@ rule slapenrich:
 ## gene2Phenotype           : processes four gene panels from Gene2Phenotype
 rule gene2Phenotype:
     input:
-        ddPanel=f"tmp/DDG2P-{timeStamp}.csv.gz",
-        eyePanel=f"tmp/EyeG2P-{timeStamp}.csv.gz",
-        skinPanel=f"tmp/SkinG2P-{timeStamp}.csv.gz",
-        cancerPanel=f"tmp/CancerG2P-{timeStamp}.csv.gz"
+        ddPanel = f"tmp/DDG2P-{timeStamp}.csv.gz",
+        eyePanel = f"tmp/EyeG2P-{timeStamp}.csv.gz",
+        skinPanel = f"tmp/SkinG2P-{timeStamp}.csv.gz",
+        cancerPanel = f"tmp/CancerG2P-{timeStamp}.csv.gz"
     output:
-        evidenceFile=GS.remote(f"{config['Gene2Phenotype']['outputBucket']}/gene2phenotype-{timeStamp}.json.gz"),
-        unmappedDiseases=f"tmp/unmappedDiseases/gene2phenotype_unmapped_diseases-{timeStamp}.txt"
+        evidenceFile = GS.remote(f"{config['Gene2Phenotype']['outputBucket']}/gene2phenotype-{timeStamp}.json.gz"),
+        unmappedDiseases = f"tmp/unmappedDiseases/gene2phenotype_unmapped_diseases-{timeStamp}.txt"
     log:
         GS.remote(logFile)
     shell:
@@ -153,11 +176,11 @@ rule gene2Phenotype:
 ## crispr                   : processes cancer therapeutic targets using CRISPR–Cas9 screens
 rule crispr:
     input:
-        evidenceFile=f"tmp/crispr_evidence-{timeStamp}.csv",
-        descriptionsFile=f"tmp/crispr_descriptions-{timeStamp}.tsv",
-        cellTypesFile=f"tmp/crispr_cell_lines-{timeStamp}.tsv"
+        evidenceFile = f"tmp/crispr_evidence-{timeStamp}.csv",
+        descriptionsFile = f"tmp/crispr_descriptions-{timeStamp}.tsv",
+        cellTypesFile = f"tmp/crispr_cell_lines-{timeStamp}.tsv"
     output:
-        evidenceFile=GS.remote(f"{config['CRISPR']['outputBucket']}/crispr-{timeStamp}.json.gz")
+        evidenceFile = GS.remote(f"{config['CRISPR']['outputBucket']}/crispr-{timeStamp}.json.gz")
     log:
         GS.remote(logFile)
     shell:
@@ -172,11 +195,11 @@ rule crispr:
 ## progeny                  : processes gene expression data from TCGA derived from PROGENy
 rule progeny:
     input:
-        inputFile=f"tmp/progeny_normalVStumor_opentargets-{timeStamp}.txt",
-        diseaseMapping=f"tmp/progeny_cancer2EFO_mappings-{timeStamp}.tsv",
-        pathwayMapping=f"tmp/pathway2Reactome_mappings-{timeStamp}.tsv"
+        inputFile = f"tmp/progeny_normalVStumor_opentargets-{timeStamp}.txt",
+        diseaseMapping = f"tmp/progeny_cancer2EFO_mappings-{timeStamp}.tsv",
+        pathwayMapping = f"tmp/pathway2Reactome_mappings-{timeStamp}.tsv"
     output:
-        evidenceFile=GS.remote(f"{config['PROGENy']['outputBucket']}/progeny-{timeStamp}.json.gz")
+        evidenceFile = GS.remote(f"{config['PROGENy']['outputBucket']}/progeny-{timeStamp}.json.gz")
     log:
         GS.remote(logFile)
     shell:
@@ -188,12 +211,12 @@ rule progeny:
             --outputFile {output.evidenceFile}
         """
 
-## phenodigm                : processes target-disease evidence querying the IMPC SOLR API
+## phenodigm                : processes target-disease evidence and mouseModels dataset by querying the IMPC SOLR API
 rule phenodigm:
     output:
-        evidenceFile=GS.remote(f"{config['Phenodigm']['outputBucket']}/phenodigm-{timeStamp}.json.gz"),
-        mousePhenotypes=GS.remote(f"{config['Phenodigm']['outputBucket']}/phenodigm-{timeStamp}."
-                                  f"mousePhenotypes.json.gz")
+        evidenceFile=GS.remote(f"{config['Phenodigm']['evidenceOutputBucket']}/phenodigm-{timeStamp}.json.gz"),
+        mousePhenotypes=GS.remote(f"{config['Phenodigm']['phenotypesOutputBucket']}/mousePhenotypes.{timeStamp}."
+                                  f"json.gz")
     log:
         GS.remote(logFile)
     shell:
@@ -207,10 +230,10 @@ rule phenodigm:
 ## sysbio                   : processes key driver genes for specific diseases that have been curated from Systems Biology papers
 rule sysbio:
     input:
-        evidenceFile=f"tmp/sysbio_evidence-{timeStamp}.tsv",
-        studyFile=f"tmp/sysbio_publication_info-{timeStamp}.tsv"
+        evidenceFile = f"tmp/sysbio_evidence-{timeStamp}.tsv",
+        studyFile = f"tmp/sysbio_publication_info-{timeStamp}.tsv"
     output:
-        evidenceFile=GS.remote(f"{config['SysBio']['outputBucket']}/sysbio-{timeStamp}.json.gz")
+        evidenceFile = GS.remote(f"{config['SysBio']['outputBucket']}/sysbio-{timeStamp}.json.gz")
     log:
         GS.remote(logFile)
     shell:
@@ -224,7 +247,7 @@ rule sysbio:
 ## panelApp                 : processes gene panels data curated by Genomics England
 rule panelApp:
     input:
-        inputFile=f"tmp/panelapp_gene_panels-{timeStamp}.tsv"
+        inputFile = f"tmp/panelapp_gene_panels-{timeStamp}.tsv"
     output:
         evidenceFile = GS.remote(f"{config['PanelApp']['outputBucket']}/genomics_england-{timeStamp}.json.gz")
     log:
@@ -241,7 +264,7 @@ rule intogen:
     input:
         inputGenes = f"tmp/Compendium_Cancer_Genes-{timeStamp}.tsv",
         inputCohorts = f"tmp/cohorts-{timeStamp}.tsv",
-        diseaseMapping=f"tmp/intogen_cancer2EFO_mappings-{timeStamp}.tsv"
+        diseaseMapping = f"tmp/intogen_cancer2EFO_mappings-{timeStamp}.tsv"
     output:
         evidenceFile = GS.remote(f"{config['intOGen']['outputBucket']}/intogen-{timeStamp}.json.gz")
     log:
@@ -289,13 +312,31 @@ rule orphanet:
         """
 
 # --- Fetching input data and uploading to GS --- #
+## fetchCancerBiomarkers     : fetches the Cancer Biomarkers data from GS
+rule fetchCancerBiomarkers:
+    input:
+        biomarkers_table = GS.remote(f"{config['cancerBiomarkers']['inputBucket']}/cancerbiomarkers-2018-05-01.tsv"),
+        source_table = GS.remote(f"{config['cancerBiomarkers']['inputBucket']}/cancer_biomarker_source.jsonl"),
+    output:
+        biomarkers_table = f'tmp/biomarkers_table-{timeStamp}.tsv',
+        source_table = f'tmp/biomarkers_source-{timeStamp}.jsonl',
+        disease_table = source_table = f'tmp/biomarkers_disease-{timeStamp}.jsonl'
+    log:
+        GS.remote(logFile)
+    shell:
+        """
+        gsutil cp {input.biomarkers_table} {output.biomarkers_table}
+        gsutil cp {input.source_table} {output.source_table}
+        gsutil cp {input.disease_table} {output.disease_table}
+        """
+
 ## fetchClingen             : fetches the Gene Validity Curations table from ClinGen
 rule fetchClingen:
     params:
-        webSource=config['ClinGen']['webSource']
+        webSource = config['ClinGen']['webSource']
     output:
-        bucket=GS.remote(f"{config['ClinGen']['inputBucket']}/ClinGen-Gene-Disease-Summary-{timeStamp}.csv"),
-        local=f"tmp/ClinGen-Gene-Disease-Summary-{timeStamp}.csv"
+        bucket = GS.remote(f"{config['ClinGen']['inputBucket']}/ClinGen-Gene-Disease-Summary-{timeStamp}.csv"),
+        local = f"tmp/ClinGen-Gene-Disease-Summary-{timeStamp}.csv"
     log:
         GS.remote(logFile)
     shell:
@@ -307,14 +348,14 @@ rule fetchClingen:
 ## fetchPhewas              : fetches the PheWAS data and an enriched table from GS and a disease mapping look-up
 rule fetchPhewas:
     input:
-        inputFile=GS.remote(f"{config['PheWAS']['inputBucket']}/phewas-catalog-19-10-2018.csv"),
-        consequencesFile=GS.remote(f"{config['PheWAS']['inputBucket']}/phewas_w_consequences.csv")
+        inputFile = GS.remote(f"{config['PheWAS']['inputBucket']}/phewas-catalog-19-10-2018.csv"),
+        consequencesFile = GS.remote(f"{config['PheWAS']['inputBucket']}/phewas_w_consequences.csv")
     params:
-        diseaseMapping=config['PheWAS']['diseaseMapping'],
+        diseaseMapping = config['PheWAS']['diseaseMapping'],
     output:
-        inputFile=f"tmp/phewas_catalog-{timeStamp}.csv",
-        consequencesFile=f"tmp/phewas_w_consequences-{timeStamp}.csv",
-        diseaseMapping=f"tmp/phewascat_mappings-{timeStamp}.tsv"
+        inputFile = f"tmp/phewas_catalog-{timeStamp}.csv",
+        consequencesFile = f"tmp/phewas_w_consequences-{timeStamp}.csv",
+        diseaseMapping = f"tmp/phewascat_mappings-{timeStamp}.tsv"
     log:
         GS.remote(logFile)
     shell:
@@ -327,12 +368,12 @@ rule fetchPhewas:
 ## fetchSlapenrich          : fetches SLAPenrich table from GS
 rule fetchSlapenrich:
     input:
-        inputFile=GS.remote(f"{config['SLAPEnrich']['inputBucket']}/slapenrich_opentargets-21-12-2017.tsv")
+        inputFile = GS.remote(f"{config['SLAPEnrich']['inputBucket']}/slapenrich_opentargets-21-12-2017.tsv")
     params:
-        diseaseMapping=config['SLAPEnrich']['diseaseMapping']
+        diseaseMapping = config['SLAPEnrich']['diseaseMapping']
     output:
-        inputFile=f"tmp/slapenrich-{timeStamp}.csv",
-        diseaseMapping=f"tmp/cancer2EFO_mappings-{timeStamp}.tsv"
+        inputFile = f"tmp/slapenrich-{timeStamp}.csv",
+        diseaseMapping = f"tmp/cancer2EFO_mappings-{timeStamp}.tsv"
     log:
         GS.remote(logFile)
     shell:
@@ -344,20 +385,20 @@ rule fetchSlapenrich:
 ## fetchGene2Phenotype      : fetches four gene panels downloaded from Gene2Phenotype
 rule fetchGene2Phenotype:
     params:
-        webSource_dd_panel=config['Gene2Phenotype']['webSource_dd_panel'],
-        webSource_eye_panel=config['Gene2Phenotype']['webSource_eye_panel'],
-        webSource_skin_panel=config['Gene2Phenotype']['webSource_skin_panel'],
-        webSource_cancer_panel=config['Gene2Phenotype']['webSource_cancer_panel']
+        webSource_dd_panel = config['Gene2Phenotype']['webSource_dd_panel'],
+        webSource_eye_panel = config['Gene2Phenotype']['webSource_eye_panel'],
+        webSource_skin_panel = config['Gene2Phenotype']['webSource_skin_panel'],
+        webSource_cancer_panel = config['Gene2Phenotype']['webSource_cancer_panel']
 
     output:
-        ddBucket=GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/DDG2P-{timeStamp}.csv.gz"),
-        ddLocal=f"tmp/DDG2P-{timeStamp}.csv.gz",
-        eyeBucket=GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/EyeG2P-{timeStamp}.csv.gz"),
-        eyeLocal=f"tmp/EyeG2P-{timeStamp}.csv.gz",
-        skinBucket=GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/SkinG2P-{timeStamp}.csv.gz"),
-        skinLocal=f"tmp/SkinG2P-{timeStamp}.csv.gz",
-        cancerBucket=GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/CancerG2P-{timeStamp}.csv.gz"),
-        cancerLocal=f"tmp/CancerG2P-{timeStamp}.csv.gz"
+        ddBucket = GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/DDG2P-{timeStamp}.csv.gz"),
+        ddLocal = f"tmp/DDG2P-{timeStamp}.csv.gz",
+        eyeBucket = GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/EyeG2P-{timeStamp}.csv.gz"),
+        eyeLocal = f"tmp/EyeG2P-{timeStamp}.csv.gz",
+        skinBucket = GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/SkinG2P-{timeStamp}.csv.gz"),
+        skinLocal = f"tmp/SkinG2P-{timeStamp}.csv.gz",
+        cancerBucket = GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/CancerG2P-{timeStamp}.csv.gz"),
+        cancerLocal = f"tmp/CancerG2P-{timeStamp}.csv.gz"
     log:
         GS.remote(logFile)
     shell:
@@ -375,13 +416,13 @@ rule fetchGene2Phenotype:
 ## fetchCrispr              : fetches three tables from GS
 rule fetchCrispr:
     input:
-        evidenceFile=GS.remote(f"{config['CRISPR']['inputBucket']}/crispr_evidence.tsv"),
-        descriptionsFile=GS.remote(f"{config['CRISPR']['inputBucket']}/crispr_descriptions.tsv"),
-        cellTypesFile=GS.remote(f"{config['CRISPR']['inputBucket']}/crispr_cell_lines.tsv")
+        evidenceFile = GS.remote(f"{config['CRISPR']['inputBucket']}/crispr_evidence.tsv"),
+        descriptionsFile = GS.remote(f"{config['CRISPR']['inputBucket']}/crispr_descriptions.tsv"),
+        cellTypesFile = GS.remote(f"{config['CRISPR']['inputBucket']}/crispr_cell_lines.tsv")
     output:
-        evidenceFile=f"tmp/crispr_evidence-{timeStamp}.csv",
-        descriptionsFile=f"tmp/crispr_descriptions-{timeStamp}.tsv",
-        cellTypesFile=f"tmp/crispr_cell_lines-{timeStamp}.tsv"
+        evidenceFile = f"tmp/crispr_evidence-{timeStamp}.csv",
+        descriptionsFile = f"tmp/crispr_descriptions-{timeStamp}.tsv",
+        cellTypesFile = f"tmp/crispr_cell_lines-{timeStamp}.tsv"
     log:
         GS.remote(logFile)
     shell:
@@ -394,13 +435,13 @@ rule fetchCrispr:
 ## fetchProgeny             : fetches PROGENy table from GS, and two disease-mapping and pathway-mapping look-up tables
 rule fetchProgeny:
     input:
-        inputFile=GS.remote(f"{config['PROGENy']['inputBucket']}/progeny_normalVStumor_opentargets.txt"),
-        diseaseMapping=config['PROGENy']['diseaseMapping'],
-        pathwayMapping=config['PROGENy']['pathwayMapping']
+        inputFile = GS.remote(f"{config['PROGENy']['inputBucket']}/progeny_normalVStumor_opentargets.txt"),
+        diseaseMapping = config['PROGENy']['diseaseMapping'],
+        pathwayMapping = config['PROGENy']['pathwayMapping']
     output:
-        inputFile=f"tmp/progeny_normalVStumor_opentargets-{timeStamp}.txt",
-        diseaseMapping=f"tmp/progeny_cancer2EFO_mappings-{timeStamp}.tsv", # solve ambiguity between progeny and slapenrich
-        pathwayMapping=f"tmp/pathway2Reactome_mappings-{timeStamp}.tsv"
+        inputFile = f"tmp/progeny_normalVStumor_opentargets-{timeStamp}.txt",
+        diseaseMapping = f"tmp/progeny_cancer2EFO_mappings-{timeStamp}.tsv", # solve ambiguity between progeny and slapenrich
+        pathwayMapping = f"tmp/pathway2Reactome_mappings-{timeStamp}.tsv"
     log:
         GS.remote(logFile)
     shell:
@@ -413,11 +454,11 @@ rule fetchProgeny:
 ## fetchSysbio              : fetches evidence data and study level information from GS
 rule fetchSysbio:
     input:
-        evidenceFile=GS.remote(f"{config['SysBio']['inputBucket']}/sysbio_evidence-31-01-2019.tsv"),
-        studyFile=GS.remote(f"{config['SysBio']['inputBucket']}/sysbio_publication_info_nov2018.tsv")
+        evidenceFile = GS.remote(f"{config['SysBio']['inputBucket']}/sysbio_evidence-31-01-2019.tsv"),
+        studyFile = GS.remote(f"{config['SysBio']['inputBucket']}/sysbio_publication_info_nov2018.tsv")
     output:
-        evidenceFile=f"tmp/sysbio_evidence-{timeStamp}.tsv",
-        studyFile=f"tmp/sysbio_publication_info-{timeStamp}.tsv"
+        evidenceFile = f"tmp/sysbio_evidence-{timeStamp}.tsv",
+        studyFile = f"tmp/sysbio_publication_info-{timeStamp}.tsv"
     log:
         GS.remote(logFile)
     shell:
@@ -431,7 +472,7 @@ rule fetchPanelApp:
     input:
         inputFile = GS.remote(f"{config['PanelApp']['inputBucket']}/All_genes_20200928-1959.tsv")
     output:
-        inputFile=f"tmp/panelapp_gene_panels-{timeStamp}.tsv"
+        inputFile = f"tmp/panelapp_gene_panels-{timeStamp}.tsv"
     log:
         GS.remote(logFile)
     shell:
@@ -444,11 +485,11 @@ rule fetchIntogen:
     input:
         inputGenes = GS.remote(f"{config['intOGen']['inputBucket']}/Compendium_Cancer_Genes.tsv"),
         inputCohorts = GS.remote(f"{config['intOGen']['inputBucket']}/cohorts.tsv"),
-        diseaseMapping=config['intOGen']['diseaseMapping']
+        diseaseMapping = config['intOGen']['diseaseMapping']
     output:
         inputGenes = f"tmp/Compendium_Cancer_Genes-{timeStamp}.tsv",
         inputCohorts = f"tmp/cohorts-{timeStamp}.tsv",
-        diseaseMapping=f"tmp/intogen_cancer2EFO_mappings-{timeStamp}.tsv"
+        diseaseMapping = f"tmp/intogen_cancer2EFO_mappings-{timeStamp}.tsv"
     log:
         GS.remote(logFile)
     shell:
