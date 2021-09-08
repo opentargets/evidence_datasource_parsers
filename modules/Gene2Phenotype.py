@@ -120,7 +120,6 @@ def main(dd_file, eye_file, skin_file, cancer_file, output_file, local):
         spark.read.csv(
             [dd_file, eye_file, skin_file, cancer_file], schema=gene2phenotype_schema, enforceSchema=True, header=True
         )
-        .sample(fraction=0.0003)
         # Split pubmed IDs to list:
         .withColumn('literature', split(col('pmids'), ';'))
 
