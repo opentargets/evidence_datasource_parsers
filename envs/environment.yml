@@ -15,4 +15,5 @@ dependencies:
   - snakemake==6.0.0
   - tqdm=4.58.0
   - pip:
-    - ontoma==0.0.17
+    - ontoma==1.0.0
+    - pandarallel==1.5.2
