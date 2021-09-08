@@ -9,7 +9,6 @@ import shutil
 import tempfile
 import urllib.request
 
-import ontoma
 import pronto
 import pyspark
 import pyspark.sql.functions as pf
@@ -121,7 +120,6 @@ class PhenoDigm:
         self.model_mouse_phenotypes, self.disease_human_phenotypes, self.disease_model_summary = [None] * 3
         self.ontology, self.mp_terms, self.hp_terms, self.mp_class = [None] * 4
         self.evidence, self.mouse_phenotypes = [None] * 2
-        self.ontoma_mapper = ontoma.interface.OnToma(cache_dir=cache_dir)
 
     def update_cache(self):
         """Fetch the Ensembl gene ID and SOLR data into the local cache directory."""
@@ -417,7 +415,8 @@ class PhenoDigm:
         )
 
         # Add EFO mapping information.
-        self.evidence = add_efo_mapping(self.evidence, self.ontoma_mapper, self.spark)
+        self.evidence = add_efo_mapping(evidence_strings=self.evidence, spark_instance=self.spark,
+                                        ontoma_cache_dir=self.cache_dir)
 
         # Ensure stable column order.
         self.evidence = self.evidence.select(

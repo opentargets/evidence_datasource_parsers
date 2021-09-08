@@ -2,6 +2,7 @@ import logging
 import random
 import time
 
+from ontoma.interface import OnToma
 from pandarallel import pandarallel
 
 ONTOMA_MAX_ATTEMPTS = 5
@@ -25,7 +26,7 @@ def _ontoma_udf(row, ontoma_instance):
     return []
 
 
-def add_efo_mapping(evidence_strings, ontoma_instance, spark_instance):
+def add_efo_mapping(evidence_strings, spark_instance, ontoma_cache_dir=None):
     """Given evidence strings with diseaseFromSource and diseaseFromSourceId fields, try to populate EFO mapping
     field diseaseFromSourceMappedId. In case there are multiple matches, the evidence strings will be exploded
     accordingly."""
@@ -36,6 +37,9 @@ def add_efo_mapping(evidence_strings, ontoma_instance, spark_instance):
         .distinct()
         .toPandas()
     )
+
+    logging.info('Initialise OnToma instance')
+    ontoma_instance = OnToma(cache_dir=ontoma_cache_dir)
 
     logging.info('Map disease information to EFO.')
     disease_info_to_map['diseaseFromSourceMappedId'] = disease_info_to_map.parallel_apply(
