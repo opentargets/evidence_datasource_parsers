@@ -54,9 +54,14 @@ class phewasEvidenceGenerator():
                 col('odds_ratio').cast(DoubleType()),
                 col('p').cast(DoubleType())
             )
-            # Filter out null genes & p-value > 0.05
+
             .filter(
+                # Filter out nulls and DNA regions. Ex: intergenic, Intergenic, HLA-region
                 (col('gene').isNotNull())
+                & (~col('gene').contains('ntergenic'))
+                & (~col('gene').contains('region'))
+
+                # Keep only significant associations
                 & (col('p') < 0.05)
             )
         )
