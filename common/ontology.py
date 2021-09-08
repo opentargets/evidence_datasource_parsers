@@ -48,7 +48,7 @@ def add_efo_mapping(evidence_strings, spark_instance, ontoma_cache_dir=None):
     disease_info_to_map = disease_info_to_map.explode('diseaseFromSourceMappedId')
 
     logging.info('Join the resulting information into the evidence strings.')
-    disease_info_df = spark_instance.createDataFrame(disease_info_to_map)
+    disease_info_df = spark_instance.createDataFrame(disease_info_to_map.astype(str))
     return evidence_strings.join(
         disease_info_df,
         on=['diseaseFromSource', 'diseaseFromSourceId'],
