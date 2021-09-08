@@ -249,5 +249,7 @@ dependencies:
   - zlib=1.2.11
   - zstd=1.5.0
   - pip:
+    - dill==0.3.4
     - obonet==0.3.0
-    - ontoma==0.0.17
+    - ontoma==1.0.0
+    - pandarallel==1.5.2
