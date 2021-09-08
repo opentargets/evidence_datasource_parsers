@@ -9,12 +9,15 @@ import shutil
 import tempfile
 import urllib.request
 
+import ontoma
 import pronto
 import pyspark
 import pyspark.sql.functions as pf
 from pyspark.sql.types import StructType, StructField, StringType
 import requests
 from retry import retry
+
+from common.ontology import add_efo_mapping
 
 
 # The tables and their fields to fetch from SOLR. Other tables (not currently used): gene, disease_gene_summary.
@@ -118,6 +121,7 @@ class PhenoDigm:
         self.model_mouse_phenotypes, self.disease_human_phenotypes, self.disease_model_summary = [None] * 3
         self.ontology, self.mp_terms, self.hp_terms, self.mp_class = [None] * 4
         self.evidence, self.mouse_phenotypes = [None] * 2
+        self.ontoma_mapper = ontoma.interface.OnToma(cache_dir=cache_dir)
 
     def update_cache(self):
         """Fetch the Ensembl gene ID and SOLR data into the local cache directory."""
@@ -410,13 +414,17 @@ class PhenoDigm:
             # Add constant value columns.
             .withColumn('datasourceId', pf.lit('phenodigm'))
             .withColumn('datatypeId', pf.lit('animal_model'))
+        )
 
-            # Ensure stable column order.
-            .select('biologicalModelAllelicComposition', 'biologicalModelGeneticBackground', 'biologicalModelId',
-                    'datasourceId', 'datatypeId', 'diseaseFromSource', 'diseaseFromSourceId',
-                    'diseaseModelAssociatedHumanPhenotypes', 'diseaseModelAssociatedModelPhenotypes', 'literature',
-                    'resourceScore', 'targetFromSourceId', 'targetInModel', 'targetInModelEnsemblId',
-                    'targetInModelMgiId')
+        # Add EFO mapping information.
+        self.evidence = add_efo_mapping(self.evidence, self.ontoma_mapper, self.spark)
+
+        # Ensure stable column order.
+        self.evidence = self.evidence.select(
+            'biologicalModelAllelicComposition', 'biologicalModelGeneticBackground', 'biologicalModelId',
+            'datasourceId', 'datatypeId', 'diseaseFromSource', 'diseaseFromSourceId', 'diseaseFromSourceMappedId',
+            'diseaseModelAssociatedHumanPhenotypes', 'diseaseModelAssociatedModelPhenotypes', 'literature',
+            'resourceScore', 'targetFromSourceId', 'targetInModel', 'targetInModelEnsemblId', 'targetInModelMgiId'
         )
 
     def generate_mouse_phenotypes_dataset(self):
