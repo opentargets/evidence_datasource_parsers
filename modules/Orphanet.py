@@ -16,6 +16,7 @@ from pyspark.sql.functions import array_distinct, col, create_map, explode, firs
 from pyspark.sql.types import ArrayType, StringType, StructField, StructType
 
 from ontoma import OnToma
+from common.ontology import add_efo_mapping
 
 # The rest of the types are assigned to -> germline for allele origins
 EXCLUDED_ASSOCIATIONTYPES = [
@@ -187,9 +188,9 @@ def main(input_file: str, output_file: str, local: bool = False) -> None:
         .distinct()
         .collect()
     )
-
+    '''
     mapped_diseases = [ol_obj.get_mapping(x) for x in orphanet_diseases]
-    
+ 
     schema = StructType([
         StructField('diseaseFromSource', StringType(), True),
         StructField('diseaseFromSourceId', StringType(), True),
@@ -216,6 +217,18 @@ def main(input_file: str, output_file: str, local: bool = False) -> None:
             'targetFromSourceId'
         )
     )
+    '''
+
+    evidence = (
+        orphanet_df
+        .select(
+            'datasourceId', 'datatypeId', 'alleleOrigins', 'confidence', 'diseaseFromSource',
+            'diseaseFromSourceId', 'literature', 'targetFromSource',
+            'targetFromSourceId'
+        )
+    )
+
+    evidence = add_efo_mapping(evidence_strings=evidence, spark_instance=spark, ontoma_cache_dir='cache')
 
     # Save data
     write_evidence_strings(evidence, output_file)
