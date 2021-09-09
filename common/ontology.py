@@ -14,8 +14,10 @@ def _ontoma_udf(row, ontoma_instance):
     for attempt in range(1, ONTOMA_MAX_ATTEMPTS + 1):
         # Try to map first by disease name (because that branch of OnToma is more stable), then by disease ID.
         try:
-            mappings = ontoma_instance.find_term(query=disease_name, code=False)
-            if not mappings:
+            mappings = []
+            if disease_name:
+                mappings = ontoma_instance.find_term(query=disease_name, code=False)
+            if disease_id and not mappings:
                 mappings = ontoma_instance.find_term(query=disease_id, code=True)
             return [m.id_ot_schema for m in mappings]
         except:
@@ -29,7 +31,10 @@ def _ontoma_udf(row, ontoma_instance):
 def add_efo_mapping(evidence_strings, spark_instance, ontoma_cache_dir=None):
     """Given evidence strings with diseaseFromSource and diseaseFromSourceId fields, try to populate EFO mapping
     field diseaseFromSourceMappedId. In case there are multiple matches, the evidence strings will be exploded
-    accordingly."""
+    accordingly.
+
+    Currently, both source columns (diseaseFromSource and diseaseFromSourceId) need to be present in the original
+    schema, although they do not have to be populated for all rows."""
     logging.info('Collect all distinct (disease name, disease ID) pairs.')
     disease_info_to_map = (
         evidence_strings
