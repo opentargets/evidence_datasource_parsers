@@ -165,9 +165,9 @@ def process_gene2phenotype(gene2phenotype_df: DataFrame) -> DataFrame:
     return evidence_df
 
 def translate(mapping):
-    '''
+    """
     Mapping consequences - to SO codes
-    '''
+    """
     def translate_(col):
         return mapping.get(col)
     return udf(translate_, StringType())
