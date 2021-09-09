@@ -2,18 +2,16 @@
 """Evidence parser for Orphanet's gene-disease associations."""
 
 import argparse
+from itertools import chain
 import logging
 import os
 import sys
 import tempfile
-import time
-from itertools import chain
 
 import xml.etree.ElementTree as ET
 from pyspark.conf import SparkConf
 from pyspark.sql import DataFrame, Row, SparkSession
-from pyspark.sql.functions import array_distinct, col, create_map, explode, first, lit, split
-from pyspark.sql.types import ArrayType, StringType, StructField, StructType
+from pyspark.sql.functions import array_distinct, col, create_map, lit, split
 
 from common.ontology import add_efo_mapping
 
@@ -36,7 +34,52 @@ CONSEQUENCE_MAP = {
 }
 
 
-def parse_orphanet_xml(orphanet_file: str) -> list:
+def main(input_file: str, output_file: str, local: bool = False) -> None:
+
+    # Initialize spark session
+    if local:
+        sparkConf = (
+            SparkConf()
+            .set('spark.driver.memory', '15g')
+            .set('spark.executor.memory', '15g')
+            .set('spark.driver.maxResultSize', '0')
+            .set('spark.debug.maxToStringFields', '2000')
+            .set('spark.sql.execution.arrow.maxRecordsPerBatch', '500000')
+        )
+        spark = (
+            SparkSession.builder
+            .config(conf=sparkConf)
+            .master('local[*]')
+            .getOrCreate()
+        )
+    else:
+        sparkConf = (
+            SparkConf()
+            .set('spark.driver.maxResultSize', '0')
+            .set('spark.debug.maxToStringFields', '2000')
+            .set('spark.sql.execution.arrow.maxRecordsPerBatch', '500000')
+        )
+        spark = (
+            SparkSession.builder
+            .config(conf=sparkConf)
+            .getOrCreate()
+        )
+
+    # Read and process Orphanet's XML file into evidence strings
+    
+    orphanet_df = parse_orphanet_xml(input_file, spark)
+    logging.info('Orphanet input file has been imported. Processing evidence strings.')
+
+    evidence_df = process_orphanet(orphanet_df)
+
+    evidence_df = add_efo_mapping(evidence_strings=evidence_df, spark_instance=spark, ontoma_cache_dir=cache_dir)
+    logging.info('Disease mappings have been added.')
+
+    # Save data
+    write_evidence_strings(evidence_df, output_file)
+    logging.info(f'{evidence_df.count()} evidence strings have been saved to {output_file}')
+
+def parse_orphanet_xml(orphanet_file: str, spark_instance) -> DataFrame:
     """
     Function to parse Orphanet xml dump and return the parsed
     data as a list of dictionaries.
@@ -100,51 +143,21 @@ def parse_orphanet_xml(orphanet_file: str) -> list:
             # Collect evidence:
             orphanet_disorders.append(evidence)
 
-    return orphanet_disorders
+    # Create a spark dataframe from the parsed data
+    orphanet_df = spark_instance.createDataFrame(Row(**x) for x in orphanet_disorders)
 
+    return orphanet_df
 
-def main(input_file: str, output_file: str, local: bool = False) -> None:
-
-    # Initialize spark session
-    if local:
-        sparkConf = (
-            SparkConf()
-            .set('spark.driver.memory', '15g')
-            .set('spark.executor.memory', '15g')
-            .set('spark.driver.maxResultSize', '0')
-            .set('spark.debug.maxToStringFields', '2000')
-            .set('spark.sql.execution.arrow.maxRecordsPerBatch', '500000')
-        )
-        spark = (
-            SparkSession.builder
-            .config(conf=sparkConf)
-            .master('local[*]')
-            .getOrCreate()
-        )
-    else:
-        sparkConf = (
-            SparkConf()
-            .set('spark.driver.maxResultSize', '0')
-            .set('spark.debug.maxToStringFields', '2000')
-            .set('spark.sql.execution.arrow.maxRecordsPerBatch', '500000')
-        )
-        spark = (
-            SparkSession.builder
-            .config(conf=sparkConf)
-            .getOrCreate()
-        )
+def process_orphanet(orphanet_df: DataFrame) -> DataFrame:
+    """
+    The JSON Schema format is applied to the df
+    """
 
     # Map association type to sequence ontology ID:
     so_mapping_expr = create_map([lit(x) for x in chain(*CONSEQUENCE_MAP.items())])
 
-    # Parsing xml files
-    orphanet_disorders = parse_orphanet_xml(input_file)
-
-    # Create a spark dataframe from the parsed data:
-    orphanet_df = (
-
-        # Process parsed file
-        spark.createDataFrame(Row(**x) for x in orphanet_disorders)
+    evidence_df = (
+        orphanet_df
         .filter(
             ~col('associationType').isin(EXCLUDED_ASSOCIATIONTYPES)
         )
@@ -164,14 +177,9 @@ def main(input_file: str, output_file: str, local: bool = False) -> None:
         )
         .persist()
     )
-    logging.info('Orphanet input file has been processed.')
 
-    logging.info('Mapping Orphanet diseases to EFO:')
-    evidence = add_efo_mapping(evidence_strings=orphanet_df, spark_instance=spark)
+    return evidence_df
 
-    # Save data
-    write_evidence_strings(evidence, output_file)
-    logging.info(f'{orphanet_df.count()} evidence strings have been saved to {output_file}')
 
 def write_evidence_strings(evidence: DataFrame, output_file: str) -> None:
     '''Exports the table to a compressed JSON file containing the evidence strings'''
