@@ -15,7 +15,6 @@ from pyspark.sql import DataFrame, Row, SparkSession
 from pyspark.sql.functions import array_distinct, col, create_map, explode, first, lit, split
 from pyspark.sql.types import ArrayType, StringType, StructField, StructType
 
-from ontoma import OnToma
 from common.ontology import add_efo_mapping
 
 # The rest of the types are assigned to -> germline for allele origins
@@ -36,27 +35,6 @@ CONSEQUENCE_MAP = {
     "Disease-causing germline mutation(s) (gain of function) in": "SO_0002053"
 }
 
-
-class ontoma_efo_lookup():
-    """
-    Map orphanet diseases to the EFO ontology
-    """
-    def __init__(self):
-        self.otmap = OnToma()
-
-    def get_mapping(self, terms=[]):
-        disease_label, disease_id = terms
-        label_mapping = [
-            result.id_ot_schema
-            for result in self.otmap.find_term(disease_label)]
-
-        if len(label_mapping) != 0:
-            return (disease_label, disease_id, label_mapping)
-        else:
-            id_mapping = [
-                result.id_ot_schema
-                for result in self.otmap.find_term(disease_id)]
-            return (disease_label, disease_id, id_mapping)
 
 def parse_orphanet_xml(orphanet_file: str) -> list:
     """
@@ -156,17 +134,16 @@ def main(input_file: str, output_file: str, local: bool = False) -> None:
             .getOrCreate()
         )
 
-    # Initialize mapping object:
-    ol_obj = ontoma_efo_lookup()
-
     # Map association type to sequence ontology ID:
     so_mapping_expr = create_map([lit(x) for x in chain(*CONSEQUENCE_MAP.items())])
 
-    # Parsing xml file:s
+    # Parsing xml files
     orphanet_disorders = parse_orphanet_xml(input_file)
 
     # Create a spark dataframe from the parsed data:
     orphanet_df = (
+
+        # Process parsed file
         spark.createDataFrame(Row(**x) for x in orphanet_disorders)
         .filter(
             ~col('associationType').isin(EXCLUDED_ASSOCIATIONTYPES)
@@ -178,57 +155,19 @@ def main(input_file: str, output_file: str, local: bool = False) -> None:
         .withColumn('literature', array_distinct(col('literature')))
         .withColumn('variantFunctionalConsequenceId', so_mapping_expr.getItem(col('associationType')))
         .drop('associationType', 'type')
-        .persist()
-    )
 
-    # Generating a lookup table for the mapped orphanet terms:
-    orphanet_diseases = (
-        orphanet_df
-        .select('diseaseFromSource', 'diseaseFromSourceId')
-        .distinct()
-        .collect()
-    )
-    '''
-    mapped_diseases = [ol_obj.get_mapping(x) for x in orphanet_diseases]
- 
-    schema = StructType([
-        StructField('diseaseFromSource', StringType(), True),
-        StructField('diseaseFromSourceId', StringType(), True),
-        StructField('diseaseFromSourceMappedId', ArrayType(StringType()), True)
-    ])
-    mapped_diseases_df = (
-        # Dataframe from list of label/id/mapped_id tuples
-        spark.createDataFrame(mapped_diseases, schema=schema)
-        # Coalesce df row-wise
-        .groupBy(
-            'diseaseFromSource', 'diseaseFromSourceId')
-        .agg(first("diseaseFromSourceMappedId", ignorenulls=True).alias("diseaseFromSourceMappedId"))
-        # Explode cases where one diseaseFromSource maps to many EFO terms
-        .withColumn('diseaseFromSourceMappedId', explode('diseaseFromSourceMappedId'))
-    )
-
-    # Adding EFO mapping as new column and prepare evidence:
-    evidence = (
-        orphanet_df
-        .join(mapped_diseases_df, on=['diseaseFromSource', 'diseaseFromSourceId'], how='left')
-        .select(
-            'datasourceId', 'datatypeId', 'alleleOrigins', 'confidence', 'diseaseFromSource',
-            'diseaseFromSourceId', 'diseaseFromSourceMappedId', 'literature', 'targetFromSource',
-            'targetFromSourceId'
-        )
-    )
-    '''
-
-    evidence = (
-        orphanet_df
+        # Select the evidence relevant fields
         .select(
             'datasourceId', 'datatypeId', 'alleleOrigins', 'confidence', 'diseaseFromSource',
             'diseaseFromSourceId', 'literature', 'targetFromSource',
             'targetFromSourceId'
         )
+        .persist()
     )
+    logging.info('Orphanet input file has been processed.')
 
-    evidence = add_efo_mapping(evidence_strings=evidence, spark_instance=spark, ontoma_cache_dir='cache')
+    logging.info('Mapping Orphanet diseases to EFO:')
+    evidence = add_efo_mapping(evidence_strings=orphanet_df, spark_instance=spark)
 
     # Save data
     write_evidence_strings(evidence, output_file)

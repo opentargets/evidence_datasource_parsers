@@ -13,6 +13,7 @@ from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.functions import array, col, explode, first, lit, monotonically_increasing_id, struct, trim
 from pyspark.sql.types import ArrayType, StringType, StructField, StructType, TimestampType
 
+from common.ontology import add_efo_mapping
 
 class ontoma_efo_lookup():
     """
@@ -93,6 +94,7 @@ def main(input_file: str, output_file: str, local: bool = False):
         .drop('idx')
     )
 
+    '''
     # Generating a lookup table for the mapped orphanet terms:
     diseases = (
         clingen_df
@@ -126,9 +128,13 @@ def main(input_file: str, output_file: str, local: bool = False):
         .withColumnRenamed('DISEASE ID (MONDO)', 'diseaseFromSourceId')
         .join(mapped_diseases_df, on=['diseaseFromSource', 'diseaseFromSourceId'], how='left')
     )
+    '''
 
     # Turn table into evidence strings
     evidence = process_clingen(clingen_df)
+
+    evidence = add_efo_mapping(evidence_strings=evidence, spark_instance=spark)
+
     write_evidence_strings(evidence, output_file)
     logging.info(f'{evidence.count()} evidence strings have been saved to {output_file}')
 
@@ -143,11 +149,14 @@ def process_clingen(clingen_df: DataFrame):
         .withColumn('datasourceId', lit('clingen'))
         .withColumn('datatypeId', lit('genetic_literature'))
         .withColumn('urls', struct(col('ONLINE REPORT').alias('url')))
+        .withColumnRenamed('DISEASE LABEL', 'diseaseFromSource')
+        .withColumnRenamed('DISEASE ID (MONDO)', 'diseaseFromSourceId')
+
         .select(
             'datasourceId', 'datatypeId',
             trim(col('GENE SYMBOL')).alias('targetFromSourceId'),
-            # col('DISEASE LABEL').alias('diseaseFromSource'),
-            # col('DISEASE ID (MONDO)').alias('diseaseFromSourceId'),
+            col('DISEASE LABEL').alias('diseaseFromSource'),
+            col('DISEASE ID (MONDO)').alias('diseaseFromSourceId'),
             array(col('MOI')).alias('allelicRequirements'),
             array(col('urls')).alias('urls'),
             col('CLASSIFICATION').alias('confidence'),

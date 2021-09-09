@@ -10,9 +10,10 @@ import tempfile
 from ontoma import OnToma
 from pyspark.conf import SparkConf
 from pyspark.sql import DataFrame, SparkSession
-from pyspark.sql.functions import col, concat, explode, first, lit, split, udf, when
+from pyspark.sql.functions import array, col, concat, explode, first, lit, split, udf, when
 from pyspark.sql.types import ArrayType, IntegerType, StringType, StructField, StructType, TimestampType
 
+from common.ontology import add_efo_mapping
 
 G2P_mutationCsq2functionalCsq = {
     'loss of function': 'SO_0002054',  # loss_of_function_variant
@@ -139,7 +140,13 @@ def main(dd_file, eye_file, skin_file, cancer_file, output_file, local):
         .withColumnRenamed('disease name', 'diseaseFromSource')
         .withColumnRenamed('panel', 'studyId')
         .withColumnRenamed('DDD category', 'confidence')
-        .withColumnRenamed('allelic requirement', 'allelicRequirements')
+
+        .withColumn(
+            'allelicRequirements',
+            when(
+                col('allelic requirement').isNotNull(),
+                array(col('allelic requirement'))
+            ))
 
         # Process diseaseFromSource
         .withColumn(
@@ -162,6 +169,8 @@ def main(dd_file, eye_file, skin_file, cancer_file, output_file, local):
             'allelicRequirements', 'variantFunctionalConsequenceId'
         )
     )
+
+    '''
 
     # Get all the diseases + map disease to EFO:
     diseases = (
@@ -194,6 +203,9 @@ def main(dd_file, eye_file, skin_file, cancer_file, output_file, local):
         evidence_df
         .join(mapped_diseases_df, on=['diseaseFromSource', 'diseaseFromSourceId'], how='left')
     )
+    '''
+
+    evidence_df = add_efo_mapping(evidence_strings=evidence_df, spark_instance=spark)
 
     # Saving data:
     write_evidence_strings(evidence_df, output_file)
