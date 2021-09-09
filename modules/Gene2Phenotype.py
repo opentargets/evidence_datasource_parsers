@@ -173,7 +173,7 @@ def translate(mapping):
     return udf(translate_, StringType())
 
 def write_evidence_strings(evidence: DataFrame, output_file: str) -> None:
-    '''Exports the table to a compressed JSON file containing the evidence strings'''
+    """Exports the table to a compressed JSON file containing the evidence strings."""
     with tempfile.TemporaryDirectory() as tmp_dir_name:
         (
             evidence.coalesce(1).write.format('json').mode('overwrite')
