@@ -13,6 +13,8 @@ from pyspark.sql.functions import (
     array, array_distinct, col, collect_set, concat, explode, lit, regexp_extract, regexp_replace, split, trim, when
 )
 
+from common.ontology import add_efo_mapping
+
 
 class PanelAppEvidenceGenerator:
 
@@ -237,6 +239,9 @@ class PanelAppEvidenceGenerator:
             # 2D (613811)" and "Pontocerebellar hypoplasia type 2D, 613811".
             .distinct()
         )
+
+        # Add EFO mapping information.
+        panelapp_df = add_efo_mapping(evidence_strings=panelapp_df, spark_instance=self.spark)
 
         logging.info('Save data.')
         with tempfile.TemporaryDirectory() as tmp_dir_name:
