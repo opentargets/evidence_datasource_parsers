@@ -1,23 +1,20 @@
 #!/usr/bin/env python
 
+import argparse
 import logging
 import gzip
 import json
 import sys
 
-import argparse
-import numpy as np
 from pyspark import SparkFiles
 from pyspark.conf import SparkConf
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import udf, col, element_at, split, lit, count, concat
-from pyspark.sql.types import StringType, IntegerType, DoubleType
-
-from common.HGNCParser import GeneParser
+from pyspark.sql.functions import col, element_at, split, lit, count, concat, translate
+from pyspark.sql.types import IntegerType, DoubleType
 
 class phewasEvidenceGenerator():
 
-    def __init__(self, genesSet):
+    def __init__(self):
         # Create spark session
         sparkConf = (
             SparkConf()
@@ -33,14 +30,6 @@ class phewasEvidenceGenerator():
             .config(conf=sparkConf)
             .master('local[*]')
             .getOrCreate()
-        )
-
-        # Initialize gene parser
-        gene_parser = GeneParser()
-        gene_parser._get_hgnc_data_from_json(genesSet)
-        self.udfGeneParser = udf(
-            lambda x: gene_parser.genes.get(x.strip('*'), np.nan),
-            StringType()
         )
 
         # Initialize variables
@@ -59,14 +48,20 @@ class phewasEvidenceGenerator():
             self.spark
             .read.csv(inputFile, header=True)
             .select(
-                'gene', 'snp', 'phewas_code', 'phewas_string',
+                translate(col('gene'), '*', '').alias('gene_symbol'),
+                'snp', 'phewas_code', 'phewas_string',
                 col('cases').cast(IntegerType()),
                 col('odds_ratio').cast(DoubleType()),
                 col('p').cast(DoubleType())
             )
-            # Filter out null genes & p-value > 0.05
+
             .filter(
+                # Filter out nulls and DNA regions. Ex: intergenic, Intergenic, HLA-region
                 (col('gene').isNotNull())
+                & (~col('gene').contains('ntergenic'))
+                & (~col('gene').contains('region'))
+
+                # Keep only significant associations
                 & (col('p') < 0.05)
             )
         )
@@ -95,18 +90,10 @@ class phewasEvidenceGenerator():
             logging.info('Disease mapping has been skipped.')
             self.dataframe = self.dataframe.withColumn('EFO_id', lit(None))
 
-        # Parse gene symbols to ENSID to join with the consequences table
-        self.dataframe = (
-            self.dataframe
-            .withColumn('ens_id', self.udfGeneParser(col('gene')))
-            # Remove rows where the target is not valid
-            .filter(col('ens_id') != 'NaN')
-        )
-
         # Get functional consequence per variant from OT Genetics Portal
         cols = [
             'phewas_string', 'phewas_code', 'EFO_id', 'odds_ratio', 'p',
-            'cases', 'ens_id', 'consequence_id', 'variantId', 'snp'
+            'cases', 'gene_symbol', 'consequence_id', 'variantId', 'snp'
         ]
         self.enrichedDataframe = (
             self.enrichVariantData(consequencesFile)
@@ -138,9 +125,8 @@ class phewasEvidenceGenerator():
             self.spark.read.csv(SparkFiles.get(consequencesFile.split('/')[-1]), header=True)
             .select(
                 col('rsid').alias('snp'),
-                col('gene_id').alias('ens_id'),
                 col('pos').cast(IntegerType()),
-                'chrom', 'ref', 'alt',
+                'gene_symbol', 'chrom', 'ref', 'alt',
                 'consequence_link'
             )
             .withColumn(
@@ -165,7 +151,7 @@ class phewasEvidenceGenerator():
         # Enriching dataframe with consequences --> more records due to 1:many associations
         self.dataframe = self.dataframe.join(
             phewasWithConsequences,
-            on=['ens_id', 'snp'],
+            on=['gene_symbol', 'snp'],
             how='left'
         )
 
@@ -198,8 +184,7 @@ class phewasEvidenceGenerator():
                 'oddsRatio': row['odds_ratio'],
                 'resourceScore': row['p'],
                 'studyCases': row['cases'],
-                'targetFromSource': row['gene'].strip('*'),
-                'targetFromSourceId': row['ens_id'],
+                'targetFromSourceId': row['gene_symbol'],
                 'variantFunctionalConsequenceId': row['consequence_id'] if row['consequence_id'] else 'SO_0001060',
                 'variantId': row['variantId'],
                 'variantRsId': row['snp']
@@ -209,9 +194,9 @@ class phewasEvidenceGenerator():
             raise
 
 
-def main(genesSet, inputFile, consequencesFile, diseaseMapping, skipMapping):
+def main(inputFile, consequencesFile, diseaseMapping, skipMapping):
     # Initialize evidence builder object
-    evidenceBuilder = phewasEvidenceGenerator(genesSet)
+    evidenceBuilder = phewasEvidenceGenerator()
 
     # Writing evidence strings into a json file
     evidences = evidenceBuilder.generateEvidenceFromSource(inputFile, consequencesFile, diseaseMapping, skipMapping)
@@ -232,7 +217,6 @@ if __name__ == '__main__':
     parser.add_argument('-i', '--inputFile', required=True, type=str, help='Input .csv file with the table containing association details.')
     parser.add_argument('-c', '--consequencesFile', required=True, type=str, help='Input look-up table containing the variation consequences coming from the Variant Index.')
     parser.add_argument('-d', '--diseaseMapping', required=False, type=str, help='Input look-up table containing the phenotype mappings to an EFO ID.')
-    parser.add_argument('-g', '--genesSet', required=False, type=str, help='URL for the complete HGNC approved dataset in JSON format.')
     parser.add_argument('-o', '--outputFile', required=True, type=str, help='Name of the compressed json.gz output file containing the evidence strings.')
     parser.add_argument('-s', '--skipMapping', required=False, action='store_true', help='State whether to skip the disease to EFO mapping step.')
     parser.add_argument('-l', '--logFile', help='Destination of the logs generated by this script.', type=str, required=False)
@@ -243,7 +227,6 @@ if __name__ == '__main__':
     inputFile = args.inputFile
     consequencesFile = args.consequencesFile
     diseaseMapping = args.diseaseMapping
-    genesSet = args.genesSet
     outputFile = args.outputFile
     skipMapping = args.skipMapping
 
@@ -262,7 +245,6 @@ if __name__ == '__main__':
     logging.info(f'PheWAS input table: {inputFile}')
     logging.info(f'Phewas enriched with consequences input file: {consequencesFile}')
     logging.info(f'Phewas phenotype to EFO ID table: {diseaseMapping}')
-    logging.info(f'HGNC dataset URL: {genesSet}')
     logging.info(f'Output file: {outputFile}')
 
-    main(genesSet, inputFile, consequencesFile, diseaseMapping, skipMapping)
+    main(inputFile, consequencesFile, diseaseMapping, skipMapping)
