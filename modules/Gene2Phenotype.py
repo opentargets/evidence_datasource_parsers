@@ -7,11 +7,10 @@ import os
 import sys
 import tempfile
 
-from ontoma import OnToma
 from pyspark.conf import SparkConf
 from pyspark.sql import DataFrame, SparkSession
-from pyspark.sql.functions import array, col, concat, explode, first, lit, split, udf, when
-from pyspark.sql.types import ArrayType, IntegerType, StringType, StructField, StructType, TimestampType
+from pyspark.sql.functions import array, col, concat, lit, split, udf, when
+from pyspark.sql.types import IntegerType, StringType, StructType, TimestampType
 
 from common.ontology import add_efo_mapping
 
@@ -30,38 +29,9 @@ G2P_mutationCsq2functionalCsq = {
 }
 
 
-def translate(mapping):
-    '''
-    Mapping consequences - to SO codes
-    '''
-    def translate_(col):
-        return mapping.get(col)
-    return udf(translate_, StringType())
-
-class ontoma_efo_lookup():
-    """
-    Map orphanet diseases to the EFO ontology
-    """
-    def __init__(self):
-        self.otmap = OnToma(cache_dir='cache')
-
-    def get_mapping(self, terms=[]):
-        disease_label, disease_id = terms
-        label_mapping = [
-            result.id_ot_schema
-            for result in self.otmap.find_term(disease_label)]
-
-        if len(label_mapping) != 0:
-            return (disease_label, disease_id, label_mapping)
-        try:
-            id_mapping = [
-                result.id_ot_schema
-                for result in self.otmap.find_term(disease_id)]
-            return (disease_label, disease_id, id_mapping)
-        except AttributeError:
-            return None
-
-def main(dd_file, eye_file, skin_file, cancer_file, output_file, local):
+def main(
+    dd_file: str, eye_file: str, skin_file: str, cancer_file: str, output_file: str, local: bool = False
+) -> None:
 
     # Initialize spark session
     if local:
@@ -94,10 +64,28 @@ def main(dd_file, eye_file, skin_file, cancer_file, output_file, local):
             .getOrCreate()
         )
 
-    # Initialize disease mapping object:
-    ol_obj = ontoma_efo_lookup()
+    # Read and process G2P's tables into evidence strings
 
-    # Specify schema -> this schema is applied for all gene2phenotype files:
+    gene2phenotype_df = read_input_file(
+        dd_file, eye_file, skin_file, cancer_file, spark_instance=spark)
+    logging.info('Gene2Phenotype panels have been imported. Processing evidence strings.')
+
+    evidence_df = process_gene2phenotype(gene2phenotype_df)
+
+    evidence_df = add_efo_mapping(evidence_strings=evidence_df, spark_instance=spark)
+    logging.info('Disease mappings have been added.')
+
+    # Saving data:
+    write_evidence_strings(evidence_df, output_file)
+    logging.info(f'{evidence_df.count()} evidence strings have been saved to {output_file}')
+
+def read_input_file(
+    dd_file: str, eye_file: str, skin_file: str, cancer_file: str, spark_instance
+) -> DataFrame:
+    '''
+    Reads G2P's panel CSV files into a Spark DataFrame forcing the schema
+    '''
+
     gene2phenotype_schema = (
         StructType()
         .add('gene symbol', StringType())
@@ -116,11 +104,20 @@ def main(dd_file, eye_file, skin_file, cancer_file, output_file, local):
         .add('gene disease pair entry date', TimestampType())
     )
 
-    # Load all files for one go:
-    gene2phenotype_data = (
-        spark.read.csv(
+    return (
+        spark_instance.read.csv(
             [dd_file, eye_file, skin_file, cancer_file], schema=gene2phenotype_schema, enforceSchema=True, header=True
         )
+    )
+
+def process_gene2phenotype(gene2phenotype_df: DataFrame) -> DataFrame:
+    """
+    The JSON Schema format is applied to the df
+    """
+
+    evidence_df = (
+        gene2phenotype_df
+        
         # Split pubmed IDs to list:
         .withColumn('literature', split(col('pmids'), ';'))
 
@@ -129,11 +126,6 @@ def main(dd_file, eye_file, skin_file, cancer_file, output_file, local):
 
         # Split organ specificity:
         .withColumn('organ_specificities', split(col('organ specificity list'), ';'))
-    )
-
-    # Processing data:
-    evidence_df = (
-        gene2phenotype_data
 
         # Reshaping columns:
         .withColumnRenamed('gene symbol', 'targetFromSourceId')
@@ -167,49 +159,18 @@ def main(dd_file, eye_file, skin_file, cancer_file, output_file, local):
             'diseaseFromSourceId', 'confidence', 'studyId', 'literature',
             'allelicRequirements', 'variantFunctionalConsequenceId'
         )
+
     )
 
+    return evidence_df
+
+def translate(mapping):
     '''
-
-    # Get all the diseases + map disease to EFO:
-    diseases = (
-        evidence_df
-        .select('diseaseFromSource', 'diseaseFromSourceId')
-        .distinct()
-        .collect()
-    )
-
-    mapped_diseases = [ol_obj.get_mapping(x) for x in diseases]
-
-    schema = StructType([
-        StructField('diseaseFromSource', StringType(), True),
-        StructField('diseaseFromSourceId', StringType(), True),
-        StructField('diseaseFromSourceMappedId', ArrayType(StringType()), True)
-    ])
-    mapped_diseases_df = (
-        # Dataframe from list of label/id/mapped_id tuples
-        spark.createDataFrame(mapped_diseases, schema=schema)
-        # Coalesce df row-wise
-        .groupBy(
-            'diseaseFromSource', 'diseaseFromSourceId')
-        .agg(first("diseaseFromSourceMappedId", ignorenulls=True).alias("diseaseFromSourceMappedId"))
-        # Explode cases where one diseaseFromSource maps to many EFO terms
-        .withColumn('diseaseFromSourceMappedId', explode('diseaseFromSourceMappedId'))
-    )
-
-    # Merge evidence with the mapped disease:
-    evidence_df = (
-        evidence_df
-        .join(mapped_diseases_df, on=['diseaseFromSource', 'diseaseFromSourceId'], how='left')
-    )
+    Mapping consequences - to SO codes
     '''
-
-    evidence_df = add_efo_mapping(evidence_strings=evidence_df, spark_instance=spark)
-
-    # Saving data:
-    write_evidence_strings(evidence_df, output_file)
-    logging.info(f'{evidence_df.count()} evidence strings have been saved to {output_file}')
-
+    def translate_(col):
+        return mapping.get(col)
+    return udf(translate_, StringType())
 
 def write_evidence_strings(evidence: DataFrame, output_file: str) -> None:
     '''Exports the table to a compressed JSON file containing the evidence strings'''
@@ -240,9 +201,13 @@ if __name__ == "__main__":
     parser.add_argument('-c', '--cancer_panel',
                         help='Cancer panel file downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads',
                         type=str)
-    parser.add_argument('--local', help='Where the ', action='store_true', required=False, default=False)
     parser.add_argument('-o', '--output_file', help='Absolute path of the gzipped, JSON evidence file.', type=str)
     parser.add_argument('-l', '--log_file', help='Filename to store the parser logs.', type=str)
+    parser.add_argument('--cache_dir', required=False, help='Directory to store the OnToma cache files in.')
+    parser.add_argument(
+        '--local', action='store_true', required=False, default=False,
+        help='Flag to indicate if the script is executed locally or on the cluster'
+    )
 
     args = parser.parse_args()
 
@@ -253,6 +218,7 @@ if __name__ == "__main__":
     cancer_file = args.cancer_panel
     output_file = args.output_file
     log_file = args.log_file
+    cache_dir = args.cache_dir
     local = args.local
 
     # Configure logger:
@@ -273,4 +239,4 @@ if __name__ == "__main__":
     logging.info(f'Cancer panel file: {cancer_file}')
 
     # Calling main:
-    main(dd_file, eye_file, skin_file, cancer_file, output_file, local)
+    main(dd_file, eye_file, skin_file, cancer_file, output_file, cache_dir, local)

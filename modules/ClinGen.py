@@ -2,15 +2,14 @@
 """Evidence parser for ClinGen's Gene Validity Curations."""
 
 import argparse
-import json
 import logging
 import os
 import tempfile
 
 from pyspark.conf import SparkConf
 from pyspark.sql import DataFrame, SparkSession
-from pyspark.sql.functions import array, col, explode, first, lit, monotonically_increasing_id, struct, trim
-from pyspark.sql.types import ArrayType, StringType, StructField, StructType, TimestampType
+from pyspark.sql.functions import array, col, first, lit, monotonically_increasing_id, struct, trim
+from pyspark.sql.types import StringType, StructType, TimestampType
 
 from common.ontology import add_efo_mapping
 
@@ -51,13 +50,13 @@ def main(input_file: str, output_file: str, cache_dir: str, local: bool = False)
     clingen_df = read_input_file(input_file, spark_instance=spark)
     logging.info('Gene Validity Curations table has been imported. Processing evidence strings.')
 
-    evidence = process_clingen(clingen_df)
+    evidence_df = process_clingen(clingen_df)
 
-    evidence = add_efo_mapping(evidence_strings=evidence, spark_instance=spark, ontoma_cache_dir=cache_dir)
+    evidence_df = add_efo_mapping(evidence_strings=evidence_df, spark_instance=spark, ontoma_cache_dir=cache_dir)
     logging.info('Disease mappings have been added.')
 
-    write_evidence_strings(evidence, output_file)
-    logging.info(f'{evidence.count()} evidence strings have been saved to {output_file}')
+    write_evidence_strings(evidence_df, output_file)
+    logging.info(f'{evidence_df.count()} evidence strings have been saved to {output_file}')
 
 def read_input_file(input_file: str, spark_instance) -> DataFrame:
     '''
@@ -90,7 +89,7 @@ def read_input_file(input_file: str, spark_instance) -> DataFrame:
     return clingen_df
 
 
-def process_clingen(clingen_df: DataFrame):
+def process_clingen(clingen_df: DataFrame) -> DataFrame:
     """
     The JSON Schema format is applied to the df
     """
