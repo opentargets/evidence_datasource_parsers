@@ -135,12 +135,11 @@ def main(dd_file, eye_file, skin_file, cancer_file, output_file, local):
     evidence_df = (
         gene2phenotype_data
 
-        # Renaming columns:
+        # Reshaping columns:
         .withColumnRenamed('gene symbol', 'targetFromSourceId')
         .withColumnRenamed('disease name', 'diseaseFromSource')
         .withColumnRenamed('panel', 'studyId')
         .withColumnRenamed('DDD category', 'confidence')
-
         .withColumn(
             'allelicRequirements',
             when(

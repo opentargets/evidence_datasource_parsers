@@ -7,7 +7,6 @@ import logging
 import os
 import tempfile
 
-from ontoma import OnToma
 from pyspark.conf import SparkConf
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.functions import array, col, explode, first, lit, monotonically_increasing_id, struct, trim
@@ -15,30 +14,8 @@ from pyspark.sql.types import ArrayType, StringType, StructField, StructType, Ti
 
 from common.ontology import add_efo_mapping
 
-class ontoma_efo_lookup():
-    """
-    Map orphanet diseases to the EFO ontology
-    """
-    def __init__(self):
-        self.otmap = OnToma(cache_dir='cache')
 
-    def get_mapping(self, terms=[]):
-        disease_label, disease_id = terms
-        label_mapping = [
-            result.id_ot_schema
-            for result in self.otmap.find_term(disease_label)]
-
-        if len(label_mapping) != 0:
-            return (disease_label, disease_id, label_mapping)
-        try:
-            id_mapping = [
-                result.id_ot_schema
-                for result in self.otmap.find_term(disease_id)]
-            return (disease_label, disease_id, id_mapping)
-        except AttributeError:
-            return None
-
-def main(input_file: str, output_file: str, local: bool = False):
+def main(input_file: str, output_file: str, cache_dir: str, local: bool = False) -> None:
 
     # Initialize spark session
     if local:
@@ -69,10 +46,25 @@ def main(input_file: str, output_file: str, local: bool = False):
             .getOrCreate()
         )
 
-    # Initialize mapping object:
-    ol_obj = ontoma_efo_lookup()
+    # Read and process Clingen's table into evidence strings
 
-    # Read Gene Validity Curations input file
+    clingen_df = read_input_file(input_file, spark_instance=spark)
+    logging.info('Gene Validity Curations table has been imported. Processing evidence strings.')
+
+    evidence = process_clingen(clingen_df)
+
+    evidence = add_efo_mapping(evidence_strings=evidence, spark_instance=spark, ontoma_cache_dir=cache_dir)
+    logging.info('Disease mappings have been added.')
+
+    write_evidence_strings(evidence, output_file)
+    logging.info(f'{evidence.count()} evidence strings have been saved to {output_file}')
+
+def read_input_file(input_file: str, spark_instance) -> DataFrame:
+    '''
+    Reads Gene Validity Curations CSV file into a Spark DataFrame forcing the schema
+    The first 6 rows of this file include metadata that needs to be dropped
+    '''
+
     clingen_schema = (
         StructType()
         .add('GENE SYMBOL', StringType())
@@ -86,57 +78,16 @@ def main(input_file: str, output_file: str, local: bool = False):
         .add('CLASSIFICATION DATE', TimestampType())
         .add('GCEP', StringType())
     )
+
     clingen_df = (
-        spark.read.csv(input_file, schema=clingen_schema)
+        spark_instance.read.csv(input_file, schema=clingen_schema)
         # The first 6 rows of the GVC file include metadata that needs to be dropped
         .withColumn('idx', monotonically_increasing_id())
         .filter(col('idx') > 5)
         .drop('idx')
     )
 
-    '''
-    # Generating a lookup table for the mapped orphanet terms:
-    diseases = (
-        clingen_df
-        .select('DISEASE LABEL', 'DISEASE ID (MONDO)')
-        .distinct()
-        .collect()
-    )
-
-    mapped_diseases = [ol_obj.get_mapping(x) for x in diseases]
-
-    schema = StructType([
-        StructField('diseaseFromSource', StringType(), True),
-        StructField('diseaseFromSourceId', StringType(), True),
-        StructField('diseaseFromSourceMappedId', ArrayType(StringType()), True)
-    ])
-    mapped_diseases_df = (
-        # Dataframe from list of label/id/mapped_id tuples
-        spark.createDataFrame(mapped_diseases, schema=schema)
-        # Coalesce df row-wise
-        .groupBy(
-            'diseaseFromSource', 'diseaseFromSourceId')
-        .agg(first("diseaseFromSourceMappedId", ignorenulls=True).alias("diseaseFromSourceMappedId"))
-        # Explode cases where one diseaseFromSource maps to many EFO terms
-        .withColumn('diseaseFromSourceMappedId', explode('diseaseFromSourceMappedId'))
-    )
-
-    # Adding EFO mapping as new column:
-    clingen_df = (
-        clingen_df
-        .withColumnRenamed('DISEASE LABEL', 'diseaseFromSource')
-        .withColumnRenamed('DISEASE ID (MONDO)', 'diseaseFromSourceId')
-        .join(mapped_diseases_df, on=['diseaseFromSource', 'diseaseFromSourceId'], how='left')
-    )
-    '''
-
-    # Turn table into evidence strings
-    evidence = process_clingen(clingen_df)
-
-    evidence = add_efo_mapping(evidence_strings=evidence, spark_instance=spark)
-
-    write_evidence_strings(evidence, output_file)
-    logging.info(f'{evidence.count()} evidence strings have been saved to {output_file}')
+    return clingen_df
 
 
 def process_clingen(clingen_df: DataFrame):
@@ -149,8 +100,6 @@ def process_clingen(clingen_df: DataFrame):
         .withColumn('datasourceId', lit('clingen'))
         .withColumn('datatypeId', lit('genetic_literature'))
         .withColumn('urls', struct(col('ONLINE REPORT').alias('url')))
-        .withColumnRenamed('DISEASE LABEL', 'diseaseFromSource')
-        .withColumnRenamed('DISEASE ID (MONDO)', 'diseaseFromSourceId')
 
         .select(
             'datasourceId', 'datatypeId',
@@ -160,9 +109,7 @@ def process_clingen(clingen_df: DataFrame):
             array(col('MOI')).alias('allelicRequirements'),
             array(col('urls')).alias('urls'),
             col('CLASSIFICATION').alias('confidence'),
-            col('GCEP').alias('studyId'),
-            'diseaseFromSource', 'diseaseFromSourceId',
-            'diseaseFromSourceMappedId'
+            col('GCEP').alias('studyId')
         )
     )
 
@@ -182,15 +129,19 @@ if __name__ == "__main__":
 
     # Parse CLI arguments
     parser = argparse.ArgumentParser(description='Parse ClinGen gene-disease associations from Gene Validity Curations')
-    parser.add_argument('-i', '--input_file',
+    parser.add_argument('--input_file',
                         help='Name of csv file downloaded from https://search.clinicalgenome.org/kb/gene-validity',
                         type=str, required=True)
-    parser.add_argument('-o', '--output_file',
+    parser.add_argument('--output_file',
                         help='Absolute path of the gzipped, JSON evidence file.',
                         type=str, required=True)
-    parser.add_argument('-l', '--log_file', type=str,
+    parser.add_argument('--log_file', type=str,
                         help='Optional filename to redirect the logs into.')
-
+    parser.add_argument('--cache_dir', required=False, help='Directory to store the OnToma cache files in.')
+    parser.add_argument(
+        '--local', action='store_true', required=False, default=False,
+        help='Flag to indicate if the script is executed locally or on the cluster'
+    )
     args = parser.parse_args()
 
     # Initialize logging:
@@ -205,5 +156,9 @@ if __name__ == "__main__":
     # Report input data:
     logging.info(f'Clingen input file path: {args.input_file}')
     logging.info(f'Evidence output file path: {args.output_file}')
+    logging.info(f'Cache directory: {args.cache_dir}')
 
-    main(args.input_file, args.output_file)
+    main(
+        input_file=args.input_file, output_file=args.output_file,
+        cache_dir=args.cache_dir, local=args.local
+    )
