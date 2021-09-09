@@ -11,7 +11,7 @@ See also additional discussion in https://github.com/opentargets/platform/issues
 
 
 ## To reproduce the existing environment
-This recreates the exact environment which was present during the time of a particular commit in the repository. Make sure to substitute the appropriate lock file for your platform (Linux/OSX).
+This recreates the exact environment which was present during the time of a particular commit in the repository.
 ```bash
 conda env remove -n evidence_datasource_parsers_lock
 conda env create --file environment-lock.yml
