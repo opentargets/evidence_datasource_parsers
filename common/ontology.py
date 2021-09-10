@@ -5,27 +5,32 @@ import time
 from ontoma.interface import OnToma
 from pandarallel import pandarallel
 
-ONTOMA_MAX_ATTEMPTS = 5
+ONTOMA_MAX_ATTEMPTS = 3
 pandarallel.initialize()
 
 
-def _ontoma_udf(row, ontoma_instance):
-    disease_name, disease_id = row['diseaseFromSource'], row['diseaseFromSourceId']
+def _simple_retry(func, **kwargs):
+    """Simple retry handling for functions. Cannot be a decorator, so that the functions could still be pickled."""
     for attempt in range(1, ONTOMA_MAX_ATTEMPTS + 1):
-        # Try to map first by disease name (because that branch of OnToma is more stable), then by disease ID.
         try:
-            mappings = []
-            if disease_name:
-                mappings = ontoma_instance.find_term(query=disease_name, code=False)
-            if disease_id and not mappings:
-                mappings = ontoma_instance.find_term(query=disease_id, code=True)
-            return [m.id_ot_schema for m in mappings]
+            return func(**kwargs)
         except:
-            # If this is not the last attempt, wait until the next one
+            # If this is not the last attempt, wait until the next one.
             if attempt != ONTOMA_MAX_ATTEMPTS:
-                time.sleep(10 + 30 * random.random())
-    logging.error(f'OnToma lookup failed for {disease_name!r} / {disease_id!r}')
+                time.sleep(5 + 10 * random.random())
+    logging.error(f'OnToma lookup failed for {kwargs!r}')
     return []
+
+
+def _ontoma_udf(row, ontoma_instance):
+    """Try to map first by disease name (because that branch of OnToma is more stable), then by disease ID."""
+    disease_name, disease_id = row['diseaseFromSource'], row['diseaseFromSourceId']
+    mappings = []
+    if disease_name:
+        mappings = _simple_retry(ontoma_instance.find_term, query=disease_name, code=False)
+    if not mappings and disease_id and ':' in disease_id:
+        mappings = _simple_retry(ontoma_instance.find_term, query=disease_id, code=True)
+    return [m.id_ot_schema for m in mappings]
 
 
 def add_efo_mapping(evidence_strings, spark_instance, ontoma_cache_dir=None):
