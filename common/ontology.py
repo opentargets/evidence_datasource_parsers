@@ -4,6 +4,7 @@ import time
 
 from ontoma.interface import OnToma
 from pandarallel import pandarallel
+from pyspark.sql.functions import col, when
 
 ONTOMA_MAX_ATTEMPTS = 3
 pandarallel.initialize()
@@ -58,7 +59,14 @@ def add_efo_mapping(evidence_strings, spark_instance, ontoma_cache_dir=None):
     disease_info_to_map = disease_info_to_map.explode('diseaseFromSourceMappedId')
 
     logging.info('Join the resulting information into the evidence strings.')
-    disease_info_df = spark_instance.createDataFrame(disease_info_to_map.astype(str))
+    disease_info_df = (
+        spark_instance
+        .createDataFrame(disease_info_to_map.astype(str))
+        .withColumn(
+            'diseaseFromSourceMappedId',
+            when(col('diseaseFromSourceMappedId') != 'nan', col('diseaseFromSourceMappedId'))
+        )
+    )
     return evidence_strings.join(
         disease_info_df,
         on=['diseaseFromSource', 'diseaseFromSourceId'],
