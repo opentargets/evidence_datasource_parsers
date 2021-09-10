@@ -55,8 +55,4 @@ def add_efo_mapping(evidence_strings, spark_instance, ontoma_cache_dir=None):
         disease_info_df,
         on=['diseaseFromSource', 'diseaseFromSourceId'],
         how='left'
-<<<<<<< HEAD
     )
-=======
-    )
->>>>>>> c774c6bd75a28cb151acf3f46bb671c7906bddeb
