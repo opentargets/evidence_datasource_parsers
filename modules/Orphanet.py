@@ -211,6 +211,7 @@ if __name__ == '__main__':
     input_file = args.input_file
     output_file = args.output_file
     log_file = args.logFile
+    cache_dir = args.cache_dir
     is_local = args.local
 
     # Initialize logging:

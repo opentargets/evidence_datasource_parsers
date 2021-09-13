@@ -30,7 +30,7 @@ G2P_mutationCsq2functionalCsq = {
 
 
 def main(
-    dd_file: str, eye_file: str, skin_file: str, cancer_file: str, output_file: str, local: bool = False
+    dd_file: str, eye_file: str, skin_file: str, cancer_file: str, output_file: str, cache_dir: str, local: bool = False
 ) -> None:
 
     # Initialize spark session
@@ -72,7 +72,7 @@ def main(
 
     evidence_df = process_gene2phenotype(gene2phenotype_df)
 
-    evidence_df = add_efo_mapping(evidence_strings=evidence_df, spark_instance=spark)
+    evidence_df = add_efo_mapping(evidence_strings=evidence_df, spark_instance=spark, ontoma_cache_dir=cache_dir)
     logging.info('Disease mappings have been added.')
 
     # Saving data:
@@ -237,6 +237,6 @@ if __name__ == "__main__":
     logging.info(f'Eye panel file: {eye_file}')
     logging.info(f'Skin panel file: {skin_file}')
     logging.info(f'Cancer panel file: {cancer_file}')
-
+    
     # Calling main:
     main(dd_file, eye_file, skin_file, cancer_file, output_file, cache_dir, local)
