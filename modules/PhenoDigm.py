@@ -16,6 +16,8 @@ from pyspark.sql.types import StructType, StructField, StringType
 import requests
 from retry import retry
 
+from common.ontology import add_efo_mapping
+
 
 # The tables and their fields to fetch from SOLR. Other tables (not currently used): gene, disease_gene_summary.
 IMPC_SOLR_TABLES = {
@@ -410,13 +412,18 @@ class PhenoDigm:
             # Add constant value columns.
             .withColumn('datasourceId', pf.lit('phenodigm'))
             .withColumn('datatypeId', pf.lit('animal_model'))
+        )
 
-            # Ensure stable column order.
-            .select('biologicalModelAllelicComposition', 'biologicalModelGeneticBackground', 'biologicalModelId',
-                    'datasourceId', 'datatypeId', 'diseaseFromSource', 'diseaseFromSourceId',
-                    'diseaseModelAssociatedHumanPhenotypes', 'diseaseModelAssociatedModelPhenotypes', 'literature',
-                    'resourceScore', 'targetFromSourceId', 'targetInModel', 'targetInModelEnsemblId',
-                    'targetInModelMgiId')
+        # Add EFO mapping information.
+        self.evidence = add_efo_mapping(evidence_strings=self.evidence, spark_instance=self.spark,
+                                        ontoma_cache_dir=self.cache_dir)
+
+        # Ensure stable column order.
+        self.evidence = self.evidence.select(
+            'biologicalModelAllelicComposition', 'biologicalModelGeneticBackground', 'biologicalModelId',
+            'datasourceId', 'datatypeId', 'diseaseFromSource', 'diseaseFromSourceId', 'diseaseFromSourceMappedId',
+            'diseaseModelAssociatedHumanPhenotypes', 'diseaseModelAssociatedModelPhenotypes', 'literature',
+            'resourceScore', 'targetFromSourceId', 'targetInModel', 'targetInModelEnsemblId', 'targetInModelMgiId'
         )
 
     def generate_mouse_phenotypes_dataset(self):
