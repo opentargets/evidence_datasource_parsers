@@ -25,7 +25,8 @@ def _simple_retry(func, **kwargs):
 
 def _ontoma_udf(row, ontoma_instance):
     """Try to map first by disease name (because that branch of OnToma is more stable), then by disease ID."""
-    disease_name, disease_id = row['diseaseFromSource'], row['diseaseFromSourceId']
+    disease_name = row['diseaseFromSource']
+    disease_id = row['diseaseFromSourceId'].replace('_', ':') if row['diseaseFromSourceId'] else None
     mappings = []
     if disease_name:
         mappings = _simple_retry(ontoma_instance.find_term, query=disease_name, code=False)
