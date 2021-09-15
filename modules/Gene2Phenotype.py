@@ -165,15 +165,15 @@ def process_gene2phenotype(gene2phenotype_df: DataFrame) -> DataFrame:
     return evidence_df
 
 def translate(mapping):
-    '''
+    """
     Mapping consequences - to SO codes
-    '''
+    """
     def translate_(col):
         return mapping.get(col)
     return udf(translate_, StringType())
 
 def write_evidence_strings(evidence: DataFrame, output_file: str) -> None:
-    '''Exports the table to a compressed JSON file containing the evidence strings'''
+    """Exports the table to a compressed JSON file containing the evidence strings."""
     with tempfile.TemporaryDirectory() as tmp_dir_name:
         (
             evidence.coalesce(1).write.format('json').mode('overwrite')
