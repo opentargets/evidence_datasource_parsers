@@ -58,7 +58,7 @@ NSCLC	Non small cell lung cancer	EFO_0003060 	non-small cell lung cancer	Dataset
 NSPH	Nasopharyngeal cancer	EFO_0004252	nasopharyngeal neoplasm	Dataset from intOGen
 OS	Osteosarcoma	EFO_0000637	osteosarcoma	Dataset from intOGen
 PAIS	Pancreatic neuroendocrine cancer	EFO_0007416	pancreatic endocrine carcinoma	Dataset from intOGen
-PCPG	Pheochromocytoma and Paraganglioma	EFO_1000453 	Pheochromocytoma-paraganglioma	Dataset from intOGen
+PCPG	Pheochromocytoma and Paraganglioma	EFO_0020005 	Pheochromocytoma-paraganglioma	Dataset from intOGen
 PIA	Pilocityc astrocytoma	EFO_0000272	astrocytoma	Dataset from intOGen
 RB	Retinoblastoma	Orphanet_790	Retinoblastoma	Dataset from intOGen
 RCCC	Renal clear cell carcinoma	EFO_0000349	clear cell renal carcinoma	Dataset from intOGen
