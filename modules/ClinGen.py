@@ -59,10 +59,10 @@ def main(input_file: str, output_file: str, cache_dir: str, local: bool = False)
     logging.info(f'{evidence_df.count()} evidence strings have been saved to {output_file}')
 
 def read_input_file(input_file: str, spark_instance) -> DataFrame:
-    '''
+    """
     Reads Gene Validity Curations CSV file into a Spark DataFrame forcing the schema
     The first 6 rows of this file include metadata that needs to be dropped
-    '''
+    """
 
     clingen_schema = (
         StructType()
@@ -113,7 +113,7 @@ def process_clingen(clingen_df: DataFrame) -> DataFrame:
     )
 
 def write_evidence_strings(evidence: DataFrame, output_file: str) -> None:
-    '''Exports the table to a compressed JSON file containing the evidence strings'''
+    """Exports the table to a compressed JSON file containing the evidence strings"""
     with tempfile.TemporaryDirectory() as tmp_dir_name:
         (
             evidence.coalesce(1).write.format('json').mode('overwrite')
@@ -132,7 +132,7 @@ if __name__ == "__main__":
                         help='Name of csv file downloaded from https://search.clinicalgenome.org/kb/gene-validity',
                         type=str, required=True)
     parser.add_argument('--output_file',
-                        help='Absolute path of the gzipped, JSON evidence file.',
+                        help='Absolute path of the gzipped JSON evidence file.',
                         type=str, required=True)
     parser.add_argument('--log_file', type=str,
                         help='Optional filename to redirect the logs into.')
