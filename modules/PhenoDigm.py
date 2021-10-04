@@ -11,6 +11,8 @@ import urllib.request
 
 import pronto
 import pyspark
+from pyspark.conf import SparkConf
+from pyspark.sql import SparkSession
 import pyspark.sql.functions as pf
 from pyspark.sql.types import StructType, StructField, StringType
 import requests
@@ -112,14 +114,42 @@ class PhenoDigm:
 
     IMPC_FILENAME = 'impc_solr_{data_type}.csv'
 
-    def __init__(self, logger, cache_dir):
+    def __init__(self, logger, cache_dir, local):
         self.logger = logger
         self.cache_dir = cache_dir
-        self.spark = pyspark.sql.SparkSession.builder.appName('phenodigm_parser').getOrCreate()
         self.gene_mapping, self.literature, self.mouse_phenotype_to_human_phenotype = [None] * 3
         self.model_mouse_phenotypes, self.disease_human_phenotypes, self.disease_model_summary = [None] * 3
         self.ontology, self.mp_terms, self.hp_terms, self.mp_class = [None] * 4
         self.evidence, self.mouse_phenotypes = [None] * 2
+
+        # Initialize spark session
+        if local:
+            sparkConf = (
+                SparkConf()
+                .set('spark.driver.memory', '15g')
+                .set('spark.executor.memory', '15g')
+                .set('spark.driver.maxResultSize', '0')
+                .set('spark.debug.maxToStringFields', '2000')
+                .set('spark.sql.execution.arrow.maxRecordsPerBatch', '500000')
+            )
+            self.spark = (
+                SparkSession.builder
+                .config(conf=sparkConf)
+                .master('local[*]')
+                .getOrCreate()
+            )
+        else:
+            sparkConf = (
+                SparkConf()
+                .set('spark.driver.maxResultSize', '0')
+                .set('spark.debug.maxToStringFields', '2000')
+                .set('spark.sql.execution.arrow.maxRecordsPerBatch', '500000')
+            )
+            self.spark = (
+                SparkSession.builder
+                .config(conf=sparkConf)
+                .getOrCreate()
+            )
 
     def update_cache(self):
         """Fetch the Ensembl gene ID and SOLR data into the local cache directory."""
@@ -497,7 +527,9 @@ class PhenoDigm:
                 os.rename(os.path.join(tmp_dir_name, json_chunks[0]), outfile)
 
 
-def main(cache_dir, evidence_output, mouse_phenotypes_output, score_cutoff, use_cached=False, log_file=None):
+def main(
+    cache_dir, evidence_output, mouse_phenotypes_output, score_cutoff, use_cached=False, log_file=None, local=False
+) -> None:
     # Initialize the logger based on the provided log file. If no log file is specified, logs are written to STDERR.
     logging_config = {
         'level': logging.INFO,
@@ -509,7 +541,7 @@ def main(cache_dir, evidence_output, mouse_phenotypes_output, score_cutoff, use_
     logging.basicConfig(**logging_config)
 
     # Process the data.
-    phenodigm = PhenoDigm(logging, cache_dir)
+    phenodigm = PhenoDigm(logging, cache_dir, local)
     if not use_cached:
         logging.info('Update the HGNC/MGI/SOLR cache.')
         phenodigm.update_cache()
@@ -541,6 +573,10 @@ if __name__ == '__main__':
     ), type=float, default=0.0)
     parser.add_argument('--use-cached', help='Use the existing cache and do not update it.', action='store_true')
     parser.add_argument('--log-file', help='Optional filename to redirect the logs into.')
+    parser.add_argument(
+        '--local', action='store_true', required=False, default=False,
+        help='Flag to indicate if the script is executed locally or on the cluster'
+    )
     args = parser.parse_args()
     main(args.cache_dir, args.output_evidence, args.output_mouse_phenotypes, args.score_cutoff, args.use_cached,
-         args.log_file)
+         args.log_file, args.local)

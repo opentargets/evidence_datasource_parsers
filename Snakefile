@@ -17,7 +17,7 @@ logFile = f"{config['global']['logDir']}/evidence_parser-{timeStamp}.log"
 rule all:
     input:
         GS.remote(f"{config['ClinGen']['outputBucket']}/ClinGen-{timeStamp}.json.gz"),
-        GS.remote(f"{config['PheWAS']['outputBucket']}/cancer_biomarkers-{timeStamp}.json.gz"),
+        GS.remote(f"{config['cancerBiomarkers']['outputBucket']}/cancer_biomarkers-{timeStamp}.json.gz"),
         GS.remote(f"{config['PheWAS']['outputBucket']}/phewas_catalog-{timeStamp}.json.gz"),
         GS.remote(f"{config['SLAPEnrich']['outputBucket']}/slapenrich-{timeStamp}.json.gz"),
         GS.remote(f"{config['Gene2Phenotype']['outputBucket']}/gene2phenotype-{timeStamp}.json.gz"),
@@ -70,16 +70,19 @@ rule cancerBiomarkers:
 rule clingen:
     input:
         f"tmp/ClinGen-Gene-Disease-Summary-{timeStamp}.csv"
+    params:
+        cacheDir = config['global']['cacheDir']
     output:
         evidenceFile = GS.remote(f"{config['ClinGen']['outputBucket']}/ClinGen-{timeStamp}.json.gz"),
-        unmappedDiseases = f"tmp/unmappedDiseases/clingen_unmapped_diseases-{timeStamp}.lst"
     log:
         GS.remote(logFile)
     shell:
         """
         python modules/ClinGen.py \
         --input_file {input} \
-        --output_file {output.evidenceFile}
+        --output_file {output.evidenceFile} \
+        --cache_dir {params.cacheDir} \
+        --local
         """
 
 ## geneticsPortal           : processes lead variants from the Open Targets Genetics portal on a Dataproc cluster
@@ -118,8 +121,6 @@ rule phewas:
         inputFile = f"tmp/phewas_catalog-{timeStamp}.csv",
         consequencesFile = f"tmp/phewas_w_consequences-{timeStamp}.csv",
         diseaseMapping = f"tmp/phewascat_mappings-{timeStamp}.tsv",
-    params:
-        genesSet = f"{config['global']['genesHGNC']}"
     output:
         evidenceFile = GS.remote(f"{config['PheWAS']['outputBucket']}/phewas_catalog-{timeStamp}.json.gz")
     log:
@@ -130,7 +131,6 @@ rule phewas:
             --inputFile {input.inputFile} \
             --consequencesFile {input.consequencesFile} \
             --diseaseMapping {input.diseaseMapping} \
-            --genesSet {params.genesSet} \
             --outputFile {output.evidenceFile}
         '''
 
@@ -158,6 +158,8 @@ rule gene2Phenotype:
         eyePanel = f"tmp/EyeG2P-{timeStamp}.csv.gz",
         skinPanel = f"tmp/SkinG2P-{timeStamp}.csv.gz",
         cancerPanel = f"tmp/CancerG2P-{timeStamp}.csv.gz"
+    params:
+        cacheDir = config['global']['cacheDir']
     output:
         evidenceFile = GS.remote(f"{config['Gene2Phenotype']['outputBucket']}/gene2phenotype-{timeStamp}.json.gz"),
         unmappedDiseases = f"tmp/unmappedDiseases/gene2phenotype_unmapped_diseases-{timeStamp}.txt"
@@ -170,7 +172,9 @@ rule gene2Phenotype:
             --eye_panel {input.eyePanel} \
             --skin_panel {input.skinPanel} \
             --cancer_panel {input.cancerPanel} \
-            --output_file {output.evidenceFile}
+            --output_file {output.evidenceFile} \
+            --cache_dir {params.cacheDir} \
+            --local
         """
 
 ## crispr                   : processes cancer therapeutic targets using CRISPR–Cas9 screens
@@ -213,6 +217,8 @@ rule progeny:
 
 ## phenodigm                : processes target-disease evidence and mouseModels dataset by querying the IMPC SOLR API
 rule phenodigm:
+    params:
+        cacheDir = config['global']['cacheDir']
     output:
         evidenceFile=GS.remote(f"{config['Phenodigm']['evidenceOutputBucket']}/phenodigm-{timeStamp}.json.gz"),
         mousePhenotypes=GS.remote(f"{config['Phenodigm']['phenotypesOutputBucket']}/mousePhenotypes.{timeStamp}."
@@ -222,7 +228,7 @@ rule phenodigm:
     shell:
         """
         python modules/PhenoDigm.py \
-            --cache-dir phenodigm_cache \
+            --cache-dir {params.cacheDir} \
             --output-evidence {output.evidenceFile} \
             --output-mouse-phenotypes {output.mousePhenotypes}
         """
@@ -248,6 +254,8 @@ rule sysbio:
 rule panelApp:
     input:
         inputFile = f"tmp/panelapp_gene_panels-{timeStamp}.tsv"
+    params:
+        cacheDir = config['global']['cacheDir']
     output:
         evidenceFile = GS.remote(f"{config['PanelApp']['outputBucket']}/genomics_england-{timeStamp}.json.gz")
     log:
@@ -256,7 +264,8 @@ rule panelApp:
         """
         python modules/PanelApp.py \
             --input-file {input.inputFile} \
-            --output-file {output.evidenceFile}
+            --output-file {output.evidenceFile} \
+            --cache_dir {params.cacheDir}
         """
 
 ## intogen                  : processes cohorts and driver genes data from intOGen
@@ -299,6 +308,8 @@ rule epmc:
 rule orphanet:
     input:
         HTTP.remote(config['Orphanet']['webSource'])
+    params:
+        cacheDir = config['global']['cacheDir']
     output:
         GS.remote(f"{config['Orphanet']['outputBucket']}/Orphanet-{timeStamp}")
     log:
@@ -308,6 +319,7 @@ rule orphanet:
         python modules/Orphanet.py \
             --input_file {input} \
             --output_file {output} \
+            --cache_dir {params.cacheDir}
             --local
         """
 
@@ -351,7 +363,7 @@ rule fetchPhewas:
         inputFile = GS.remote(f"{config['PheWAS']['inputBucket']}/phewas-catalog-19-10-2018.csv"),
         consequencesFile = GS.remote(f"{config['PheWAS']['inputBucket']}/phewas_w_consequences.csv")
     params:
-        diseaseMapping = config['PheWAS']['diseaseMapping'],
+        diseaseMapping = config['PheWAS']['diseaseMapping']
     output:
         inputFile = f"tmp/phewas_catalog-{timeStamp}.csv",
         consequencesFile = f"tmp/phewas_w_consequences-{timeStamp}.csv",

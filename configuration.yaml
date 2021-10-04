@@ -1,6 +1,6 @@
 global:
   logDir: gs://otar000-evidence_input/parser_logs
-  genesHGNC: http://ftp.ebi.ac.uk/pub/databases/genenames/new/json/hgnc_complete_set.json
+  cacheDir: cache_dir
 
 # Parameters for OT Gentics Portal evidence generation:
 GeneticsPortal:
