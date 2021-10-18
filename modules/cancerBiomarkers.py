@@ -24,11 +24,10 @@ ALTERATIONTYPE2FUNCTIONCSQ = {
 }
 
 DRUGRESPONSE2EFO = {
-    # TODO: Map Increased Toxicity and Resistance
     'Responsive': 'GO_0042493',  # response to drug
-    'Not Responsive': 'HP_0020174',  # Refractory drug response
-    'Resistant': None,
-    'Increased Toxicity': None,
+    'Not Responsive': 'EFO_0020002',  # lack of efficacy
+    'Resistant': 'EFO_0020001',  # drug resistance
+    'Increased Toxicity': 'EFO_0020003',  # drug toxicity
     'Increased Toxicity (Myelosupression)': 'EFO_0007053',  # myelosuppression
     'Increased Toxicity (Ototoxicity)': 'EFO_0006951',  # ototoxicity
     'Increased Toxicity (Hyperbilirubinemia)': 'HP_0002904',  # Hyperbilirubinemia
@@ -194,7 +193,7 @@ class cancerBiomarkersEvidenceGenerator():
             # Enrich data
             .withColumn('variantFunctionalConsequenceId', col('alteration_type'))
             .replace(to_replace=ALTERATIONTYPE2FUNCTIONCSQ, subset=['variantFunctionalConsequenceId'])
-            # .replace(to_replace=DRUGRESPONSE2EFO, subset=['Association'])
+            .replace(to_replace=DRUGRESPONSE2EFO, subset=['Association'])
             .join(disease_df, on='tumor_type', how='left')
             .withColumn('drug', upper(col('drug')))
             .withColumn(
