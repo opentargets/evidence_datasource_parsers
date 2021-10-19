@@ -190,8 +190,8 @@ class cancerBiomarkersEvidenceGenerator():
             # whether any condition is met. The empty struct is replaced with null
             .withColumn('urls', when(~col('urls.niceName').isNull(), col('urls')))
             # Enrich data
-            .withColumn('variantFunctionalConsequenceId', col('alteration_type'))
-            .replace(to_replace=ALTERATIONTYPE2FUNCTIONCSQ, subset=['variantFunctionalConsequenceId'])
+            .withColumn('functionalConsequenceId', col('alteration_type'))
+            .replace(to_replace=ALTERATIONTYPE2FUNCTIONCSQ, subset=['functionalConsequenceId'])
             .replace(to_replace=DRUGRESPONSE2EFO, subset=['Association'])
             .join(disease_df, on='tumor_type', how='left')
             .withColumn('drug', upper(col('drug')))
@@ -230,7 +230,7 @@ class cancerBiomarkersEvidenceGenerator():
                     struct(
                         col('alteration').alias('name'),
                         col('variantId').alias('id'),
-                        col('variantFunctionalConsequenceId').alias('functionalConsequenceId')
+                        col('functionalConsequenceId')
                     )
                 )
             )
@@ -260,7 +260,7 @@ class cancerBiomarkersEvidenceGenerator():
             # variant, geneExpression populated above
             .drop(
                 'tumor_type', 'source', 'alteration', 'alteration_type', 'IndividualMutation', 'geneExpressionId',
-                'gDNA', 'variantFunctionalConsequenceId', 'variantId', 'DrugFullName', 'niceName', 'url')
+                'gDNA', 'functionalConsequenceId', 'variantId', 'DrugFullName', 'niceName', 'url')
         )
 
         # Group evidence
