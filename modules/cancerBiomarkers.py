@@ -34,6 +34,12 @@ DRUGRESPONSE2EFO = {
     'Increased Toxicity (Haemolytic Anemia)': 'EFO_0005558'  # hemolytic anemia
 }
 
+GENENAMESOVERRIDE = {
+    # Correct gene names to use their approved symbol
+    'C15orf55': 'NUTM1',
+    'MLL': 'KMT2A',
+    'MLL2': 'KMT2D'
+}
 
 class cancerBiomarkersEvidenceGenerator():
 
@@ -111,17 +117,10 @@ class cancerBiomarkersEvidenceGenerator():
             .withColumn('confidence', explode(col('confidence')))
             .withColumn('tumor_type_full_name', explode(col('tumor_type_full_name')))
             .withColumn('tumor_type', translate(col('tumor_type_full_name'), ' -', ''))
-            .withColumn('gene', explode(col('gene')))
             .withColumn('drug', explode(col('drug')))
             .withColumn('drug', translate(col('drug'), '[]', ''))
-            # Override specific genes
-            .withColumn(
-                'gene',
-                when(col('gene') == 'C15orf55', 'NUTM1')
-                .when(col('gene') == 'MLL', 'KMT2A')
-                .when(col('gene') == 'MLL2', 'KMT2D')
-                .otherwise(col('gene'))
-            )
+            .withColumn('gene', explode(col('gene')))
+            .replace(to_replace=GENENAMESOVERRIDE, subset=['gene'])
             .withColumn('gene', upper(col('gene')))
             # At this stage alterations and alteration_types are both arrays
             # Disambiguation when the biomarker consists of multiple alterations is needed
