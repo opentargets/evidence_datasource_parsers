@@ -4,8 +4,8 @@ import sys
 
 from pyspark.conf import SparkConf
 from pyspark.sql import SparkSession
-from pyspark.sql.types import StringType, FloatType
-from pyspark.sql.functions import col, udf, collect_set, split, element_at, struct, trim, lit
+from pyspark.sql.types import FloatType
+from pyspark.sql.functions import col, collect_set, split, element_at, struct, lit
 
 # A few genes do not have Ensembl IDs in the data file provided
 CRISPR_SYMBOL_MAPPING = {
