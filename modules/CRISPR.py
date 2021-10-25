@@ -56,26 +56,28 @@ def main(desc_file, evid_file, cell_file, out_file):
     logging.info(f'Number of descriptions: {description_df.count()}')
     logging.info(f'Number of cell/tissue annotation: {cell_lines_df.count()}')
 
-    # Combining description and cell lines based on tissue:
+    # Tissues and cancer types are annotated together in the same column (tissue_or_cancer_type)
+    # To disambiguate one from another, the column is combined with the cell lines
+    # First on the tissue level:
     tissue_desc = (
         description_df
         .withColumnRenamed('tissue_or_cancer_type', 'tissue')
         .join(cell_lines_df, on='tissue', how='inner')
     )
 
-    # Combining description and cell lines based on disease:
+    # And then on the disease level:
     cell_desc = (
         description_df
         .withColumnRenamed('tissue_or_cancer_type', 'diseaseFromSource')
         .join(cell_lines_df, on='diseaseFromSource', how='inner')
     )
 
-    # Concatenating the above generated dataframes:
     merged_annotation = (
+        # Concatenating the above generated dataframes:
         cell_desc
         .union(tissue_desc)
 
-        # Aggregating by diease and method:
+        # Aggregating by disease and method:
         .groupBy('diseaseFromSource', 'efo_id', 'method')
 
         # The cell annotation is aggregated in a list of struct:
