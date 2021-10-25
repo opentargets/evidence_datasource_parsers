@@ -1,9 +1,11 @@
 import argparse
 import logging
+import os
+import tempfile
 import sys
 
 from pyspark.conf import SparkConf
-from pyspark.sql import SparkSession
+from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql.types import FloatType
 from pyspark.sql.functions import col, collect_set, split, element_at, struct, lit
 
@@ -19,6 +21,17 @@ CRISPR_SYMBOL_MAPPING = {
     'SRPR': 'ENSG00000182934',
     'ZNF259': 'ENSG00000109917'
 }
+
+def write_evidence_strings(evidence: DataFrame, output_file: str) -> None:
+    """Exports the table to a compressed JSON file containing the evidence strings"""
+    with tempfile.TemporaryDirectory() as tmp_dir_name:
+        (
+            evidence.coalesce(1).write.format('json').mode('overwrite')
+            .option('compression', 'org.apache.hadoop.io.compress.GzipCodec').save(tmp_dir_name)
+        )
+        json_chunks = [f for f in os.listdir(tmp_dir_name) if f.endswith('.json.gz')]
+        assert len(json_chunks) == 1, f'Expected one JSON file, but found {len(json_chunks)}.'
+        os.rename(os.path.join(tmp_dir_name, json_chunks[0]), output_file)
 
 
 def main(desc_file, evid_file, cell_file, out_file):
@@ -119,11 +132,7 @@ def main(desc_file, evid_file, cell_file, out_file):
 
     logging.info(f'Saving {pooled_evidence_df.count()} CRISPR evidence in JSON format, to: {out_file}')
 
-    (
-        pooled_evidence_df
-        .coalesce(1)
-        .write.format('json').mode('overwrite').option('compression', 'gzip').save(out_file)
-    )
+    write_evidence_strings(pooled_evidence_df, out_file)
 
 
 if __name__ == "__main__":
