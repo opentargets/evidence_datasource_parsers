@@ -80,13 +80,13 @@ def retrieve_tep_table() -> pd.DataFrame:
 
     for row in TEP_table.find('tbody').findAll('tr'):
         TEP_raw_data.append({
-            'targetFromSource': get_gene_name(row),
-            'tepUrl': get_url(row),
-            'threapeuticArea': get_therapeutic_area(row),
+            'targetFromSourceId': get_gene_name(row),
+            'url': get_url(row),
+            'therapeuticArea': get_therapeutic_area(row),
             'description': get_description(row)
         })
 
-    return pd.DataFrame(TEP_raw_data).explode('targetFromSource')
+    return pd.DataFrame(TEP_raw_data).explode('targetFromSourceId')
 
 
 def main(outputFile: str) -> None:
@@ -94,10 +94,10 @@ def main(outputFile: str) -> None:
     # The TEP list compiled as dataframe:
     tep_list = retrieve_tep_table()
     logging.info(f'Number of TEPs retrieved: {len(tep_list)}')
-    logging.info(f'Number of unique gene symbols in the tep: {len(tep_list.targetFromSource.unique())}')
+    logging.info(f'Number of unique gene symbols in the tep: {len(tep_list.targetFromSourceId.unique())}')
 
-    if tep_list.targetFromSource.duplicated().any():
-        logging.error(f'The following symbols were not unique: {tep_list.loc[tep_list.targetFromSource.duplicated()]}')
+    if tep_list.targetFromSourceId.duplicated().any():
+        logging.error(f'The following symbols were not unique: {tep_list.loc[tep_list.targetFromSourceId.duplicated()]}')
         raise ValueError('The target symbol list is expected to be unique! Check logs for deatils.')
 
     # Saving data:
@@ -109,11 +109,9 @@ if __name__ == '__main__':
 
     # Reading output file name from the command line:
     parser = argparse.ArgumentParser(description='This script fetches TEP data from Structural Genomics Consortium.')
-    parser.add_argument('--output', '-o', type=str, help='Output file. gzipped JSON', required=True)
-    parser.add_argument('--logFile', type=str, help='File into which the logs are saved', required=False)
+    parser.add_argument('--output_file', '-o', type=str, help='Output file. gzipped JSON', required=True)
+    parser.add_argument('--log_file', type=str, help='File into which the logs are saved', required=False)
     args = parser.parse_args()
-
-    outputFile = args.output
 
     # If no logfile is specified, logs are written to the standard error:
     logging.basicConfig(
@@ -121,9 +119,9 @@ if __name__ == '__main__':
         format='%(asctime)s %(levelname)s %(module)s - %(funcName)s: %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S',
     )
-    if args.logFile:
-        logging.config.fileConfig(filename=args.logFile)
+    if args.log_file:
+        logging.config.fileConfig(filename=args.log_file)
     else:
         logging.StreamHandler(sys.stderr)
 
-    main(outputFile)
+    main(args.output_file)
