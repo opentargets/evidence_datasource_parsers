@@ -430,7 +430,7 @@ rule fetchCrispr:
     input:
         evidenceFile = GS.remote(f"{config['CRISPR']['inputBucket']}/crispr_evidence.tsv"),
         descriptionsFile = GS.remote(f"{config['CRISPR']['inputBucket']}/crispr_descriptions.tsv"),
-        cellTypesFile = GS.remote(f"{config['CRISPR']['inputBucket']}/crispr_cell_lines.tsv")
+        cellTypesFile = GS.remote(f"{config['CRISPR']['inputBucket']}/crispr_cell_lines_enriched_2021-10-22.tsv")
     output:
         evidenceFile = f"tmp/crispr_evidence-{timeStamp}.csv",
         descriptionsFile = f"tmp/crispr_descriptions-{timeStamp}.tsv",
