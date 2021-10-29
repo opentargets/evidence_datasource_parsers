@@ -131,6 +131,15 @@ def main():
             col('n_initial').alias('sample_size')  # Rename to sample size
         )
 
+        # Assign project based on the study author information
+        .withColumn(
+            'projectId',
+            when(col('publicationFirstAuthor').contains('FINNGEN'), 'FINNGEN')
+            .when(col('publicationFirstAuthor').contains('UKB Neale'), 'NEALE')
+            .when(col('publicationFirstAuthor').contains('UKB SAIGE'), 'SAIGE')
+            .otherwise('GCST')
+        )
+
         # Warning! Not all studies have an EFO annotated. Also, some have
         # multiple EFOs! We need to decide a strategy to deal with these.
 
