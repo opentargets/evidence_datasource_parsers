@@ -99,7 +99,7 @@ class PanelAppEvidenceGenerator:
         cache_dir: str
     ) -> None:
         logging.info('Filter and extract the necessary columns.')
-        panelapp_df = self.spark.read.csv(input_file, sep=r'\t', header=True).sample(fraction=0.1)
+        panelapp_df = self.spark.read.csv(input_file, sep=r'\t', header=True)
         
         # Panel version can be either a single number (e.g. 1), or two numbers separated by a dot (e.g. 3.14). We cast
         # either representation to float to ensure correct filtering below. (Note that conversion to float would not
