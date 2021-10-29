@@ -249,6 +249,7 @@ def main():
             col('efo').alias('diseaseFromSourceMappedId'),
             col('literature'),
             col('pub_author').alias('publicationFirstAuthor'),
+            'projectId',
             substring(col('pub_date'), 1, 4).cast(IntegerType()).alias('publicationYear'),
             col('trait_reported').alias('diseaseFromSource'),
             col('study_id').alias('studyId'),
