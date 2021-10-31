@@ -64,4 +64,5 @@ Orphanet:
 cancerBiomarkers:
   inputBucket: gs://otar000-evidence_input/CancerBiomarkers/data_files
   outputBucket: gs://otar000-evidence_input/CancerBiomarkers/json
-  drugIndex: ftp://ftp.ebi.ac.uk/pub/databases/opentargets/platform/21.06/output/etl/parquet/diseases
+  # Downloaded separately using wget, because FTP.RemoteProvider cannot handle recurisve directory downloads.
+  drugIndex: ftp.ebi.ac.uk/pub/databases/opentargets/platform/21.06/output/etl/parquet/diseases

@@ -1,7 +1,6 @@
 from datetime import datetime
 from snakemake.remote.GS import RemoteProvider as GSRemoteProvider
 from snakemake.remote.HTTP import RemoteProvider as HTTPRemoteProvider
-from snakemake.remote.FTP import RemoteProvider as FTPRemoteProvider
 
 GS = GSRemoteProvider()
 HTTP = HTTPRemoteProvider()
@@ -50,19 +49,22 @@ rule cancerBiomarkers:
     input:
         biomarkers_table = f'tmp/biomarkers_table-{timeStamp}.tsv',
         source_table = f'tmp/biomarkers_source-{timeStamp}.jsonl',
-        disease_table = f'tmp/biomarkers_disease-{timeStamp}.jsonl',
-        drug_index = directory(FTPRemoteProvider().remote(f"{config['cancerBiomarkers']['drugIndex']}"))
+        disease_table = f'tmp/biomarkers_disease-{timeStamp}.jsonl'
+    params:
+        # Downloaded separately using wget, because FTP.RemoteProvider cannot handle recurisve directory downloads.
+        drug_index = config['cancerBiomarkers']['drugIndex']
     output:
         GS.remote(f"{config['cancerBiomarkers']['outputBucket']}/cancer_biomarkers-{timeStamp}.json.gz")
     log:
         GS.remote(logFile)
     shell:
         """
+        wget -q -r ftp://{params.drug_index}
         python modules/cancerBiomarkers.py \
         --biomarkers_table {input.biomarkers_table} \
         --source_table {input.source_table} \
         --disease_table {input.disease_table} \
-        --drug_index {input.drug_index} \
+        --drug_index {params.drug_index} \
         --output_file {output}
         """
 
