@@ -1,6 +1,7 @@
 from datetime import datetime
 from snakemake.remote.GS import RemoteProvider as GSRemoteProvider
 from snakemake.remote.HTTP import RemoteProvider as HTTPRemoteProvider
+from snakemake.remote.FTP import RemoteProvider as FTPRemoteProvider
 
 GS = GSRemoteProvider()
 HTTP = HTTPRemoteProvider()
@@ -24,11 +25,12 @@ rule all:
         GS.remote(f"{config['CRISPR']['outputBucket']}/crispr-{timeStamp}.json.gz"),
         GS.remote(f"{config['SysBio']['outputBucket']}/sysbio-{timeStamp}.json.gz"),
         directory(GS.remote(f"{config['EPMC']['outputBucket']}/epmc-{timeStamp}")),
-        directory(GS.remote(gs://genetics-portal-analysis/l2g-platform-export/data/genetics_portal_evidence.json.gz)),
+        directory(GS.remote('gs://genetics-portal-analysis/l2g-platform-export/data/genetics_portal_evidence.json.gz')),
         GS.remote(f"{config['PROGENy']['outputBucket']}/progeny-{timeStamp}.json.gz"),
         GS.remote(f"{config['intOGen']['outputBucket']}/intogen-{timeStamp}.json.gz"),
         GS.remote(f"{config['PanelApp']['outputBucket']}/genomics_england-{timeStamp}.json.gz"),
-        GS.remote(f"{config['Phenodigm']['outputBucket']}/phenodigm-{timeStamp}.json.gz"),
+        GS.remote(f"{config['Phenodigm']['evidenceOutputBucket']}/phenodigm-{timeStamp}.json.gz"),
+        GS.remote(f"{config['Phenodigm']['phenotypesOutputBucket']}/mousePhenotypes.{timeStamp}.json.gz"),
         GS.remote(f"{config['Orphanet']['outputBucket']}/Orphanet-{timeStamp}")
 
 # --- Auxiliary Rules --- #
@@ -50,7 +52,7 @@ rule cancerBiomarkers:
         biomarkers_table = f'tmp/biomarkers_table-{timeStamp}.tsv',
         source_table = f'tmp/biomarkers_source-{timeStamp}.jsonl',
         disease_table = f'tmp/biomarkers_disease-{timeStamp}.jsonl',
-        drug_index = = FTPRemoteProvider().remote(
+        drug_index = FTPRemoteProvider().remote(
             f"{config['cancerBiomarkers']['drugIndex']}")
     output:
         GS.remote(f"{config['cancerBiomarkers']['outputBucket']}/cancer_biomarkers-{timeStamp}.json.gz")
@@ -332,7 +334,7 @@ rule fetchCancerBiomarkers:
     output:
         biomarkers_table = f'tmp/biomarkers_table-{timeStamp}.tsv',
         source_table = f'tmp/biomarkers_source-{timeStamp}.jsonl',
-        disease_table = source_table = f'tmp/biomarkers_disease-{timeStamp}.jsonl'
+        disease_table = f'tmp/biomarkers_disease-{timeStamp}.jsonl'
     log:
         GS.remote(logFile)
     shell:
