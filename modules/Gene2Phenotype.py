@@ -13,6 +13,7 @@ from pyspark.sql.functions import array, col, concat, lit, split, udf, when
 from pyspark.sql.types import IntegerType, StringType, StructType, TimestampType
 
 from common.ontology import add_efo_mapping
+from common.spark import detect_spark_memory_limit
 
 G2P_mutationCsq2functionalCsq = {
     'loss of function': 'SO_0002054',  # loss_of_function_variant
@@ -34,38 +35,24 @@ def main(
 ) -> None:
 
     # Initialize spark session
-    if local:
-        sparkConf = (
-            SparkConf()
-            .set('spark.driver.memory', '15g')
-            .set('spark.executor.memory', '15g')
-            .set('spark.driver.maxResultSize', '0')
-            .set('spark.debug.maxToStringFields', '2000')
-            .set('spark.sql.execution.arrow.maxRecordsPerBatch', '500000')
-        )
-        spark = (
-            SparkSession.builder
-            .config(conf=sparkConf)
-            .config("spark.sql.broadcastTimeout", "36000")
-            .master('local[*]')
-            .getOrCreate()
-        )
-    else:
-        sparkConf = (
-            SparkConf()
-            .set('spark.driver.maxResultSize', '0')
-            .set('spark.debug.maxToStringFields', '2000')
-            .set('spark.sql.execution.arrow.maxRecordsPerBatch', '500000')
-        )
-        spark = (
-            SparkSession.builder
-            .config(conf=sparkConf)
-            .config("spark.sql.broadcastTimeout", "36000")
-            .getOrCreate()
-        )
+    spark_mem_limit = detect_spark_memory_limit()
+    spark_conf = (
+        SparkConf()
+        .set('spark.driver.memory', f'{spark_mem_limit}g')
+        .set('spark.executor.memory', f'{spark_mem_limit}g')
+        .set('spark.driver.maxResultSize', '0')
+        .set('spark.debug.maxToStringFields', '2000')
+        .set('spark.sql.execution.arrow.maxRecordsPerBatch', '500000')
+    )
+    spark = (
+        SparkSession.builder
+        .config(conf=spark_conf)
+        .config("spark.sql.broadcastTimeout", "36000")
+        .master('local[*]')
+        .getOrCreate()
+    )
 
     # Read and process G2P's tables into evidence strings
-
     gene2phenotype_df = read_input_file(
         dd_file, eye_file, skin_file, cancer_file, spark_instance=spark)
     logging.info('Gene2Phenotype panels have been imported. Processing evidence strings.')
@@ -117,7 +104,7 @@ def process_gene2phenotype(gene2phenotype_df: DataFrame) -> DataFrame:
 
     evidence_df = (
         gene2phenotype_df
-        
+
         # Split pubmed IDs to list:
         .withColumn('literature', split(col('pmids'), ';'))
 
@@ -171,6 +158,7 @@ def translate(mapping):
     def translate_(col):
         return mapping.get(col)
     return udf(translate_, StringType())
+
 
 def write_evidence_strings(evidence: DataFrame, output_file: str) -> None:
     """Exports the table to a compressed JSON file containing the evidence strings."""
@@ -237,6 +225,6 @@ if __name__ == "__main__":
     logging.info(f'Eye panel file: {eye_file}')
     logging.info(f'Skin panel file: {skin_file}')
     logging.info(f'Cancer panel file: {cancer_file}')
-    
+
     # Calling main:
     main(dd_file, eye_file, skin_file, cancer_file, output_file, cache_dir, local)
