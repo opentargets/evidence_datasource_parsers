@@ -1,24 +1,51 @@
-# OT evidence generators
+# Open Targets internal evidence generation
 
-Each folder in module corresponds to a datasource.
+This repository contains a collection of modules which generate evidence for several internal data sources (“internal” meaning that the code is maintained by the data team; the data itself usually comes from sources outside Open Targets).
 
-In each folder we have one or more standalone python scripts.
+## How to generate the evidence
+This will create a Google Cloud instance, SSH into it, install the necessary dependencies, generate and upload the evidence. Tweak the commands as necessary.
 
-Generally these scripts:
-1. map the disease terms (if any) to our ontology in various ways:
-      - by using [OnToma](https://ontoma.readthedocs.io)
-      - by using the [RareDiseasesUtils](https://github.com/opentargets/evidence_datasource_parsers/blob/master/common/RareDiseasesUtils.py) script
-      - by using [Ontology Utils](https://github.com/opentargets/ontology-utils)
-      - by importing manually curated files. Some of these are stored in the [mappings repo](https://github.com/opentargets/mappings)
-2. Once the mapping is handled, evidence objects are generated in the form of JSON strings according to our JSON schema
+```bash
+# Set parameters.
+export INSTANCE_NAME=evidence-generation
+export INSTANCE_ZONE=europe-west1-d
 
-Code used by more than one script (that does not live in a python package)
-is stored in the `common` folder and imported as follows:
+# Create the instance and SSH.
+gcloud compute instances create \
+  ${INSTANCE_NAME} \
+  --project=open-targets-eu-dev \
+  --zone=${INSTANCE_ZONE} \
+  --machine-type=n1-standard-64 \
+  --service-account=426265110888-compute@developer.gserviceaccount.com \
+  --scopes=https://www.googleapis.com/auth/cloud-platform \
+  --create-disk=auto-delete=yes,boot=yes,device-name=${INSTANCE_NAME},image=projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20210927,mode=rw,size=2000,type=projects/open-targets-eu-dev/zones/europe-west1-d/diskTypes/pd-balanced
+gcloud compute ssh --zone ${INSTANCE_ZONE} ${INSTANCE_NAME}
 
-```python
-from common.<module> import <function>
+# Install the dependencies.
+sudo apt update
+sudo apt install -y \
+  snakemake
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh
+bash ~/miniconda.sh
+exec bashc
+
+# Activate the environment.
+git clone https://github.com/opentargets/evidence_datasource_parsers
+cd evidence_datasource_parsers
+conda env remove -n evidence_datasource_parsers_lock
+conda env create --file envs/environment-lock.yml
+conda activate evidence_datasource_parsers_lock
+
+# Generate and upload the evidence.
+snakemake --cores all
 ```
 
+## Notes on how this repository is organised
+Each module in [`modules/`](modules/) corresponds to one evidence generator.
+
+Modules which are shared by multiple generators reside in [`common/`](common/).
+
+The Conda virtual environment files, as well as instructions on how to maintain them, are available in [`envs/`](envs/).
 
 
 ### Install
