@@ -485,7 +485,7 @@ rule fetchIntogen:
 ## fetchEpmc                : fetches the partioned parquet files with the ePMC cooccurrences
 rule fetchEpmc:
     input:
-        inputCooccurences = GS.remote(config['EPMC']['inputBucket'])
+        inputCooccurences = directory(GS.remote(config['EPMC']['inputBucket']))
     output:
         inputCooccurences = directory(f"tmp/epmc_cooccurrences-{timeStamp}")
     log:
