@@ -300,6 +300,7 @@ rule fetchCancerBiomarkers:
     input:
         biomarkers_table = GS.remote(f"{config['cancerBiomarkers']['inputBucket']}/cancerbiomarkers-2018-05-01.tsv"),
         source_table = GS.remote(f"{config['cancerBiomarkers']['inputBucket']}/cancer_biomarker_source.jsonl"),
+        disease_table = GS.remote(f"{config['cancerBiomarkers']['inputBucket']}/cancer_biomarker_disease.jsonl"),
     output:
         biomarkers_table = f'tmp/biomarkers_table-{timeStamp}.tsv',
         source_table = f'tmp/biomarkers_source-{timeStamp}.jsonl',
