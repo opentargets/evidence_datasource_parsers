@@ -10,7 +10,6 @@ import tempfile
 import urllib.request
 
 import pronto
-import pyspark
 from pyspark.conf import SparkConf
 from pyspark.sql import SparkSession
 import pyspark.sql.functions as pf
@@ -19,6 +18,7 @@ import requests
 from retry import retry
 
 from common.ontology import add_efo_mapping
+from common.spark import detect_spark_memory_limit
 
 
 # The tables and their fields to fetch from SOLR. Other tables (not currently used): gene, disease_gene_summary.
@@ -123,33 +123,21 @@ class PhenoDigm:
         self.evidence, self.mouse_phenotypes = [None] * 2
 
         # Initialize spark session
-        if local:
-            sparkConf = (
-                SparkConf()
-                .set('spark.driver.memory', '15g')
-                .set('spark.executor.memory', '15g')
-                .set('spark.driver.maxResultSize', '0')
-                .set('spark.debug.maxToStringFields', '2000')
-                .set('spark.sql.execution.arrow.maxRecordsPerBatch', '500000')
-            )
-            self.spark = (
-                SparkSession.builder
-                .config(conf=sparkConf)
-                .master('local[*]')
-                .getOrCreate()
-            )
-        else:
-            sparkConf = (
-                SparkConf()
-                .set('spark.driver.maxResultSize', '0')
-                .set('spark.debug.maxToStringFields', '2000')
-                .set('spark.sql.execution.arrow.maxRecordsPerBatch', '500000')
-            )
-            self.spark = (
-                SparkSession.builder
-                .config(conf=sparkConf)
-                .getOrCreate()
-            )
+        spark_mem_limit = detect_spark_memory_limit()
+        spark_conf = (
+            SparkConf()
+            .set('spark.driver.memory', f'{spark_mem_limit}g')
+            .set('spark.executor.memory', f'{spark_mem_limit}g')
+            .set('spark.driver.maxResultSize', '0')
+            .set('spark.debug.maxToStringFields', '2000')
+            .set('spark.sql.execution.arrow.maxRecordsPerBatch', '500000')
+        )
+        self.spark = (
+            SparkSession.builder
+            .config(conf=spark_conf)
+            .master('local[*]')
+            .getOrCreate()
+        )
 
     def update_cache(self):
         """Fetch the Ensembl gene ID and SOLR data into the local cache directory."""
