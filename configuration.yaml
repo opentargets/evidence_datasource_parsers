@@ -63,7 +63,7 @@ SysBio:
   outputBucket: gs://otar000-evidence_input/SysBio/json
 # Parameters for EuropePMC:
 EPMC:
-  inputBucket: gs://ot-snapshots/literature/20210427/cooccurrences
+  inputBucket: gs://ot-snapshots/literature/20210920/new_model/cooccurrences
   outputBucket: gs://otar000-evidence_input/EPMC/json
 # Parameters for Orphanet:
 Orphanet:
@@ -71,6 +71,6 @@ Orphanet:
   outputBucket: gs://otar000-evidence_input/Orphanet/json
 # Parameters for Cancer Biomarkers:
 cancerBiomarkers:
-  inputBucket: gs://otar000-evidence_input/cancerBiomarkers/data_files
-  outputBucket: gs://otar000-evidence_input/cancerBiomarkers/json
+  inputBucket: gs://otar000-evidence_input/CancerBiomarkers/data_files
+  outputBucket: gs://otar000-evidence_input/CancerBiomarkers/json
   drugIndex: ftp://ftp.ebi.ac.uk/pub/databases/opentargets/platform/21.06/output/etl/parquet/diseases
