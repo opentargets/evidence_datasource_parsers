@@ -37,6 +37,7 @@ cd evidence_datasource_parsers
 conda env remove -n evidence_datasource_parsers_lock
 conda env create --file envs/environment-lock.yml
 conda activate evidence_datasource_parsers_lock
+export PYTHONPATH="$PYTHONPATH:$(pwd)"
 
 # Generate and upload the evidence.
 snakemake --cores all
