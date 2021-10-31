@@ -51,8 +51,7 @@ rule cancerBiomarkers:
         biomarkers_table = f'tmp/biomarkers_table-{timeStamp}.tsv',
         source_table = f'tmp/biomarkers_source-{timeStamp}.jsonl',
         disease_table = f'tmp/biomarkers_disease-{timeStamp}.jsonl',
-        drug_index = FTPRemoteProvider().remote(
-            f"{config['cancerBiomarkers']['drugIndex']}")
+        drug_index = directory(FTPRemoteProvider().remote(f"{config['cancerBiomarkers']['drugIndex']}"))
     output:
         GS.remote(f"{config['cancerBiomarkers']['outputBucket']}/cancer_biomarkers-{timeStamp}.json.gz")
     log:
