@@ -134,7 +134,6 @@ rule gene2Phenotype:
         cacheDir = config['global']['cacheDir']
     output:
         evidenceFile = GS.remote(f"{config['Gene2Phenotype']['outputBucket']}/gene2phenotype-{timeStamp}.json.gz"),
-        unmappedDiseases = f"tmp/unmappedDiseases/gene2phenotype_unmapped_diseases-{timeStamp}.txt"
     log:
         GS.remote(logFile)
     shell:
