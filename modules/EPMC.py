@@ -9,6 +9,8 @@ from pyspark.sql import SparkSession
 from pyspark.sql.types import StringType
 import pyspark.sql.functions as pf
 
+from common.spark import detect_spark_memory_limit
+
 
 # The following target labels are excluded as they were grounded to too many target Ids
 EXCLUDED_TARGET_TERMS = ['TEC', 'TECS', 'Tec', 'tec', '\'', '(', ')', '-', '-S', 'S', 'S-', 'SS', 'SSS',
@@ -18,33 +20,21 @@ EXCLUDED_TARGET_TERMS = ['TEC', 'TECS', 'Tec', 'tec', '\'', '(', ')', '-', '-S',
 def main(cooccurrenceFile, outputFile, local=False):
 
     # Initialize spark session
-    if local:
-        sparkConf = (
-            SparkConf()
-            .set('spark.driver.memory', '15g')
-            .set('spark.executor.memory', '15g')
-            .set('spark.driver.maxResultSize', '0')
-            .set('spark.debug.maxToStringFields', '2000')
-            .set('spark.sql.execution.arrow.maxRecordsPerBatch', '500000')
-        )
-        spark = (
-            SparkSession.builder
-            .config(conf=sparkConf)
-            .master('local[*]')
-            .getOrCreate()
-        )
-    else:
-        sparkConf = (
-            SparkConf()
-            .set('spark.driver.maxResultSize', '0')
-            .set('spark.debug.maxToStringFields', '2000')
-            .set('spark.sql.execution.arrow.maxRecordsPerBatch', '500000')
-        )
-        spark = (
-            SparkSession.builder
-            .config(conf=sparkConf)
-            .getOrCreate()
-        )
+    spark_mem_limit = detect_spark_memory_limit()
+    spark_conf = (
+        SparkConf()
+        .set('spark.driver.memory', f'{spark_mem_limit}g')
+        .set('spark.executor.memory', f'{spark_mem_limit}g')
+        .set('spark.driver.maxResultSize', '0')
+        .set('spark.debug.maxToStringFields', '2000')
+        .set('spark.sql.execution.arrow.maxRecordsPerBatch', '500000')
+    )
+    spark = (
+        SparkSession.builder
+        .config(conf=spark_conf)
+        .master('local[*]')
+        .getOrCreate()
+    )
 
     logging.info(f'Spark version: {spark.version}')
 
@@ -89,7 +79,7 @@ def main(cooccurrenceFile, outputFile, local=False):
     logging.debug(f"Number of associations: {filtered_cooccurrence_df.select(pf.col('diseaseFromSourceMappedId'), pf.col('targetFromSourceId')).dropDuplicates().count()}")
     logging.debug(f"Number of publications without pubmed ID: {filtered_cooccurrence_df.filter(pf.col('pmid').isNull()).select('pmcid').distinct().count()}")
 
-    # Aggregating cooccurrence, get score apply filter:    
+    # Aggregating cooccurrence, get score apply filter:
     aggregated_df = (
         filtered_cooccurrence_df
 
