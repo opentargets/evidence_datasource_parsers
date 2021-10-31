@@ -262,7 +262,7 @@ rule intogen:
 ## epmc                     : processes target/disease evidence strings from ePMC cooccurrence files
 rule epmc:
     input:
-        inputCooccurences = directory(f"tmp/epmc_cooccurrences-{timeStamp}")
+        inputCooccurences = directory(GS.remote(config['EPMC']['inputBucket']))
     output:
         evidenceFile = directory(GS.remote(f"{config['EPMC']['outputBucket']}/epmc-{timeStamp}"))
     log:
@@ -274,7 +274,6 @@ rule epmc:
             --output {output.evidenceFile} \
             --local
         """
-
 
 ## Orphanet                 : Processing disease/target evidence from Orphanet
 rule orphanet:
@@ -482,17 +481,4 @@ rule fetchIntogen:
         gsutil cp {input.inputGenes} {output.inputGenes}
         gsutil cp {input.inputCohorts} {output.inputCohorts}
         gsutil cp {input.diseaseMapping} {output.diseaseMapping}
-        """
-
-## fetchEpmc                : fetches the partioned parquet files with the ePMC cooccurrences
-rule fetchEpmc:
-    input:
-        inputCooccurences = directory(GS.remote(config['EPMC']['inputBucket']))
-    output:
-        inputCooccurences = directory(f"tmp/epmc_cooccurrences-{timeStamp}")
-    log:
-        GS.remote(logFile)
-    shell:
-        """
-        gsutil cp -r {input.inputCooccurences} {output.inputCooccurences}
         """
