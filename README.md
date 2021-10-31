@@ -16,14 +16,16 @@ gcloud compute instances create \
   --project=open-targets-eu-dev \
   --zone=${INSTANCE_ZONE} \
   --machine-type=n1-standard-64 \
-  --service-account=evidence-datasource-parsers@open-targets.iam.gserviceaccount.com \
+  --service-account=426265110888-compute@developer.gserviceaccount.com \
   --scopes=https://www.googleapis.com/auth/cloud-platform \
   --create-disk=auto-delete=yes,boot=yes,device-name=${INSTANCE_NAME},image=projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20210927,mode=rw,size=2000,type=projects/open-targets-eu-dev/zones/europe-west1-d/diskTypes/pd-balanced
 gcloud compute ssh --zone ${INSTANCE_ZONE} ${INSTANCE_NAME}
+screen
 
 # Install the dependencies.
 sudo apt update
 sudo apt install -y \
+  openjdk-8-jdk-headless \
   snakemake
 wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh
 bash ~/miniconda.sh
