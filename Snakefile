@@ -289,7 +289,7 @@ rule orphanet:
         python modules/Orphanet.py \
             --input_file {input} \
             --output_file {output} \
-            --cache_dir {params.cacheDir}
+            --cache_dir {params.cacheDir} \
             --local
         """
 
