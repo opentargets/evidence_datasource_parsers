@@ -47,6 +47,36 @@ export PYTHONPATH="$PYTHONPATH:$(pwd)"
 snakemake --cores all
 ```
 
+## Processing Genetics Portal evidence
+Evidence generation for the Genetics Portal is not automated in the Snakefile. It can be done separately using the following commands. It is planned that this step will eventually become part of the Genetics Portal release pipeline.
+
+```bash
+gcloud dataproc clusters create \
+    cluster-l2g-data \
+    --image-version=1.4 \
+    --properties=spark:spark.debug.maxToStringFields=100,spark:spark.executor.cores=31,spark:spark.executor.instances=1 \
+    --master-machine-type=n1-standard-32 \
+    --master-boot-disk-size=1TB \
+    --zone=europe-west1-d \
+    --single-node \
+    --max-idle=5m \
+    --region=europe-west1 \
+    --project=open-targets-genetics
+
+gcloud dataproc jobs submit pyspark \
+    --cluster=cluster-l2g-data \
+    --project=open-targets-genetics \
+    --region=europe-west1 \
+    modules/GeneticsPortal.py -- \
+    --locus2gene gs://genetics-portal-data/l2g/200127 \
+    --toploci gs://genetics-portal-data/v2d/200207/toploci.parquet \
+    --study gs://genetics-portal-data/v2d/200207/studies.parquet \
+    --threshold 0.05 \
+    --variantIndex gs://genetics-portal-data/variant-annotation/190129/variant-annotation.parquet  \
+    --ecoCodes gs://genetics-portal-data/lut/vep_consequences.tsv \
+    --outputFile gs://genetics-portal-analysis/l2g-platform-export/data/genetics_portal_evidence.json.gz
+```
+
 ## Notes on how this repository is organised
 Each module in [`modules/`](modules/) corresponds to one evidence generator.
 
