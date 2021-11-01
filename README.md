@@ -5,6 +5,10 @@ This repository contains a collection of modules which generate evidence for sev
 ## How to generate the evidence
 This will create a Google Cloud instance, SSH into it, install the necessary dependencies, generate and upload the evidence. Tweak the commands as necessary.
 
+To run this, two conditions related to the service accounts need to be satisfied:
+1. The service account used must have a Storage Admin role for two buckets: `otar000-evidence_input` and `otar001-core`.
+2. The user running the code must have access to use the service account.
+
 ```bash
 # Set parameters.
 export INSTANCE_NAME=evidence-generation
@@ -16,7 +20,7 @@ gcloud compute instances create \
   --project=open-targets-eu-dev \
   --zone=${INSTANCE_ZONE} \
   --machine-type=n1-standard-64 \
-  --service-account=426265110888-compute@developer.gserviceaccount.com \
+  --service-account=evidence-datasource-parsers@open-targets.iam.gserviceaccount.com \
   --scopes=https://www.googleapis.com/auth/cloud-platform \
   --create-disk=auto-delete=yes,boot=yes,device-name=${INSTANCE_NAME},image=projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20210927,mode=rw,size=2000,type=projects/open-targets-eu-dev/zones/europe-west1-d/diskTypes/pd-balanced
 gcloud compute ssh --zone ${INSTANCE_ZONE} ${INSTANCE_NAME}
