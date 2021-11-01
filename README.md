@@ -3,11 +3,13 @@
 This repository contains a collection of modules which generate evidence for several internal data sources (“internal” meaning that the code is maintained by the data team; the data itself usually comes from sources outside Open Targets).
 
 ## How to generate the evidence
-This will create a Google Cloud instance, SSH into it, install the necessary dependencies, generate and upload the evidence. Tweak the commands as necessary.
+This will create a Google Cloud instance, SSH into it, install the necessary dependencies, generate, validate, and upload the evidence. Tweak the commands as necessary.
 
 To run this, two conditions related to the service accounts need to be satisfied:
 1. The service account used must have a Storage Admin role for two buckets: `otar000-evidence_input` and `otar001-core`.
 2. The user running the code must have access to use the service account.
+
+By default, the generated evidence will be validated using the latest master snapshot of the JSON schema. This can be tweaked in [`configuration.yaml`](configuration.yaml) → global → schema.
 
 ```bash
 # Set parameters.
