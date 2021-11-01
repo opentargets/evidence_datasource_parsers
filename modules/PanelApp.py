@@ -3,17 +3,16 @@
 
 import argparse
 import logging
-import os
 import re
-import tempfile
 
 import requests
-from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql import SparkSession
 from pyspark.sql.functions import (
     array, array_distinct, col, collect_set, concat, explode, lit, regexp_extract, regexp_replace, split, trim, when
 )
 
 from common.ontology import add_efo_mapping
+from common.spark import write_evidence_strings
 
 class PanelAppEvidenceGenerator:
 
@@ -100,7 +99,6 @@ class PanelAppEvidenceGenerator:
     ) -> None:
         logging.info('Filter and extract the necessary columns.')
         panelapp_df = self.spark.read.csv(input_file, sep=r'\t', header=True)
-        
         # Panel version can be either a single number (e.g. 1), or two numbers separated by a dot (e.g. 3.14). We cast
         # either representation to float to ensure correct filtering below. (Note that conversion to float would not
         # work in the general case, because 3.4 > 3.14, but we only need to compare relative to 1.0.)
@@ -241,10 +239,11 @@ class PanelAppEvidenceGenerator:
             .distinct()
         )
 
-        evidence_df = add_efo_mapping(evidence_strings=evidence_df, spark_instance=self.spark, ontoma_cache_dir=cache_dir)
+        evidence_df = add_efo_mapping(evidence_strings=evidence_df, spark_instance=self.spark,
+                                      ontoma_cache_dir=cache_dir)
         logging.info('Disease mappings have been added.')
 
-        PanelAppEvidenceGenerator.write_evidence_strings(evidence_df, output_file)
+        write_evidence_strings(evidence_df, output_file)
         logging.info(f'{evidence_df.count()} evidence strings have been saved to {output_file}')
 
     def fetch_literature_references(self, all_panel_ids):
@@ -298,17 +297,6 @@ class PanelAppEvidenceGenerator:
 
         return pubmed_ids
 
-    @staticmethod
-    def write_evidence_strings(evidence: DataFrame, output_file: str) -> None:
-        '''Exports the table to a compressed JSON file containing the evidence strings'''
-        with tempfile.TemporaryDirectory() as tmp_dir_name:
-            (
-                evidence.coalesce(1).write.format('json').mode('overwrite')
-                .option('compression', 'org.apache.hadoop.io.compress.GzipCodec').save(tmp_dir_name)
-            )
-            json_chunks = [f for f in os.listdir(tmp_dir_name) if f.endswith('.json.gz')]
-            assert len(json_chunks) == 1, f'Expected one JSON file, but found {len(json_chunks)}.'
-            os.rename(os.path.join(tmp_dir_name, json_chunks[0]), output_file)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
