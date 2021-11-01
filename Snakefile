@@ -191,7 +191,7 @@ rule orphanet:
     params:
         cacheDir = config['global']['cacheDir']
     output:
-        GS.remote(f"{config['Orphanet']['outputBucket']}/Orphanet-{timeStamp}")
+        GS.remote(f"{config['Orphanet']['outputBucket']}/Orphanet-{timeStamp}.json.gz")
     log:
         GS.remote(logFile)
     shell:
