@@ -18,7 +18,7 @@ import requests
 from retry import retry
 
 from common.ontology import add_efo_mapping
-from common.spark import detect_spark_memory_limit
+from common.spark import detect_spark_memory_limit, write_evidence_strings
 
 
 # The tables and their fields to fetch from SOLR. Other tables (not currently used): gene, disease_gene_summary.
@@ -505,14 +505,7 @@ class PhenoDigm:
         for dataset, outfile in ((self.evidence, evidence_strings_filename),
                                  (self.mouse_phenotypes, mouse_phenotypes_filename)):
             logging.info(f'Processing dataset {outfile}')
-            with tempfile.TemporaryDirectory() as tmp_dir_name:
-                (
-                    dataset.coalesce(1).write.format('json').mode('overwrite')
-                    .option('compression', 'org.apache.hadoop.io.compress.GzipCodec').save(tmp_dir_name)
-                )
-                json_chunks = [f for f in os.listdir(tmp_dir_name) if f.endswith('.json.gz')]
-                assert len(json_chunks) == 1, f'Expected one JSON file, but found {len(json_chunks)}.'
-                os.rename(os.path.join(tmp_dir_name, json_chunks[0]), outfile)
+            write_evidence_strings(dataset, outfile)
 
 
 def main(
