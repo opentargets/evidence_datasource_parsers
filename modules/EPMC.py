@@ -49,7 +49,7 @@ def main(cooccurrenceFile, outputFile, local=False):
         spark.read.parquet(cooccurrenceFile)
 
         # Casting integer pmid column to string:
-        .withColumn("pmid", pf.col('pmid').cast(StringType()))
+        .withColumn("pmid", pf.trim(pf.col('pmid').cast(StringType())))
 
         # Publication identifier is a pmid if available, otherwise pmcid
         .withColumn(
