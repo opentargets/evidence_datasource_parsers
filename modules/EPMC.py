@@ -9,7 +9,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql.types import StringType
 import pyspark.sql.functions as pf
 
-from common.spark import detect_spark_memory_limit
+from common.spark import detect_spark_memory_limit, write_evidence_strings
 
 
 # The following target labels are excluded as they were grounded to too many target Ids
@@ -109,7 +109,7 @@ def main(cooccurrenceFile, outputFile, local=False):
     logging.info(f'Number of evidence: {aggregated_df.count()}')
 
     # Final formatting and saving data:
-    (
+    evidence = (
         aggregated_df
 
         # Adding literal columns:
@@ -119,11 +119,9 @@ def main(cooccurrenceFile, outputFile, local=False):
         # Reorder columns:
         .select(['datasourceId', 'datatypeId', 'targetFromSourceId', 'diseaseFromSourceMappedId', 'resourceScore',
                  'literature', 'textMiningSentences', 'pmcIds'])
-
-        # Save output:
-        .write.format('json').mode('overwrite').option('compression', 'gzip').save(outputFile)
     )
 
+    write_evidence_strings(evidence, outputFile)
     logging.info('EPMC disease target evidence saved.')
 
 
