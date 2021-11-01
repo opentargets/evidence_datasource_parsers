@@ -2,37 +2,21 @@ global:
   logDir: gs://otar000-evidence_input/parser_logs
   cacheDir: cache_dir
 
-# Parameters for ClinGen:
+cancerBiomarkers:
+  inputBucket: gs://otar000-evidence_input/CancerBiomarkers/data_files
+  outputBucket: gs://otar000-evidence_input/CancerBiomarkers/json
+  # Downloaded separately using wget, because FTP.RemoteProvider cannot handle recurisve directory downloads.
+  drugIndex: ftp.ebi.ac.uk/pub/databases/opentargets/platform/21.06/output/etl/parquet/diseases
 ClinGen:
   webSource: https://search.clinicalgenome.org/kb/gene-validity/download
   inputBucket: gs://otar000-evidence_input/ClinGen/data_files
   outputBucket: gs://otar000-evidence_input/ClinGen/json
-# Parameters for PheWAS:
-PheWAS:
-  inputBucket: gs://otar000-evidence_input/PheWAS/data_files
-  diseaseMapping: https://raw.githubusercontent.com/opentargets/mappings/master/phewascat.mappings.tsv
-  outputBucket: gs://otar000-evidence_input/PheWAS/json
-# Parameters for SLAPEnrich:
-SLAPEnrich:
-  inputBucket: gs://otar000-evidence_input/SLAPEnrich/data_file
-  diseaseMapping: resources/cancer2EFO_mappings.tsv
-  outputBucket: gs://otar000-evidence_input/SLAPEnrich/json
-# Parameters for PROGENy:
-PROGENy:
-  inputBucket: gs://otar000-evidence_input/PROGENy/data_files
-  diseaseMapping: resources/cancer2EFO_mappings.tsv
-  pathwayMapping: resources/pathway2Reactome_mappings.tsv
-  outputBucket: gs://otar000-evidence_input/PROGENy/json
-# Parameters for intOGen:
-intOGen:
-  inputBucket: gs://otar000-evidence_input/IntOgen/data_files
-  outputBucket: gs://otar000-evidence_input/IntOgen/json
-  diseaseMapping: resources/cancer2EFO_mappings.tsv
-# Parameters for PanelApp:
-PanelApp:
-  inputBucket: gs://otar000-evidence_input/GenomicsEngland/data_files
-  outputBucket: gs://otar000-evidence_input/GenomicsEngland/json
-# Parameters for Gene2Phenotype:
+CRISPR:
+  inputBucket: gs://otar000-evidence_input/CRISPR/data_files
+  outputBucket: gs://otar000-evidence_input/CRISPR/json
+EPMC:
+  inputBucket: gs://ot-snapshots/literature/20210920/new_model/cooccurrences
+  outputBucket: gs://otar000-evidence_input/EPMC/json
 Gene2Phenotype:
   webSource_dd_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/DDG2P.csv.gz
   webSource_eye_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/EyeG2P.csv.gz
@@ -40,29 +24,32 @@ Gene2Phenotype:
   webSource_cancer_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/CancerG2P.csv.gz
   inputBucket: gs://otar000-evidence_input/Gene2Phenotype/data_files
   outputBucket: gs://otar000-evidence_input/Gene2Phenotype/json
-# Parameters for CRISPR:
-CRISPR:
-  inputBucket: gs://otar000-evidence_input/CRISPR/data_files
-  outputBucket: gs://otar000-evidence_input/CRISPR/json
-# Parameters for Phenodigm:
-Phenodigm:
-  evidenceOutputBucket: gs://otar000-evidence_input/PhenoDigm/json
-  phenotypesOutputBucket: gs://otar001-core/MousePhenotypes
-# Parameters for SysBio:
-SysBio:
-  inputBucket: gs://otar000-evidence_input/SysBio/data_files
-  outputBucket: gs://otar000-evidence_input/SysBio/json
-# Parameters for EuropePMC:
-EPMC:
-  inputBucket: gs://ot-snapshots/literature/20210920/new_model/cooccurrences
-  outputBucket: gs://otar000-evidence_input/EPMC/json
-# Parameters for Orphanet:
+intOGen:
+  inputBucket: gs://otar000-evidence_input/IntOgen/data_files
+  outputBucket: gs://otar000-evidence_input/IntOgen/json
+  diseaseMapping: resources/cancer2EFO_mappings.tsv
 Orphanet:
   webSource: http://www.orphadata.org/data/xml/en_product6.xml
   outputBucket: gs://otar000-evidence_input/Orphanet/json
-# Parameters for Cancer Biomarkers:
-cancerBiomarkers:
-  inputBucket: gs://otar000-evidence_input/CancerBiomarkers/data_files
-  outputBucket: gs://otar000-evidence_input/CancerBiomarkers/json
-  # Downloaded separately using wget, because FTP.RemoteProvider cannot handle recurisve directory downloads.
-  drugIndex: ftp.ebi.ac.uk/pub/databases/opentargets/platform/21.06/output/etl/parquet/diseases
+PanelApp:
+  inputBucket: gs://otar000-evidence_input/GenomicsEngland/data_files
+  outputBucket: gs://otar000-evidence_input/GenomicsEngland/json
+Phenodigm:
+  evidenceOutputBucket: gs://otar000-evidence_input/PhenoDigm/json
+  phenotypesOutputBucket: gs://otar001-core/MousePhenotypes
+PheWAS:
+  inputBucket: gs://otar000-evidence_input/PheWAS/data_files
+  diseaseMapping: https://raw.githubusercontent.com/opentargets/mappings/master/phewascat.mappings.tsv
+  outputBucket: gs://otar000-evidence_input/PheWAS/json
+PROGENy:
+  inputBucket: gs://otar000-evidence_input/PROGENy/data_files
+  diseaseMapping: resources/cancer2EFO_mappings.tsv
+  pathwayMapping: resources/pathway2Reactome_mappings.tsv
+  outputBucket: gs://otar000-evidence_input/PROGENy/json
+SLAPEnrich:
+  inputBucket: gs://otar000-evidence_input/SLAPEnrich/data_file
+  diseaseMapping: resources/cancer2EFO_mappings.tsv
+  outputBucket: gs://otar000-evidence_input/SLAPEnrich/json
+SysBio:
+  inputBucket: gs://otar000-evidence_input/SysBio/data_files
+  outputBucket: gs://otar000-evidence_input/SysBio/json

@@ -16,20 +16,20 @@ logFile = f"{config['global']['logDir']}/evidence_parser-{timeStamp}.log"
 # --- All rules --- #
 rule all:
     input:
-        GS.remote(f"{config['ClinGen']['outputBucket']}/ClinGen-{timeStamp}.json.gz"),
         GS.remote(f"{config['cancerBiomarkers']['outputBucket']}/cancer_biomarkers-{timeStamp}.json.gz"),
-        GS.remote(f"{config['PheWAS']['outputBucket']}/phewas_catalog-{timeStamp}.json.gz"),
-        GS.remote(f"{config['SLAPEnrich']['outputBucket']}/slapenrich-{timeStamp}.json.gz"),
-        GS.remote(f"{config['Gene2Phenotype']['outputBucket']}/gene2phenotype-{timeStamp}.json.gz"),
+        GS.remote(f"{config['ClinGen']['outputBucket']}/ClinGen-{timeStamp}.json.gz"),
         GS.remote(f"{config['CRISPR']['outputBucket']}/crispr-{timeStamp}.json.gz"),
-        GS.remote(f"{config['SysBio']['outputBucket']}/sysbio-{timeStamp}.json.gz"),
-        directory(GS.remote(f"{config['EPMC']['outputBucket']}/epmc-{timeStamp}")),
-        GS.remote(f"{config['PROGENy']['outputBucket']}/progeny-{timeStamp}.json.gz"),
+        GS.remote(f"{config['EPMC']['outputBucket']}/epmc-{timeStamp}.json.gz"),
+        GS.remote(f"{config['Gene2Phenotype']['outputBucket']}/gene2phenotype-{timeStamp}.json.gz"),
         GS.remote(f"{config['intOGen']['outputBucket']}/intogen-{timeStamp}.json.gz"),
+        GS.remote(f"{config['Orphanet']['outputBucket']}/Orphanet-{timeStamp}.json.gz"),
         GS.remote(f"{config['PanelApp']['outputBucket']}/genomics_england-{timeStamp}.json.gz"),
         GS.remote(f"{config['Phenodigm']['evidenceOutputBucket']}/phenodigm-{timeStamp}.json.gz"),
         GS.remote(f"{config['Phenodigm']['phenotypesOutputBucket']}/mousePhenotypes.{timeStamp}.json.gz"),
-        GS.remote(f"{config['Orphanet']['outputBucket']}/Orphanet-{timeStamp}")
+        GS.remote(f"{config['PheWAS']['outputBucket']}/phewas_catalog-{timeStamp}.json.gz"),
+        GS.remote(f"{config['PROGENy']['outputBucket']}/progeny-{timeStamp}.json.gz"),
+        GS.remote(f"{config['SLAPEnrich']['outputBucket']}/slapenrich-{timeStamp}.json.gz"),
+        GS.remote(f"{config['SysBio']['outputBucket']}/sysbio-{timeStamp}.json.gz")
 
 # --- Auxiliary Rules --- #
 ## help                     : prints help comments for Snakefile
@@ -51,7 +51,7 @@ rule cancerBiomarkers:
         source_table = f'tmp/biomarkers_source-{timeStamp}.jsonl',
         disease_table = f'tmp/biomarkers_disease-{timeStamp}.jsonl'
     params:
-        # Downloaded separately using wget, because FTP.RemoteProvider cannot handle recurisve directory downloads.
+        # Downloaded separately using wget, because FTP.RemoteProvider cannot handle recursive directory downloads.
         drug_index = config['cancerBiomarkers']['drugIndex']
     output:
         GS.remote(f"{config['cancerBiomarkers']['outputBucket']}/cancer_biomarkers-{timeStamp}.json.gz")
@@ -87,40 +87,39 @@ rule clingen:
         --local
         """
 
-## phewas                   : processes phenome-wide association studies data from PheWAS
-rule phewas:
+## crispr                   : processes cancer therapeutic targets using CRISPR–Cas9 screens
+rule crispr:
     input:
-        inputFile = f"tmp/phewas_catalog-{timeStamp}.csv",
-        consequencesFile = f"tmp/phewas_w_consequences-{timeStamp}.csv",
-        diseaseMapping = f"tmp/phewascat_mappings-{timeStamp}.tsv",
+        evidenceFile = f"tmp/crispr_evidence-{timeStamp}.csv",
+        descriptionsFile = f"tmp/crispr_descriptions-{timeStamp}.tsv",
+        cellTypesFile = f"tmp/crispr_cell_lines-{timeStamp}.tsv"
     output:
-        evidenceFile = GS.remote(f"{config['PheWAS']['outputBucket']}/phewas_catalog-{timeStamp}.json.gz")
-    log:
-        GS.remote(logFile)
-    shell:
-        '''
-        python modules/PheWAS.py \
-            --inputFile {input.inputFile} \
-            --consequencesFile {input.consequencesFile} \
-            --diseaseMapping {input.diseaseMapping} \
-            --outputFile {output.evidenceFile}
-        '''
-
-## slapenrich               : processes cancer-target evidence strings derived from SLAPenrich
-rule slapenrich:
-    input:
-        inputFile = f"tmp/slapenrich-{timeStamp}.csv",
-        diseaseMapping = f"tmp/cancer2EFO_mappings-{timeStamp}.tsv"
-    output:
-        evidenceFile = GS.remote(f"{config['SLAPEnrich']['outputBucket']}/slapenrich-{timeStamp}.json.gz")
+        evidenceFile = GS.remote(f"{config['CRISPR']['outputBucket']}/crispr-{timeStamp}.json.gz")
     log:
         GS.remote(logFile)
     shell:
         """
-        python modules/SLAPEnrich.py \
-            --inputFile {input.inputFile} \
-            --diseaseMapping {input.diseaseMapping} \
-            --outputFile {output.evidenceFile} \
+        python modules/CRISPR.py \
+            --evidence_file {input.evidenceFile} \
+            --descriptions_file {input.descriptionsFile} \
+            --cell_types_file {input.cellTypesFile} \
+            --output_file {output.evidenceFile}
+        """
+
+## epmc                     : processes target/disease evidence strings from ePMC cooccurrence files
+rule epmc:
+    input:
+        inputCooccurences = directory(GS.remote(config['EPMC']['inputBucket']))
+    output:
+        evidenceFile = GS.remote(f"{config['EPMC']['outputBucket']}/epmc-{timeStamp}.json.gz")
+    log:
+        GS.remote(logFile)
+    shell:
+        """
+        python modules/EPMC.py \
+            --cooccurrenceFile {input.inputCooccurences} \
+            --output {output.evidenceFile} \
+            --local
         """
 
 ## gene2Phenotype           : processes four gene panels from Gene2Phenotype
@@ -148,97 +147,6 @@ rule gene2Phenotype:
             --local
         """
 
-## crispr                   : processes cancer therapeutic targets using CRISPR–Cas9 screens
-rule crispr:
-    input:
-        evidenceFile = f"tmp/crispr_evidence-{timeStamp}.csv",
-        descriptionsFile = f"tmp/crispr_descriptions-{timeStamp}.tsv",
-        cellTypesFile = f"tmp/crispr_cell_lines-{timeStamp}.tsv"
-    output:
-        evidenceFile = GS.remote(f"{config['CRISPR']['outputBucket']}/crispr-{timeStamp}.json.gz")
-    log:
-        GS.remote(logFile)
-    shell:
-        """
-        python modules/CRISPR.py \
-            --evidence_file {input.evidenceFile} \
-            --descriptions_file {input.descriptionsFile} \
-            --cell_types_file {input.cellTypesFile} \
-            --output_file {output.evidenceFile}
-        """
-
-## progeny                  : processes gene expression data from TCGA derived from PROGENy
-rule progeny:
-    input:
-        inputFile = f"tmp/progeny_normalVStumor_opentargets-{timeStamp}.txt",
-        diseaseMapping = f"tmp/progeny_cancer2EFO_mappings-{timeStamp}.tsv",
-        pathwayMapping = f"tmp/pathway2Reactome_mappings-{timeStamp}.tsv"
-    output:
-        evidenceFile = GS.remote(f"{config['PROGENy']['outputBucket']}/progeny-{timeStamp}.json.gz")
-    log:
-        GS.remote(logFile)
-    shell:
-        """
-        python modules/PROGENY.py \
-            --inputFile {input.inputFile} \
-            --diseaseMapping {input.diseaseMapping} \
-            --pathwayMapping {input.pathwayMapping} \
-            --outputFile {output.evidenceFile}
-        """
-
-## phenodigm                : processes target-disease evidence and mouseModels dataset by querying the IMPC SOLR API
-rule phenodigm:
-    params:
-        cacheDir = config['global']['cacheDir']
-    output:
-        evidenceFile=GS.remote(f"{config['Phenodigm']['evidenceOutputBucket']}/phenodigm-{timeStamp}.json.gz"),
-        mousePhenotypes=GS.remote(f"{config['Phenodigm']['phenotypesOutputBucket']}/mousePhenotypes.{timeStamp}."
-                                  f"json.gz")
-    log:
-        GS.remote(logFile)
-    shell:
-        """
-        python modules/PhenoDigm.py \
-            --cache-dir {params.cacheDir} \
-            --output-evidence {output.evidenceFile} \
-            --output-mouse-phenotypes {output.mousePhenotypes}
-        """
-
-## sysbio                   : processes key driver genes for specific diseases that have been curated from Systems Biology papers
-rule sysbio:
-    input:
-        evidenceFile = f"tmp/sysbio_evidence-{timeStamp}.tsv",
-        studyFile = f"tmp/sysbio_publication_info-{timeStamp}.tsv"
-    output:
-        evidenceFile = GS.remote(f"{config['SysBio']['outputBucket']}/sysbio-{timeStamp}.json.gz")
-    log:
-        GS.remote(logFile)
-    shell:
-        """
-        python modules/SystemsBiology.py \
-            --evidenceFile {input.evidenceFile} \
-            --studyFile {input.studyFile} \
-            --outputFile {output.evidenceFile}
-        """
-
-## panelApp                 : processes gene panels data curated by Genomics England
-rule panelApp:
-    input:
-        inputFile = f"tmp/panelapp_gene_panels-{timeStamp}.tsv"
-    params:
-        cacheDir = config['global']['cacheDir']
-    output:
-        evidenceFile = GS.remote(f"{config['PanelApp']['outputBucket']}/genomics_england-{timeStamp}.json.gz")
-    log:
-        GS.remote(logFile)
-    shell:
-        """
-        python modules/PanelApp.py \
-            --input-file {input.inputFile} \
-            --output-file {output.evidenceFile} \
-            --cache_dir {params.cacheDir}
-        """
-
 ## intogen                  : processes cohorts and driver genes data from intOGen
 rule intogen:
     input:
@@ -256,22 +164,6 @@ rule intogen:
             --inputCohorts {input.inputCohorts} \
             --diseaseMapping {input.diseaseMapping} \
             --outputFile {output.evidenceFile}
-        """
-
-## epmc                     : processes target/disease evidence strings from ePMC cooccurrence files
-rule epmc:
-    input:
-        inputCooccurences = directory(GS.remote(config['EPMC']['inputBucket']))
-    output:
-        evidenceFile = directory(GS.remote(f"{config['EPMC']['outputBucket']}/epmc-{timeStamp}"))
-    log:
-        GS.remote(logFile)
-    shell:
-        """
-        python modules/EPMC.py \
-            --cooccurrenceFile {input.inputCooccurences} \
-            --output {output.evidenceFile} \
-            --local
         """
 
 ## Orphanet                 : Processing disease/target evidence from Orphanet
@@ -292,6 +184,116 @@ rule orphanet:
             --cache_dir {params.cacheDir} \
             --local
         """
+
+## panelApp                 : processes gene panels data curated by Genomics England
+rule panelApp:
+    input:
+        inputFile = f"tmp/panelapp_gene_panels-{timeStamp}.tsv"
+    params:
+        cacheDir = config['global']['cacheDir']
+    output:
+        evidenceFile = GS.remote(f"{config['PanelApp']['outputBucket']}/genomics_england-{timeStamp}.json.gz")
+    log:
+        GS.remote(logFile)
+    shell:
+        """
+        python modules/PanelApp.py \
+            --input-file {input.inputFile} \
+            --output-file {output.evidenceFile} \
+            --cache_dir {params.cacheDir}
+        """
+
+## phenodigm                : processes target-disease evidence and mouseModels dataset by querying the IMPC SOLR API
+rule phenodigm:
+    params:
+        cacheDir = config['global']['cacheDir']
+    output:
+        evidenceFile=GS.remote(f"{config['Phenodigm']['evidenceOutputBucket']}/phenodigm-{timeStamp}.json.gz"),
+        mousePhenotypes=GS.remote(f"{config['Phenodigm']['phenotypesOutputBucket']}/mousePhenotypes.{timeStamp}."
+                                  f"json.gz")
+    log:
+        GS.remote(logFile)
+    shell:
+        """
+        python modules/PhenoDigm.py \
+            --cache-dir {params.cacheDir} \
+            --output-evidence {output.evidenceFile} \
+            --output-mouse-phenotypes {output.mousePhenotypes}
+        """
+
+## phewas                   : processes phenome-wide association studies data from PheWAS
+rule phewas:
+    input:
+        inputFile = f"tmp/phewas_catalog-{timeStamp}.csv",
+        consequencesFile = f"tmp/phewas_w_consequences-{timeStamp}.csv",
+        diseaseMapping = f"tmp/phewascat_mappings-{timeStamp}.tsv",
+    output:
+        evidenceFile = GS.remote(f"{config['PheWAS']['outputBucket']}/phewas_catalog-{timeStamp}.json.gz")
+    log:
+        GS.remote(logFile)
+    shell:
+        '''
+        python modules/PheWAS.py \
+            --inputFile {input.inputFile} \
+            --consequencesFile {input.consequencesFile} \
+            --diseaseMapping {input.diseaseMapping} \
+            --outputFile {output.evidenceFile}
+        '''
+
+## progeny                  : processes gene expression data from TCGA derived from PROGENy
+rule progeny:
+    input:
+        inputFile = f"tmp/progeny_normalVStumor_opentargets-{timeStamp}.txt",
+        diseaseMapping = f"tmp/progeny_cancer2EFO_mappings-{timeStamp}.tsv",
+        pathwayMapping = f"tmp/pathway2Reactome_mappings-{timeStamp}.tsv"
+    output:
+        evidenceFile = GS.remote(f"{config['PROGENy']['outputBucket']}/progeny-{timeStamp}.json.gz")
+    log:
+        GS.remote(logFile)
+    shell:
+        """
+        python modules/PROGENY.py \
+            --inputFile {input.inputFile} \
+            --diseaseMapping {input.diseaseMapping} \
+            --pathwayMapping {input.pathwayMapping} \
+            --outputFile {output.evidenceFile}
+        """
+
+## slapenrich               : processes cancer-target evidence strings derived from SLAPenrich
+rule slapenrich:
+    input:
+        inputFile = f"tmp/slapenrich-{timeStamp}.csv",
+        diseaseMapping = f"tmp/cancer2EFO_mappings-{timeStamp}.tsv"
+    output:
+        evidenceFile = GS.remote(f"{config['SLAPEnrich']['outputBucket']}/slapenrich-{timeStamp}.json.gz")
+    log:
+        GS.remote(logFile)
+    shell:
+        """
+        python modules/SLAPEnrich.py \
+            --inputFile {input.inputFile} \
+            --diseaseMapping {input.diseaseMapping} \
+            --outputFile {output.evidenceFile} \
+        """
+
+## sysbio                   : processes key driver genes for specific diseases that have been curated from Systems Biology papers
+rule sysbio:
+    input:
+        evidenceFile = f"tmp/sysbio_evidence-{timeStamp}.tsv",
+        studyFile = f"tmp/sysbio_publication_info-{timeStamp}.tsv"
+    output:
+        evidenceFile = GS.remote(f"{config['SysBio']['outputBucket']}/sysbio-{timeStamp}.json.gz")
+    log:
+        GS.remote(logFile)
+    shell:
+        """
+        python modules/SystemsBiology.py \
+            --evidenceFile {input.evidenceFile} \
+            --studyFile {input.studyFile} \
+            --outputFile {output.evidenceFile}
+        """
+
+
 
 # --- Fetching input data and uploading to GS --- #
 ## fetchCancerBiomarkers     : fetches the Cancer Biomarkers data from GS
