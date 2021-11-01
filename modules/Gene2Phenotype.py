@@ -3,9 +3,7 @@
 
 import argparse
 import logging
-import os
 import sys
-import tempfile
 
 from pyspark.conf import SparkConf
 from pyspark.sql import DataFrame, SparkSession
@@ -13,7 +11,7 @@ from pyspark.sql.functions import array, col, concat, lit, split, udf, when
 from pyspark.sql.types import IntegerType, StringType, StructType, TimestampType
 
 from common.ontology import add_efo_mapping
-from common.spark import detect_spark_memory_limit
+from common.spark import detect_spark_memory_limit, write_evidence_strings
 
 G2P_mutationCsq2functionalCsq = {
     'loss of function': 'SO_0002054',  # loss_of_function_variant
@@ -158,18 +156,6 @@ def translate(mapping):
     def translate_(col):
         return mapping.get(col)
     return udf(translate_, StringType())
-
-
-def write_evidence_strings(evidence: DataFrame, output_file: str) -> None:
-    """Exports the table to a compressed JSON file containing the evidence strings."""
-    with tempfile.TemporaryDirectory() as tmp_dir_name:
-        (
-            evidence.coalesce(1).write.format('json').mode('overwrite')
-            .option('compression', 'org.apache.hadoop.io.compress.GzipCodec').save(tmp_dir_name)
-        )
-        json_chunks = [f for f in os.listdir(tmp_dir_name) if f.endswith('.json.gz')]
-        assert len(json_chunks) == 1, f'Expected one JSON file, but found {len(json_chunks)}.'
-        os.rename(os.path.join(tmp_dir_name, json_chunks[0]), output_file)
 
 
 if __name__ == "__main__":
