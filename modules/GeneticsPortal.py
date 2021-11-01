@@ -6,7 +6,7 @@ import os
 import sys
 import tempfile
 
-from pyspark.sql import DataFrame
+from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.functions import col, lit, udf, when, expr, explode, substring, array, regexp_extract, concat_ws
 from pyspark.sql.types import DoubleType, StringType, IntegerType
 
@@ -75,8 +75,7 @@ def main():
     out_file = args.outputFile
 
     # Initialize spark session
-    global spark
-    spark = (pyspark.sql.SparkSession.builder.getOrCreate())
+    spark = (SparkSession.builder.getOrCreate())
     logging.info(f'Spark version: {spark.version}')
 
     # Log parameters:
@@ -243,6 +242,7 @@ def main():
 
     # Write output
     write_evidence_strings(evidence_df, out_file)
+    logging.info(f'{evidence_df.count()} evidence strings have been saved to {out_file}')
 
     return 0
 
