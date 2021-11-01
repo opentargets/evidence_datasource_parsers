@@ -72,9 +72,8 @@ rule cancerBiomarkers:
 
 ## clingen                  : processes the Gene Validity Curations table from ClinGen
 rule clingen:
-    input:
-        summaryTable = HTTP.remote(config['ClinGen']['webSource'])
     params:
+        summaryTableWeb = config['ClinGen']['webSource'],
         cacheDir = config['global']['cacheDir'],
         schema = config['global']['schema']
     output:
@@ -84,10 +83,12 @@ rule clingen:
         GS.remote(logFile)
     shell:
         """
+        # Download directly because HTTP RemoteProvider does not handle retries correctly.
+        wget -q -O clingen_summary.csv {params.summaryTableWeb}
         # Retain the original summary table and store that in GCS.
-        cp {input.summaryTable} {output.summaryTable}
+        cp clingen_summary.csv {output.summaryTable}
         python modules/ClinGen.py \
-          --input_file {input.summaryTable} \
+          --input_file clingen_summary.csv \
           --output_file {output.evidenceFile} \
           --cache_dir {params.cacheDir} \
           --local
