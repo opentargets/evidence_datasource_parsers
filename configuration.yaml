@@ -7,7 +7,7 @@ cancerBiomarkers:
   inputBucket: gs://otar000-evidence_input/CancerBiomarkers/data_files
   outputBucket: gs://otar000-evidence_input/CancerBiomarkers/json
   # Downloaded separately using wget, because FTP.RemoteProvider cannot handle recurisve directory downloads.
-  drugIndex: ftp.ebi.ac.uk/pub/databases/opentargets/platform/21.06/output/etl/parquet/diseases
+  drugIndex: ftp.ebi.ac.uk/pub/databases/opentargets/platform/21.09/output/etl/parquet/diseases
 ClinGen:
   webSource: https://search.clinicalgenome.org/kb/gene-validity/download
   inputBucket: gs://otar000-evidence_input/ClinGen/data_files
