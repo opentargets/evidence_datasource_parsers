@@ -12,6 +12,7 @@ from pyspark.sql.functions import array, col, first, lit, monotonically_increasi
 from pyspark.sql.types import StringType, StructType, TimestampType
 
 from common.ontology import add_efo_mapping
+from common.spark import write_evidence_strings
 
 
 def main(input_file: str, output_file: str, cache_dir: str, local: bool = False) -> None:
@@ -57,6 +58,7 @@ def main(input_file: str, output_file: str, cache_dir: str, local: bool = False)
 
     write_evidence_strings(evidence_df, output_file)
     logging.info(f'{evidence_df.count()} evidence strings have been saved to {output_file}')
+
 
 def read_input_file(input_file: str, spark_instance) -> DataFrame:
     """
@@ -111,17 +113,6 @@ def process_clingen(clingen_df: DataFrame) -> DataFrame:
             col('GCEP').alias('studyId')
         )
     )
-
-def write_evidence_strings(evidence: DataFrame, output_file: str) -> None:
-    """Exports the table to a compressed JSON file containing the evidence strings"""
-    with tempfile.TemporaryDirectory() as tmp_dir_name:
-        (
-            evidence.coalesce(1).write.format('json').mode('overwrite')
-            .option('compression', 'org.apache.hadoop.io.compress.GzipCodec').save(tmp_dir_name)
-        )
-        json_chunks = [f for f in os.listdir(tmp_dir_name) if f.endswith('.json.gz')]
-        assert len(json_chunks) == 1, f'Expected one JSON file, but found {len(json_chunks)}.'
-        os.rename(os.path.join(tmp_dir_name, json_chunks[0]), output_file)
 
 
 if __name__ == "__main__":
