@@ -1,11 +1,14 @@
 #!/usr/bin/env python
 
 import argparse
-import sys
-import pyspark.sql
-from pyspark.sql.types import DoubleType, StringType, IntegerType
-from pyspark.sql.functions import col, lit, udf, when, expr, explode, substring, array, regexp_extract, concat_ws
 import logging
+import os
+import sys
+import tempfile
+
+from pyspark.sql import DataFrame
+from pyspark.sql.functions import col, lit, udf, when, expr, explode, substring, array, regexp_extract, concat_ws
+from pyspark.sql.types import DoubleType, StringType, IntegerType
 
 
 def load_eco_dict(inf):
@@ -216,7 +219,7 @@ def main():
     )
 
     # Join datasets together
-    processed = (
+    genetics_df = (
         l2g
         # Join L2G to pvals, using study and variant info as key
         .join(pvals, on=['study_id', 'chrom', 'pos', 'ref', 'alt'])
@@ -235,9 +238,19 @@ def main():
         )
     )
 
+    # Adapt table to the evidence schema format
+    evidence_df = process_genetics_portal(genetics_df)
+
     # Write output
-    (
-        processed
+    write_evidence_strings(evidence_df, out_file)
+
+    return 0
+
+def process_genetics_portal(genetics_df: DataFrame) -> DataFrame:
+    """The evidence schema format is applied to the df"""
+
+    return (
+        genetics_df
         .withColumn(
             'literature',
             when(col('pmid') != '', array(regexp_extract(col('pmid'), r"PMID:(\d+)$", 1))).otherwise(None)
@@ -271,11 +284,18 @@ def main():
             regexp_extract(col('consequence_link'), r"\/(SO.+)$", 1).alias('variantFunctionalConsequenceId')
         )
         .dropDuplicates(['variantId', 'studyId', 'targetFromSourceId', 'diseaseFromSourceMappedId'])
-        .write.format('json').mode('overwrite').option('compression', 'gzip').save(out_file)
     )
 
-    return 0
-
+def write_evidence_strings(evidence: DataFrame, output_file: str) -> None:
+    """Exports the table to a compressed JSON file containing the evidence strings"""
+    with tempfile.TemporaryDirectory() as tmp_dir_name:
+        (
+            evidence.coalesce(1).write.format('json').mode('overwrite')
+            .option('compression', 'org.apache.hadoop.io.compress.GzipCodec').save(tmp_dir_name)
+        )
+        json_chunks = [f for f in os.listdir(tmp_dir_name) if f.endswith('.json.gz')]
+        assert len(json_chunks) == 1, f'Expected one JSON file, but found {len(json_chunks)}.'
+        os.rename(os.path.join(tmp_dir_name, json_chunks[0]), output_file)
 
 if __name__ == '__main__':
 
