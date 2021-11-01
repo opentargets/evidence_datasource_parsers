@@ -61,11 +61,12 @@ rule cancerBiomarkers:
         """
         wget -q -r ftp://{params.drug_index}
         python modules/cancerBiomarkers.py \
-        --biomarkers_table {input.biomarkers_table} \
-        --source_table {input.source_table} \
-        --disease_table {input.disease_table} \
-        --drug_index {params.drug_index} \
-        --output_file {output}
+          --biomarkers_table {input.biomarkers_table} \
+          --source_table {input.source_table} \
+          --disease_table {input.disease_table} \
+          --drug_index {params.drug_index} \
+          --output_file {output}
+        opentargets_validator --schema {config.global.schema} {output}
         """
 
 ## clingen                  : processes the Gene Validity Curations table from ClinGen
@@ -84,10 +85,11 @@ rule clingen:
         # Retain the original summary table and store that in GCS.
         cp {input.summaryTable} {output.summaryTable}
         python modules/ClinGen.py \
-        --input_file {input.summaryTable} \
-        --output_file {output.evidenceFile} \
-        --cache_dir {params.cacheDir} \
-        --local
+          --input_file {input.summaryTable} \
+          --output_file {output.evidenceFile} \
+          --cache_dir {params.cacheDir} \
+          --local
+        opentargets_validator --schema {config.global.schema} {output.evidenceFile}
         """
 
 ## crispr                   : processes cancer therapeutic targets using CRISPR–Cas9 screens
@@ -103,10 +105,11 @@ rule crispr:
     shell:
         """
         python modules/CRISPR.py \
-            --evidence_file {input.evidenceFile} \
-            --descriptions_file {input.descriptionsFile} \
-            --cell_types_file {input.cellTypesFile} \
-            --output_file {output.evidenceFile}
+          --evidence_file {input.evidenceFile} \
+          --descriptions_file {input.descriptionsFile} \
+          --cell_types_file {input.cellTypesFile} \
+          --output_file {output.evidenceFile}
+        opentargets_validator --schema {config.global.schema} {output.evidenceFile}
         """
 
 ## epmc                     : processes target/disease evidence strings from ePMC cooccurrence files
@@ -120,9 +123,10 @@ rule epmc:
     shell:
         """
         python modules/EPMC.py \
-            --cooccurrenceFile {input.inputCooccurences} \
-            --output {output.evidenceFile} \
-            --local
+          --cooccurrenceFile {input.inputCooccurences} \
+          --output {output.evidenceFile} \
+          --local
+        opentargets_validator --schema {config.global.schema} {output.evidenceFile}
         """
 
 ## gene2Phenotype           : processes four gene panels from Gene2Phenotype
@@ -150,13 +154,14 @@ rule gene2Phenotype:
         cp {input.skinPanel} {output.skinBucket}
         cp {input.cancerPanel} {output.cancerBucket}
         python modules/Gene2Phenotype.py \
-            --dd_panel {input.ddPanel} \
-            --eye_panel {input.eyePanel} \
-            --skin_panel {input.skinPanel} \
-            --cancer_panel {input.cancerPanel} \
-            --output_file {output.evidenceFile} \
-            --cache_dir {params.cacheDir} \
-            --local
+          --dd_panel {input.ddPanel} \
+          --eye_panel {input.eyePanel} \
+          --skin_panel {input.skinPanel} \
+          --cancer_panel {input.cancerPanel} \
+          --output_file {output.evidenceFile} \
+          --cache_dir {params.cacheDir} \
+          --local
+        opentargets_validator --schema {config.global.schema} {output.evidenceFile}
         """
 
 ## intogen                  : processes cohorts and driver genes data from intOGen
@@ -172,10 +177,11 @@ rule intogen:
     shell:
         """
         python modules/IntOGen.py \
-            --inputGenes {input.inputGenes} \
-            --inputCohorts {input.inputCohorts} \
-            --diseaseMapping {input.diseaseMapping} \
-            --outputFile {output.evidenceFile}
+          --inputGenes {input.inputGenes} \
+          --inputCohorts {input.inputCohorts} \
+          --diseaseMapping {input.diseaseMapping} \
+          --outputFile {output.evidenceFile}
+        opentargets_validator --schema {config.global.schema} {output.evidenceFile}
         """
 
 ## Orphanet                 : Processing disease/target evidence from Orphanet
@@ -191,10 +197,11 @@ rule orphanet:
     shell:
         """
         python modules/Orphanet.py \
-            --input_file {input} \
-            --output_file {output} \
-            --cache_dir {params.cacheDir} \
-            --local
+          --input_file {input} \
+          --output_file {output} \
+          --cache_dir {params.cacheDir} \
+          --local
+        opentargets_validator --schema {config.global.schema} {output}
         """
 
 ## panelApp                 : processes gene panels data curated by Genomics England
@@ -210,9 +217,10 @@ rule panelApp:
     shell:
         """
         python modules/PanelApp.py \
-            --input-file {input.inputFile} \
-            --output-file {output.evidenceFile} \
-            --cache_dir {params.cacheDir}
+          --input-file {input.inputFile} \
+          --output-file {output.evidenceFile} \
+          --cache_dir {params.cacheDir}
+        opentargets_validator --schema {config.global.schema} {output.evidenceFile}
         """
 
 ## phenodigm                : processes target-disease evidence and mouseModels dataset by querying the IMPC SOLR API
@@ -228,9 +236,10 @@ rule phenodigm:
     shell:
         """
         python modules/PhenoDigm.py \
-            --cache-dir {params.cacheDir} \
-            --output-evidence {output.evidenceFile} \
-            --output-mouse-phenotypes {output.mousePhenotypes}
+          --cache-dir {params.cacheDir} \
+          --output-evidence {output.evidenceFile} \
+          --output-mouse-phenotypes {output.mousePhenotypes}
+        opentargets_validator --schema {config.global.schema} {output.evidenceFile}
         """
 
 ## phewas                   : processes phenome-wide association studies data from PheWAS
@@ -244,13 +253,14 @@ rule phewas:
     log:
         GS.remote(logFile)
     shell:
-        '''
+        """
         python modules/PheWAS.py \
-            --inputFile {input.inputFile} \
-            --consequencesFile {input.consequencesFile} \
-            --diseaseMapping {input.diseaseMapping} \
-            --outputFile {output.evidenceFile}
-        '''
+          --inputFile {input.inputFile} \
+          --consequencesFile {input.consequencesFile} \
+          --diseaseMapping {input.diseaseMapping} \
+          --outputFile {output.evidenceFile}
+        opentargets_validator --schema {config.global.schema} {output.evidenceFile}
+        """
 
 ## progeny                  : processes gene expression data from TCGA derived from PROGENy
 rule progeny:
@@ -265,10 +275,11 @@ rule progeny:
     shell:
         """
         python modules/PROGENY.py \
-            --inputFile {input.inputFile} \
-            --diseaseMapping {input.diseaseMapping} \
-            --pathwayMapping {input.pathwayMapping} \
-            --outputFile {output.evidenceFile}
+          --inputFile {input.inputFile} \
+          --diseaseMapping {input.diseaseMapping} \
+          --pathwayMapping {input.pathwayMapping} \
+          --outputFile {output.evidenceFile}
+        opentargets_validator --schema {config.global.schema} {output.evidenceFile}
         """
 
 ## slapenrich               : processes cancer-target evidence strings derived from SLAPenrich
@@ -283,9 +294,10 @@ rule slapenrich:
     shell:
         """
         python modules/SLAPEnrich.py \
-            --inputFile {input.inputFile} \
-            --diseaseMapping {input.diseaseMapping} \
-            --outputFile {output.evidenceFile} \
+          --inputFile {input.inputFile} \
+          --diseaseMapping {input.diseaseMapping} \
+          --outputFile {output.evidenceFile}
+        opentargets_validator --schema {config.global.schema} {output.evidenceFile}
         """
 
 ## sysbio                   : processes key driver genes for specific diseases that have been curated from Systems Biology papers
@@ -300,7 +312,8 @@ rule sysbio:
     shell:
         """
         python modules/SystemsBiology.py \
-            --evidenceFile {input.evidenceFile} \
-            --studyFile {input.studyFile} \
-            --outputFile {output.evidenceFile}
+          --evidenceFile {input.evidenceFile} \
+          --studyFile {input.studyFile} \
+          --outputFile {output.evidenceFile}
+        opentargets_validator --schema {config.global.schema} {output.evidenceFile}
         """

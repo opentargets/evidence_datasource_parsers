@@ -1,6 +1,7 @@
 global:
   logDir: gs://otar000-evidence_input/parser_logs
   cacheDir: cache_dir
+  schema: https://raw.githubusercontent.com/opentargets/json_schema/master/opentargets.json
 
 cancerBiomarkers:
   inputBucket: gs://otar000-evidence_input/CancerBiomarkers/data_files
