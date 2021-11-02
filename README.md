@@ -7,7 +7,7 @@ This will create a Google Cloud instance, SSH into it, install the necessary dep
 
 To run this, conditions related to the service accounts need to be satisfied:
 1. The service account must have a Storage Admin role for two buckets, _otar000-evidence_input_ and _otar001-core_.
-2. The service account must have a Service Account User role in the _open-targets-eu-dev_ project.
+2. The service account must have a Compute Admin and Service Account User roles in the _open-targets-eu-dev_ project.
 3. The user running the code must have access to use the service account.
 
 By default, the generated evidence will be validated using the latest master snapshot of the JSON schema. This can be tweaked in [`configuration.yaml`](configuration.yaml) → global → schema.
@@ -23,7 +23,7 @@ gcloud compute instances create \
   --project=open-targets-eu-dev \
   --zone=${INSTANCE_ZONE} \
   --machine-type=n1-highmem-32 \
-  --service-account=evidence-datasource-parsers@open-targets.iam.gserviceaccount.com \
+  --service-account=426265110888-compute@developer.gserviceaccount.com \
   --scopes=https://www.googleapis.com/auth/cloud-platform \
   --create-disk=auto-delete=yes,boot=yes,device-name=${INSTANCE_NAME},image=projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20210927,mode=rw,size=2000,type=projects/open-targets-eu-dev/zones/europe-west1-d/diskTypes/pd-balanced
 gcloud compute ssh --zone ${INSTANCE_ZONE} ${INSTANCE_NAME}
