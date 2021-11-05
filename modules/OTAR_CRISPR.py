@@ -39,6 +39,11 @@ class OTAR_CRISPR_study_parser(object):
             )
         )
 
+        # Test and warn if multiple studies have the same study id:
+        duplicated_study_ids = self.study_df.loc[lambda df: df.studyId.duplicated()].studyId.tolist()
+
+        assert len(duplicated_study_ids) == 0, f'Multiple studies have the same study id: {", ".join(duplicated_study_ids)}'
+
         logging.info(f'Number of studies processed: {len(self.study_df.studyId.unique())}')
 
     def generate_evidence(self, data_folder: str) -> None:
@@ -181,7 +186,7 @@ if __name__ == '__main__':
 
     # Configure logger:
     logging.basicConfig(
-        level=logging.ERROR,
+        level=logging.INFO,
         format='%(asctime)s %(levelname)s %(module)s - %(funcName)s: %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S',
     )
