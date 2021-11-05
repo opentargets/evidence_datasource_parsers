@@ -18,12 +18,12 @@ FILTER_COLUMN_MAP = {
 }
 
 class OTAR_CRISPR_study_parser(object):
-    def __init__(self, study_file: str) -> None:
+    def __init__(self, study_url: str) -> None:
 
-        self.study_file = study_file
+        self.study_file = study_url
 
         # Read and process study table:
-        study_df = pd.read_csv(study_file, sep='\t', skiprows=[1])
+        study_df = pd.read_csv(study_url, skiprows=[1])
 
         self.study_df = (
             study_df
@@ -46,11 +46,18 @@ class OTAR_CRISPR_study_parser(object):
 
         # Looping through the studies and generating evidence:
         # Reading all data files and filter for significant hits:
+        study_columns = [
+            'studyId', 'dataFiles', 'dataFileType', 'filterColumn', 'threshold', 'projectId', 'ControlDataset'
+        ]
+
         hits = (
-            self.study_df[['studyId', 'dataFiles', 'dataFileType', 'filterColumn', 'threshold', 'projectId']]
+            self.study_df[study_columns]
             .explode('dataFiles')
             .assign(
                 dataFile=lambda df: df.apply(lambda x: f'{data_folder}/{x["projectId"]}/{x["dataFiles"]}', axis=1)
+            )
+            .assign(
+                ControlDataset=lambda df: df.apply(lambda x: f'{data_folder}/{x["projectId"]}/{x["ControlDataset"]}' if pd.notna(x["ControlDataset"]) else None, axis=1)
             )
             # TODO: parsing the data files should be file type dependent:
             .apply(self.parse_MAGeCK_file, axis=1)
@@ -100,6 +107,7 @@ class OTAR_CRISPR_study_parser(object):
         filterColumn = row['filterColumn']
         threshold = float(row['threshold'])
         studyId = row['studyId']
+        controlDataFile = row['ControlDataset']
 
         # Read data, filter and rename columns:
         mageck_df = (
@@ -109,6 +117,25 @@ class OTAR_CRISPR_study_parser(object):
             [['targetFromSourceId', 'resourceScore']]
             .assign(studyId=studyId)
         )
+
+        # Applying control if present:
+        if pd.isna(controlDataFile):
+            logging.info(f'Number of genes reach threshold: {len(mageck_df)}')
+            return mageck_df
+
+        # Read control data, filter and rename columns:
+        logging.info(f'Reading control data file: {controlDataFile}')
+        controlHits = (
+            pd.read_csv(controlDataFile, sep='\t')
+            .rename(columns={filterColumn: 'resourceScore', 'id': 'targetFromSourceId'})
+            .loc[lambda df: df.resourceScore <= threshold]
+            ['targetFromSourceId']
+            .tolist()
+        )
+
+        # Excluding control genes:
+        mageck_df = mageck_df.loc[lambda df: df.targetFromSourceId.isin(controlHits)]
+
         logging.info(f'Number of genes reach threshold: {len(mageck_df)}')
         return mageck_df
 
@@ -135,7 +162,7 @@ if __name__ == '__main__':
 
     # Parsing arguments:
     parser = argparse.ArgumentParser(description='Script to parse internally generated datasets for OTAR projects.')
-    parser.add_argument('-s', '--study_table', help='A tsv file with the study description of the available projects.',
+    parser.add_argument('-s', '--study_table', help='A Google spreadsheet URL with the study description of the available projects.',
                         type=str, required=True)
     parser.add_argument('-o', '--output', help='Output json.gz file with the evidece.', required=False, type=str)
     parser.add_argument('-l', '--log_file', help='Generated logs can be saved into this file.',
@@ -154,7 +181,7 @@ if __name__ == '__main__':
 
     # Configure logger:
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.ERROR,
         format='%(asctime)s %(levelname)s %(module)s - %(funcName)s: %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S',
     )
