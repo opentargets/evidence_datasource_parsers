@@ -107,6 +107,9 @@ def main(cooccurrenceFile, outputFile):
             pf.sum(pf.col('evidence_score')).alias('resourceScore')
         )
 
+        # Nullify pmcIds if empty array
+        .withColumn('pmcIds', pf.when(pf.size('pmcIds') != 0, pf.col('pmcIds')))
+
         # Only evidence with score above 1 is considered:
         .filter(pf.col('resourceScore') > 1)
     )
