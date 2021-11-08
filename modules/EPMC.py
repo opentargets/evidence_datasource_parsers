@@ -16,6 +16,9 @@ from common.spark import detect_spark_memory_limit, write_evidence_strings
 EXCLUDED_TARGET_TERMS = ['TEC', 'TECS', 'Tec', 'tec', '\'', '(', ')', '-', '-S', 'S', 'S-', 'SS', 'SSS',
     'Ss', 'Ss-', 's', 's-', 'ss', 'U3', 'U6', 'u6', 'SNORA70', 'U2', 'U8']
 
+# The following are the relevant sections for disease/target associations as described in PMID28587637
+SECTIONS_OF_INTEREST = ["title", "abstract", "intro", "case", "figure", "table", 
+    "discuss", "concl", "results", "appendix", "other"]
 
 def main(cooccurrenceFile, outputFile, local=False):
 
@@ -47,6 +50,9 @@ def main(cooccurrenceFile, outputFile, local=False):
     filtered_cooccurrence_df = (
         # Reading file:
         spark.read.parquet(cooccurrenceFile)
+
+        # Filter out pairs found in unwanted sections
+        .filter(pf.col('section').isin(SECTIONS_OF_INTEREST))
 
         # Casting integer pmid column to string:
         .withColumn("pmid", pf.trim(pf.col('pmid').cast(StringType())))
