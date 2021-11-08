@@ -131,8 +131,7 @@ rule epmc:
         """
         python modules/EPMC.py \
           --cooccurrenceFile {input.inputCooccurences} \
-          --output {output.evidenceFile} \
-          --local
+          --output {output.evidenceFile}
         opentargets_validator --schema {params.schema} {output.evidenceFile}
         """
 
