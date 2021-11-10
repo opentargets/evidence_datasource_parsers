@@ -124,7 +124,7 @@ def main():
 
     # Load (a) disease information, (b) sample size from the study table
     study_info = (
-        spark.read.parquet(in_study)
+        spark.read.json(in_study)
         .select(
             'study_id', 'pmid', 'pub_date', 'pub_author', 'trait_reported',
             'trait_efos',
@@ -134,9 +134,9 @@ def main():
         # Assign project based on the study author information
         .withColumn(
             'projectId',
-            when(col('publicationFirstAuthor').contains('FINNGEN'), 'FINNGEN')
-            .when(col('publicationFirstAuthor').contains('UKB Neale'), 'NEALE')
-            .when(col('publicationFirstAuthor').contains('UKB SAIGE'), 'SAIGE')
+            when(col('pub_author').contains('FINNGEN'), 'FINNGEN')
+            .when(col('pub_author').contains('UKB Neale'), 'NEALE')
+            .when(col('pub_author').contains('UKB SAIGE'), 'SAIGE')
             .otherwise('GCST')
         )
 
