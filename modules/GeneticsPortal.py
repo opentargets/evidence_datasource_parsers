@@ -2,7 +2,9 @@
 "This script pulls together data from Open Targets Genetics portal to generate disease/target evidence strings for the Platform."
 
 import argparse
+import logging
 import sys
+
 from pyspark.conf import SparkConf
 from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
@@ -18,7 +20,6 @@ from pyspark.sql.functions import (
     regexp_extract,
     concat_ws,
 )
-import logging
 
 
 def load_eco_dict(inf):
@@ -63,73 +64,11 @@ def main(
     l2g_df = process_l2g_table(locus2gene, threshold)
     pvals_df = process_toploci_table(toploci)
     studies_df = process_study_table(study_index)
-
-
-    # Get mapping for rsIDs:
-    variant_info = (
-        spark.read.parquet(variant_index)
-        # chrom_b38|pos_b38
-        # Explode consequences, only keeping canonical transcript
-        .selectExpr(
-            "chrom_b38 as chrom",
-            "pos_b38 as pos",
-            "ref",
-            "alt",
-            "rsid"
-        )
-    )
-
-    # Get most severe consequences:
-
-    # Load term to eco score dict
-    # (eco_dict,eco_link_dict) = spark.sparkContext.broadcast(load_eco_dict(in_csq_eco))
-    eco_dicts = spark.sparkContext.broadcast(load_eco_dict(vep_consequences))
-
-    get_link = udf(lambda x: eco_dicts.value[1][x], StringType())
-
-    # Extract most sereve csq per gene.
-    # Create UDF that reverse sorts csq terms using eco score dict, then select
-    # the first item. Then apply UDF to all rows in the data.
-    get_most_severe = udf(
-        lambda arr: sorted(
-            arr, key=lambda x: eco_dicts.value[0].get(x, 0), reverse=True
-        )[0],
-        StringType(),
-    )
-
-    variant_consequences = (
-        spark.read.parquet(variant_index)
-
-        # Explode consequences, only keeping canonical transcript
-        .selectExpr(
-            "chrom_b38 as chrom",
-            "pos_b38 as pos",
-            "ref",
-            "alt",
-            "vep.most_severe_consequence as most_severe_csq",
-            """explode(
-                filter(vep.transcript_consequences, x -> x.canonical == 1)
-            ) as tc
-            """,
-        )
-        # Keep required fields from consequences struct
-        .selectExpr(
-            "chrom",
-            "pos",
-            "ref",
-            "alt",
-            "most_severe_csq",
-            "tc.gene_id as gene_id",
-            "tc.consequence_terms as csq_arr",
-        )
-        
-        # Get most severe consequences
-        .withColumn("most_severe_gene_csq", get_most_severe(col("csq_arr")))
-        .withColumn("consequence_link", get_link(col("most_severe_gene_csq")))
-    )
+    variant_consequences_df = process_consequences_table(variant_index, vep_consequences)
+    variant_rsid_df = process_variant_rsid(variant_index)
 
     # Join datasets together
-    processed = (
+    genetics_df = (
         l2g_df
 
         # Join L2G to pvals, using study and variant info as key
@@ -140,10 +79,10 @@ def main(
 
         # Join transcript consequences
         .join(
-            variant_consequences, on=["chrom", "pos", "ref", "alt", "gene_id"], how="left"
+            variant_consequences_df, on=["chrom", "pos", "ref", "alt", "gene_id"], how="left"
         )
         # Bring rsIDs
-        .join(variant_info, on=["chrom", "pos", "ref", "alt"], how="left")
+        .join(variant_rsid_df, on=["chrom", "pos", "ref", "alt"], how="left")
 
         # Filling missing consequences
         .fillna(
@@ -157,7 +96,7 @@ def main(
     # Write output
     logging.info("Generating evidence:")
     (
-        processed.withColumn(
+        genetics_df.withColumn(
             "literature",
             when(
                 col("pmid") != "", array(regexp_extract(col("pmid"), r"PMID:(\d+)$", 1))
@@ -309,7 +248,7 @@ def process_l2g_table(
     )
 
 def process_study_table(study_index:str) -> DataFrame:
-    """Load disease information from the study table."""
+    """Loads and processes disease information from the study table."""
 
     return (
         spark.read.json(study_index)
@@ -343,7 +282,7 @@ def process_study_table(study_index:str) -> DataFrame:
     )
 
 def process_toploci_table(toploci:str) -> DataFrame:
-    """Load association statistics (only pvalue is required) from top loci table."""
+    """Loads and processes association statistics (only pvalue is required) from top loci table."""
     
     return (
         spark.read.parquet(toploci)
@@ -370,6 +309,88 @@ def process_toploci_table(toploci:str) -> DataFrame:
         .filter((col('odds_ratio') < 2**62) | (col('odds_ratio').isNull()))
         .filter((col('oddsr_ci_lower') < 2**62) | (col('oddsr_ci_lower').isNull()))
         .filter((col('oddsr_ci_upper') < 2**62) | (col('oddsr_ci_upper').isNull()))
+    )
+
+def get_consequence_link_udf(eco_dicts):
+    return udf(
+        lambda x: eco_dicts.value[1][x], StringType()
+    )
+
+def get_most_severe_consequence_udf(eco_dicts):
+    """
+    Extract most sereve csq per gene.
+    Create UDF that reverse sorts csq terms using eco score dict, then select
+    the first item. Then apply UDF to all rows in the data.
+    """
+    
+    return udf(
+        lambda arr: sorted(arr, key=lambda x: eco_dicts.value[0].get(x, 0), reverse=True)[0],
+        StringType(),
+    )
+
+def process_consequences_table(variant_index:str, vep_consequences) -> DataFrame:
+    """Loads and processes variant's most severe functional consequence (SO ID)."""
+
+    eco_dicts = spark.sparkContext.broadcast(load_eco_dict(vep_consequences))
+
+    get_consequence_link_udf = udf(
+        lambda x: eco_dicts.value[1][x],
+        StringType()
+    )
+
+    get_most_severe_consequence_udf = udf(
+        # Extract most sereve csq per gene.
+        # Create UDF that reverse sorts csq terms using eco score dict, then select
+        # the first item. Then apply UDF to all rows in the data.
+        lambda arr: sorted(arr, key=lambda x: eco_dicts.value[0].get(x, 0), reverse=True)[0],
+        StringType()
+    )
+    
+    return (
+        spark.read.parquet(variant_index)
+
+        # Explode consequences, only keeping canonical transcript
+        .selectExpr(
+            "chrom_b38 as chrom",
+            "pos_b38 as pos",
+            "ref",
+            "alt",
+            "vep.most_severe_consequence as most_severe_csq",
+            """explode(
+                filter(vep.transcript_consequences, x -> x.canonical == 1)
+            ) as tc
+            """,
+        )
+        # Keep required fields from consequences struct
+        .selectExpr(
+            "chrom",
+            "pos",
+            "ref",
+            "alt",
+            "most_severe_csq",
+            "tc.gene_id as gene_id",
+            "tc.consequence_terms as csq_arr",
+        )
+        
+        # Get most severe consequences
+        .withColumn("most_severe_gene_csq", get_most_severe_consequence_udf(col("csq_arr")))
+        .withColumn("consequence_link", get_consequence_link_udf(col("most_severe_gene_csq")))
+    )
+
+def process_variant_rsid(variant_index:str):
+    """Load and extract rsIDs and genomic coordinates from the variant index."""
+
+    return (
+        spark.read.parquet(variant_index)
+        # chrom_b38|pos_b38
+        # Explode consequences, only keeping canonical transcript
+        .selectExpr(
+            "chrom_b38 as chrom",
+            "pos_b38 as pos",
+            "ref",
+            "alt",
+            "rsid"
+        )
     )
 
 if __name__ == "__main__":
