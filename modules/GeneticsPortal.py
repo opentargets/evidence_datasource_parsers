@@ -50,19 +50,6 @@ def main(
     output_file: str
 
 ):
-    # Initialize spark session
-    global spark
-    sparkConf = (
-        SparkConf()
-        .set("spark.driver.memory", "15g")
-        .set("spark.executor.memory", "15g")
-        .set("spark.driver.maxResultSize", "0")
-        .set("spark.debug.maxToStringFields", "2000")
-        .set("spark.sql.execution.arrow.maxRecordsPerBatch", "500000")
-    )
-    spark = SparkSession.builder.config(conf=sparkConf).master("local[*]").getOrCreate()
-    logging.info(f"Spark version: {spark.version}")
-
     logging.info(f"Locus2gene table: {locus2gene}")
     logging.info(f"Top locus table: {toploci}")
     logging.info(f"Study table: {study_index}")
@@ -353,10 +340,28 @@ def initialize_logger(logFile=None):
     else:
         logging.StreamHandler(sys.stderr)
 
+def initialize_spark():
+    """Spins up a Spark session."""
+
+    sparkConf = (
+        SparkConf()
+        .set("spark.driver.memory", "15g")
+        .set("spark.executor.memory", "15g")
+        .set("spark.driver.maxResultSize", "0")
+        .set("spark.debug.maxToStringFields", "2000")
+        .set("spark.sql.execution.arrow.maxRecordsPerBatch", "500000")
+    )
+    spark = SparkSession.builder.config(conf=sparkConf).master("local[*]").getOrCreate()
+    logging.info(f"Spark version: {spark.version}")
+
+    return spark
 
 if __name__ == "__main__":
     args = get_parser().parse_args()
     initialize_logger(args.logFile)
+
+    global spark
+    spark = initialize_spark()
 
     main(
         locus2gene=args.locus2gene,
