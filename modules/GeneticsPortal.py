@@ -204,20 +204,9 @@ def main():
             .when(col("study_id").contains("SAIGE"), "SAIGE")
             .when(col("study_id").contains("GCST"), "GCST")
         )
-        # Warning! Not all studies have an EFO annotated. Also, some have
-        # multiple EFOs! We need to decide a strategy to deal with these.
-        # # For example, only keep studies with 1 efo:
-        # .filter(size(col('trait_efos')) == 1)
-        # .withColumn('efo', col('trait_efos').getItem(0))
-        # .drop('trait_efos')
-        # Or, drop rows with no EFO and then explode array to multiple rows
-        .withColumn(
-            "trait_efos",
-            when(
-                col("trait_efos").isNotNull(),
-                expr("filter(trait_efos, t -> length(t) > 0)"),
-            ),
-        )
+        # Warning! Not all studies have an EFO annotated (trait_efos is an empty array)
+        # Also, some have multiple EFOs!
+        # Studies with no EFO are kept, the array is exploded to capture each mapped trait
         .withColumn("efo", explode(col("trait_efos")))
         .drop("trait_efos")
     )
