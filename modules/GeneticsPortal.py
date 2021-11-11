@@ -60,68 +60,10 @@ def main(
     logging.info(f"l2g score threshold: {threshold}")
 
     # Load and process the input files into dataframes
-    l2g_df = process_l2g_table(locus2gene)
+    l2g_df = process_l2g_table(locus2gene, threshold)
+    pvals_df = process_toploci_table(toploci)
+    studies_df = process_study_table(study_index)
 
-
-    # Load association statistics (only pvalue is required) from top loci table
-    pvals = (
-        spark.read.parquet(toploci)
-        .select(
-            "study_id",
-            "chrom",
-            "pos",
-            "ref",
-            "alt",
-            "beta",
-            "beta_ci_lower",
-            "beta_ci_upper",
-            "pval_mantissa",
-            "pval_exponent",
-            "odds_ratio",
-            "oddsr_ci_lower",
-            "oddsr_ci_upper",
-        )
-
-        # Problem: Large OR values which cannot be represented with a single precision float are
-        # automatically casted to "infinity" when the df is exported to JSON, hence failing validation.
-        # This was also a problem for ES, as these evidence were not being loaded (https://github.com/opentargets/platform/issues/1687)
-        # Decision: OR is set to null.
-        .filter((col('odds_ratio') < 2**62) | (col('odds_ratio').isNull()))
-        .filter((col('oddsr_ci_lower') < 2**62) | (col('oddsr_ci_lower').isNull()))
-        .filter((col('oddsr_ci_upper') < 2**62) | (col('oddsr_ci_upper').isNull()))
-    )
-
-    # Load (a) disease information, (b) sample size from the study table
-    study_info = (
-        spark.read.json(study_index)
-        .select(
-            "study_id",
-            "pmid",
-            "pub_date",
-            "pub_author",
-            "trait_reported",
-            "trait_efos",
-            col("n_initial").alias("sample_size")
-        )
-
-        # Assign project based on the study author information
-        .withColumn(
-            "projectId",
-            when(col("study_id").contains("FINNGEN"), "FINNGEN")
-            .when(col("study_id").contains("NEALE"), "NEALE")
-            .when(col("study_id").contains("SAIGE"), "SAIGE")
-            .when(col("study_id").contains("GCST"), "GCST"),
-        )
-
-        # Warning! Not all studies have an EFO annotated (trait_efos is an empty array)
-        # Also, some have multiple EFOs!
-        # Studies with no EFO are kept, the array is exploded to capture each mapped trait
-        .withColumn("efo", explode_outer(col("trait_efos")))
-        .drop("trait_efos")
-
-        # Drop records with HANCESTRO IDs as mapped trait
-        .filter((~col("efo").contains('HANCESTRO')) | (col('efo').isNull()))
-    )
 
     # Get mapping for rsIDs:
     variant_info = (
@@ -188,13 +130,13 @@ def main(
 
     # Join datasets together
     processed = (
-        l2g
+        l2g_df
 
         # Join L2G to pvals, using study and variant info as key
-        .join(pvals, on=["study_id", "chrom", "pos", "ref", "alt"])
+        .join(pvals_df, on=["study_id", "chrom", "pos", "ref", "alt"])
 
         # Join this to the study info, using study_id as key
-        .join(study_info, on="study_id", how="inner")
+        .join(studies_df, on="study_id", how="inner")
 
         # Join transcript consequences
         .join(
@@ -364,6 +306,70 @@ def process_l2g_table(
             "gene_id",
             "y_proba_full_model",
         )
+    )
+
+def process_study_table(study_index:str) -> DataFrame:
+    """Load disease information from the study table."""
+
+    return (
+        spark.read.json(study_index)
+        .select(
+            "study_id",
+            "pmid",
+            "pub_date",
+            "pub_author",
+            "trait_reported",
+            "trait_efos",
+            col("n_initial").alias("sample_size")
+        )
+
+        # Assign project based on the study author information
+        .withColumn(
+            "projectId",
+            when(col("study_id").contains("FINNGEN"), "FINNGEN")
+            .when(col("study_id").contains("NEALE"), "NEALE")
+            .when(col("study_id").contains("SAIGE"), "SAIGE")
+            .when(col("study_id").contains("GCST"), "GCST"),
+        )
+
+        # Warning! Not all studies have an EFO annotated (trait_efos is an empty array)
+        # Also, some have multiple EFOs!
+        # Studies with no EFO are kept, the array is exploded to capture each mapped trait
+        .withColumn("efo", explode_outer(col("trait_efos")))
+        .drop("trait_efos")
+
+        # Drop records with HANCESTRO IDs as mapped trait
+        .filter((~col("efo").contains('HANCESTRO')) | (col('efo').isNull()))
+    )
+
+def process_toploci_table(toploci:str) -> DataFrame:
+    """Load association statistics (only pvalue is required) from top loci table."""
+    
+    return (
+        spark.read.parquet(toploci)
+        .select(
+            "study_id",
+            "chrom",
+            "pos",
+            "ref",
+            "alt",
+            "beta",
+            "beta_ci_lower",
+            "beta_ci_upper",
+            "pval_mantissa",
+            "pval_exponent",
+            "odds_ratio",
+            "oddsr_ci_lower",
+            "oddsr_ci_upper",
+        )
+
+        # Problem: Large OR values which cannot be represented with a single precision float are
+        # automatically casted to "infinity" when the df is exported to JSON, hence failing validation.
+        # This was also a problem for ES, as these evidence were not being loaded (https://github.com/opentargets/platform/issues/1687)
+        # Decision: OR is set to null.
+        .filter((col('odds_ratio') < 2**62) | (col('odds_ratio').isNull()))
+        .filter((col('oddsr_ci_lower') < 2**62) | (col('oddsr_ci_lower').isNull()))
+        .filter((col('oddsr_ci_upper') < 2**62) | (col('oddsr_ci_upper').isNull()))
     )
 
 if __name__ == "__main__":
