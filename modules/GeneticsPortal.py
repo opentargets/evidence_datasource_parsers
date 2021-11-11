@@ -75,16 +75,8 @@ def main(
     # Write output
     logging.info("Evidence strings have been processed. Saving...")
     genetics_df = parse_genetics_evidence(genetics_df)
-
-    (
-        genetics_df
-        .coalesce(1)
-        .write.format("json")
-        .mode("overwrite")
-        .option("compression", "gzip")
-        .save(output_file)
-    )
-    logging.info(f'Genetics evidence strings have been saved to {output_file}. Exiting.')
+    write_evidence_strings(genetics_df, output_file)
+    logging.info(f'{genetics_df.count()} evidence strings have been saved to {output_file}. Exiting.')
 
     return 0
 
@@ -163,14 +155,14 @@ def initialize_spark():
 
     return spark
 
-def load_eco_dict(inf):
+def load_eco_dict(vep_consequences: str):
     """
     Loads the csq to eco scores into a dict
     Returns: dict
     """
 
     # Load
-    eco_df = spark.read.csv(inf, sep="\t", header=True, inferSchema=True).select(
+    eco_df = spark.read.csv(vep_consequences, sep="\t", header=True, inferSchema=True).select(
         "Term", "Accession", col("eco_score").cast(DoubleType())
     )
 
@@ -257,7 +249,7 @@ def process_l2g_table(
         )
     )
 
-def process_study_table(study_index:str) -> DataFrame:
+def process_study_table(study_index: str) -> DataFrame:
     """Loads and processes disease information from the study table."""
 
     return (
@@ -291,7 +283,7 @@ def process_study_table(study_index:str) -> DataFrame:
         .filter((~col("efo").contains('HANCESTRO')) | (col('efo').isNull()))
     )
 
-def process_toploci_table(toploci:str) -> DataFrame:
+def process_toploci_table(toploci: str) -> DataFrame:
     """Loads and processes association statistics (only pvalue is required) from top loci table."""
     
     return (
@@ -316,9 +308,9 @@ def process_toploci_table(toploci:str) -> DataFrame:
         # automatically casted to "infinity" when the df is exported to JSON, hence failing validation.
         # This was also a problem for ES, as these evidence were not being loaded (https://github.com/opentargets/platform/issues/1687)
         # Decision: OR is set to null.
-        .filter((col('odds_ratio') < 2**62) | (col('odds_ratio').isNull()))
-        .filter((col('oddsr_ci_lower') < 2**62) | (col('oddsr_ci_lower').isNull()))
-        .filter((col('oddsr_ci_upper') < 2**62) | (col('oddsr_ci_upper').isNull()))
+        .filter((col('odds_ratio') < sys.float_info.max) | (col('odds_ratio').isNull()))
+        .filter((col('oddsr_ci_lower') < sys.float_info.max) | (col('oddsr_ci_lower').isNull()))
+        .filter((col('oddsr_ci_upper') < sys.float_info.max) | (col('oddsr_ci_upper').isNull()))
     )
 
 def get_consequence_link_udf(eco_dicts):
@@ -338,7 +330,7 @@ def get_most_severe_consequence_udf(eco_dicts):
         StringType(),
     )
 
-def process_consequences_table(variant_index:str, vep_consequences) -> DataFrame:
+def process_consequences_table(variant_index: str, vep_consequences: str) -> DataFrame:
     """Loads and processes variant's most severe functional consequence (SO ID)."""
 
     eco_dicts = spark.sparkContext.broadcast(load_eco_dict(vep_consequences))
@@ -387,7 +379,7 @@ def process_consequences_table(variant_index:str, vep_consequences) -> DataFrame
         .withColumn("consequence_link", get_consequence_link_udf(col("most_severe_gene_csq")))
     )
 
-def process_variant_rsid(variant_index:str):
+def process_variant_rsid(variant_index: str):
     """Load and extract rsIDs and genomic coordinates from the variant index."""
 
     return (
@@ -402,6 +394,14 @@ def process_variant_rsid(variant_index:str):
             "rsid"
         )
     )
+
+def write_evidence_strings(evidence_df: DataFrame, output_file: str) -> None:
+    """
+    Exports the table to a compressed JSON file containing the evidence strings.
+    Pandas is used to export it to a single file, not a directory.
+    """
+    evidence_df.toPandas().to_json(output_file, orient='records', compression='gzip')
+    return 0
 
 if __name__ == "__main__":
     args = get_parser().parse_args()
