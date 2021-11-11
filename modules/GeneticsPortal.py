@@ -349,6 +349,7 @@ def main():
         .option("compression", "gzip")
         .save(out_file)
     )
+    logging.info(f'Genetics evidence strings have been saved to {out_file}. Exiting.')
 
     return 0
 
