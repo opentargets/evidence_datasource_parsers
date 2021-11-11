@@ -21,27 +21,6 @@ from pyspark.sql.functions import (
     concat_ws,
 )
 
-
-def load_eco_dict(inf):
-    """
-    Loads the csq to eco scores into a dict
-    Returns: dict
-    """
-
-    # Load
-    eco_df = spark.read.csv(inf, sep="\t", header=True, inferSchema=True).select(
-        "Term", "Accession", col("eco_score").cast(DoubleType())
-    )
-
-    # Convert to python dict
-    eco_dict = {}
-    eco_link_dict = {}
-    for row in eco_df.collect():
-        eco_dict[row.Term] = row.eco_score
-        eco_link_dict[row.Term] = row.Accession
-
-    return (eco_dict, eco_link_dict)
-
 def main(
     locus2gene: str,
     toploci: str,
@@ -183,6 +162,26 @@ def initialize_spark():
     logging.info(f"Spark version: {spark.version}")
 
     return spark
+
+def load_eco_dict(inf):
+    """
+    Loads the csq to eco scores into a dict
+    Returns: dict
+    """
+
+    # Load
+    eco_df = spark.read.csv(inf, sep="\t", header=True, inferSchema=True).select(
+        "Term", "Accession", col("eco_score").cast(DoubleType())
+    )
+
+    # Convert to python dict
+    eco_dict = {}
+    eco_link_dict = {}
+    for row in eco_df.collect():
+        eco_dict[row.Term] = row.eco_score
+        eco_link_dict[row.Term] = row.Accession
+
+    return (eco_dict, eco_link_dict)
 
 def parse_genetics_evidence(genetics_df: DataFrame) -> DataFrame:
     """
