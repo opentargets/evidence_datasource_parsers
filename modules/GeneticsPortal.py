@@ -5,6 +5,7 @@ import argparse
 import sys
 from pyspark.conf import SparkConf
 from pyspark.sql import SparkSession
+from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.types import DoubleType, StringType, IntegerType
 from pyspark.sql.functions import (
     col,
@@ -58,28 +59,9 @@ def main(
     logging.info(f"Output file: {output_file}")
     logging.info(f"l2g score threshold: {threshold}")
 
-    # Load locus-to-gene (L2G) score data
-    l2g = (
-        spark.read.parquet(locus2gene)
+    # Load and process the input files into dataframes
+    l2g_df = process_l2g_table(locus2gene)
 
-        # Keep results trained on high or medium confidence gold-standards
-        .filter(col("training_gs") == "high_medium")
-        # Keep results from xgboost model
-        .filter(col("training_clf") == "xgboost")
-        # Keep rows with l2g score above the threshold:
-        .filter(col("y_proba_full_model") >= threshold)
-
-        # Only keep study, variant, gene and score info
-        .select(
-            "study_id",
-            "chrom",
-            "pos",
-            "ref",
-            "alt",
-            "gene_id",
-            "y_proba_full_model",
-        )
-    )
 
     # Load association statistics (only pvalue is required) from top loci table
     pvals = (
@@ -355,6 +337,34 @@ def initialize_spark():
     logging.info(f"Spark version: {spark.version}")
 
     return spark
+
+def process_l2g_table(
+    locus2gene: str,
+    threshold: float
+) -> DataFrame:
+    """Loads and processes locus-to-gene (L2G) score data."""
+
+    return (
+        spark.read.parquet(locus2gene)
+
+        # Keep results trained on high or medium confidence gold-standards
+        .filter(col("training_gs") == "high_medium")
+        # Keep results from xgboost model
+        .filter(col("training_clf") == "xgboost")
+        # Keep rows with l2g score above the threshold:
+        .filter(col("y_proba_full_model") >= threshold)
+
+        # Only keep study, variant, gene and score info
+        .select(
+            "study_id",
+            "chrom",
+            "pos",
+            "ref",
+            "alt",
+            "gene_id",
+            "y_proba_full_model",
+        )
+    )
 
 if __name__ == "__main__":
     args = get_parser().parse_args()
