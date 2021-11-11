@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+"This script pulls together data from Open Targets Genetics portal to generate disease/target evidence strings for the Platform."
 
 import argparse
 import sys
@@ -79,7 +80,7 @@ def main(
         # Keep results from xgboost model
         .filter(col("training_clf") == "xgboost")
         # Keep rows with l2g score above the threshold:
-        .filter(col("y_proba_full_model") >= l2g_threshold)
+        .filter(col("y_proba_full_model") >= threshold)
 
         # Only keep study, variant, gene and score info
         .select(
@@ -171,7 +172,7 @@ def main(
 
     # Load term to eco score dict
     # (eco_dict,eco_link_dict) = spark.sparkContext.broadcast(load_eco_dict(in_csq_eco))
-    eco_dicts = spark.sparkContext.broadcast(load_eco_dict(in_csq_eco))
+    eco_dicts = spark.sparkContext.broadcast(load_eco_dict(vep_consequences))
 
     get_link = udf(lambda x: eco_dicts.value[1][x], StringType())
 
@@ -293,10 +294,10 @@ def main(
 
     return 0
 
-def argument_parser(args=None):
-    parser = argparse.ArgumentParser(
-        description="This script pulls together data from Open Targets Genetics portal to generate Platform evidences."
-    )
+def get_parser():
+    """Get parser object for script .py."""
+    parser = argparse.ArgumentParser(description=__doc__)
+
     parser.add_argument(
         "--locus2gene",
         help="Input table containing locus to gene scores.",
@@ -337,7 +338,7 @@ def argument_parser(args=None):
         required=False,
     )
 
-    return parser.parse_args(args)
+    return parser
 
 def initialize_logger(logFile=None):
     """Logger initializer. If no logfile is specified, logs are written to stderr."""
@@ -354,17 +355,15 @@ def initialize_logger(logFile=None):
 
 
 if __name__ == "__main__":
-
-    initialize_logger()
-
-    args = argument_parser()
+    args = get_parser().parse_args()
+    initialize_logger(args.logFile)
 
     main(
         locus2gene=args.locus2gene,
         toploci=args.toploci,
         study_index=args.study,
-        variant_index=args.varianIndex,
-        vep_consequences=args.ecodes,
+        variant_index=args.variantIndex,
+        vep_consequences=args.ecoCodes,
         threshold=args.threshold,
         output_file=args.outputFile
     )
