@@ -288,6 +288,11 @@ def main():
                 "consequence_link": "http://purl.obolibrary.org/obo/SO_0001628",
             }
         )
+        # Process very large ORs
+        .withColumn(
+            "oddsr_ci_upper",
+            when(col("oddsr_ci_upper") < 2 ** 127, col("oddsr_ci_upper")),
+        )
     )
 
     # Write output
@@ -306,9 +311,7 @@ def main():
             col("literature"),
             col("pub_author").alias("publicationFirstAuthor"),
             "projectId",
-            substring(col("pub_date"), 1, 4)
-            .cast(IntegerType())
-            .alias("publicationYear"),
+            substring(col("pub_date"), 1, 4).cast(IntegerType()).alias("publicationYear"),
             col("trait_reported").alias("diseaseFromSource"),
             col("study_id").alias("studyId"),
             col("sample_size").alias("studySampleSize"),
