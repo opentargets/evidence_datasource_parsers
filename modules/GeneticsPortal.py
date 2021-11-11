@@ -10,8 +10,7 @@ from pyspark.sql.functions import (
     lit,
     udf,
     when,
-    expr,
-    explode,
+    explode_outer,
     substring,
     array,
     regexp_extract,
@@ -207,7 +206,7 @@ def main():
         # Warning! Not all studies have an EFO annotated (trait_efos is an empty array)
         # Also, some have multiple EFOs!
         # Studies with no EFO are kept, the array is exploded to capture each mapped trait
-        .withColumn("efo", explode(col("trait_efos")))
+        .withColumn("efo", explode_outer(col("trait_efos")))
         .drop("trait_efos")
     )
 
