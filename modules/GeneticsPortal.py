@@ -94,46 +94,11 @@ def main(
     )
 
     # Write output
-    logging.info("Generating evidence:")
+    logging.info("Evidence strings have been processed. Saving...")
+    genetics_df = parse_genetics_evidence(genetics_df)
+
     (
-        genetics_df.withColumn(
-            "literature",
-            when(
-                col("pmid") != "", array(regexp_extract(col("pmid"), r"PMID:(\d+)$", 1))
-            ).otherwise(None),
-        )
-        .select(
-            lit("ot_genetics_portal").alias("datasourceId"),
-            lit("genetic_association").alias("datatypeId"),
-            col("gene_id").alias("targetFromSourceId"),
-            col("efo").alias("diseaseFromSourceMappedId"),
-            col("literature"),
-            col("pub_author").alias("publicationFirstAuthor"),
-            "projectId",
-            substring(col("pub_date"), 1, 4).cast(IntegerType()).alias("publicationYear"),
-            col("trait_reported").alias("diseaseFromSource"),
-            col("study_id").alias("studyId"),
-            col("sample_size").alias("studySampleSize"),
-            col("pval_mantissa").alias("pValueMantissa"),
-            col("pval_exponent").alias("pValueExponent"),
-            col("odds_ratio").alias("oddsRatio"),
-            col("oddsr_ci_lower").alias("oddsRatioConfidenceIntervalLower"),
-            col("oddsr_ci_upper").alias("oddsRatioConfidenceIntervalUpper"),
-            col("beta").alias("beta"),
-            col("beta_ci_lower").alias("betaConfidenceIntervalLower"),
-            col("beta_ci_upper").alias("betaConfidenceIntervalUpper"),
-            col("y_proba_full_model").alias("resourceScore"),
-            col("rsid").alias("variantRsId"),
-            concat_ws("_", col("chrom"), col("pos"), col("ref"), col("alt")).alias(
-                "variantId"
-            ),
-            regexp_extract(col("consequence_link"), r"\/(SO.+)$", 1).alias(
-                "variantFunctionalConsequenceId"
-            ),
-        )
-        .dropDuplicates(
-            ["variantId", "studyId", "targetFromSourceId", "diseaseFromSourceMappedId"]
-        )
+        genetics_df
         .coalesce(1)
         .write.format("json")
         .mode("overwrite")
@@ -218,6 +183,52 @@ def initialize_spark():
     logging.info(f"Spark version: {spark.version}")
 
     return spark
+
+def parse_genetics_evidence(genetics_df: DataFrame) -> DataFrame:
+    """
+    The JSON Schema format is applied to the df.
+    """
+
+    return (
+        genetics_df.withColumn(
+            "literature",
+            when(
+                col("pmid") != "", array(regexp_extract(col("pmid"), r"PMID:(\d+)$", 1))
+            ).otherwise(None),
+        )
+        .select(
+            lit("ot_genetics_portal").alias("datasourceId"),
+            lit("genetic_association").alias("datatypeId"),
+            col("gene_id").alias("targetFromSourceId"),
+            col("efo").alias("diseaseFromSourceMappedId"),
+            col("literature"),
+            col("pub_author").alias("publicationFirstAuthor"),
+            "projectId",
+            substring(col("pub_date"), 1, 4).cast(IntegerType()).alias("publicationYear"),
+            col("trait_reported").alias("diseaseFromSource"),
+            col("study_id").alias("studyId"),
+            col("sample_size").alias("studySampleSize"),
+            col("pval_mantissa").alias("pValueMantissa"),
+            col("pval_exponent").alias("pValueExponent"),
+            col("odds_ratio").alias("oddsRatio"),
+            col("oddsr_ci_lower").alias("oddsRatioConfidenceIntervalLower"),
+            col("oddsr_ci_upper").alias("oddsRatioConfidenceIntervalUpper"),
+            col("beta").alias("beta"),
+            col("beta_ci_lower").alias("betaConfidenceIntervalLower"),
+            col("beta_ci_upper").alias("betaConfidenceIntervalUpper"),
+            col("y_proba_full_model").alias("resourceScore"),
+            col("rsid").alias("variantRsId"),
+            concat_ws("_", col("chrom"), col("pos"), col("ref"), col("alt")).alias(
+                "variantId"
+            ),
+            regexp_extract(col("consequence_link"), r"\/(SO.+)$", 1).alias(
+                "variantFunctionalConsequenceId"
+            ),
+        )
+        .dropDuplicates(
+            ["variantId", "studyId", "targetFromSourceId", "diseaseFromSourceMappedId"]
+        )
+    )
 
 def process_l2g_table(
     locus2gene: str,
