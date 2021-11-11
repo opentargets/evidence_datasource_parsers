@@ -186,6 +186,8 @@ def main():
         # automatically casted to "infinity" when the df is exported to JSON, hence failing validation.
         # This was also a problem for ES, as these evidence were not being loaded (https://github.com/opentargets/platform/issues/1687)
         # Decision: OR is set to null.
+        .filter((col('odds_ratio') > 2**62) | (col('odds_ratio').isNull()))
+        .filter((col('oddsr_ci_lower') > 2**62) | (col('oddsr_ci_lower').isNull()))
         .filter((col('oddsr_ci_upper') > 2**62) | (col('oddsr_ci_upper').isNull()))
     )
 
