@@ -220,7 +220,7 @@ def main():
         .drop("trait_efos")
 
         # Drop records with HANCESTRO IDs as mapped trait
-        .filter((~col("diseaseFromSourceMappedId").contains('HANCESTRO')) | (col('diseaseFromSourceMappedId').isNull()))
+        .filter((~col("efo").contains('HANCESTRO')) | (col('efo').isNull()))
     )
 
     # Get mapping for rsIDs:
