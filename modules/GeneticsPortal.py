@@ -195,6 +195,7 @@ def main():
             "trait_efos",
             col("n_initial").alias("sample_size"),  # Rename to sample size
         )
+
         # Assign project based on the study author information
         .withColumn(
             "projectId",
@@ -203,11 +204,15 @@ def main():
             .when(col("study_id").contains("SAIGE"), "SAIGE")
             .when(col("study_id").contains("GCST"), "GCST"),
         )
+
         # Warning! Not all studies have an EFO annotated (trait_efos is an empty array)
         # Also, some have multiple EFOs!
         # Studies with no EFO are kept, the array is exploded to capture each mapped trait
         .withColumn("efo", explode_outer(col("trait_efos")))
         .drop("trait_efos")
+
+        # Drop records with HANCESTRO IDs as mapped trait
+        .filter(col("efo").contains('HANCESTRO'))
     )
 
     # Get mapping for rsIDs:
