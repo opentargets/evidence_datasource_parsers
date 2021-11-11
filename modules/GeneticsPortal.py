@@ -201,7 +201,7 @@ def main():
             when(col("study_id").contains("FINNGEN"), "FINNGEN")
             .when(col("study_id").contains("NEALE"), "NEALE")
             .when(col("study_id").contains("SAIGE"), "SAIGE")
-            .when(col("study_id").contains("GCST"), "GCST")
+            .when(col("study_id").contains("GCST"), "GCST"),
         )
         # Warning! Not all studies have an EFO annotated (trait_efos is an empty array)
         # Also, some have multiple EFOs!
@@ -274,7 +274,7 @@ def main():
         # Join L2G to pvals, using study and variant info as key
         .join(pvals, on=["study_id", "chrom", "pos", "ref", "alt"])
         # Join this to the study info, using study_id as key
-        .join(study_info, on="study_id", how="left")
+        .join(study_info, on="study_id", how="inner")
         # Join transcript consequences:
         .join(
             var_consequences, on=["chrom", "pos", "ref", "alt", "gene_id"], how="left"
