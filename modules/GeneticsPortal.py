@@ -181,6 +181,12 @@ def main():
             "oddsr_ci_lower",
             "oddsr_ci_upper",
         )
+
+        # Problem: Large OR values which cannot be represented with a single precision float are
+        # automatically casted to "infinity" when the df is exported to JSON, hence failing validation.
+        # This was also a problem for ES, as these evidence were not being loaded (https://github.com/opentargets/platform/issues/1687)
+        # Decision: OR is set to null.
+        .filter((col('oddsr_ci_upper') > 2**62) | (col('oddsr_ci_upper').isNull()))
     )
 
     # Load (a) disease information, (b) sample size from the study table
