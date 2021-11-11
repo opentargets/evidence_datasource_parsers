@@ -332,6 +332,7 @@ def main():
         .dropDuplicates(
             ["variantId", "studyId", "targetFromSourceId", "diseaseFromSourceMappedId"]
         )
+        .coalesce(1)
         .write.format("json")
         .mode("overwrite")
         .option("compression", "gzip")
