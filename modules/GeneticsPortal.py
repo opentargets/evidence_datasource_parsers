@@ -313,23 +313,6 @@ def process_toploci_table(toploci: str) -> DataFrame:
         .filter((col('oddsr_ci_upper') < sys.float_info.max) | (col('oddsr_ci_upper').isNull()))
     )
 
-def get_consequence_link_udf(eco_dicts):
-    return udf(
-        lambda x: eco_dicts.value[1][x], StringType()
-    )
-
-def get_most_severe_consequence_udf(eco_dicts):
-    """
-    Extract most sereve csq per gene.
-    Create UDF that reverse sorts csq terms using eco score dict, then select
-    the first item. Then apply UDF to all rows in the data.
-    """
-    
-    return udf(
-        lambda arr: sorted(arr, key=lambda x: eco_dicts.value[0].get(x, 0), reverse=True)[0],
-        StringType(),
-    )
-
 def process_consequences_table(variant_index: str, vep_consequences: str) -> DataFrame:
     """Loads and processes variant's most severe functional consequence (SO ID)."""
 
