@@ -12,7 +12,7 @@ from pyspark.sql import DataFrame, Row, SparkSession
 from pyspark.sql.functions import array_distinct, col, create_map, lit, split
 
 from common.ontology import add_efo_mapping
-from common.spark import write_evidence_strings
+from common.evidence import write_evidence_strings
 
 # The rest of the types are assigned to -> germline for allele origins
 EXCLUDED_ASSOCIATIONTYPES = [

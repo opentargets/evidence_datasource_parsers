@@ -7,7 +7,7 @@ from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql.types import FloatType
 from pyspark.sql.functions import col, collect_set, split, element_at, struct, lit
 
-from common.spark import write_evidence_strings
+from common.evidence import write_evidence_strings
 
 # A few genes do not have Ensembl IDs in the data file provided
 CRISPR_SYMBOL_MAPPING = {

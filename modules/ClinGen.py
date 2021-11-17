@@ -12,7 +12,7 @@ from pyspark.sql.functions import array, col, first, lit, monotonically_increasi
 from pyspark.sql.types import StringType, StructType, TimestampType
 
 from common.ontology import add_efo_mapping
-from common.spark import write_evidence_strings
+from common.evidence import write_evidence_strings
 
 
 def main(input_file: str, output_file: str, cache_dir: str, local: bool = False) -> None:

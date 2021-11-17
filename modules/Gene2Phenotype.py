@@ -11,7 +11,7 @@ from pyspark.sql.functions import array, col, concat, lit, split, udf, when
 from pyspark.sql.types import IntegerType, StringType, StructType, TimestampType
 
 from common.ontology import add_efo_mapping
-from common.spark import detect_spark_memory_limit, write_evidence_strings
+from common.evidence import detect_spark_memory_limit, write_evidence_strings
 
 G2P_mutationCsq2functionalCsq = {
     'loss of function': 'SO_0002054',  # loss_of_function_variant

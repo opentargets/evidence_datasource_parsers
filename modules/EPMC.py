@@ -9,7 +9,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql.types import StringType
 import pyspark.sql.functions as pf
 
-from common.spark import detect_spark_memory_limit, write_evidence_strings
+from common.evidence import detect_spark_memory_limit, write_evidence_strings
 
 
 # The following target labels are excluded as they were grounded to too many target Ids

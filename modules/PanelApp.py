@@ -12,7 +12,7 @@ from pyspark.sql.functions import (
 )
 
 from common.ontology import add_efo_mapping
-from common.spark import write_evidence_strings
+from common.evidence import write_evidence_strings
 
 class PanelAppEvidenceGenerator:
 

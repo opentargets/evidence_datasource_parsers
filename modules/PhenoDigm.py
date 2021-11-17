@@ -18,7 +18,7 @@ import requests
 from retry import retry
 
 from common.ontology import add_efo_mapping
-from common.spark import detect_spark_memory_limit, write_evidence_strings
+from common.evidence import detect_spark_memory_limit, write_evidence_strings
 
 
 # The tables and their fields to fetch from SOLR. Other tables (not currently used): gene, disease_gene_summary.

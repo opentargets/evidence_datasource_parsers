@@ -12,7 +12,7 @@ from pyspark.sql.functions import (
 )
 from pyspark.sql.types import StringType, ArrayType
 
-from common.spark import write_evidence_strings
+from common.evidence import write_evidence_strings
 
 
 ALTERATIONTYPE2FUNCTIONCSQ = {
