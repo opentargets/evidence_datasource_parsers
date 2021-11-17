@@ -17,15 +17,15 @@ logFile = f"{config['global']['logDir']}/evidence_parser-{timeStamp}.log"
 rule all:
     input:
         GS.remote(f"{config['cancerBiomarkers']['outputBucket']}/cancer_biomarkers-{timeStamp}.json.gz"),
-        GS.remote(f"{config['ClinGen']['outputBucket']}/ClinGen-{timeStamp}.json.gz"),
+        GS.remote(f"{config['ClinGen']['outputBucket']}/clingen-{timeStamp}.json.gz"),
         GS.remote(f"{config['CRISPR']['outputBucket']}/crispr-{timeStamp}.json.gz"),
         GS.remote(f"{config['EPMC']['outputBucket']}/epmc-{timeStamp}.json.gz"),
         GS.remote(f"{config['Gene2Phenotype']['outputBucket']}/gene2phenotype-{timeStamp}.json.gz"),
         GS.remote(f"{config['intOGen']['outputBucket']}/intogen-{timeStamp}.json.gz"),
-        GS.remote(f"{config['Orphanet']['outputBucket']}/Orphanet-{timeStamp}.json.gz"),
+        GS.remote(f"{config['Orphanet']['outputBucket']}/orphanet-{timeStamp}.json.gz"),
         GS.remote(f"{config['PanelApp']['outputBucket']}/genomics_england-{timeStamp}.json.gz"),
         GS.remote(f"{config['Phenodigm']['evidenceOutputBucket']}/phenodigm-{timeStamp}.json.gz"),
-        GS.remote(f"{config['Phenodigm']['phenotypesOutputBucket']}/mousePhenotypes.{timeStamp}.json.gz"),
+        GS.remote(f"{config['Phenodigm']['phenotypesOutputBucket']}/mouse_phenotypes-{timeStamp}.json.gz"),
         GS.remote(f"{config['PheWAS']['outputBucket']}/phewas_catalog-{timeStamp}.json.gz"),
         GS.remote(f"{config['PROGENy']['outputBucket']}/progeny-{timeStamp}.json.gz"),
         GS.remote(f"{config['SLAPEnrich']['outputBucket']}/slapenrich-{timeStamp}.json.gz"),
