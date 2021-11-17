@@ -1,5 +1,4 @@
 import pandas as pd
-import json
 import requests
 from bs4 import BeautifulSoup, UnicodeDammit
 import argparse
@@ -11,38 +10,6 @@ import sys
 '''
 This script retrieves TEP (target enabling package) from the structural genomics consoritum.
 '''
-def id_lookup(ensembl_ids):
-
-    headers={ 'Content-Type' : 'application/json', 'Accept' : 'application/json'}
-    r = requests.post('http://rest.ensembl.org/lookup/id', headers=headers, data=json.dumps({ 'ids' : ensembl_ids }))
-
-    decoded = r.json()
-
-    # Parse response:
-    parsed = []
-    for gene_id, data in decoded.items():
-        parsed.append({
-            'gene_id': gene_id,
-            'symbol': data['display_name']
-            })
-
-    return pd.DataFrame(parsed)
-
-
-def uniprot_lookup(uniprot_id):
-    url = f'http://rest.ensembl.org/xrefs/symbol/homo_sapiens/{uniprot_id}?content-type=application/json'
-    r = requests.get(url)
-    data = r.json()
-
-    # Parse gene id:
-    for item in data:
-        if item['type']:
-            return item['id']
-
-    # If gene id is not found:
-    logging.info(f'Failed to retrieve Ensembl id for: {uniprot_id}')
-    return None
-
 
 def retrieve_tep_table() -> pd.DataFrame:
 
@@ -97,7 +64,8 @@ def main(outputFile: str) -> None:
     logging.info(f'Number of unique gene symbols in the tep: {len(tep_list.targetFromSourceId.unique())}')
 
     if tep_list.targetFromSourceId.duplicated().any():
-        logging.error(f'The following symbols were not unique: {tep_list.loc[tep_list.targetFromSourceId.duplicated()]}')
+        duplicated_targets = tep_list.loc[tep_list.targetFromSourceId.duplicated()]
+        logging.error(f'The following symbols were not unique: {duplicated_targets}')
         raise ValueError('The target symbol list is expected to be unique! Check logs for deatils.')
 
     # Saving data:
