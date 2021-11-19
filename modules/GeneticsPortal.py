@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"This script pulls together data from Open Targets Genetics portal to generate disease/target evidence strings for the Platform."
+"""This script pulls together data from Open Targets Genetics portal to generate disease/target evidence strings for the Platform."""
 
 import argparse
 import logging
@@ -21,6 +21,7 @@ from pyspark.sql.functions import (
     concat_ws,
 )
 
+
 def main(
     locus2gene: str,
     toploci: str,
@@ -28,8 +29,7 @@ def main(
     variant_index: str,
     vep_consequences: str,
     threshold: float,
-    output_file: str
-
+    output_file: str,
 ):
     logging.info(f"Locus2gene table: {locus2gene}")
     logging.info(f"Top locus table: {toploci}")
@@ -43,26 +43,26 @@ def main(
     l2g_df = process_l2g_table(locus2gene, threshold)
     pvals_df = process_toploci_table(toploci)
     studies_df = process_study_table(study_index)
-    variant_consequences_df = process_consequences_table(variant_index, vep_consequences)
+    variant_consequences_df = process_consequences_table(
+        variant_index, vep_consequences
+    )
     variant_rsid_df = process_variant_rsid(variant_index)
 
     # Join datasets together
     genetics_df = (
         l2g_df
-
         # Join L2G to pvals, using study and variant info as key
         .join(pvals_df, on=["study_id", "chrom", "pos", "ref", "alt"])
-
         # Join this to the study info, using study_id as key
         .join(studies_df, on="study_id", how="inner")
-
         # Join transcript consequences
         .join(
-            variant_consequences_df, on=["chrom", "pos", "ref", "alt", "gene_id"], how="left"
+            variant_consequences_df,
+            on=["chrom", "pos", "ref", "alt", "gene_id"],
+            how="left",
         )
         # Bring rsIDs
         .join(variant_rsid_df, on=["chrom", "pos", "ref", "alt"], how="left")
-
         # Filling missing consequences
         .fillna(
             {
@@ -76,9 +76,12 @@ def main(
     logging.info("Evidence strings have been processed. Saving...")
     genetics_df = parse_genetics_evidence(genetics_df)
     write_evidence_strings(genetics_df, output_file)
-    logging.info(f'{genetics_df.count()} evidence strings have been saved to {output_file}. Exiting.')
+    logging.info(
+        f"{genetics_df.count()} evidence strings have been saved to {output_file}. Exiting."
+    )
 
     return 0
+
 
 def get_parser():
     """Get parser object for script .py."""
@@ -126,6 +129,7 @@ def get_parser():
 
     return parser
 
+
 def initialize_logger(logFile=None):
     """Logger initializer. If no logfile is specified, logs are written to stderr."""
 
@@ -138,6 +142,7 @@ def initialize_logger(logFile=None):
         logging.config.fileConfig(filename=logFile)
     else:
         logging.StreamHandler(sys.stderr)
+
 
 def initialize_spark():
     """Spins up a Spark session."""
@@ -155,6 +160,7 @@ def initialize_spark():
 
     return spark
 
+
 def load_eco_dict(vep_consequences: str):
     """
     Loads the csq to eco scores into a dict
@@ -162,9 +168,9 @@ def load_eco_dict(vep_consequences: str):
     """
 
     # Load
-    eco_df = spark.read.csv(vep_consequences, sep="\t", header=True, inferSchema=True).select(
-        "Term", "Accession", col("eco_score").cast(DoubleType())
-    )
+    eco_df = spark.read.csv(
+        vep_consequences, sep="\t", header=True, inferSchema=True
+    ).select("Term", "Accession", col("eco_score").cast(DoubleType()))
 
     # Convert to python dict
     eco_dict = {}
@@ -174,6 +180,7 @@ def load_eco_dict(vep_consequences: str):
         eco_link_dict[row.Term] = row.Accession
 
     return (eco_dict, eco_link_dict)
+
 
 def parse_genetics_evidence(genetics_df: DataFrame) -> DataFrame:
     """
@@ -195,7 +202,9 @@ def parse_genetics_evidence(genetics_df: DataFrame) -> DataFrame:
             col("literature"),
             col("pub_author").alias("publicationFirstAuthor"),
             "projectId",
-            substring(col("pub_date"), 1, 4).cast(IntegerType()).alias("publicationYear"),
+            substring(col("pub_date"), 1, 4)
+            .cast(IntegerType())
+            .alias("publicationYear"),
             col("trait_reported").alias("diseaseFromSource"),
             col("study_id").alias("studyId"),
             col("sample_size").alias("studySampleSize"),
@@ -221,22 +230,18 @@ def parse_genetics_evidence(genetics_df: DataFrame) -> DataFrame:
         )
     )
 
-def process_l2g_table(
-    locus2gene: str,
-    threshold: float
-) -> DataFrame:
+
+def process_l2g_table(locus2gene: str, threshold: float) -> DataFrame:
     """Loads and processes locus-to-gene (L2G) score data."""
 
     return (
         spark.read.parquet(locus2gene)
-
         # Keep results trained on high or medium confidence gold-standards
         .filter(col("training_gs") == "high_medium")
         # Keep results from xgboost model
         .filter(col("training_clf") == "xgboost")
         # Keep rows with l2g score above the threshold:
         .filter(col("y_proba_full_model") >= threshold)
-
         # Only keep study, variant, gene and score info
         .select(
             "study_id",
@@ -248,6 +253,7 @@ def process_l2g_table(
             "y_proba_full_model",
         )
     )
+
 
 def process_study_table(study_index: str) -> DataFrame:
     """Loads and processes disease information from the study table."""
@@ -261,9 +267,8 @@ def process_study_table(study_index: str) -> DataFrame:
             "pub_author",
             "trait_reported",
             "trait_efos",
-            col("n_initial").alias("sample_size")
+            col("n_initial").alias("sample_size"),
         )
-
         # Assign project based on the study author information
         .withColumn(
             "projectId",
@@ -272,20 +277,19 @@ def process_study_table(study_index: str) -> DataFrame:
             .when(col("study_id").contains("SAIGE"), "SAIGE")
             .when(col("study_id").contains("GCST"), "GCST"),
         )
-
         # Warning! Not all studies have an EFO annotated (trait_efos is an empty array)
         # Also, some have multiple EFOs!
         # Studies with no EFO are kept, the array is exploded to capture each mapped trait
         .withColumn("efo", explode_outer(col("trait_efos")))
         .drop("trait_efos")
-
         # Drop records with HANCESTRO IDs as mapped trait
-        .filter((~col("efo").contains('HANCESTRO')) | (col('efo').isNull()))
+        .filter((~col("efo").contains("HANCESTRO")) | (col("efo").isNull()))
     )
+
 
 def process_toploci_table(toploci: str) -> DataFrame:
     """Loads and processes association statistics (only pvalue is required) from top loci table."""
-    
+
     return (
         spark.read.parquet(toploci)
         .select(
@@ -303,37 +307,53 @@ def process_toploci_table(toploci: str) -> DataFrame:
             "oddsr_ci_lower",
             "oddsr_ci_upper",
         )
-
         # Problem: Large OR values which cannot be represented with a single precision float are
-        # automatically casted to "infinity" when the df is exported to JSON, hence failing validation.
+        # automatically casted to 'infinity' when the df is exported to JSON, hence failing validation.
         # This was also a problem for ES, as these evidence were not being loaded (https://github.com/opentargets/platform/issues/1687)
         # Decision: OR is set to null.
-        .filter((col('odds_ratio') < sys.float_info.max) | (col('odds_ratio').isNull()))
-        .filter((col('oddsr_ci_lower') < sys.float_info.max) | (col('oddsr_ci_lower').isNull()))
-        .filter((col('oddsr_ci_upper') < sys.float_info.max) | (col('oddsr_ci_upper').isNull()))
+        .withColumn(
+            "odds_ratio",
+            when(
+                col("odds_ratio").between(sys.float_info.min, sys.float_info.max),
+                col("odds_ratio"),
+            ),
+        )
+        .withColumn(
+            "oddsr_ci_lower",
+            when(
+                col("oddsr_ci_lower").between(sys.float_info.min, sys.float_info.max),
+                col("oddsr_ci_lower"),
+            ),
+        )
+        .withColumn(
+            "oddsr_ci_upper",
+            when(
+                col("oddsr_ci_upper").between(sys.float_info.min, sys.float_info.max),
+                col("oddsr_ci_upper"),
+            ),
+        )
     )
+
 
 def process_consequences_table(variant_index: str, vep_consequences: str) -> DataFrame:
     """Loads and processes variant's most severe functional consequence (SO ID)."""
 
     eco_dicts = spark.sparkContext.broadcast(load_eco_dict(vep_consequences))
 
-    get_consequence_link_udf = udf(
-        lambda x: eco_dicts.value[1][x],
-        StringType()
-    )
+    get_consequence_link_udf = udf(lambda x: eco_dicts.value[1][x], StringType())
 
     get_most_severe_consequence_udf = udf(
         # Extract most sereve csq per gene.
         # Create UDF that reverse sorts csq terms using eco score dict, then select
         # the first item. Then apply UDF to all rows in the data.
-        lambda arr: sorted(arr, key=lambda x: eco_dicts.value[0].get(x, 0), reverse=True)[0],
-        StringType()
+        lambda arr: sorted(
+            arr, key=lambda x: eco_dicts.value[0].get(x, 0), reverse=True
+        )[0],
+        StringType(),
     )
-    
+
     return (
         spark.read.parquet(variant_index)
-
         # Explode consequences, only keeping canonical transcript
         .selectExpr(
             "chrom_b38 as chrom",
@@ -356,35 +376,34 @@ def process_consequences_table(variant_index: str, vep_consequences: str) -> Dat
             "tc.gene_id as gene_id",
             "tc.consequence_terms as csq_arr",
         )
-        
         # Get most severe consequences
-        .withColumn("most_severe_gene_csq", get_most_severe_consequence_udf(col("csq_arr")))
-        .withColumn("consequence_link", get_consequence_link_udf(col("most_severe_gene_csq")))
+        .withColumn(
+            "most_severe_gene_csq", get_most_severe_consequence_udf(col("csq_arr"))
+        ).withColumn(
+            "consequence_link", get_consequence_link_udf(col("most_severe_gene_csq"))
+        )
     )
 
+
 def process_variant_rsid(variant_index: str):
-    """Load and extract rsIDs and genomic coordinates from the variant index."""
+    "Load and extract rsIDs and genomic coordinates from the variant index."
 
     return (
         spark.read.parquet(variant_index)
         # chrom_b38|pos_b38
         # Explode consequences, only keeping canonical transcript
-        .selectExpr(
-            "chrom_b38 as chrom",
-            "pos_b38 as pos",
-            "ref",
-            "alt",
-            "rsid"
-        )
+        .selectExpr("chrom_b38 as chrom", "pos_b38 as pos", "ref", "alt", "rsid")
     )
+
 
 def write_evidence_strings(evidence_df: DataFrame, output_file: str) -> None:
     """
     Exports the table to a compressed JSON file containing the evidence strings.
     Pandas is used to export it to a single file, not a directory.
     """
-    evidence_df.toPandas().to_json(output_file, orient='records', compression='gzip')
+    evidence_df.toPandas().to_json(output_file, orient="records", compression="gzip")
     return 0
+
 
 if __name__ == "__main__":
     args = get_parser().parse_args()
@@ -400,5 +419,5 @@ if __name__ == "__main__":
         variant_index=args.variantIndex,
         vep_consequences=args.ecoCodes,
         threshold=args.threshold,
-        output_file=args.outputFile
+        output_file=args.outputFile,
     )
