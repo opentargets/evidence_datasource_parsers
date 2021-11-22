@@ -9,7 +9,8 @@ import json
 from pyspark.sql import SparkSession
 import pyspark.sql.functions as F
 
-class SLAPEnrichEvidenceGenerator():
+
+class SLAPEnrichEvidenceGenerator:
 
     def __init__(self):
         # Create spark session

@@ -4,9 +4,7 @@
 import argparse
 from itertools import chain
 import logging
-import os
 import sys
-import tempfile
 
 import xml.etree.ElementTree as ET
 from pyspark.conf import SparkConf
@@ -14,6 +12,7 @@ from pyspark.sql import DataFrame, Row, SparkSession
 from pyspark.sql.functions import array_distinct, col, create_map, lit, split
 
 from common.ontology import add_efo_mapping
+from common.evidence import write_evidence_strings
 
 # The rest of the types are assigned to -> germline for allele origins
 EXCLUDED_ASSOCIATIONTYPES = [
@@ -66,7 +65,7 @@ def main(input_file: str, output_file: str, cache_dir: str, local: bool = False)
         )
 
     # Read and process Orphanet's XML file into evidence strings
-    
+
     orphanet_df = parse_orphanet_xml(input_file, spark)
     logging.info('Orphanet input file has been imported. Processing evidence strings.')
 
@@ -78,6 +77,7 @@ def main(input_file: str, output_file: str, cache_dir: str, local: bool = False)
     # Save data
     write_evidence_strings(evidence_df, output_file)
     logging.info(f'{evidence_df.count()} evidence strings have been saved to {output_file}')
+
 
 def parse_orphanet_xml(orphanet_file: str, spark_instance) -> DataFrame:
     """
@@ -148,6 +148,7 @@ def parse_orphanet_xml(orphanet_file: str, spark_instance) -> DataFrame:
 
     return orphanet_df
 
+
 def process_orphanet(orphanet_df: DataFrame) -> DataFrame:
     """
     The JSON Schema format is applied to the df
@@ -179,18 +180,6 @@ def process_orphanet(orphanet_df: DataFrame) -> DataFrame:
     )
 
     return evidence_df
-
-
-def write_evidence_strings(evidence: DataFrame, output_file: str) -> None:
-    '''Exports the table to a compressed JSON file containing the evidence strings'''
-    with tempfile.TemporaryDirectory() as tmp_dir_name:
-        (
-            evidence.coalesce(1).write.format('json').mode('overwrite')
-            .option('compression', 'org.apache.hadoop.io.compress.GzipCodec').save(tmp_dir_name)
-        )
-        json_chunks = [f for f in os.listdir(tmp_dir_name) if f.endswith('.json.gz')]
-        assert len(json_chunks) == 1, f'Expected one JSON file, but found {len(json_chunks)}.'
-        os.rename(os.path.join(tmp_dir_name, json_chunks[0]), output_file)
 
 
 if __name__ == '__main__':

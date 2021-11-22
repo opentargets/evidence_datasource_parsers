@@ -3,16 +3,17 @@
 
 import argparse
 import logging
-import os
 import re
-import tempfile
 
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.functions import (
-    array_distinct, coalesce, col, collect_set, concat, element_at, explode, lit, initcap,
+    array_distinct, col, collect_set, concat, element_at, explode, lit, initcap,
     regexp_extract, regexp_replace, size, split, struct, translate, trim, udf, upper, when
 )
 from pyspark.sql.types import StringType, ArrayType
+
+from common.evidence import write_evidence_strings
+
 
 ALTERATIONTYPE2FUNCTIONCSQ = {
     # TODO: Map BIA
@@ -41,7 +42,8 @@ GENENAMESOVERRIDE = {
     'MLL2': 'KMT2D'
 }
 
-class cancerBiomarkersEvidenceGenerator():
+
+class cancerBiomarkersEvidenceGenerator:
 
     def __init__(self):
         # Create spark session
@@ -89,7 +91,7 @@ class cancerBiomarkersEvidenceGenerator():
         )
 
         # Write evidence strings
-        self.write_evidence_strings(output_file)
+        write_evidence_strings(self.evidence, output_file)
         logging.info(f'{evidence.count()} evidence strings have been saved to {output_file}.')
 
     def process_biomarkers(
@@ -267,7 +269,7 @@ class cancerBiomarkersEvidenceGenerator():
         self.evidence = (
             pre_evidence
             .groupBy('datasourceId', 'datatypeId', 'drugFromSource', 'drugId',
-                     'drugResponse', 'targetFromSourceId', 'diseaseFromSource', 
+                     'drugResponse', 'targetFromSourceId', 'diseaseFromSource',
                      'diseaseFromSourceMappedId', 'confidence', 'biomarkerName')
             .agg(
                 collect_set('literature').alias('literature'),
@@ -295,17 +297,6 @@ class cancerBiomarkersEvidenceGenerator():
         )
 
         return self.evidence
-    
-    def write_evidence_strings(self, output_file: str) -> None:
-        '''Exports the table to a compressed JSON file containing the evidence strings'''
-        with tempfile.TemporaryDirectory() as tmp_dir_name:
-            (
-                self.evidence.coalesce(1).write.format('json').mode('overwrite')
-                .option('compression', 'org.apache.hadoop.io.compress.GzipCodec').save(tmp_dir_name)
-            )
-            json_chunks = [f for f in os.listdir(tmp_dir_name) if f.endswith('.json.gz')]
-            assert len(json_chunks) == 1, f'Expected one JSON file, but found {len(json_chunks)}.'
-            os.rename(os.path.join(tmp_dir_name, json_chunks[0]), output_file)
 
     @staticmethod
     def get_variantId(gDNA: str) -> str:
@@ -338,6 +329,7 @@ class cancerBiomarkersEvidenceGenerator():
         '''
         alteration_types = alteration_type * len(alterations)
         return list(zip(alterations, alteration_types))
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)

@@ -9,16 +9,17 @@ import json
 from pyspark.sql import SparkSession
 import pyspark.sql.functions as F
 
-class intogenEvidenceGenerator():
+
+class intogenEvidenceGenerator:
     def __init__(self):
-        
+
         # Create spark session
         self.spark = (
             SparkSession.builder
             .appName('intOGen')
             .getOrCreate()
         )
-        
+
         logging.info(f"Spark version: {self.spark.version}")
 
         # Initialize source tables
@@ -44,7 +45,7 @@ class intogenEvidenceGenerator():
                 'QVALUE_COMBINATION'
             )
             .withColumn('METHODS', F.split(F.col('METHODS'), ','))
-          
+
             # Mutation role mapping to a SO code
             .withColumn(
                 'functionalConsequenceId',

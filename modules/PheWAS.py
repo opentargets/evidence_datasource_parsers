@@ -12,7 +12,8 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, element_at, split, lit, count, concat, translate
 from pyspark.sql.types import IntegerType, DoubleType
 
-class phewasEvidenceGenerator():
+
+class phewasEvidenceGenerator:
 
     def __init__(self):
         # Create spark session
