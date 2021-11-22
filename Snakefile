@@ -77,8 +77,8 @@ rule clingen:
         cacheDir = config['global']['cacheDir'],
         schema = config['global']['schema']
     output:
-        summaryTable = GS.remote(f"{config['ClinGen']['inputBucket']}/ClinGen-Gene-Disease-Summary-{timeStamp}.csv"),
-        evidenceFile = GS.remote(f"{config['ClinGen']['outputBucket']}/ClinGen-{timeStamp}.json.gz")
+        summaryTable = GS.remote(f"{config['ClinGen']['inputBucket']}/clingen-Gene-Disease-Summary-{timeStamp}.csv"),
+        evidenceFile = GS.remote(f"{config['ClinGen']['outputBucket']}/clingen-{timeStamp}.json.gz")
     log:
         GS.remote(logFile)
     shell:
@@ -201,7 +201,7 @@ rule orphanet:
         cacheDir = config['global']['cacheDir'],
         schema = config['global']['schema']
     output:
-        GS.remote(f"{config['Orphanet']['outputBucket']}/Orphanet-{timeStamp}.json.gz")
+        GS.remote(f"{config['Orphanet']['outputBucket']}/orphanet-{timeStamp}.json.gz")
     log:
         GS.remote(logFile)
     shell:
@@ -241,7 +241,7 @@ rule phenodigm:
         schema = config['global']['schema']
     output:
         evidenceFile=GS.remote(f"{config['Phenodigm']['evidenceOutputBucket']}/phenodigm-{timeStamp}.json.gz"),
-        mousePhenotypes=GS.remote(f"{config['Phenodigm']['phenotypesOutputBucket']}/mousePhenotypes.{timeStamp}."
+        mousePhenotypes=GS.remote(f"{config['Phenodigm']['phenotypesOutputBucket']}/mouse_phenotypes-{timeStamp}."
                                   f"json.gz")
     log:
         GS.remote(logFile)
