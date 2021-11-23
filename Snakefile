@@ -29,7 +29,7 @@ rule all:
         GS.remote(f"{config['PheWAS']['outputBucket']}/phewas_catalog-{timeStamp}.json.gz"),
         GS.remote(f"{config['PROGENy']['outputBucket']}/progeny-{timeStamp}.json.gz"),
         GS.remote(f"{config['SLAPEnrich']['outputBucket']}/slapenrich-{timeStamp}.json.gz"),
-        GS.remote(f"{config['SysBio']['outputBucket']}/sysbio-{timeStamp}.json.gz")
+        GS.remote(f"{config['SysBio']['outputBucket']}/sysbio-{timeStamp}.json.gz"),
         GS.remote(f"{config['TEP']['outputBucket']}/tep-{timeStamp}.json.gz")
 
 # --- Auxiliary Rules --- #
