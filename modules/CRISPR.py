@@ -1,8 +1,13 @@
-import sys
-import logging
 import argparse
+import logging
+import sys
 
-import pandas as pd
+from pyspark.conf import SparkConf
+from pyspark.sql import SparkSession, DataFrame
+from pyspark.sql.types import FloatType
+from pyspark.sql.functions import col, collect_set, split, element_at, struct, lit
+
+from common.evidence import write_evidence_strings
 
 # A few genes do not have Ensembl IDs in the data file provided
 CRISPR_SYMBOL_MAPPING = {
@@ -19,6 +24,20 @@ CRISPR_SYMBOL_MAPPING = {
 
 
 def main(desc_file, evid_file, cell_file, out_file):
+    sparkConf = (
+        SparkConf()
+        .set('spark.driver.memory', '15g')
+        .set('spark.executor.memory', '15g')
+        .set('spark.driver.maxResultSize', '0')
+        .set('spark.debug.maxToStringFields', '2000')
+        .set('spark.sql.execution.arrow.maxRecordsPerBatch', '500000')
+    )
+    spark = (
+        SparkSession.builder
+        .config(conf=sparkConf)
+        .master('local[*]')
+        .getOrCreate()
+    )
 
     # Log parameters:
     logging.info(f'Evidence file: {evid_file}')
@@ -27,88 +46,90 @@ def main(desc_file, evid_file, cell_file, out_file):
     logging.info(f'Output file: {out_file}')
 
     # Read files:
-    evidence_df = pd.read_csv(evid_file, sep='\t')
-    description_df = pd.read_csv(desc_file, sep='\t')
-    cell_lines_df = pd.read_csv(cell_file, sep='\t')
+    evidence_df = (
+        spark.read.csv(evid_file, sep='\t', header=True)
+        .drop('pmid', 'gene_set_name', 'disease_name')
+    )
+    cell_lines_df = spark.read.csv(cell_file, sep='\t', header=True)
+    description_df = spark.read.csv(desc_file, sep='\t', header=True)
 
     # Logging dataframe stats:
-    logging.info(f'Number of evidence: {len(evidence_df)}')
-    logging.info(f'Number of descriptions: {len(description_df)}')
-    logging.info(f'Number of cell/tissue annotation: {len(cell_lines_df)}')
+    logging.info(f'Number of evidence: {evidence_df.count()}')
+    logging.info(f'Number of descriptions: {description_df.count()}')
+    logging.info(f'Number of cell/tissue annotation: {cell_lines_df.count()}')
 
-    # Merging description with cell types and tissue:
-    tissue_desc = description_df.merge(cell_lines_df[['Name', 'Tissue']], left_on='tissue_or_cancer_type', how='inner', right_on='Tissue')
-    cell_desc = description_df.merge(cell_lines_df[['Name', 'Cancer Type']], left_on='tissue_or_cancer_type', how='inner', right_on='Cancer Type')
+    # Tissues and cancer types are annotated together in the same column (tissue_or_cancer_type)
+    # To disambiguate one from another, the column is combined with the cell lines
+    # First on the tissue level:
+    tissue_desc = (
+        description_df
+        .withColumnRenamed('tissue_or_cancer_type', 'tissue')
+        .join(cell_lines_df, on='tissue', how='inner')
+    )
 
-    # Concatenating annotation:
-    merged_annotation = pd.concat([tissue_desc, cell_desc], ignore_index=True)
+    # And then on the disease level:
+    cell_desc = (
+        description_df
+        .withColumnRenamed('tissue_or_cancer_type', 'diseaseFromSource')
+        .join(cell_lines_df, on='diseaseFromSource', how='inner')
+    )
 
-    # Aggregating names accross disease/targets:
-    pooled_annotation = (
-        merged_annotation
-        .groupby(['efo_id', 'tissue_or_cancer_type', 'method'])
+    merged_annotation = (
+        # Concatenating the above generated dataframes:
+        cell_desc
+        .union(tissue_desc)
+
+        # Aggregating by disease and method:
+        .groupBy('diseaseFromSource', 'efo_id', 'method')
+
+        # The cell annotation is aggregated in a list of struct:
         .agg(
-            {'Name': lambda x: list(x)}
+            collect_set(struct(
+                col('name'), col('id'), col('tissue'), col('tissueId')
+            )).alias('diseaseCellLines')
         )
-        .reset_index()
+        .drop('method')
     )
 
-    # Updating columns:
-    pooled_annotation = (
-        pooled_annotation
-        .drop(['method'], axis=1)
-        .rename(columns={
-            'efo_id': 'diseaseFromSourceMappedId',
-            'Name': 'diseaseCellLines',
-            'tissue_or_cancer_type': 'diseaseFromSource',
-        })
-    )
-
-    # Some columns from the evidence file are not needed:
-    evidence_df = (
+    # Joining merged annotation with evidence:
+    pooled_evidence_df = (
         evidence_df
-        .drop(['pmid', 'gene_set_name', 'disease_name'], axis=1)
-        .rename(columns={
-            'target_id': 'targetFromSourceId', 
-            'disease_id': 'diseaseFromSourceMappedId',
-            'score': 'resourceScore',
-        })
+        .select(
+            col('target_id').alias('targetFromSourceId'),
+            col('disease_id').alias('efo_id'),
+            col('score').alias('resourceScore').cast(FloatType()),
+        )
+
+        # Some of the target identifier are not Ensembl Gene id - replace them:
+        .replace(to_replace=CRISPR_SYMBOL_MAPPING, subset=['target_id'])
+
+        # Merging with descriptions:
+        .join(merged_annotation, on='efo_id', how='outer')
+
+        # From EFO uri, generate EFO id:
+        .withColumn(
+            'diseaseFromSourceMappedId',
+            element_at(split(col('efo_id'), '/'), -1).alias('diseaseFromSourceMappedId')
+        )
+        .drop('efo_id')
+
+        # Adding constants:
+        .withColumn('datasourceId', lit('crispr'))
+        .withColumn('datatypeId', lit('affected_pathway'))
+        .persist()
     )
 
-    # Replace some target ids:
-    evidence_df.targetFromSourceId = evidence_df.targetFromSourceId.apply(lambda x: CRISPR_SYMBOL_MAPPING[x] if x in CRISPR_SYMBOL_MAPPING else x)
+    logging.info(f'Saving {pooled_evidence_df.count()} CRISPR evidence in JSON format, to: {out_file}')
 
-    # Merging evidence and annotations:
-    annotated_evidence = evidence_df.merge(pooled_annotation, on='diseaseFromSourceMappedId', how='outer', indicator=True)
-
-    # Checking if all disease terms got matched:
-    if len(annotated_evidence.loc[annotated_evidence._merge != 'both']) == 0:
-        logging.info('Cell/tissue annotation and evidence successfully merged.')
-    else:
-        logging.warning('Problems with matching diseases between annotation and evidence. The following rows were problematic:')
-        logging.warning(annotated_evidence.loc[annotated_evidence._merge != 'both'])
-        annotated_evidence = annotated_evidence[annotated_evidence._merge != 'both']
-        logging.warning(f'Number of evidence with mathing diseases: {len(annotated_evidence)}')
-
-    # Remove unused column
-    annotated_evidence.drop(['_merge'], inplace=True, axis=1)
-
-    # Update efo identifier:
-    annotated_evidence.diseaseFromSourceMappedId = annotated_evidence.diseaseFromSourceMappedId.str.extract('/([^/]+?)$', expand=False)
-
-    # Adding new columns:
-    annotated_evidence['datasourceId'] = 'crispr'
-    annotated_evidence['datatypeId'] = 'affected_pathway'
-
-    logging.info(f'Saving {len(annotated_evidence)} CRISPR evidence in JSON format, GZIP compressed file: {out_file}')
-
-    annotated_evidence.to_json(out_file, compression='gzip', orient='records', lines=True)
+    write_evidence_strings(pooled_evidence_df, out_file)
 
 
 if __name__ == "__main__":
 
-    # Parse CLI arguments
-    parser = argparse.ArgumentParser(description='Parse essential cancer genes identified using CRISPR assays and prioritised in Project Score')
+    # Parse CLI arguments:
+    parser = argparse.ArgumentParser(
+        description='Parse essential cancer genes identified using CRISPR assays and prioritised in Project Score'
+    )
     parser.add_argument('-d', '--descriptions_file',
                         help='Name of tsv file with the description of the method per cancer type',
                         type=str, required=True)

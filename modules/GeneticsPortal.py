@@ -124,11 +124,20 @@ def main():
 
     # Load (a) disease information, (b) sample size from the study table
     study_info = (
-        spark.read.parquet(in_study)
+        spark.read.json(in_study)
         .select(
             'study_id', 'pmid', 'pub_date', 'pub_author', 'trait_reported',
             'trait_efos',
             col('n_initial').alias('sample_size')  # Rename to sample size
+        )
+
+        # Assign project based on the study author information
+        .withColumn(
+            'projectId',
+            when(col('pub_author').contains('FINNGEN'), 'FINNGEN')
+            .when(col('pub_author').contains('UKB Neale'), 'NEALE')
+            .when(col('pub_author').contains('UKB SAIGE'), 'SAIGE')
+            .otherwise('GCST')
         )
 
         # Warning! Not all studies have an EFO annotated. Also, some have
@@ -240,6 +249,7 @@ def main():
             col('efo').alias('diseaseFromSourceMappedId'),
             col('literature'),
             col('pub_author').alias('publicationFirstAuthor'),
+            'projectId',
             substring(col('pub_date'), 1, 4).cast(IntegerType()).alias('publicationYear'),
             col('trait_reported').alias('diseaseFromSource'),
             col('study_id').alias('studyId'),

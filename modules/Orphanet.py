@@ -1,15 +1,18 @@
+#!/usr/bin/env python3
+"""Evidence parser for Orphanet's gene-disease associations."""
+
 import argparse
+from itertools import chain
 import logging
 import sys
-import time
-from itertools import chain
 
 import xml.etree.ElementTree as ET
 from pyspark.conf import SparkConf
-from pyspark.sql import SparkSession, Row
-from pyspark.sql.functions import col, lit, create_map, split
+from pyspark.sql import DataFrame, Row, SparkSession
+from pyspark.sql.functions import array_distinct, col, create_map, lit, split
 
-from ontoma import OnToma
+from common.ontology import add_efo_mapping
+from common.evidence import write_evidence_strings
 
 # The rest of the types are assigned to -> germline for allele origins
 EXCLUDED_ASSOCIATIONTYPES = [
@@ -30,40 +33,53 @@ CONSEQUENCE_MAP = {
 }
 
 
-class ontoma_efo_lookup():
-    """
-    Simple class to map orphanet ids to efo
-    """
-    def __init__(self):
-        self.otmap = OnToma()
+def main(input_file: str, output_file: str, cache_dir: str, local: bool = False) -> None:
 
-    def get_mapping(self, terms=[]):
-        disease_label, disease_id = terms
+    # Initialize spark session
+    if local:
+        sparkConf = (
+            SparkConf()
+            .set('spark.driver.memory', '15g')
+            .set('spark.executor.memory', '15g')
+            .set('spark.driver.maxResultSize', '0')
+            .set('spark.debug.maxToStringFields', '2000')
+            .set('spark.sql.execution.arrow.maxRecordsPerBatch', '500000')
+        )
+        spark = (
+            SparkSession.builder
+            .config(conf=sparkConf)
+            .master('local[*]')
+            .getOrCreate()
+        )
+    else:
+        sparkConf = (
+            SparkConf()
+            .set('spark.driver.maxResultSize', '0')
+            .set('spark.debug.maxToStringFields', '2000')
+            .set('spark.sql.execution.arrow.maxRecordsPerBatch', '500000')
+        )
+        spark = (
+            SparkSession.builder
+            .config(conf=sparkConf)
+            .getOrCreate()
+        )
 
-        mappings = self.query_ontoma(disease_id)
+    # Read and process Orphanet's XML file into evidence strings
 
-        if mappings and 'EFO' in mappings['source']:
-            return mappings['term'].split('/')[-1]
-        else:
-            mappings = self.query_ontoma(disease_label)
+    orphanet_df = parse_orphanet_xml(input_file, spark)
+    logging.info('Orphanet input file has been imported. Processing evidence strings.')
 
-        if mappings and 'EFO' in mappings['source']:
-            return mappings['term'].split('/')[-1]
-        else:
-            return None
+    evidence_df = process_orphanet(orphanet_df)
 
-    def query_ontoma(self, term):
+    evidence_df = add_efo_mapping(evidence_strings=evidence_df, spark_instance=spark, ontoma_cache_dir=cache_dir)
+    logging.info('Disease mappings have been added.')
 
-        try:
-            mappings = self.otmap.find_term(term, verbose=True)
-        except Exception:
-            time.sleep(3)
-            mappings = self.otmap.find_term(term, verbose=True)
-
-        return mappings
+    # Save data
+    write_evidence_strings(evidence_df, output_file)
+    logging.info(f'{evidence_df.count()} evidence strings have been saved to {output_file}')
 
 
-def parse_orphanet_xml(orphanet_file: str) -> list:
+def parse_orphanet_xml(orphanet_file: str, spark_instance) -> DataFrame:
     """
     Function to parse Orphanet xml dump and return the parsed
     data as a list of dictionaries.
@@ -106,7 +122,7 @@ def parse_orphanet_xml(orphanet_file: str) -> list:
             # Not all gene/disease association is backed up by publication:
             try:
                 evidence['literature'] = [
-                    pmid.replace('[PMID]', '') for pmid in association.find('SourceOfValidation').text.split('_') if '[PMID]' in pmid
+                    pmid.replace('[PMID]', '').rstrip() for pmid in association.find('SourceOfValidation').text.split('_') if '[PMID]' in pmid
                 ]
             except AttributeError:
                 evidence['literature'] = None
@@ -127,91 +143,43 @@ def parse_orphanet_xml(orphanet_file: str) -> list:
             # Collect evidence:
             orphanet_disorders.append(evidence)
 
-    return orphanet_disorders
+    # Create a spark dataframe from the parsed data
+    orphanet_df = spark_instance.createDataFrame(Row(**x) for x in orphanet_disorders)
+
+    return orphanet_df
 
 
-def main(input_file: str, output_file: str, local: bool = False) -> None:
-
-    # Initialize spark session
-    if local:
-        sparkConf = (
-            SparkConf()
-            .set('spark.driver.memory', '15g')
-            .set('spark.executor.memory', '15g')
-            .set('spark.driver.maxResultSize', '0')
-            .set('spark.debug.maxToStringFields', '2000')
-            .set('spark.sql.execution.arrow.maxRecordsPerBatch', '500000')
-        )
-        spark = (
-            SparkSession.builder
-            .config(conf=sparkConf)
-            .master('local[*]')
-            .getOrCreate()
-        )
-    else:
-        sparkConf = (
-            SparkConf()
-            .set('spark.driver.maxResultSize', '0')
-            .set('spark.debug.maxToStringFields', '2000')
-            .set('spark.sql.execution.arrow.maxRecordsPerBatch', '500000')
-        )
-        spark = (
-            SparkSession.builder
-            .config(conf=sparkConf)
-            .getOrCreate()
-        )
-
-    # Initialize mapping object:
-    ol_obj = ontoma_efo_lookup()
+def process_orphanet(orphanet_df: DataFrame) -> DataFrame:
+    """
+    The JSON Schema format is applied to the df
+    """
 
     # Map association type to sequence ontology ID:
     so_mapping_expr = create_map([lit(x) for x in chain(*CONSEQUENCE_MAP.items())])
 
-    # Parsing xml file:s
-    orphanet_disorders = parse_orphanet_xml(input_file)
-
-    # Crete a spark dataframe from the parsed data:
-    orphanet_df = (
-        spark.createDataFrame(Row(**x) for x in orphanet_disorders)
+    evidence_df = (
+        orphanet_df
         .filter(
             ~col('associationType').isin(EXCLUDED_ASSOCIATIONTYPES)
         )
+        .filter(~col('targetFromSourceId').isNull())
         .withColumn('dataSourceId', lit('orphanet'))
         .withColumn('datatypeId', lit('genetic_association'))
         .withColumn('alleleOrigins', split(lit('germline'), "_"))
+        .withColumn('literature', array_distinct(col('literature')))
         .withColumn('variantFunctionalConsequenceId', so_mapping_expr.getItem(col('associationType')))
         .drop('associationType', 'type')
+
+        # Select the evidence relevant fields
+        .select(
+            'datasourceId', 'datatypeId', 'alleleOrigins', 'confidence', 'diseaseFromSource',
+            'diseaseFromSourceId', 'literature', 'targetFromSource',
+            'targetFromSourceId'
+        )
         .persist()
     )
 
-    # Generating a lookup table for the mapped orphanet terms:
-    orphanet_diseases = (
-        orphanet_df
-        .select('diseaseFromSource', 'diseaseFromSourceId')
-        .distinct()
-        .collect()
-    )
-    mapped_diseases = {x[1]: ol_obj.get_mapping(x) for x in orphanet_diseases}
-    disease_mapping_expr = create_map([lit(x) for x in chain(*mapped_diseases.items())])
-
-    # Adding EFO mapping as new column:
-    orphanet_df = (
-        orphanet_df
-        .withColumn('diseaseFromSourceMappedId', disease_mapping_expr.getItem(col('diseaseFromSourceId')))
-    )
-
-    # Save data:
-    (
-        orphanet_df
-        .select(
-            'datasourceId', 'datatypeId', 'alleleOrigins', 'confidence', 'diseaseFromSource',
-            'diseaseFromSourceId', 'diseaseFromSourceMappedId', 'literature', 'targetFromSource',
-            'targetFromSourceId'
-        )
-        .coalesce(1)
-        .write.format('json').mode('overwrite').option('compression', 'gzip')
-        .save(output_file)
-    )
+    return evidence_df
 
 
 if __name__ == '__main__':
@@ -219,8 +187,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=('Parse Orphanet gene-disease annotation downloaded from '
                                                   'http://www.orphadata.org/data/xml/en_product6.xml'))
     parser.add_argument('--input_file', help='Xml file containing target/disease associations.', type=str)
-    parser.add_argument('--output_file', help='Name of the gzipped, JSON evidence file.', type=str)
+    parser.add_argument('--output_file', help='Absolute path of the gzipped, JSON evidence file.', type=str)
     parser.add_argument('--logFile', help='Destination of the logs generated by this script.', type=str, required=False)
+    parser.add_argument('--cache_dir', required=False, help='Directory to store the OnToma cache files in.')
     parser.add_argument(
         '--local', action='store_true', required=False, default=False,
         help='Flag to indicate if the script is executed locally or on the cluster'
@@ -231,6 +200,7 @@ if __name__ == '__main__':
     input_file = args.input_file
     output_file = args.output_file
     log_file = args.logFile
+    cache_dir = args.cache_dir
     is_local = args.local
 
     # Initialize logging:
@@ -244,4 +214,4 @@ if __name__ == '__main__':
     else:
         logging.StreamHandler(sys.stderr)
 
-    main(input_file, output_file, is_local)
+    main(input_file, output_file, cache_dir, is_local)

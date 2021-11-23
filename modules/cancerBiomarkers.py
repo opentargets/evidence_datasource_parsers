@@ -3,16 +3,17 @@
 
 import argparse
 import logging
-import os
 import re
-import tempfile
 
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.functions import (
-    array_distinct, coalesce, col, collect_set, concat, element_at, explode, lit, initcap,
+    array_distinct, col, collect_set, concat, element_at, explode, lit, initcap,
     regexp_extract, regexp_replace, size, split, struct, translate, trim, udf, upper, when
 )
 from pyspark.sql.types import StringType, ArrayType
+
+from common.evidence import write_evidence_strings
+
 
 ALTERATIONTYPE2FUNCTIONCSQ = {
     # TODO: Map BIA
@@ -24,19 +25,25 @@ ALTERATIONTYPE2FUNCTIONCSQ = {
 }
 
 DRUGRESPONSE2EFO = {
-    # TODO: Map Increased Toxicity and Resistance
     'Responsive': 'GO_0042493',  # response to drug
-    'Not Responsive': 'HP_0020174',  # Refractory drug response
-    'Resistant': None,
-    'Increased Toxicity': None,
+    'Not Responsive': 'EFO_0020002',  # lack of efficacy
+    'Resistant': 'EFO_0020001',  # drug resistance
+    'Increased Toxicity': 'EFO_0020003',  # drug toxicity
     'Increased Toxicity (Myelosupression)': 'EFO_0007053',  # myelosuppression
     'Increased Toxicity (Ototoxicity)': 'EFO_0006951',  # ototoxicity
     'Increased Toxicity (Hyperbilirubinemia)': 'HP_0002904',  # Hyperbilirubinemia
     'Increased Toxicity (Haemolytic Anemia)': 'EFO_0005558'  # hemolytic anemia
 }
 
+GENENAMESOVERRIDE = {
+    # Correct gene names to use their approved symbol
+    'C15orf55': 'NUTM1',
+    'MLL': 'KMT2A',
+    'MLL2': 'KMT2D'
+}
 
-class cancerBiomarkersEvidenceGenerator():
+
+class cancerBiomarkersEvidenceGenerator:
 
     def __init__(self):
         # Create spark session
@@ -84,7 +91,7 @@ class cancerBiomarkersEvidenceGenerator():
         )
 
         # Write evidence strings
-        self.write_evidence_strings(output_file)
+        write_evidence_strings(self.evidence, output_file)
         logging.info(f'{evidence.count()} evidence strings have been saved to {output_file}.')
 
     def process_biomarkers(
@@ -112,17 +119,10 @@ class cancerBiomarkersEvidenceGenerator():
             .withColumn('confidence', explode(col('confidence')))
             .withColumn('tumor_type_full_name', explode(col('tumor_type_full_name')))
             .withColumn('tumor_type', translate(col('tumor_type_full_name'), ' -', ''))
-            .withColumn('gene', explode(col('gene')))
             .withColumn('drug', explode(col('drug')))
             .withColumn('drug', translate(col('drug'), '[]', ''))
-            # Override specific genes
-            .withColumn(
-                'gene',
-                when(col('gene') == 'C15orf55', 'NUTM1')
-                .when(col('gene') == 'MLL', 'KMT2A')
-                .when(col('gene') == 'MLL2', 'KMT2D')
-                .otherwise(col('gene'))
-            )
+            .withColumn('gene', explode(col('gene')))
+            .replace(to_replace=GENENAMESOVERRIDE, subset=['gene'])
             .withColumn('gene', upper(col('gene')))
             # At this stage alterations and alteration_types are both arrays
             # Disambiguation when the biomarker consists of multiple alterations is needed
@@ -192,9 +192,9 @@ class cancerBiomarkersEvidenceGenerator():
             # whether any condition is met. The empty struct is replaced with null
             .withColumn('urls', when(~col('urls.niceName').isNull(), col('urls')))
             # Enrich data
-            .withColumn('variantFunctionalConsequenceId', col('alteration_type'))
-            .replace(to_replace=ALTERATIONTYPE2FUNCTIONCSQ, subset=['variantFunctionalConsequenceId'])
-            # .replace(to_replace=DRUGRESPONSE2EFO, subset=['Association'])
+            .withColumn('functionalConsequenceId', col('alteration_type'))
+            .replace(to_replace=ALTERATIONTYPE2FUNCTIONCSQ, subset=['functionalConsequenceId'])
+            .replace(to_replace=DRUGRESPONSE2EFO, subset=['Association'])
             .join(disease_df, on='tumor_type', how='left')
             .withColumn('drug', upper(col('drug')))
             .withColumn(
@@ -232,7 +232,7 @@ class cancerBiomarkersEvidenceGenerator():
                     struct(
                         col('alteration').alias('name'),
                         col('variantId').alias('id'),
-                        col('variantFunctionalConsequenceId').alias('functionalConsequenceId')
+                        col('functionalConsequenceId')
                     )
                 )
             )
@@ -262,14 +262,14 @@ class cancerBiomarkersEvidenceGenerator():
             # variant, geneExpression populated above
             .drop(
                 'tumor_type', 'source', 'alteration', 'alteration_type', 'IndividualMutation', 'geneExpressionId',
-                'gDNA', 'variantFunctionalConsequenceId', 'variantId', 'DrugFullName', 'niceName', 'url')
+                'gDNA', 'functionalConsequenceId', 'variantId', 'DrugFullName', 'niceName', 'url')
         )
 
         # Group evidence
         self.evidence = (
             pre_evidence
             .groupBy('datasourceId', 'datatypeId', 'drugFromSource', 'drugId',
-                     'drugResponse', 'targetFromSourceId', 'diseaseFromSource', 
+                     'drugResponse', 'targetFromSourceId', 'diseaseFromSource',
                      'diseaseFromSourceMappedId', 'confidence', 'biomarkerName')
             .agg(
                 collect_set('literature').alias('literature'),
@@ -297,17 +297,6 @@ class cancerBiomarkersEvidenceGenerator():
         )
 
         return self.evidence
-    
-    def write_evidence_strings(self, output_file: str) -> None:
-        '''Exports the table to a compressed JSON file containing the evidence strings'''
-        with tempfile.TemporaryDirectory() as tmp_dir_name:
-            (
-                self.evidence.coalesce(1).write.format('json').mode('overwrite')
-                .option('compression', 'org.apache.hadoop.io.compress.GzipCodec').save(tmp_dir_name)
-            )
-            json_chunks = [f for f in os.listdir(tmp_dir_name) if f.endswith('.json.gz')]
-            assert len(json_chunks) == 1, f'Expected one JSON file, but found {len(json_chunks)}.'
-            os.rename(os.path.join(tmp_dir_name, json_chunks[0]), output_file)
 
     @staticmethod
     def get_variantId(gDNA: str) -> str:
@@ -340,6 +329,7 @@ class cancerBiomarkersEvidenceGenerator():
         '''
         alteration_types = alteration_type * len(alterations)
         return list(zip(alterations, alteration_types))
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)

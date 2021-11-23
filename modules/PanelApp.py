@@ -3,9 +3,7 @@
 
 import argparse
 import logging
-import os
 import re
-import tempfile
 
 import requests
 from pyspark.sql import SparkSession
@@ -13,6 +11,8 @@ from pyspark.sql.functions import (
     array, array_distinct, col, collect_set, concat, explode, lit, regexp_extract, regexp_replace, split, trim, when
 )
 
+from common.ontology import add_efo_mapping
+from common.evidence import write_evidence_strings
 
 class PanelAppEvidenceGenerator:
 
@@ -95,6 +95,7 @@ class PanelAppEvidenceGenerator:
         self,
         input_file: str,
         output_file: str,
+        cache_dir: str
     ) -> None:
         logging.info('Filter and extract the necessary columns.')
         panelapp_df = self.spark.read.csv(input_file, sep=r'\t', header=True)
@@ -214,7 +215,7 @@ class PanelAppEvidenceGenerator:
             )
 
         logging.info('Drop unnecessary fields and populate the final evidence string structure.')
-        panelapp_df = (
+        evidence_df = (
             panelapp_df
             .drop('Phenotypes', 'cleanedUpPhenotypes', 'phenotype')
             # allelicRequirements requires a list, but we always only have one value from PanelApp.
@@ -238,15 +239,12 @@ class PanelAppEvidenceGenerator:
             .distinct()
         )
 
-        logging.info('Save data.')
-        with tempfile.TemporaryDirectory() as tmp_dir_name:
-            (
-                panelapp_df.coalesce(1).write.format('json').mode('overwrite')
-                .option('compression', 'org.apache.hadoop.io.compress.GzipCodec').save(tmp_dir_name)
-            )
-            json_chunks = [f for f in os.listdir(tmp_dir_name) if f.endswith('.json.gz')]
-            assert len(json_chunks) == 1, f'Expected one JSON file, but found {len(json_chunks)}.'
-            os.rename(os.path.join(tmp_dir_name, json_chunks[0]), output_file)
+        evidence_df = add_efo_mapping(evidence_strings=evidence_df, spark_instance=self.spark,
+                                      ontoma_cache_dir=cache_dir)
+        logging.info('Disease mappings have been added.')
+
+        write_evidence_strings(evidence_df, output_file)
+        logging.info(f'{evidence_df.count()} evidence strings have been saved to {output_file}')
 
     def fetch_literature_references(self, all_panel_ids):
         """Queries the PanelApp API to extract all literature references for (panel ID, gene symbol) combinations."""
@@ -315,7 +313,9 @@ if __name__ == '__main__':
         help='If specified, a number of files will be created with this prefix to store phenotype/PMID cleanup data '
              'for debugging purposes.'
     )
+    parser.add_argument('--cache_dir', required=False, help='Directory to store the OnToma cache files in.')
+
     args = parser.parse_args()
     PanelAppEvidenceGenerator(args.debug_output_prefix).generate_panelapp_evidence(
-        input_file=args.input_file, output_file=args.output_file
+        input_file=args.input_file, output_file=args.output_file, cache_dir=args.cache_dir
     )

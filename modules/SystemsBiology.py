@@ -5,6 +5,7 @@ import sys
 
 import pandas as pd
 
+
 def renormalize(n, start_range, new_range=[0.5, 1]):
     """
     A function to scale a value from a given range to a new range.
