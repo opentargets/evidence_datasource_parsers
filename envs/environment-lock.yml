@@ -1,4 +1,4 @@
-name: evidence_datasource_parsers_lock_lock
+name: evidence_datasource_parsers_lock
 channels:
   - bioconda
   - conda-forge
@@ -31,7 +31,7 @@ dependencies:
   - brotlipy=0.7.0
   - bzip2=1.0.8
   - c-ares=1.18.1
-  - ca-certificates=2021.10.26
+  - ca-certificates=2021.10.8
   - cachetools=4.2.4
   - cairo=1.16.0
   - certifi=2021.10.8
