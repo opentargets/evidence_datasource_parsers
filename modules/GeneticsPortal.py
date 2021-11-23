@@ -21,6 +21,7 @@ from pyspark.sql.functions import (
     concat_ws,
 )
 
+from common.evidence import detect_spark_memory_limit
 
 def main(
     locus2gene: str,
@@ -147,15 +148,22 @@ def initialize_logger(logFile=None):
 def initialize_spark():
     """Spins up a Spark session."""
 
-    sparkConf = (
+    # Initialize spark session
+    spark_mem_limit = detect_spark_memory_limit()
+    spark_conf = (
         SparkConf()
-        .set('spark.driver.memory', '15g')
-        .set('spark.executor.memory', '15g')
+        .set('spark.driver.memory', f'{spark_mem_limit}g')
+        .set('spark.executor.memory', f'{spark_mem_limit}g')
         .set('spark.driver.maxResultSize', '0')
         .set('spark.debug.maxToStringFields', '2000')
         .set('spark.sql.execution.arrow.maxRecordsPerBatch', '500000')
     )
-    spark = SparkSession.builder.config(conf=sparkConf).master('local[*]').getOrCreate()
+    spark = (
+        SparkSession.builder
+        .config(conf=spark_conf)
+        .master('local[*]')
+        .getOrCreate()
+    )
     logging.info(f'Spark version: {spark.version}')
 
     return spark
