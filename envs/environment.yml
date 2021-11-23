@@ -3,6 +3,7 @@ channels:
   - conda-forge
   - bioconda
 dependencies:
+  - beautifulsoup4=4.10.0
   - conda-lock=0.10.0
   - numpy=1.19.2
   - opentargets-validator=0.7.0
