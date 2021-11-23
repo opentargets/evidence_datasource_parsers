@@ -30,6 +30,7 @@ rule all:
         GS.remote(f"{config['PROGENy']['outputBucket']}/progeny-{timeStamp}.json.gz"),
         GS.remote(f"{config['SLAPEnrich']['outputBucket']}/slapenrich-{timeStamp}.json.gz"),
         GS.remote(f"{config['SysBio']['outputBucket']}/sysbio-{timeStamp}.json.gz")
+        GS.remote(f"{config['TEP']['outputBucket']}/tep-{timeStamp}.json.gz")
 
 # --- Auxiliary Rules --- #
 ## help                     : prints help comments for Snakefile
@@ -53,7 +54,7 @@ rule cancerBiomarkers:
     params:
         # Downloaded separately using wget, because FTP.RemoteProvider cannot handle recursive directory downloads.
         drug_index = config['cancerBiomarkers']['drugIndex'],
-        schema = config['global']['schema']
+        schema = f"{config['global']['schema']}/opentargets.json"
     output:
         GS.remote(f"{config['cancerBiomarkers']['outputBucket']}/cancer_biomarkers-{timeStamp}.json.gz")
     log:
@@ -75,7 +76,7 @@ rule clingen:
     params:
         summaryTableWeb = config['ClinGen']['webSource'],
         cacheDir = config['global']['cacheDir'],
-        schema = config['global']['schema']
+        schema = f"{config['global']['schema']}/opentargets.json"
     output:
         summaryTable = GS.remote(f"{config['ClinGen']['inputBucket']}/clingen-Gene-Disease-Summary-{timeStamp}.csv"),
         evidenceFile = GS.remote(f"{config['ClinGen']['outputBucket']}/clingen-{timeStamp}.json.gz")
@@ -102,7 +103,7 @@ rule crispr:
         descriptionsFile = GS.remote(f"{config['CRISPR']['inputBucket']}/crispr_descriptions.tsv"),
         cellTypesFile = GS.remote(f"{config['CRISPR']['inputBucket']}/crispr_cell_lines_enriched_2021-10-22.tsv")
     params:
-        schema = config['global']['schema']
+        schema = f"{config['global']['schema']}/opentargets.json"
     output:
         evidenceFile = GS.remote(f"{config['CRISPR']['outputBucket']}/crispr-{timeStamp}.json.gz")
     log:
@@ -122,7 +123,7 @@ rule epmc:
     input:
         inputCooccurences = directory(GS.remote(config['EPMC']['inputBucket']))
     params:
-        schema = config['global']['schema']
+        schema = f"{config['global']['schema']}/opentargets.json"
     output:
         evidenceFile = GS.remote(f"{config['EPMC']['outputBucket']}/epmc-{timeStamp}.json.gz")
     log:
@@ -144,7 +145,7 @@ rule gene2Phenotype:
         cancerPanel = HTTP.remote(config['Gene2Phenotype']['webSource_cancer_panel'])
     params:
         cacheDir = config['global']['cacheDir'],
-        schema = config['global']['schema']
+        schema = f"{config['global']['schema']}/opentargets.json"
     output:
         ddBucket = GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/DDG2P-{timeStamp}.csv.gz"),
         eyeBucket = GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/EyeG2P-{timeStamp}.csv.gz"),
@@ -178,7 +179,7 @@ rule intogen:
         inputCohorts = GS.remote(f"{config['intOGen']['inputBucket']}/cohorts.tsv"),
         diseaseMapping = config['intOGen']['diseaseMapping']
     params:
-        schema = config['global']['schema']
+        schema = f"{config['global']['schema']}/opentargets.json"
     output:
         evidenceFile = GS.remote(f"{config['intOGen']['outputBucket']}/intogen-{timeStamp}.json.gz")
     log:
@@ -199,7 +200,7 @@ rule orphanet:
         HTTP.remote(config['Orphanet']['webSource'])
     params:
         cacheDir = config['global']['cacheDir'],
-        schema = config['global']['schema']
+        schema = f"{config['global']['schema']}/opentargets.json"
     output:
         GS.remote(f"{config['Orphanet']['outputBucket']}/orphanet-{timeStamp}.json.gz")
     log:
@@ -220,7 +221,7 @@ rule panelApp:
         inputFile = GS.remote(f"{config['PanelApp']['inputBucket']}/All_genes_20200928-1959.tsv")
     params:
         cacheDir = config['global']['cacheDir'],
-        schema = config['global']['schema']
+        schema = f"{config['global']['schema']}/opentargets.json"
     output:
         evidenceFile = GS.remote(f"{config['PanelApp']['outputBucket']}/genomics_england-{timeStamp}.json.gz")
     log:
@@ -238,7 +239,7 @@ rule panelApp:
 rule phenodigm:
     params:
         cacheDir = config['global']['cacheDir'],
-        schema = config['global']['schema']
+        schema = f"{config['global']['schema']}/opentargets.json"
     output:
         evidenceFile=GS.remote(f"{config['Phenodigm']['evidenceOutputBucket']}/phenodigm-{timeStamp}.json.gz"),
         mousePhenotypes=GS.remote(f"{config['Phenodigm']['phenotypesOutputBucket']}/mouse_phenotypes-{timeStamp}."
@@ -261,7 +262,7 @@ rule phewas:
         consequencesFile = GS.remote(f"{config['PheWAS']['inputBucket']}/phewas_w_consequences.csv"),
         diseaseMapping = HTTP.remote(config['PheWAS']['diseaseMapping'])
     params:
-        schema = config['global']['schema']
+        schema = f"{config['global']['schema']}/opentargets.json"
     output:
         evidenceFile = GS.remote(f"{config['PheWAS']['outputBucket']}/phewas_catalog-{timeStamp}.json.gz")
     log:
@@ -283,7 +284,7 @@ rule progeny:
         diseaseMapping = config['PROGENy']['diseaseMapping'],
         pathwayMapping = config['PROGENy']['pathwayMapping']
     params:
-        schema = config['global']['schema']
+        schema = f"{config['global']['schema']}/opentargets.json"
     output:
         evidenceFile = GS.remote(f"{config['PROGENy']['outputBucket']}/progeny-{timeStamp}.json.gz")
     log:
@@ -304,7 +305,7 @@ rule slapenrich:
         inputFile = GS.remote(f"{config['SLAPEnrich']['inputBucket']}/slapenrich_opentargets-21-12-2017.tsv"),
         diseaseMapping = config['SLAPEnrich']['diseaseMapping']
     params:
-        schema = config['global']['schema']
+        schema = f"{config['global']['schema']}/opentargets.json"
     output:
         evidenceFile = GS.remote(f"{config['SLAPEnrich']['outputBucket']}/slapenrich-{timeStamp}.json.gz")
     log:
@@ -324,7 +325,7 @@ rule sysbio:
         evidenceFile = GS.remote(f"{config['SysBio']['inputBucket']}/sysbio_evidence-31-01-2019.tsv"),
         studyFile = GS.remote(f"{config['SysBio']['inputBucket']}/sysbio_publication_info_nov2018.tsv")
     params:
-        schema = config['global']['schema']
+        schema = f"{config['global']['schema']}/opentargets.json"
     output:
         evidenceFile = GS.remote(f"{config['SysBio']['outputBucket']}/sysbio-{timeStamp}.json.gz")
     log:
@@ -336,4 +337,20 @@ rule sysbio:
           --studyFile {input.studyFile} \
           --outputFile {output.evidenceFile}
         opentargets_validator --schema {params.schema} {output.evidenceFile}
+        """
+
+# --- Data sources parsers --- #
+## TEP                    : Fetching Target Enabling Packages (TEP) data from Structural Genomics Consortium
+rule TargetEnablingPackages:
+    params:
+        schema = f"{config['global']['schema']}/opentargets_tep.json"
+    output:
+        GS.remote(f"{config['TEP']['outputBucket']}/tep-{timeStamp}.json.gz")
+    log:
+        GS.remote(logFile)
+    shell:
+        """
+        python modules/TEP.py  \
+          --output_file {output}
+        opentargets_validator --schema {params.schema} {output}
         """
