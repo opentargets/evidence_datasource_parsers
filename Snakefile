@@ -339,7 +339,7 @@ rule sysbio:
         opentargets_validator --schema {params.schema} {output.evidenceFile}
         """
 
-# --- Data sources parsers --- #
+# --- Target annotation data sources parsers --- #
 ## TEP                    : Fetching Target Enabling Packages (TEP) data from Structural Genomics Consortium
 rule TargetEnablingPackages:
     params:

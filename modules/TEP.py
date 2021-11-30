@@ -32,9 +32,9 @@ def retrieve_tep_table() -> pd.DataFrame:
         therapeutic_area = row.findAll('td')[2].text
         return therapeutic_area
 
-    url = 'https://www.thesgc.org/tep'
+    URL = 'https://www.thesgc.org/tep'
 
-    response = requests.get(url)
+    response = requests.get(URL)
 
     html = response.text
     uhtml = UnicodeDammit(html)
