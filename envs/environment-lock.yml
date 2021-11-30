@@ -25,6 +25,7 @@ dependencies:
   - backports=1.0
   - backports.functools_lru_cache=1.6.4
   - bcrypt=3.2.0
+  - beautifulsoup4=4.10.0
   - boto3=1.19.7
   - botocore=1.22.7
   - brotlipy=0.7.0
@@ -228,6 +229,7 @@ dependencies:
   - snakemake=6.0.0
   - snakemake-minimal=6.0.0
   - snappy=1.1.8
+  - soupsieve=2.3.1
   - sqlite=3.36.0
   - stone=3.2.1
   - stopit=1.1.2
