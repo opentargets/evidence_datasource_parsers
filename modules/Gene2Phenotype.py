@@ -13,18 +13,14 @@ from pyspark.sql.types import IntegerType, StringType, StructType, TimestampType
 from common.ontology import add_efo_mapping
 from common.evidence import detect_spark_memory_limit, write_evidence_strings
 
+
 G2P_mutationCsq2functionalCsq = {
-    'loss of function': 'SO_0002054',  # loss_of_function_variant
-    'all missense/in frame': 'SO_0001650',  # inframe_variant
     'uncertain': 'SO_0002220',  # function_uncertain_variant
-    'activating': 'SO_0002053',  # gain_of_function_variant
-    'dominant negative': 'SO_0002052',  # dominant_negative_variant
-    '': None,
-    'gain of function': 'SO_0002053',  # gain_of_function_variant
-    'cis-regulatory or promotor mutation': 'SO_0001566',  # regulatory_region_variant
+    'absent gene product': 'SO_0002317',  # absent_gene_product
+    'altered gene product structure': 'SO_0002318',  # altered_gene_product_structure
     '5_prime or 3_prime UTR mutation': 'SO_0001622',  # UTR_variant
-    'increased gene dosage': 'SO_0001911',  # copy_number_increase
-    'part of contiguous gene duplication': 'SO_1000173'  # tandem_duplication
+    'increased gene product level': 'SO_0002315',  # increased_gene_product_level
+    'cis-regulatory or promotor mutation': 'SO_0001566',  # regulatory_region_variant
 }
 
 
@@ -77,7 +73,7 @@ def read_input_file(
         .add('gene mim', IntegerType())
         .add('disease name', StringType())
         .add('disease mim', StringType())
-        .add('DDD category', StringType())
+        .add('confidence category', StringType())
         .add('allelic requirement', StringType())
         .add('mutation consequence', StringType())
         .add('phenotypes', StringType())
@@ -87,6 +83,8 @@ def read_input_file(
         .add('prev symbols', StringType())
         .add('hgnc id', IntegerType())
         .add('gene disease pair entry date', TimestampType())
+        .add('cross cutting modifier', StringType())
+        .add('mutation consequence flag', StringType())
     )
 
     return (
@@ -116,7 +114,7 @@ def process_gene2phenotype(gene2phenotype_df: DataFrame) -> DataFrame:
         .withColumnRenamed('gene symbol', 'targetFromSourceId')
         .withColumnRenamed('disease name', 'diseaseFromSource')
         .withColumnRenamed('panel', 'studyId')
-        .withColumnRenamed('DDD category', 'confidence')
+        .withColumnRenamed('confidence category', 'confidence')
         .withColumn(
             'allelicRequirements',
             when(
