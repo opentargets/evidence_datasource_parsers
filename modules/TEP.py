@@ -7,7 +7,8 @@ import sys
 
 from pyspark.conf import SparkConf
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import explode, col, concat, lit, lower, regexp_replace,  split
+from pyspark.sql.functions import explode, col, concat, lit, lower, regexp_replace, split
+from pyspark import SparkFiles
 
 from common.evidence import detect_spark_memory_limit, write_evidence_strings
 
@@ -44,7 +45,7 @@ def main(outputFile: str) -> None:
 
     # Fetching and processing the TEP table and saved as a JSON file:
     TEP_df = (
-        spark.read.csv(spark.SparkFiles.get("available-teps.tsv"), sep='\t', header=True)
+        spark.read.csv(SparkFiles.get("available-teps.tsv"), sep='\t', header=True)
 
         # Generating TEP url from Gene column: SLC12A4/SLC12A6 -> https://www.thesgc.org/tep/SLC12A4SLC12A6
         .withColumn('url', concat(lit('https://www.thesgc.org/tep/'), regexp_replace(lower(col('Gene')), '/', '')))
@@ -55,6 +56,9 @@ def main(outputFile: str) -> None:
         # Renaming columns:
         .withColumnRenamed('Therapeutic Area', 'therapeuticArea')
         .withColumnRenamed('Description', 'description')
+
+        # Dropping columns:
+        .drop(*['Gene', 'version', 'Date'])
         .persist()
     )
 
