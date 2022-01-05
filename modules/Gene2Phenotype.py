@@ -163,17 +163,17 @@ if __name__ == "__main__":
         description='Parse Gene2Phenotype gene-disease files downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads/')
     parser.add_argument('-d', '--dd_panel',
                         help='DD panel file downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads',
-                        type=str)
+                        required=True, type=str)
     parser.add_argument('-e', '--eye_panel',
                         help='Eye panel file downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads',
-                        type=str)
+                        required=True, type=str)
     parser.add_argument('-s', '--skin_panel',
                         help='Skin panel file downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads',
-                        type=str)
+                        required=True, type=str)
     parser.add_argument('-c', '--cancer_panel',
                         help='Cancer panel file downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads',
-                        type=str)
-    parser.add_argument('-o', '--output_file', help='Absolute path of the gzipped, JSON evidence file.', type=str)
+                        required=True, type=str)
+    parser.add_argument('-o', '--output_file', help='Absolute path of the gzipped, JSON evidence file.', required=True, type=str)
     parser.add_argument('-l', '--log_file', help='Filename to store the parser logs.', type=str)
     parser.add_argument('--cache_dir', required=False, help='Directory to store the OnToma cache files in.')
     parser.add_argument(
