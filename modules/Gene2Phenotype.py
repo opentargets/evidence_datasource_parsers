@@ -29,6 +29,7 @@ def main(
 ) -> None:
 
     # Initialize spark session
+    global spark
     spark_mem_limit = detect_spark_memory_limit()
     spark_conf = (
         SparkConf()
@@ -48,12 +49,12 @@ def main(
 
     # Read and process G2P's tables into evidence strings
     gene2phenotype_df = read_input_file(
-        dd_file, eye_file, skin_file, cancer_file, spark_instance=spark)
+        dd_file, eye_file, skin_file, cancer_file)
     logging.info('Gene2Phenotype panels have been imported. Processing evidence strings.')
 
     evidence_df = process_gene2phenotype(gene2phenotype_df)
 
-    evidence_df = add_efo_mapping(evidence_strings=evidence_df, spark_instance=spark, ontoma_cache_dir=cache_dir)
+    evidence_df = add_efo_mapping(evidence_strings=evidence_df, ontoma_cache_dir=cache_dir, spark_instance=spark)
     logging.info('Disease mappings have been added.')
 
     # Saving data:
@@ -61,7 +62,7 @@ def main(
     logging.info(f'{evidence_df.count()} evidence strings have been saved to {output_file}')
 
 def read_input_file(
-    dd_file: str, eye_file: str, skin_file: str, cancer_file: str, spark_instance
+    dd_file: str, eye_file: str, skin_file: str, cancer_file: str
 ) -> DataFrame:
     '''
     Reads G2P's panel CSV files into a Spark DataFrame forcing the schema
@@ -88,7 +89,7 @@ def read_input_file(
     )
 
     return (
-        spark_instance.read.csv(
+        spark.read.csv(
             [dd_file, eye_file, skin_file, cancer_file], schema=gene2phenotype_schema, enforceSchema=True, header=True
         )
     )
