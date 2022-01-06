@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Parser for Target Enabling Pacages (TEP)."""
+"""Parser for Target Enabling Packages (TEP) downloaded from the Structural Genomics Consortium website."""
 
 import argparse
 import logging
@@ -13,8 +13,6 @@ from pyspark import SparkFiles
 from common.evidence import detect_spark_memory_limit, write_evidence_strings
 
 
-'''
-This script retrieves TEP (target enabling package) from the structural genomics consoritum website.
 '''
 
 # The TEP dataset is made available by the SGC as a tab-separated file:
@@ -45,7 +43,7 @@ def main(outputFile: str) -> None:
 
     # Fetching and processing the TEP table and saved as a JSON file:
     TEP_df = (
-        spark.read.csv(SparkFiles.get("available-teps.tsv"), sep='\t', header=True)
+        spark.read.csv(SparkFiles.get(TEPURL.split('/')[-1]), sep='\t', header=True)
 
         # Generating TEP url from Gene column: SLC12A4/SLC12A6 -> https://www.thesgc.org/tep/SLC12A4SLC12A6
         .withColumn('url', concat(lit('https://www.thesgc.org/tep/'), regexp_replace(lower(col('Gene')), '/', '')))
