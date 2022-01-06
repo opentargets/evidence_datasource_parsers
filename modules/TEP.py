@@ -13,7 +13,6 @@ from pyspark import SparkFiles
 from common.evidence import detect_spark_memory_limit, write_evidence_strings
 
 
-'''
 
 # The TEP dataset is made available by the SGC as a tab-separated file:
 TEPURL = 'https://www.thesgc.org/sites/default/files/fileuploads/available-teps.tsv'
@@ -39,7 +38,7 @@ def main(outputFile: str) -> None:
         .getOrCreate()
     )
 
-    spark.sparkContext.addFile("https://www.thesgc.org/sites/default/files/fileuploads/available-teps.tsv")
+    spark.sparkContext.addFile(TEPURL)
 
     # Fetching and processing the TEP table and saved as a JSON file:
     TEP_df = (
