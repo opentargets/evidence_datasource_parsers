@@ -5,14 +5,12 @@ import argparse
 import logging
 import sys
 
+from common.evidence import detect_spark_memory_limit, write_evidence_strings
+from pyspark import SparkFiles
 from pyspark.conf import SparkConf
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import explode, col, concat, lit, lower, regexp_replace, split
-from pyspark import SparkFiles
-
-from common.evidence import detect_spark_memory_limit, write_evidence_strings
-
-
+from pyspark.sql.functions import (col, concat, explode, lit, lower,
+                                   regexp_replace, split)
 
 # The TEP dataset is made available by the SGC as a tab-separated file:
 TEPURL = 'https://www.thesgc.org/sites/default/files/fileuploads/available-teps.tsv'
@@ -42,7 +40,8 @@ def main(outputFile: str) -> None:
 
     # Fetching and processing the TEP table and saved as a JSON file:
     TEP_df = (
-        spark.read.csv(SparkFiles.get(TEPURL.split('/')[-1]), sep='\t', header=True)
+        spark.read.csv(SparkFiles.get(
+            TEPURL.split('/')[-1]), sep='\t', header=True)
 
         # Generating TEP url from Gene column: SLC12A4/SLC12A6 -> https://www.thesgc.org/tep/SLC12A4SLC12A6
         .withColumn('url', concat(lit('https://www.thesgc.org/tep/'), regexp_replace(lower(col('Gene')), '/', '')))
@@ -61,7 +60,8 @@ def main(outputFile: str) -> None:
 
     logging.info('TEP dataset has been downloaded and formatted.')
     logging.info(f'Number of TEPs: {TEP_df.count()}')
-    logging.info(f'Number of unique genes: {TEP_df.select("targetFromSourceId").distinct().count()}')
+    logging.info(
+        f'Number of unique genes: {TEP_df.select("targetFromSourceId").distinct().count()}')
 
     # Saving data:
     write_evidence_strings(TEP_df, outputFile)
@@ -71,9 +71,12 @@ def main(outputFile: str) -> None:
 if __name__ == '__main__':
 
     # Reading output file name from the command line:
-    parser = argparse.ArgumentParser(description='This script fetches TEP data from Structural Genomics Consortium.')
-    parser.add_argument('--output_file', '-o', type=str, help='Output file. gzipped JSON', required=True)
-    parser.add_argument('--log_file', type=str, help='File into which the logs are saved', required=False)
+    parser = argparse.ArgumentParser(
+        description='This script fetches TEP data from Structural Genomics Consortium.')
+    parser.add_argument('--output_file', '-o', type=str,
+                        help='Output file. gzipped JSON', required=True)
+    parser.add_argument('--log_file', type=str,
+                        help='File into which the logs are saved', required=False)
     args = parser.parse_args()
 
     # If no logfile is specified, logs are written to the standard error:
