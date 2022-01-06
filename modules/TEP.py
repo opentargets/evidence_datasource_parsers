@@ -31,7 +31,6 @@ def main(outputFile: str) -> None:
     spark = (
         SparkSession.builder
         .config(conf=spark_conf)
-        .config("spark.sql.broadcastTimeout", "36000")
         .master('local[*]')
         .getOrCreate()
     )
