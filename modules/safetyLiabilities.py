@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 """This script pulls together data from different sources that describe target safety liabilities."""
 
-import argparse
 import logging
 import sys
 
@@ -90,10 +89,8 @@ def initialize_logger(logFile=None):
 
 
 if __name__ == '__main__':
-    args = get_parser().parse_args()
-    initialize_logger(args.logFile)
-
     global spark
     spark = initialize_spark()
+    initialize_logger()
 
     fire.Fire(main)
