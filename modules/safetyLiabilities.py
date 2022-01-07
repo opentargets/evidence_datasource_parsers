@@ -9,19 +9,9 @@ from pyspark.conf import SparkConf
 from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.types import DoubleType, StringType, IntegerType
-from pyspark.sql.functions import (
-    col,
-    lit,
-    udf,
-    when,
-    explode_outer,
-    substring,
-    array,
-    regexp_extract,
-    concat_ws,
-)
+from pyspark.sql.functions import F
 
-from common.evidence import detect_spark_memory_limit
+from common.evidence import detect_spark_memory_limit, write_evidence_strings
 
 
 def main(adverse_events: str, safety_risk: str, toxcast: str, output:str, log_file:str):
@@ -41,29 +31,189 @@ def main(adverse_events: str, safety_risk: str, toxcast: str, output:str, log_fi
     initialize_logger(log_file)
 
     # Load and process the input files into dataframes
-    adverse_events_df = process_adverse_events(adverse_events)
-    safety_risk_df = process_safety_risk(safety_risk)
+    ae_df = process_adverse_events(adverse_events)
+    sr_df = process_safety_risk(safety_risk)
     toxcast_df = process_toxcast(toxcast)
+
+    # Combine dfs and group evidence
+    safety_df = union_different_schemas([ae_df, sr_df, toxcast_df])
 
     # Write output
     logging.info('Evidence strings have been processed. Saving...')
-    print('Output')
-    pass
+    write_evidence_strings(safety_df, output)
+    logging.info(
+        f'{safety_df.count()} evidence of safety liabilities have been saved to {output}. Exiting.'
+    )
 
 def process_adverse_events(adverse_events: str) -> DataFrame:
-    """Loads and processes the input table containing adverse events associated with targets that have been collected from relevant publications."""
+    """
+    Loads and processes the adverse events inout JSON.
+    
+    Ex. input record:
+        biologicalSystem | gastrointestinal
+        effect           | activation_general
+        efoId            | EFO_0009836
+        ensemblId        | ENSG00000133019
+        pmid             | 23197038
+        ref              | Bowes et al. (2012)
+        symptom          | bronchoconstriction
+        target           | CHRM3
+        uberonCode       | UBERON_0005409
+        url              | null
 
-    pass
+    Ex. output record:
+        id         | ENSG00000133019
+        event      | bronchoconstriction
+        datasource | Bowes et al. (2012)
+        eventId    | EFO_0009836
+        literature | 23197038
+        url        | null
+        biosample  | {gastrointestinal, UBERON_0005409, null, null, null}
+        effects    | [{activation, general}]
+    """
+
+    ae_df = (
+        spark.read.json(adverse_events)
+
+        .select(
+            F.col('ensemblId').alias('id'),
+            F.col('symptom').alias('event'),
+            F.col('efoId').alias('eventId'),
+            F.col('ref').alias('datasource'),
+            F.col('pmid').alias('literature'),
+            'url',
+            F.struct(
+                F.col('biologicalSystem').alias('tissueLabel'),
+                F.col('uberonCode').alias('tissueId'),
+                F.lit(None).alias('cellLabel'),
+                F.lit(None).alias('cellFormat'),
+                F.lit(None).alias('cellId'),
+            ).alias('biosample'),
+            F.split(F.col('effect'), '_').alias('effects')
+        )
+        .withColumn(
+            'effects',
+            F.struct(
+                F.element_at(F.col('effects'), 1).alias('direction'),
+                F.element_at(F.col('effects'), 2).alias('dosing')
+            )
+        )
+    )
+
+    # Multiple dosing effects need to be grouped in the same record.
+    effects_df = (
+        ae_df.groupBy('id', 'event', 'datasource').agg(F.collect_set(F.col("effects")).alias("effects"))
+    )
+    ae_df = ae_df.drop("effects").join(effects_df, on=["id", "event", "datasource"], how="left")
+
+    return ae_df
+    
 
 def process_safety_risk(safety_risk: str) -> DataFrame:
-    """Loads and processes the input table containing cardiovascular safety liabilities associated with targets that have been collected from relevant publications."""
+    """
+    Loads and processes the safety risk information input JSON.
+    
+    Ex. input record:
+        biologicalSystem | cardiovascular sy...
+        ensemblId        | ENSG00000132155
+        event            | heart disease
+        eventId          | EFO_0003777
+        liability        | Important for the...
+        pmid             | 21283106
+        ref              | Force et al. (2011)
+        target           | RAF1
+        uberonId         | UBERON_0004535
 
-    pass
+    Ex. output record:
+        id         | ENSG00000132155
+        event      | heart disease
+        eventId    | EFO_0003777
+        literature | 21283106
+        datasource | Force et al. (2011)
+        biosample  | {cardiovascular s...
+        study      | {Important for th...
+    """
+
+    return (
+        spark.read.json(safety_risk)
+
+        .select(
+            F.col('ensemblId').alias('id'),
+            'event', 'eventId',
+            F.col('pmid').alias('literature'),
+            F.col('ref').alias('datasource'),
+            F.struct(
+                F.col('biologicalSystem').alias('tissueLabel'),
+                F.col('uberonId').alias('tissueId'),
+                F.lit(None).alias('cellLabel'),
+                F.lit(None).alias('cellFormat'),
+                F.lit(None).alias('cellId'),
+            ).alias('biosample'),
+            F.struct(
+                F.col('liability').alias('description'),
+                F.lit(None).alias('name'),
+                F.lit(None).alias('type')
+            ).alias('study')
+        )
+        .withColumn(
+            'event',
+            F.when(F.col('datasource').contains('Force'), 'heart disease')
+            .when(F.col('datasource').contains('Lamore'), 'cardiac arrhythmia')
+        )
+        .withColumn(
+            'eventId',
+            F.when(F.col('datasource').contains('Force'), 'EFO_0003777')
+            .when(F.col('datasource').contains('Lamore'), 'EFO_0004269')
+        )
+    )
 
 def process_toxcast(toxcast: str) -> DataFrame:
-    """Loads and processes the ToxCast input table containing biological processes associated with relevant targets that have been observed in toxicity assays."""
+    """
+    Loads and processes the ToxCast input table.
 
-    pass
+    Ex. input record:
+        assay_component_endpoint_name | ACEA_ER_80hr
+        assay_component_desc          | ACEA_ER_80hr, is ...
+        biological_process_target     | cell proliferation
+        tissue                        | null
+        cell_format                   | cell line
+        cell_short_name               | T47D
+        assay_format_type             | cell-based
+        official_symbol               | ESR1
+        eventId                       | null
+
+    Ex. output record:
+     targetFromSourceId | ESR1
+    event              | cell proliferation
+    eventId            | null
+    biosample          | {null, null, T47D...
+    datasource         | ToxCast
+    url                | https://www.epa.g...
+    study              | {ACEA_ER_80hr, AC...
+    """
+
+    return (
+        spark.read.csv(toxcast, sep='\t', header=True)
+        .select(
+            F.trim(F.col('official_symbol')).alias('targetFromSourceId'),
+            F.col('biological_process_target').alias('event'),
+            'eventId',
+            F.struct(
+                F.col('tissue').alias('tissueLabel'),
+                F.lit(None).alias('tissueId'),
+                F.col('cell_short_name').alias('cellLabel'),
+                F.col('cell_format').alias('cellFormat'),
+                F.lit(None).alias('cellId'),
+            ).alias('biosample'),
+            F.lit('ToxCast').alias('datasource'),
+            F.lit('https://www.epa.gov/chemical-research/exploring-toxcast-data-downloadable-data').alias('url'),
+            F.struct(
+                F.col('assay_component_endpoint_name').alias('name'),
+                F.col('assay_component_desc').alias('description'),
+                F.col('assay_format_type').alias('type')
+            ).alias('study')
+        )
+    )
 
 def initialize_spark():
     """Spins up a Spark session."""
