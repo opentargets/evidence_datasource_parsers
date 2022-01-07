@@ -15,6 +15,7 @@ dependencies:
   - requests=2.25.1
   - retry=0.9.2
   - snakemake==6.0.0
+  - fire==0.4.0
   - pip:
     - ontoma==1.0.1
     - pandarallel==1.5.2
