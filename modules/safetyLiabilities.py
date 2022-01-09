@@ -36,7 +36,18 @@ def main(adverse_events: str, safety_risk: str, toxcast: str, output:str, log_fi
     toxcast_df = process_toxcast(toxcast)
 
     # Combine dfs and group evidence
-    safety_df = union_different_schemas([ae_df, sr_df, toxcast_df])
+    safety_df = (
+        # dfs are combined; unionByName is used instead of union to address for the differences in the schemas
+        ae_df.unionByName(sr_df, allowMissingColumns=True)
+        .unionByName(toxcast_df, allowMissingColumns=True)
+
+        # Group evidence by Ensembl id.
+        .groupBy('id', 'targetFromSourceId', 'datasource', 'event', 'eventId', 'effects', 'literature', 'url')
+        .agg(
+            F.collect_set(F.col('study')).alias('study'),
+            F.collect_set(F.col('biosample')).alias('biosample'),
+        )
+    )
 
     # Write output
     logging.info('Evidence strings have been processed. Saving...')
@@ -44,6 +55,8 @@ def main(adverse_events: str, safety_risk: str, toxcast: str, output:str, log_fi
     logging.info(
         f'{safety_df.count()} evidence of safety liabilities have been saved to {output}. Exiting.'
     )
+
+    return 0
 
 def process_adverse_events(adverse_events: str) -> DataFrame:
     """
