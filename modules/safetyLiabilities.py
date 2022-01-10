@@ -9,7 +9,7 @@ from pyspark import SparkFiles
 from pyspark.conf import SparkConf
 from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
-from pyspark.sql.functions import F
+import pyspark.sql.functions as F
 
 from common.evidence import detect_spark_memory_limit, write_evidence_strings
 
