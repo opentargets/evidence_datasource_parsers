@@ -14,12 +14,20 @@ import pyspark.sql.functions as F
 
 from common.evidence import detect_spark_memory_limit, write_evidence_strings
 
-ADVERSE_EVENTS_URL = 'https://raw.githubusercontent.com/opentargets/curation/il-safety-curation/target_safety/adverse_effects.tsv'
-SAFETY_RISK_INFO = 'https://raw.githubusercontent.com/opentargets/curation/il-safety-curation/target_safety/safety_risks.tsv'
+ADVERSE_EVENTS_URL = (
+    'https://raw.githubusercontent.com/opentargets/curation/il-safety-curation/target_safety/adverse_effects.tsv'
+)
+SAFETY_RISK_INFO = (
+    'https://raw.githubusercontent.com/opentargets/curation/il-safety-curation/target_safety/safety_risks.tsv'
+)
 
 
 def main(
-    toxcast: str, output:str, adverse_events: str = ADVERSE_EVENTS_URL, safety_risk: str = SAFETY_RISK_INFO, log_file: Optional[str] = None
+    toxcast: str,
+    output: str,
+    adverse_events: str = ADVERSE_EVENTS_URL,
+    safety_risk: str = SAFETY_RISK_INFO,
+    log_file: Optional[str] = None,
 ):
     """
     This module puts together data from different sources that describe target safety liabilities.
@@ -51,12 +59,8 @@ def main(
     logging.info('Remote files successfully added to the Spark Context.')
 
     # Load and process the input files into dataframes
-    ae_df = process_adverse_events(
-        SparkFiles.get(ADVERSE_EVENTS_URL.split('/')[-1])
-    )
-    sr_df = process_safety_risk(
-        SparkFiles.get(SAFETY_RISK_INFO.split('/')[-1])
-    )
+    ae_df = process_adverse_events(SparkFiles.get(ADVERSE_EVENTS_URL.split('/')[-1]))
+    sr_df = process_safety_risk(SparkFiles.get(SAFETY_RISK_INFO.split('/')[-1]))
     toxcast_df = process_toxcast(toxcast)
     logging.info('Data has been processed. Merging...')
 
@@ -65,7 +69,6 @@ def main(
         # dfs are combined; unionByName is used instead of union to address for the differences in the schemas
         ae_df.unionByName(sr_df, allowMissingColumns=True)
         .unionByName(toxcast_df, allowMissingColumns=True)
-
         # Group evidence by unique fields
         .groupBy('id', 'targetFromSourceId', 'datasource', 'event', 'eventId', 'effects', 'literature', 'url')
         .agg(
@@ -77,16 +80,15 @@ def main(
     # Write output
     logging.info('Evidence strings have been processed. Saving...')
     write_evidence_strings(safety_df, output)
-    logging.info(
-        f'{safety_df.count()} evidence of safety liabilities have been saved to {output}. Exiting.'
-    )
+    logging.info(f'{safety_df.count()} evidence of safety liabilities have been saved to {output}. Exiting.')
 
     return 0
+
 
 def process_adverse_events(adverse_events: str) -> DataFrame:
     """
     Loads and processes the adverse events input TSV.
-    
+
     Ex. input record:
         biologicalSystem | gastrointestinal
         effect           | activation_general
@@ -112,7 +114,6 @@ def process_adverse_events(adverse_events: str) -> DataFrame:
 
     ae_df = (
         spark.read.csv(adverse_events, sep='\t', header=True)
-
         .select(
             F.col('ensemblId').alias('id'),
             F.col('symptom').alias('event'),
@@ -127,30 +128,27 @@ def process_adverse_events(adverse_events: str) -> DataFrame:
                 F.lit(None).alias('cellFormat'),
                 F.lit(None).alias('cellId'),
             ).alias('biosample'),
-            F.split(F.col('effect'), '_').alias('effects')
+            F.split(F.col('effect'), '_').alias('effects'),
         )
         .withColumn(
             'effects',
             F.struct(
-                F.element_at(F.col('effects'), 1).alias('direction'),
-                F.element_at(F.col('effects'), 2).alias('dosing')
-            )
+                F.element_at(F.col('effects'), 1).alias('direction'), F.element_at(F.col('effects'), 2).alias('dosing')
+            ),
         )
     )
 
     # Multiple dosing effects need to be grouped in the same record.
-    effects_df = (
-        ae_df.groupBy('id', 'event', 'datasource').agg(F.collect_set(F.col("effects")).alias("effects"))
-    )
+    effects_df = ae_df.groupBy('id', 'event', 'datasource').agg(F.collect_set(F.col("effects")).alias("effects"))
     ae_df = ae_df.drop("effects").join(effects_df, on=["id", "event", "datasource"], how="left")
 
     return ae_df
-    
+
 
 def process_safety_risk(safety_risk: str) -> DataFrame:
     """
     Loads and processes the safety risk information input TSV.
-    
+
     Ex. input record:
         biologicalSystem | cardiovascular sy...
         ensemblId        | ENSG00000132155
@@ -174,10 +172,10 @@ def process_safety_risk(safety_risk: str) -> DataFrame:
 
     return (
         spark.read.csv(safety_risk, sep='\t', header=True)
-
         .select(
             F.col('ensemblId').alias('id'),
-            'event', 'eventId',
+            'event',
+            'eventId',
             F.col('pmid').alias('literature'),
             F.col('ref').alias('datasource'),
             F.struct(
@@ -188,22 +186,23 @@ def process_safety_risk(safety_risk: str) -> DataFrame:
                 F.lit(None).alias('cellId'),
             ).alias('biosample'),
             F.struct(
-                F.col('liability').alias('description'),
-                F.lit(None).alias('name'),
-                F.lit(None).alias('type')
-            ).alias('study')
+                F.col('liability').alias('description'), F.lit(None).alias('name'), F.lit(None).alias('type')
+            ).alias('study'),
         )
         .withColumn(
             'event',
-            F.when(F.col('datasource').contains('Force'), 'heart disease')
-            .when(F.col('datasource').contains('Lamore'), 'cardiac arrhythmia')
+            F.when(F.col('datasource').contains('Force'), 'heart disease').when(
+                F.col('datasource').contains('Lamore'), 'cardiac arrhythmia'
+            ),
         )
         .withColumn(
             'eventId',
-            F.when(F.col('datasource').contains('Force'), 'EFO_0003777')
-            .when(F.col('datasource').contains('Lamore'), 'EFO_0004269')
+            F.when(F.col('datasource').contains('Force'), 'EFO_0003777').when(
+                F.col('datasource').contains('Lamore'), 'EFO_0004269'
+            ),
         )
     )
+
 
 def process_toxcast(toxcast: str) -> DataFrame:
     """
@@ -230,28 +229,26 @@ def process_toxcast(toxcast: str) -> DataFrame:
     study              | {ACEA_ER_80hr, AC...
     """
 
-    return (
-        spark.read.csv(toxcast, sep='\t', header=True)
-        .select(
-            F.trim(F.col('official_symbol')).alias('targetFromSourceId'),
-            F.col('biological_process_target').alias('event'),
-            'eventId',
-            F.struct(
-                F.col('tissue').alias('tissueLabel'),
-                F.lit(None).alias('tissueId'),
-                F.col('cell_short_name').alias('cellLabel'),
-                F.col('cell_format').alias('cellFormat'),
-                F.lit(None).alias('cellId'),
-            ).alias('biosample'),
-            F.lit('ToxCast').alias('datasource'),
-            F.lit('https://www.epa.gov/chemical-research/exploring-toxcast-data-downloadable-data').alias('url'),
-            F.struct(
-                F.col('assay_component_endpoint_name').alias('name'),
-                F.col('assay_component_desc').alias('description'),
-                F.col('assay_format_type').alias('type')
-            ).alias('study')
-        )
+    return spark.read.csv(toxcast, sep='\t', header=True).select(
+        F.trim(F.col('official_symbol')).alias('targetFromSourceId'),
+        F.col('biological_process_target').alias('event'),
+        'eventId',
+        F.struct(
+            F.col('tissue').alias('tissueLabel'),
+            F.lit(None).alias('tissueId'),
+            F.col('cell_short_name').alias('cellLabel'),
+            F.col('cell_format').alias('cellFormat'),
+            F.lit(None).alias('cellId'),
+        ).alias('biosample'),
+        F.lit('ToxCast').alias('datasource'),
+        F.lit('https://www.epa.gov/chemical-research/exploring-toxcast-data-downloadable-data').alias('url'),
+        F.struct(
+            F.col('assay_component_endpoint_name').alias('name'),
+            F.col('assay_component_desc').alias('description'),
+            F.col('assay_format_type').alias('type'),
+        ).alias('study'),
     )
+
 
 def initialize_spark():
     """Spins up a Spark session."""
@@ -266,15 +263,11 @@ def initialize_spark():
         .set('spark.debug.maxToStringFields', '2000')
         .set('spark.sql.execution.arrow.maxRecordsPerBatch', '500000')
     )
-    spark = (
-        SparkSession.builder
-        .config(conf=spark_conf)
-        .master('local[*]')
-        .getOrCreate()
-    )
+    spark = SparkSession.builder.config(conf=spark_conf).master('local[*]').getOrCreate()
     logging.info(f'Spark version: {spark.version}')
 
     return spark
+
 
 if __name__ == '__main__':
     fire.Fire(main)
