@@ -180,5 +180,9 @@ venv.bak/
 !.vscode/extensions.json
 .history
 
+# Data explorations
+exploration/stopReasons/model
+exploration/stopReasons/data
+exploration/stopReasons/__pycache__
 
 # End of https://www.gitignore.io/api/python,pycharm,visualstudiocode
