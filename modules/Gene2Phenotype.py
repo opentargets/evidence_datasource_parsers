@@ -13,18 +13,14 @@ from pyspark.sql.types import IntegerType, StringType, StructType, TimestampType
 from common.ontology import add_efo_mapping
 from common.evidence import detect_spark_memory_limit, write_evidence_strings
 
+
 G2P_mutationCsq2functionalCsq = {
-    'loss of function': 'SO_0002054',  # loss_of_function_variant
-    'all missense/in frame': 'SO_0001650',  # inframe_variant
     'uncertain': 'SO_0002220',  # function_uncertain_variant
-    'activating': 'SO_0002053',  # gain_of_function_variant
-    'dominant negative': 'SO_0002052',  # dominant_negative_variant
-    '': None,
-    'gain of function': 'SO_0002053',  # gain_of_function_variant
-    'cis-regulatory or promotor mutation': 'SO_0001566',  # regulatory_region_variant
+    'absent gene product': 'SO_0002317',  # absent_gene_product
+    'altered gene product structure': 'SO_0002318',  # altered_gene_product_structure
     '5_prime or 3_prime UTR mutation': 'SO_0001622',  # UTR_variant
-    'increased gene dosage': 'SO_0001911',  # copy_number_increase
-    'part of contiguous gene duplication': 'SO_1000173'  # tandem_duplication
+    'increased gene product level': 'SO_0002315',  # increased_gene_product_level
+    'cis-regulatory or promotor mutation': 'SO_0001566',  # regulatory_region_variant
 }
 
 
@@ -33,6 +29,7 @@ def main(
 ) -> None:
 
     # Initialize spark session
+    global spark
     spark_mem_limit = detect_spark_memory_limit()
     spark_conf = (
         SparkConf()
@@ -52,12 +49,12 @@ def main(
 
     # Read and process G2P's tables into evidence strings
     gene2phenotype_df = read_input_file(
-        dd_file, eye_file, skin_file, cancer_file, spark_instance=spark)
+        dd_file, eye_file, skin_file, cancer_file)
     logging.info('Gene2Phenotype panels have been imported. Processing evidence strings.')
 
     evidence_df = process_gene2phenotype(gene2phenotype_df)
 
-    evidence_df = add_efo_mapping(evidence_strings=evidence_df, spark_instance=spark, ontoma_cache_dir=cache_dir)
+    evidence_df = add_efo_mapping(evidence_strings=evidence_df, ontoma_cache_dir=cache_dir, spark_instance=spark)
     logging.info('Disease mappings have been added.')
 
     # Saving data:
@@ -65,7 +62,7 @@ def main(
     logging.info(f'{evidence_df.count()} evidence strings have been saved to {output_file}')
 
 def read_input_file(
-    dd_file: str, eye_file: str, skin_file: str, cancer_file: str, spark_instance
+    dd_file: str, eye_file: str, skin_file: str, cancer_file: str
 ) -> DataFrame:
     '''
     Reads G2P's panel CSV files into a Spark DataFrame forcing the schema
@@ -77,7 +74,7 @@ def read_input_file(
         .add('gene mim', IntegerType())
         .add('disease name', StringType())
         .add('disease mim', StringType())
-        .add('DDD category', StringType())
+        .add('confidence category', StringType())
         .add('allelic requirement', StringType())
         .add('mutation consequence', StringType())
         .add('phenotypes', StringType())
@@ -87,10 +84,12 @@ def read_input_file(
         .add('prev symbols', StringType())
         .add('hgnc id', IntegerType())
         .add('gene disease pair entry date', TimestampType())
+        .add('cross cutting modifier', StringType())
+        .add('mutation consequence flag', StringType())
     )
 
     return (
-        spark_instance.read.csv(
+        spark.read.csv(
             [dd_file, eye_file, skin_file, cancer_file], schema=gene2phenotype_schema, enforceSchema=True, header=True
         )
     )
@@ -116,7 +115,7 @@ def process_gene2phenotype(gene2phenotype_df: DataFrame) -> DataFrame:
         .withColumnRenamed('gene symbol', 'targetFromSourceId')
         .withColumnRenamed('disease name', 'diseaseFromSource')
         .withColumnRenamed('panel', 'studyId')
-        .withColumnRenamed('DDD category', 'confidence')
+        .withColumnRenamed('confidence category', 'confidence')
         .withColumn(
             'allelicRequirements',
             when(
@@ -165,17 +164,17 @@ if __name__ == "__main__":
         description='Parse Gene2Phenotype gene-disease files downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads/')
     parser.add_argument('-d', '--dd_panel',
                         help='DD panel file downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads',
-                        type=str)
+                        required=True, type=str)
     parser.add_argument('-e', '--eye_panel',
                         help='Eye panel file downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads',
-                        type=str)
+                        required=True, type=str)
     parser.add_argument('-s', '--skin_panel',
                         help='Skin panel file downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads',
-                        type=str)
+                        required=True, type=str)
     parser.add_argument('-c', '--cancer_panel',
                         help='Cancer panel file downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads',
-                        type=str)
-    parser.add_argument('-o', '--output_file', help='Absolute path of the gzipped, JSON evidence file.', type=str)
+                        required=True, type=str)
+    parser.add_argument('-o', '--output_file', help='Absolute path of the gzipped, JSON evidence file.', required=True, type=str)
     parser.add_argument('-l', '--log_file', help='Filename to store the parser logs.', type=str)
     parser.add_argument('--cache_dir', required=False, help='Directory to store the OnToma cache files in.')
     parser.add_argument(
