@@ -5,12 +5,14 @@ import argparse
 import logging
 import sys
 
-from common.evidence import detect_spark_memory_limit, write_evidence_strings
 from pyspark import SparkFiles
 from pyspark.conf import SparkConf
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import (col, concat, explode, lit, lower,
                                    regexp_replace, split)
+
+from common.evidence import detect_spark_memory_limit, write_evidence_strings
+
 
 # The TEP dataset is made available by the SGC as a tab-separated file:
 TEPURL = 'https://www.thesgc.org/sites/default/files/fileuploads/available-teps.tsv'
