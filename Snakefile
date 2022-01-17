@@ -31,6 +31,7 @@ rule all:
         GS.remote(f"{config['SLAPEnrich']['outputBucket']}/slapenrich-{timeStamp}.json.gz"),
         GS.remote(f"{config['SysBio']['outputBucket']}/sysbio-{timeStamp}.json.gz"),
         GS.remote(f"{config['TEP']['outputBucket']}/tep-{timeStamp}.json.gz")
+        GS.remote(f"{config['TargetSafety']['outputBucket']}/safetyLiabilities-{timeStamp}.json.gz")
 
 # --- Auxiliary Rules --- #
 ## help                     : prints help comments for Snakefile
@@ -353,4 +354,19 @@ rule TargetEnablingPackages:
         python modules/TEP.py  \
           --output_file {output}
         opentargets_validator --schema {params.schema} {output}
+        """
+
+## Target Safety        : processes data from different sources that describe target safety liabilities
+rule TargetSafety:
+    input:
+        toxcast = GS.remote(config['TargetSafety']['toxcast'])
+    output:
+        GS.remote(f"{config['TargetSafety']['outputBucket']}/safetyLiabilities-{timeStamp}.json.gz")
+    log:
+        GS.remote(logFile)
+    shell:
+        """
+        python modules/TargetSafety.py  \
+            --toxcast {input.toxcast} \
+            --output {output}
         """
