@@ -15,10 +15,10 @@ import pyspark.sql.functions as F
 from common.evidence import detect_spark_memory_limit, write_evidence_strings
 
 ADVERSE_EVENTS_URL = (
-    'https://raw.githubusercontent.com/opentargets/curation/il-safety-curation/target_safety/adverse_effects.tsv'
+    'https://raw.githubusercontent.com/opentargets/curation/master/target_safety/adverse_effects.tsv'
 )
 SAFETY_RISK_INFO = (
-    'https://raw.githubusercontent.com/opentargets/curation/il-safety-curation/target_safety/safety_risks.tsv'
+    'https://raw.githubusercontent.com/opentargets/curation/master/target_safety/safety_risks.tsv'
 )
 
 
