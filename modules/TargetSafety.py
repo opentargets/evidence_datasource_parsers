@@ -69,12 +69,6 @@ def main(
         # dfs are combined; unionByName is used instead of union to address for the differences in the schemas
         ae_df.unionByName(sr_df, allowMissingColumns=True)
         .unionByName(toxcast_df, allowMissingColumns=True)
-        # Group evidence by unique fields
-        .groupBy('id', 'targetFromSourceId', 'datasource', 'event', 'eventId', 'effects', 'literature', 'url')
-        .agg(
-            F.collect_set(F.col('study')).alias('study'),
-            F.collect_set(F.col('biosample')).alias('biosample'),
-        )
     )
 
     # Write output
