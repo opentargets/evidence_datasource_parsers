@@ -182,7 +182,8 @@ venv.bak/
 
 # Data explorations
 exploration/stopReasons/model
-exploration/stopReasons/data
+exploration/stopReasons/data/*.json.gz
+exploration/stopReasons/data/studies.tsv
 exploration/stopReasons/__pycache__
 
 # End of https://www.gitignore.io/api/python,pycharm,visualstudiocode
