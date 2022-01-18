@@ -360,6 +360,8 @@ rule TargetEnablingPackages:
 rule TargetSafety:
     input:
         toxcast = GS.remote(config['TargetSafety']['toxcast'])
+    params:
+        schema = f"{config['global']['schema']}/opentargets_target_safety.json"
     output:
         GS.remote(f"{config['TargetSafety']['outputBucket']}/safetyLiabilities-{timeStamp}.json.gz")
     log:
@@ -369,4 +371,5 @@ rule TargetSafety:
         python modules/TargetSafety.py  \
             --toxcast {input.toxcast} \
             --output {output}
+        opentargets_validator --schema {params.schema} {output}
         """
