@@ -56,3 +56,8 @@ SysBio:
   outputBucket: gs://otar000-evidence_input/SysBio/json
 TEP:
   outputBucket: gs://otar001-core/TEPs
+TargetSafety:
+  adverseEvents: 'https://raw.githubusercontent.com/opentargets/curation/master/target_safety/adverse_effects.tsv'
+  safetyRisk: 'https://raw.githubusercontent.com/opentargets/curation/master/target_safety/safety_risks.tsv'
+  toxcast: gs://otar001-core/TargetSafety/data_files/toxcast/ToxCast_2021-08-17.tsv
+  outputBucket: gs://otar001-core/TargetSafety/json
