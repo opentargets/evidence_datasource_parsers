@@ -14,19 +14,12 @@ import pyspark.sql.functions as F
 
 from common.evidence import detect_spark_memory_limit, write_evidence_strings
 
-ADVERSE_EVENTS_URL = (
-    'https://raw.githubusercontent.com/opentargets/curation/master/target_safety/adverse_effects.tsv'
-)
-SAFETY_RISK_INFO = (
-    'https://raw.githubusercontent.com/opentargets/curation/master/target_safety/safety_risks.tsv'
-)
-
 
 def main(
     toxcast: str,
     output: str,
-    adverse_events: str = ADVERSE_EVENTS_URL,
-    safety_risk: str = SAFETY_RISK_INFO,
+    adverse_events: str,
+    safety_risk: str,
     log_file: Optional[str] = None,
 ):
     """
@@ -59,8 +52,8 @@ def main(
     logging.info('Remote files successfully added to the Spark Context.')
 
     # Load and process the input files into dataframes
-    ae_df = process_adverse_events(SparkFiles.get(ADVERSE_EVENTS_URL.split('/')[-1]))
-    sr_df = process_safety_risk(SparkFiles.get(SAFETY_RISK_INFO.split('/')[-1]))
+    ae_df = process_adverse_events(SparkFiles.get(adverse_events.split('/')[-1]))
+    sr_df = process_safety_risk(SparkFiles.get(safety_risk.split('/')[-1]))
     toxcast_df = process_toxcast(toxcast)
     logging.info('Data has been processed. Merging...')
 
@@ -274,12 +267,12 @@ def get_parser():
     )
     parser.add_argument(
         '--adverse_events',
-        help='Input TSV containing adverse events associated with targets that have been collected from relevant publications. Fetched from GitHub..',
+        help='Input TSV containing adverse events associated with targets that have been collected from relevant publications. Fetched from https://raw.githubusercontent.com/opentargets/curation/master/target_safety/adverse_effects.tsv.',
         type=str,
         required=True,
     )
     parser.add_argument(
-        '--safety_risk', help='Input TSV containing cardiovascular safety liabilities associated with targets that have been collected from relevant publications. Fetched from GitHub.', type=str, required=True
+        '--safety_risk', help='Input TSV containing cardiovascular safety liabilities associated with targets that have been collected from relevant publications. Fetched from https://raw.githubusercontent.com/opentargets/curation/master/target_safety/safety_risks.tsv.', type=str, required=True
     )
     parser.add_argument(
         '--output', help='Output gzipped json file following the target safety liabilities data model.', type=str, required=True
