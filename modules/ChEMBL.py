@@ -5,13 +5,14 @@ import argparse
 import logging
 import sys
 
+import pyspark.sql.functions as F
 from pyspark.conf import SparkConf
 from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
-import pyspark.sql.functions as F
-from pyspark.sql.types import StringType, ArrayType
+from pyspark.sql.types import ArrayType, StringType
 
 from common.evidence import detect_spark_memory_limit, write_evidence_strings
+
 
 def main(chembl_evidence: str, predictions: str, output_file:str, log_file:str) -> None:
     """
@@ -54,7 +55,7 @@ def main(chembl_evidence: str, predictions: str, output_file:str, log_file:str) 
     total_count = evd_df.count()
     early_stopped_count = evd_df.filter(F.col('studyStopReasonCategories').isNotNull()).count()
 
-    if not 0.09 < early_stopped_count / total_count < 0.11:
+    if not 0.08 < early_stopped_count / total_count < 0.11:
         raise AssertionError (f'The fraction of evidence with a CT reason to stop class is not as expected ({early_stopped_count / total_count}).')
 
     # Write output
@@ -142,5 +143,6 @@ if __name__ == '__main__':
     main(
         chembl_evidence=args.chembl_evidence,
         predictions=args.predictions,
-        output_file=args.output
+        output_file=args.output,
+        log_file=args.log_file
     )
