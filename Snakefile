@@ -1,5 +1,4 @@
 from datetime import datetime
-from distutils.command.config import config
 from snakemake.remote.GS import RemoteProvider as GSRemoteProvider
 from snakemake.remote.HTTP import RemoteProvider as HTTPRemoteProvider
 
@@ -18,6 +17,7 @@ logFile = f"{config['global']['logDir']}/evidence_parser-{timeStamp}.log"
 rule all:
     input:
         GS.remote(f"{config['cancerBiomarkers']['outputBucket']}/cancer_biomarkers-{timeStamp}.json.gz"),
+        GS.remote(f"{config['ChEMBL']['outputBucket']}/chembl-{timeStamp}.json.gz"),
         GS.remote(f"{config['ClinGen']['outputBucket']}/clingen-{timeStamp}.json.gz"),
         GS.remote(f"{config['CRISPR']['outputBucket']}/crispr-{timeStamp}.json.gz"),
         GS.remote(f"{config['EPMC']['outputBucket']}/epmc-{timeStamp}.json.gz"),
@@ -90,7 +90,6 @@ rule chembl:
             --chembl_evidence {input.evidenceFile} \
             --predictions {input.stopReasonCategories} \
             --output {output.evidenceFile}
-        opentargets_validator --schema {params.schema} {output.evidenceFile}
         """
 
 ## clingen                  : processes the Gene Validity Curations table from ClinGen
