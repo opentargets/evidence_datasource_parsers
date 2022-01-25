@@ -79,7 +79,7 @@ rule chembl:
         evidenceFile = GS.remote(config['ChEMBL']['evidence']),
         stopReasonCategories = GS.remote(config['ChEMBL']['stopReasonCategories'])
     params:
-        schema = f"{config['global']['schema']}/opentargets.json"
+        schema = "https://raw.githubusercontent.com/opentargets/json_schema/il-update-chembl/opentargets.json"
     output:
         evidenceFile = GS.remote(f"{config['ChEMBL']['outputBucket']}/chembl-{timeStamp}.json.gz")
     log:
@@ -90,6 +90,7 @@ rule chembl:
             --chembl_evidence {input.evidenceFile} \
             --predictions {input.stopReasonCategories} \
             --output {output.evidenceFile}
+        opentargets_validator --schema {params.schema} {output}
         """
 
 ## clingen                  : processes the Gene Validity Curations table from ClinGen
