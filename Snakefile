@@ -83,7 +83,7 @@ rule chembl:
     output:
         evidenceFile = GS.remote(f"{config['ChEMBL']['outputBucket']}/chembl-{timeStamp}.json.gz")
     log:
-        GS.remote(logFile)
+        GS.remote(f"{logFile}-chembl.log")
     shell:
         """
         python modules/ChEMBL.py  \
