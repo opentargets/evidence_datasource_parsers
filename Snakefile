@@ -1,4 +1,5 @@
 from datetime import datetime
+from distutils.command.config import config
 from snakemake.remote.GS import RemoteProvider as GSRemoteProvider
 from snakemake.remote.HTTP import RemoteProvider as HTTPRemoteProvider
 
@@ -70,6 +71,26 @@ rule cancerBiomarkers:
           --drug_index {params.drug_index} \
           --output_file {output}
         opentargets_validator --schema {params.schema} {output}
+        """
+
+## chembl                   : adds the category of why a clinical trial has stopped early to the ChEMBL evidence
+rule chembl:
+    input:
+        evidenceFile = GS.remote(config['ChEMBL']['evidence']),
+        stopReasonCategories = GS.remote(config['ChEMBL']['stopReasonCategories'])
+    params:
+        schema = f"{config['global']['schema']}/opentargets.json"
+    output:
+        evidenceFile = GS.remote(f"{config['ChEMBL']['outputBucket']}/chembl-{timeStamp}.json.gz")
+    log:
+        GS.remote(logFile)
+    shell:
+        """
+        python modules/ChEMBL.py  \
+            --chembl_evidence {input.evidenceFile} \
+            --predictions {input.stopReasonCategories} \
+            --output {output.evidenceFile}
+        opentargets_validator --schema {params.schema} {output.evidenceFile}
         """
 
 ## clingen                  : processes the Gene Validity Curations table from ClinGen
@@ -340,6 +361,7 @@ rule sysbio:
         opentargets_validator --schema {params.schema} {output.evidenceFile}
         """
 
+
 # --- Target annotation data sources parsers --- #
 ## TEP                    : Fetching Target Enabling Packages (TEP) data from Structural Genomics Consortium
 rule TargetEnablingPackages:
@@ -377,4 +399,3 @@ rule TargetSafety:
             --output {output}
         opentargets_validator --schema {params.schema} {output}
         """
-
