@@ -1,0 +1,20 @@
+{
+    "experiments": [
+        {
+            "diseaseFromSourceMappedId": "EFO_0005842",
+            "diseaseFromSource": "colorectal cancer",
+            "confidenceCutoff": 38,
+            "cellLineFile": "COlines.txt",
+            "experimentData": "CTG_CO_Partner-Preview-Matrix_v6a.txt",
+            "contrast": "Loss of cell viability vs control",
+            "studyOverview": "CellTtreGio measurement",
+            "projectId": "OTAR015",
+            "projectDescription": "CRISPR Cas9 Target ID"
+        }
+    ],
+    "sharedParemeters": {
+        "cellPassportFile": "model_list_20211124.csv",
+        "datasourceId": "ot_crispr_validation",
+        "datatypeId": "ot_validation_lab"
+    }
+}
