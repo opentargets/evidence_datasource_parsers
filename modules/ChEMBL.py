@@ -14,6 +14,7 @@ from pyspark.sql.types import ArrayType, StringType
 from common.evidence import detect_spark_memory_limit, write_evidence_strings
 
 
+
 def main(chembl_evidence: str, predictions: str, output_file:str) -> None:
     """
     This module adds the studyStopReasonCategories to the ChEMBL evidence as a result of the categorisation of the clinical trial reason to stop.
@@ -28,7 +29,12 @@ def main(chembl_evidence: str, predictions: str, output_file:str) -> None:
 
     # Load input into dataframes
     chembl_df = spark.read.json(chembl_evidence)
-    predictions_df = load_stop_reasons_classes(predictions)
+    predictions_df = (
+        load_stop_reasons_classes(predictions)
+        
+    )
+
+
 
     # Join datasets
     evd_df = (
@@ -56,6 +62,48 @@ def main(chembl_evidence: str, predictions: str, output_file:str) -> None:
         f'{total_count} evidence strings have been saved to {output_file}. Exiting.'
     )
 
+def load_stop_reasons_classes(predictions: str) -> DataFrame:
+    """
+    Loads TSV file with predictions of the reasons to stop and their assigned category.
+    List of categories must be converted to an array format and formatted with a nice name.
+    """
+
+    CATEGORIESMAPPINGS   = {
+    'Business_Administrative': 'Business or administrative',
+    'Logistics_Resources': 'Logistics or resources',
+    'Covid19': 'COVID-19',
+    'Safety_Sideeffects': 'Safety or side effects',
+    'Endpoint_Met': 'Met endpoint',
+    'Insufficient_Enrollment': 'Insufficient enrollment',
+    'Negative': 'Negative',
+    'Study_Design': 'Study design',
+    'Invalid_Reason': 'Invalid reason',
+    'Study_Staff_Moved': 'Study staff moved',
+    'Another_Study': 'Another study',
+    'No_Context': 'No context',
+    'Regulatory': 'Regulatory',
+    'Interim_Analysis': 'Interim analysis',
+    'Success': 'Success',
+    'Ethical_Reason': 'Ethical reason',
+    'Insufficient_Data': 'Insufficient data',
+    }
+
+    schema = ArrayType(StringType())
+    sub_mapping_col = F.map_from_entries(F.array(*[F.struct(F.lit(k), F.lit(v)) for k, v in CATEGORIESMAPPINGS.items()]))
+
+    return (
+        spark.read.csv(predictions, sep='\t', header=True)
+
+        # Lists are represented as strings. They must be converted
+        .withColumn("subclasses", F.from_json(F.regexp_replace(F.col('subclasses'), "(u')", "'"), schema=schema))
+        .withColumn("superclasses", F.from_json(F.regexp_replace(F.col('superclasses'), "(u')", "'"), schema=schema))
+        
+        # Create a MapType column to convert each element of the subclasses array
+        .withColumn("subMappings", sub_mapping_col)
+        .withColumn('subclasses', F.expr('transform(subclasses, x -> element_at(subMappings, x))'))
+        .drop('subMappings')
+    )
+
 def initialize_spark():
     """Spins up a Spark session."""
 
@@ -78,19 +126,6 @@ def initialize_spark():
     logging.info(f'Spark version: {spark.version}')
 
     return spark
-
-def load_stop_reasons_classes(predictions: str) -> DataFrame:
-    """Loads TSV file with predictions of the reasons to stop and their assigned category."""
-
-    schema = ArrayType(StringType())
-
-    return (
-        spark.read.csv(predictions, sep='\t', header=True)
-
-        # Lists are represented as strings. They must be converted
-        .withColumn("subclasses", F.from_json(F.regexp_replace(F.col('subclasses'), "(u')", "'"), schema=schema))
-        .withColumn("superclasses", F.from_json(F.regexp_replace(F.col('superclasses'), "(u')", "'"), schema=schema))
-    )
 
 def get_parser():
     """Get parser object for script ChEMBL.py."""
