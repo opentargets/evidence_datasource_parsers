@@ -9,7 +9,8 @@
             "contrast": "Loss of cell viability vs control",
             "studyOverview": "CellTtreGio measurement",
             "projectId": "OTAR015",
-            "projectDescription": "CRISPR Cas9 Target ID"
+            "projectDescription": "CRISPR Cas9 Target ID",
+            "hypothesisFile": "mock_hypothesis.tsv"
         }
     ],
     "sharedParemeters": {

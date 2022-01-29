@@ -9,7 +9,7 @@ from functools import reduce
 
 from pyspark.conf import SparkConf
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import array, col, lit, struct, udf, when
+from pyspark.sql.functions import array, col, lit, struct, udf, when, collect_list
 from pyspark.sql.types import StringType, StructType, StructField
 from pyspark.sql.dataframe import DataFrame
 
@@ -68,6 +68,19 @@ BIOMARKERMAPS = {
     }
 }
 
+
+@ udf(StructType([
+    StructField("hypothesis", StringType(), False),
+    StructField("description", StringType(), False)
+]))
+def parse_hypothesis(biomarker: str, biomarker_status: str, hypothesis: str) -> dict:
+    """This function parses the fields provided by the validation lab and returns with the hypothesis object."""
+
+    # This is a spacer at the moment, and we just return the biomarker and the description:
+    return {
+        'hypothesis': f'{biomarker}-{biomarker_status}',
+        'description': hypothesis
+    }
 
 @ udf(StructType([
     StructField("name", StringType(), False),
@@ -190,6 +203,7 @@ def parse_experiment(spark: SparkSession, parameters: dict, cellPassportDf: Data
     diseaseFromSourceMapId = parameters['diseaseFromSourceMappedId']
     confidenceCutoff = parameters['confidenceCutoff']
     cellLineFile = parameters['cellLineFile']
+    hypothesisFile = parameters['hypothesisFile']
 
     # Cell line data:
     # Reading cell metadata from validation lab:
@@ -250,10 +264,24 @@ def parse_experiment(spark: SparkSession, parameters: dict, cellPassportDf: Data
         .persist()
     )
 
+    # Reading and processing hypothesis data:
+    hypothesis = (
+        spark.read.csv(hypothesisFile, sep='\t', header=True)
+        .withColumn('hypothesis', parse_hypothesis(col('biomarker'), col('biomarkerStatus'), col('description')))
+        .groupBy('gene')
+        .agg(collect_list('hypothesis').alias('validationHypotheses'))
+        .persist()
+    )
+
+    print(hypothesis.printSchema())
+
     # Reading experiment data from validation lab:
     evidence = (
         # Reading evidence:
         spark.read.csv(experimentFile, sep='\t', header=True)
+
+        # Joining hypothesis data:
+        .join(hypothesis, on='gene', how='left')
 
         # Rename existing columns need to be updated:
         .withColumnRenamed('gene', 'targetFromSource')
@@ -288,15 +316,6 @@ def parse_experiment(spark: SparkSession, parameters: dict, cellPassportDf: Data
         # This should be added to the crispr dataset as well:
         .withColumn('projectId', lit(projectId))
         .withColumn('projectDescription', lit(projectDescription))
-
-        # This column is specific for genes, will be updated later:
-        .withColumn('validationHypotheses',
-                    struct(
-                        lit('MSI').alias('hypothesis'),
-                        lit('This description will be provided by the validation lab').alias(
-                            'description')
-                    )
-                    )
 
         # Joining cell line data:
         .join(validation_lab_cell_lines, on='name', how='left')
