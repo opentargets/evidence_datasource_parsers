@@ -9,7 +9,7 @@ from functools import reduce
 
 from pyspark.conf import SparkConf
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import array, col, lit, struct, udf, when, collect_list
+from pyspark.sql.functions import array, col, lit, struct, udf, when, collect_list, expr, first
 from pyspark.sql.types import StringType, StructType, StructField
 from pyspark.sql.dataframe import DataFrame
 
@@ -68,20 +68,6 @@ BIOMARKERMAPS = {
     }
 }
 
-
-@ udf(StructType([
-    StructField("hypothesis", StringType(), False),
-    StructField("description", StringType(), False)
-]))
-def parse_hypothesis(biomarker: str, biomarker_status: str, hypothesis: str) -> dict:
-    """This function parses the fields provided by the validation lab and returns with the hypothesis object."""
-
-    # This is a spacer at the moment, and we just return the biomarker and the description:
-    return {
-        'hypothesis': f'{biomarker}-{biomarker_status}',
-        'description': hypothesis
-    }
-
 @ udf(StructType([
     StructField("name", StringType(), False),
     StructField("description", StringType(), False)
@@ -98,8 +84,7 @@ def get_biomarker(columnName, biomarker):
         try:
             return BIOMARKERMAPS[columnName]['direct_mapping'][biomarker]
         except KeyError:
-            logging.warning(
-                f'Could not find direct mapping for {columnName}:{biomarker}')
+            logging.warning(f'Could not find direct mapping for {columnName}:{biomarker}')
             return None
 
     # If the value needs to be parsed:
@@ -117,6 +102,20 @@ def get_biomarker(columnName, biomarker):
         logging.warning(
             f'Could not find direct mapping for {columnName}:{biomarker}')
         return None
+
+
+@ udf(StructType([
+    StructField("hypothesis", StringType(), False),
+    StructField("description", StringType(), False)
+]))
+def parse_hypothesis(biomarker: str, biomarker_status: str, hypothesis: str) -> dict:
+    """This function parses the fields provided by the validation lab and returns with the hypothesis object."""
+
+    # This is a spacer at the moment, and we just return the biomarker and the description:
+    return {
+        'hypothesis': f'{biomarker}-{biomarker_status}',
+        'description': hypothesis
+    }
 
 
 def parse_experimental_parameters(parmeter_file: str) -> dict:
@@ -211,7 +210,7 @@ def parse_experiment(spark: SparkSession, parameters: dict, cellPassportDf: Data
         spark.read.csv(cellLineFile, sep='\t', header=True)
 
         # Renaming columns:
-        .withColumnRenamed('CO_line', 'name')
+        .withColumnRenamed('cellLines', 'name')
 
         # Joining dataset with cell model data read downloaded from Sanger website:
         .join(cellPassportDf, on='name', how='left')
@@ -228,8 +227,7 @@ def parse_experiment(spark: SparkSession, parameters: dict, cellPassportDf: Data
         .persist()
     )
 
-    logging.info(
-        f'Validation lab cell lines has {validation_lab_cell_lines.count()} cell types.')
+    logging.info(f'Validation lab cell lines has {validation_lab_cell_lines.count()} cell types.')
 
     # Defining how to process biomarkers:
     # 1. Looping through all possible biomarker - from biomarkerMaps.keys()
@@ -245,13 +243,26 @@ def parse_experiment(spark: SparkSession, parameters: dict, cellPassportDf: Data
     )
 
     # Applying the full map on the dataframe one-by-one:
-    biomarkers = reduce(lambda DF, value: DF.withColumn(
-        *value), expressions, validation_lab_cell_lines)
+    biomarkers = reduce(lambda DF, value: DF.withColumn(*value), expressions, validation_lab_cell_lines)
 
-    # Pooling together all the biomarker structures into one single array:
+    # The biomarker columns are unstacked into one single 'biomarkers' column:
+    biomarker_unstack = f'''stack({len(BIOMARKERMAPS.keys())}, {", ".join([f"'{x}', {x}" for x in BIOMARKERMAPS.keys()])}) as (biomarker_name, biomarkers)'''
+
     biomarkers = (
         biomarkers
-        .select('name', array(*BIOMARKERMAPS.keys()).alias('biomarkers'))
+
+        # Selecting cell line name, cell line annotation and applyting the stacking expression:
+        .select('name', 'diseaseCellLines', expr(biomarker_unstack))
+
+        # Filter out all null biomarkers:
+        .filter(col('biomarkers').isNotNull())
+
+        # Grouping data by cell lines again:
+        .groupBy('name')
+        .agg(
+            collect_list('biomarkers').alias('biomarkers'),
+            first(col('diseaseCellLines')).alias('diseaseCellLines')
+        )
     )
 
     # Joining biomarkers with cell line data:
@@ -272,8 +283,6 @@ def parse_experiment(spark: SparkSession, parameters: dict, cellPassportDf: Data
         .agg(collect_list('hypothesis').alias('validationHypotheses'))
         .persist()
     )
-
-    print(hypothesis.printSchema())
 
     # Reading experiment data from validation lab:
     evidence = (
