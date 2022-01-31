@@ -252,8 +252,8 @@ rule phenodigm:
         python modules/PhenoDigm.py \
           --cache-dir {params.cacheDir} \
           --output-evidence {output.evidenceFile} \
-          --output-mouse-phenotypes {output.mousePhenotypes}
-          --score_cutoff 41
+          --output-mouse-phenotypes {output.mousePhenotypes} \
+          --score-cutoff 41
         opentargets_validator --schema {params.schema} {output.evidenceFile}
         """
 
