@@ -253,6 +253,7 @@ rule phenodigm:
           --cache-dir {params.cacheDir} \
           --output-evidence {output.evidenceFile} \
           --output-mouse-phenotypes {output.mousePhenotypes}
+          --score_cutoff 41
         opentargets_validator --schema {params.schema} {output.evidenceFile}
         """
 
@@ -361,8 +362,8 @@ rule TargetSafety:
     input:
         toxcast = GS.remote(config['TargetSafety']['toxcast'])
     params:
-        ae = config['TargetSafety']['adverseEvents']
-        sr = config['TargetSafety']['safetyRisk']
+        ae = config['TargetSafety']['adverseEvents'],
+        sr = config['TargetSafety']['safetyRisk'],
         schema = f"{config['global']['schema']}/opentargets_target_safety.json"
     output:
         GS.remote(f"{config['TargetSafety']['outputBucket']}/safetyLiabilities-{timeStamp}.json.gz")
