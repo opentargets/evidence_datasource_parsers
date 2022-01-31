@@ -248,7 +248,7 @@ def parse_experiment(spark: SparkSession, parameters: dict, cellPassportDf: Data
     # The biomarker columns are unstacked into one single 'biomarkers' column:
     biomarker_unstack = f'''stack({len(BIOMARKERMAPS.keys())}, {", ".join([f"'{x}', {x}" for x in BIOMARKERMAPS.keys()])}) as (biomarker_name, biomarkers)'''
 
-    biomarkers = (
+    validation_lab_cell_lines = (
         biomarkers
 
         # Selecting cell line name, cell line annotation and applyting the stacking expression:
@@ -263,16 +263,6 @@ def parse_experiment(spark: SparkSession, parameters: dict, cellPassportDf: Data
             collect_list('biomarkers').alias('biomarkers'),
             first(col('diseaseCellLines')).alias('diseaseCellLines')
         )
-    )
-
-    # Joining biomarkers with cell line data:
-    validation_lab_cell_lines = (
-        validation_lab_cell_lines
-        .join(biomarkers, on='name', how='inner')
-
-        # Dropping biomarker columns:
-        .drop(*list(BIOMARKERMAPS.keys()))
-        .persist()
     )
 
     # Reading and processing hypothesis data:
@@ -353,9 +343,17 @@ def main(inputFile: str, outputFile: str) -> None:
         f'Cell passport dataframe has {cell_passport_df.count()} rows.')
 
     logging.info('Parsing experiment data...')
+
+    # Create evidence for all experiments:
+    evidence_dfs = []
     for experiment in parameters['experiments']:
-        evidence_df = parse_experiment(spark, experiment, cell_passport_df)
-        write_evidence_strings(evidence_df, outputFile)
+        evidence_dfs.append(parse_experiment(spark, experiment, cell_passport_df))
+
+    # combine all evidence dataframes into one:
+    combined_evidence_df = reduce(lambda df1, df2: df1.union(df2), evidence_dfs)
+
+    # Save the combined evidence dataframe:
+    write_evidence_strings(combined_evidence_df, outputFile)
 
 
 if __name__ == '__main__':
