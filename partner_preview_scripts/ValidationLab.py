@@ -13,7 +13,7 @@ from pyspark.sql.functions import array, col, lit, struct, udf, when, collect_li
 from pyspark.sql.types import StringType, StructType, StructField
 from pyspark.sql.dataframe import DataFrame
 
-from common.evidence import detect_spark_memory_limit, write_evidence_strings
+from common.evidence import detect_spark_memory_limit, write_evidence_strings, initialize_sparksession
 
 # This is a map that provides recipie to generate the biomarker objects
 # If a value cannot be found in the map, the value will be returned.
@@ -130,29 +130,6 @@ def parse_experimental_parameters(parmeter_file: str) -> dict:
     """
     with open(parmeter_file, 'r') as f:
         return json.load(f)
-
-
-def initialize_sparksession() -> SparkSession:
-    """Initialize spark session."""
-    # Initialize spark session
-    spark_mem_limit = detect_spark_memory_limit()
-    spark_conf = (
-        SparkConf()
-        .set('spark.driver.memory', f'{spark_mem_limit}g')
-        .set('spark.executor.memory', f'{spark_mem_limit}g')
-        .set('spark.driver.maxResultSize', '0')
-        .set('spark.debug.maxToStringFields', '2000')
-        .set('spark.sql.execution.arrow.maxRecordsPerBatch', '500000')
-    )
-    spark = (
-        SparkSession.builder
-        .config(conf=spark_conf)
-        .master('local[*]')
-        .config("spark.driver.bindAddress", "127.0.0.1")
-        .getOrCreate()
-    )
-
-    return spark
 
 
 def get_cell_passport_data(spark: SparkSession, cell_passport_file: str) -> DataFrame:
@@ -321,6 +298,9 @@ def parse_experiment(spark: SparkSession, parameters: dict, cellPassportDf: Data
 
         # Drop unused columns:
         .drop(*['name', 'pass-fail', 'expected-to-pass', 'effect-size'])
+
+        # Temporary renaming biomarkers:
+        .withColumnRenamed('biomarkers', 'biomarkerList')
     )
 
     logging.info(f'Evidence count: {evidence.count()}.')
@@ -360,7 +340,7 @@ if __name__ == '__main__':
 
     # Reading output file name from the command line:
     parser = argparse.ArgumentParser(
-        description='This script fetches TEP data from Structural Genomics Consortium.')
+        description='This script parse validation lab data and generates disease target evidence.')
     parser.add_argument('--output_file', '-o', type=str,
                         help='Output file. gzipped JSON', required=True)
     parser.add_argument('--input_file', '-i', type=str,
