@@ -35,6 +35,7 @@ def main(chembl_evidence: str, predictions: str, output_file: str) -> None:
         load_stop_reasons_classes(predictions)
         .withColumnRenamed('why_stopped', 'studyStopReason')
         .withColumnRenamed('subclasses', 'studyStopReasonCategories')
+        .select('studyStopReason', 'studyStopReasonCategories')
         .distinct()
         .persist()
     )
