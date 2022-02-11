@@ -79,11 +79,11 @@ rule chembl:
         evidenceFile = GS.remote(config['ChEMBL']['evidence']),
         stopReasonCategories = GS.remote(config['ChEMBL']['stopReasonCategories'])
     params:
-        schema = "https://raw.githubusercontent.com/opentargets/json_schema/il-update-chembl/opentargets.json"
+        schema = f"{config['global']['schema']}/opentargets.json"
     output:
         evidenceFile = GS.remote(f"{config['ChEMBL']['outputBucket']}/chembl-{timeStamp}.json.gz")
     log:
-        GS.remote(f"{logFile}-chembl.log")
+        GS.remote(logFile)
     shell:
         """
         python modules/ChEMBL.py  \
