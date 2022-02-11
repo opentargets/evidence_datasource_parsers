@@ -17,6 +17,7 @@ logFile = f"{config['global']['logDir']}/evidence_parser-{timeStamp}.log"
 rule all:
     input:
         GS.remote(f"{config['cancerBiomarkers']['outputBucket']}/cancer_biomarkers-{timeStamp}.json.gz"),
+        GS.remote(f"{config['ChEMBL']['outputBucket']}/chembl-{timeStamp}.json.gz"),
         GS.remote(f"{config['ClinGen']['outputBucket']}/clingen-{timeStamp}.json.gz"),
         GS.remote(f"{config['CRISPR']['outputBucket']}/crispr-{timeStamp}.json.gz"),
         GS.remote(f"{config['EPMC']['outputBucket']}/epmc-{timeStamp}.json.gz"),
@@ -69,6 +70,26 @@ rule cancerBiomarkers:
           --disease_table {input.disease_table} \
           --drug_index {params.drug_index} \
           --output_file {output}
+        opentargets_validator --schema {params.schema} {output}
+        """
+
+## chembl                   : adds the category of why a clinical trial has stopped early to the ChEMBL evidence
+rule chembl:
+    input:
+        evidenceFile = GS.remote(config['ChEMBL']['evidence']),
+        stopReasonCategories = GS.remote(config['ChEMBL']['stopReasonCategories'])
+    params:
+        schema = "https://raw.githubusercontent.com/opentargets/json_schema/il-update-chembl/opentargets.json"
+    output:
+        evidenceFile = GS.remote(f"{config['ChEMBL']['outputBucket']}/chembl-{timeStamp}.json.gz")
+    log:
+        GS.remote(f"{logFile}-chembl.log")
+    shell:
+        """
+        python modules/ChEMBL.py  \
+            --chembl_evidence {input.evidenceFile} \
+            --predictions {input.stopReasonCategories} \
+            --output {output.evidenceFile}
         opentargets_validator --schema {params.schema} {output}
         """
 
@@ -340,6 +361,7 @@ rule sysbio:
         opentargets_validator --schema {params.schema} {output.evidenceFile}
         """
 
+
 # --- Target annotation data sources parsers --- #
 ## TEP                    : Fetching Target Enabling Packages (TEP) data from Structural Genomics Consortium
 rule TargetEnablingPackages:
@@ -361,8 +383,8 @@ rule TargetSafety:
     input:
         toxcast = GS.remote(config['TargetSafety']['toxcast'])
     params:
-        ae = config['TargetSafety']['adverseEvents']
-        sr = config['TargetSafety']['safetyRisk']
+        ae = config['TargetSafety']['adverseEvents'],
+        sr = config['TargetSafety']['safetyRisk'],
         schema = f"{config['global']['schema']}/opentargets_target_safety.json"
     output:
         GS.remote(f"{config['TargetSafety']['outputBucket']}/safetyLiabilities-{timeStamp}.json.gz")
