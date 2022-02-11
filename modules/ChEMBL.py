@@ -30,16 +30,19 @@ def main(chembl_evidence: str, predictions: str, output_file: str) -> None:
     logging.info(f'Classes of reason to stop table: {predictions}')
 
     # Load input into dataframes
-    chembl_df = spark.read.json(chembl_evidence)
-    predictions_df = load_stop_reasons_classes(predictions)
+    chembl_df = spark.read.json(chembl_evidence).persist()
+    predictions_df = (
+        load_stop_reasons_classes(predictions)
+        .withColumnRenamed('why_stopped', 'studyStopReason')
+        .withColumnRenamed('subclasses', 'studyStopReasonCategories')
+        .distinct()
+        .persist()
+    )
 
     # Join datasets
     evd_df = (
-        chembl_df.join(predictions_df, chembl_df['studyStopReason'] == predictions_df['why_stopped'], how='left')
-        .withColumnRenamed('subclasses', 'studyStopReasonCategories')
-        .drop('why_stopped', 'superclasses')
+        chembl_df.join(predictions_df, on='studyStopReason', how='left')
         .distinct()
-        .persist()
     )
 
     # We expect that ~10% of evidence strings have a reason to stop assigned
