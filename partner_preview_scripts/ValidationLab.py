@@ -7,13 +7,12 @@ import logging
 import sys
 from functools import reduce
 
-from pyspark.conf import SparkConf
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import array, col, lit, struct, udf, when, collect_list, expr, first
 from pyspark.sql.types import StringType, StructType, StructField
 from pyspark.sql.dataframe import DataFrame
 
-from common.evidence import detect_spark_memory_limit, write_evidence_strings, initialize_sparksession
+from common.evidence import write_evidence_strings, initialize_sparksession
 
 # This is a map that provides recipie to generate the biomarker objects
 # If a value cannot be found in the map, the value will be returned.

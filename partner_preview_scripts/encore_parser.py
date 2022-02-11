@@ -2,10 +2,9 @@
 """Parser for data submitted from the Validation Lab."""
 
 import argparse
+import datetime
 import json
 import logging
-from pydoc import classname
-from turtle import st
 import requests
 import os
 import sys
@@ -21,11 +20,13 @@ from common.evidence import initialize_sparksession, write_evidence_strings
 
 class GenerateDiseaseCellLines:
     """
-    Generate disease cell lines from a cell passport file.
+    Generate "diseaseCellLines" object from a cell passport file.
 
+    !!!
     There's one important bit here: I have noticed that we frequenty get cell line names 
     with missing dashes. Therefore the cell line names are cleaned up by removing dashes.
     It has to be done when joining with other datasets.
+    !!!
 
     Args:
         cellPassportFile: Path to the cell passport file.
@@ -38,6 +39,8 @@ class GenerateDiseaseCellLines:
 
     def generate_map(self) -> None:
         """Reading and procesing cell line data from the cell passport file.
+
+        The schema of the returned dataframe is:
 
         root
         |-- name: string (nullable = true)
@@ -52,13 +55,17 @@ class GenerateDiseaseCellLines:
         |    |-- id: string (nullable = true)
         |    |-- tissueId: string (nullable = true)
 
-        Microsatellite stability is the only inferred biomarker.
+        Note:
+            * Microsatellite stability is the only inferred biomarker.
+            * The cell line name has the dashes removed.
+            * Id is the cell line identifier from Sanger
+            * Tissue id is the UBERON identifier for the tissue, fetched from OLS
         """
 
         # loading cell line annotation data from Sanger:
         cell_df = (
             self.spark.read
-            .option("multiline", True)
+            .option("multiline", True) # <- this is crazy! Some annotation within the csv fields have newlines!
             .csv(self.cellPassportFile, header=True, sep=',', quote='"')
             .withColumn('biomarkerList', self.parse_msi_status(col('msi_status')))
             .select(
@@ -79,12 +86,12 @@ class GenerateDiseaseCellLines:
         logging.info(f'Found mapping for {len(mappedTissues.loc[mappedTissues.tissueId.notna()])} tissues.')
 
         # Converting to spark dataframe:
-        tissues = self.spark.createDataFrame(mappedTissues)
+        mappedTissues_spark = self.spark.createDataFrame(mappedTissues)
 
         # Joining with cell lines:
         return (
             cell_df
-            .join(tissues, on='tissue', how='left')
+            .join(mappedTissues_spark, on='tissue', how='left')
 
             # Generating the diseaseCellLines object:
             .select('name', 'id', 'biomarkerList', struct(['tissue', 'name', 'id', 'tissueId']).alias('diseaseCellLines'))
@@ -113,34 +120,20 @@ class GenerateDiseaseCellLines:
     @udf(
         ArrayType(
             StructType([
-                StructField('name', StringType()),
-                StructField('description', StringType())
+                StructField('name', StringType(), nullable=False),
+                StructField('description', StringType(), nullable=False)
             ])
         )
     )
     def parse_msi_status(status: str) -> dict:
+        """Based on the content of the MSI status, we generate the corresponding biomarker object."""
+
         if status == 'MSI':
             return [{"name": "MSI", "description": "Microsatellite instable"}]
         if status == 'MSS':
             return [{"name": "MSS", "description": "Microsatellite stable"}]
         else:
             return None
-
-
-# def parse_experiment(spark: SparkSession, parameters: dict, cellPassportDf: DataFrame) -> DataFrame:
-#     """
-#     Parse experiment data from a file.
-
-#     Args:
-#         spark: Spark session.
-#         parameters: Dictionary of experimental parameters.
-#         cellPassportDf: Dataframe of cell passport data.
-
-#     Returns:
-#         A dataframe of experiment data.
-#     """
-
-#     return None
 
 class EncoreEvidenceGenerator:
     def __init__(self, spark: SparkSession, cell_passport_df: DataFrame, shared_parameters: dict) -> None:
@@ -161,6 +154,12 @@ class EncoreEvidenceGenerator:
         StructField("interactingTargetRole", StringType(), False),
     ])))
     def parse_targets(gene_pair: str, gene_role: str) -> dict:
+        """The gene pair string is split and assigned to the relevant role + exploding into evidence of two targets.
+
+        gene pair: 'SHC1~ADAD1', where 'SHC1' is the library gene, and 'ADAD1' is the anchor gene.
+
+        Both genes will be targetFromSource AND interactingTargetFromSource, while keeping their roles.
+        """
         genes = gene_pair.split('~')
         roles = [
             gene_role.replace('Combinations', '').lower(),
@@ -214,7 +213,7 @@ class EncoreEvidenceGenerator:
             # Unpivot:
             .select('id', 'Note1', 'Note2', expr(unpivot_expression))
 
-            # Extracting the real model id:
+            # Extracting and renaming log-fold-change parameters:
             .select(
                 'id', 'cellLineName', 'Note1', 'Note2',
                 col('cellLineData.lfc').alias('phenotypicConsequenceLogFoldChange'),
@@ -233,21 +232,6 @@ class EncoreEvidenceGenerator:
         # Collect the cell lines from the lfc file header:
         cell_lines = set(['_'.join(x.split('_')[0:2]) for x in bliss_df.columns[4:] if x.startswith('SID')])
 
-        gene_column = 'Gene_Pair'
-
-        # Checking for missing columns for cell lines:
-        missing_columns = [
-            f'{cell}_{stat}' for cell in cell_lines for stat in stats_fields if f'{cell}_{stat}' not in bliss_df.columns
-        ]
-        cells_to_drop = set(['_'.join(x.split('_')[:-1]) for x in missing_columns])
-
-        if missing_columns:
-            logging.warn(f'Missing columns: {", ".join(missing_columns)}')
-            logging.warn(f'Dropping cell_lines: {", ".join(cells_to_drop)}')
-
-            # Removing missing cell lines:
-            cell_lines = [x for x in cell_lines if x not in cells_to_drop]
-
         # Generating struct for each cell lines:
         expressions = map(lambda cell: (cell, struct([col(f'{cell}_{x}').alias(x) for x in stats_fields])), cell_lines)
 
@@ -261,12 +245,12 @@ class EncoreEvidenceGenerator:
             res_df
 
             # Create a consistent id column:
-            .withColumn('id', regexp_replace(col(gene_column), ';', '~'))
+            .withColumn('id', regexp_replace(col('Gene_Pair'), ';', '~'))
 
             # Unpivot:
             .select('id', expr(unpivot_expression))
 
-            # Extracting the real model id:
+            # Extracting and renaming bliss statistical values:
             .select(
                 'id', regexp_replace('cellLineName', '_strong', '').alias('cellLineName'),
                 col('cellLineData.zscore').cast(FloatType()).alias('geneticInteractionScore'),
@@ -286,7 +270,11 @@ class EncoreEvidenceGenerator:
         # Collect the cell lines from the lfc file header:
         cell_lines = set(['_'.join(x.split('_')[:-1]) for x in gemini_df.columns[4:] if x.startswith('SID')])
 
-        # This is an ugly way to troubleshooting irregularities in the data:
+        # There are some problems in joining gemini files on Encore side. It causes a serious issues:
+        # 1. Multiple Gene_Pair columns in the file -> these will be indexed in the pyspark dataframe
+        # 2. Some columns for some cell lines will be missing eg. pvalue for SIDM00049_CSID1053
+        #
+        # To mitigate these issue we have to check for gene pair header and remove cell lines with incomplete data.
         if 'Gene_Pair' in gemini_df.columns:
             gene_column = 'Gene_Pair'
         elif 'Gene_Pair0' in gemini_df.columns:
@@ -294,10 +282,11 @@ class EncoreEvidenceGenerator:
         else:
             raise ValueError(f'No Gene_Pair column in Gemini data: {",".join(gemini_df.columns)}')
 
-        # This is a mindfck, but there are potential missing columns in the datafile...
-        # We'll create these columns with nulls.... I don't believe.
+        # We check if there are all columns from all cell lines:
         missing_columns = [f'{cell}_{stat}' for cell in cell_lines for stat in stats_fields if f'{cell}_{stat}' not in gemini_df.columns]
         cells_to_drop = set(['_'.join(x.split('_')[:-1]) for x in missing_columns])
+
+        # If there are missingness, the relevant cell lines needs to be removed from the analysis:
         if missing_columns:
             logging.warn(f'Missing columns: {", ".join(missing_columns)}')
             logging.warn(f'Dropping cell_lines: {", ".join(cells_to_drop)}')
@@ -323,7 +312,7 @@ class EncoreEvidenceGenerator:
             # Unpivot:
             .select('id', expr(unpivot_expression))
 
-            # Extracting the real model id:
+            # Extracting and renaming gemini statistical values:
             .select(
                 'id', regexp_replace('cellLineName', '_strong', '').alias('cellLineName'),
                 col('cellLineData.score').cast(FloatType()).alias('geneticInteractionScore'),
@@ -338,10 +327,22 @@ class EncoreEvidenceGenerator:
         """Parsing experiments based on the experimental descriptions.
 
         Args:
-            parameters: Dictionary of experimental parameters.
+            parameters: Dictionary of experimental parameters. The following keys are required:
+                - dataset: Name of the dataset eg. COLO1- referring to the first libraryset of colo.
+                - diseaseFromSource: Name of the disease model of the experiment.
+                - diseaseFromSourceMappedId: EFO ID of the disease model of the experiment.
+                - logFoldChangeFile: File path to the log fold change file.
+                - geminifile: File path to the gemini file.
+                - blissFile: File path to the bliss file.
 
         Returns:
             A pyspark dataframe of experiment data.
+
+        Process:
+            - reading all files.
+            - Joining files.
+            - Applying filters.
+            - Adding additional columns + finalizing evidence model
         """
 
         diseseFromSource = parameters["diseaseFromSource"]
@@ -387,7 +388,7 @@ class EncoreEvidenceGenerator:
             # .join(bliss_df, how='inner', on=['id', 'cellLineName'])
             .join(gemini_df, how='inner', on=['id', 'cellLineName'])
 
-            # Applying filters on logFoldChange + gemini p-value:
+            # Applying filters on logFoldChange + interaction p-value thresholds:
             .filter(
                 (col('phenotypicConsequencePValue') <= self.logFoldChangeCutoffPVal) &
                 (col('phenotypicConsequenceFDR') <= self.logFoldChangeCutoffFDR) &
@@ -397,9 +398,9 @@ class EncoreEvidenceGenerator:
             # Cleaning the cell line annotation:
             .withColumn('cellId', split(col('cellLineName'), '_').getItem(0))
 
-            # Adding cell line and biomarker info:
+            # Joining with cell passport data containing diseaseCellLines and biomarkers info:
             .join(
-                self.cell_passport_df.select(col('id').alias('cellId'), 'diseaseCellLines', 'biomarkerList'),
+                self.cell_passport_df.select(col('id').alias('cellId'), 'diseaseCellLines', 'biomarkerList'), 
                 on='cellId', how='left'
             )
             .persist()
@@ -409,9 +410,6 @@ class EncoreEvidenceGenerator:
 
         evidence_df = (
             merged_dataset
-
-            # Cleaning the cell line annotation:
-            .withColumn('cellId', split(col('cellLineName'), '_').getItem(0))
 
             # Parsing/exploding gene names and target roles:
             .withColumn('id', self.parse_targets(col('id'), col('Note1')))
@@ -425,12 +423,12 @@ class EncoreEvidenceGenerator:
             .withColumn('projectDescription', lit('Encore project')) ### TODO - fix this!
             .withColumn('geneInteractionType', lit('cooperative'))
 
-            # Map disease to efo:
+            # Adding disease information:
             .withColumn('diseaseFromSourceMappedId', lit(diseaseFromSourceMappedId))
             .withColumn('diseaseFromSource', lit(diseseFromSource))
 
-            # Removing duplications:
-            .drop(*['cellLineName', 'cellId', 'Note1', 'Note2', 'hit', 'id', 'genes'])
+            # Removing unused columns:
+            .drop(*['cellLineName', 'cellId', 'Note1', 'Note2', 'id', 'genes'])
             .distinct()
 
             .persist()
@@ -448,27 +446,24 @@ def main(outputFile: str, parameters: dict, cellPassportFile: str) -> None:
     diseaseCellLineGenerator = GenerateDiseaseCellLines(cellPassportFile, spark)
     cell_passport_df = diseaseCellLineGenerator.get_mapping()
 
-    logging.info(
-        f'Cell passport dataframe has {cell_passport_df.count()} rows.')
-
+    logging.info(f'Cell passport dataframe has {cell_passport_df.count()} rows.')
     logging.info('Parsing experiment data...')
 
-    # Creating evidence generator:
+    # Initialising evidence generator:
     evidenceGenerator = EncoreEvidenceGenerator(spark, cell_passport_df, parameters['sharedMetadata'])
 
-    # Create evidence for all experiments:
+    # Create evidence for all experiments. Dataframes are collected in a list:
     evidence_dfs = []
     for experiment in parameters['experiments']:
         evidence_dfs.append(evidenceGenerator.parse_experiment(experiment))
 
-    # Filter out nones from list:
-    
+    # Filter out None values, so only dataframes with evidence are kept:
     evidence_dfs = list(filter(None, evidence_dfs))
 
     # combine all evidence dataframes into one:
     combined_evidence_df = reduce(lambda df1, df2: df1.union(df2), evidence_dfs)
 
-    # Save the combined evidence dataframe:
+    # The combined evidence is written to a file:
     write_evidence_strings(combined_evidence_df, outputFile)
 
 
