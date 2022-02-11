@@ -9,12 +9,11 @@ from pyspark.sql.functions import (
     map_from_entries, col, struct,
     array, lit, from_json, regexp_replace, expr
 )
-from pyspark.conf import SparkConf
-from pyspark.sql import SparkSession
+
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.types import ArrayType, StringType
 
-from common.evidence import detect_spark_memory_limit, write_evidence_strings
+from common.evidence import initialize_sparksession, write_evidence_strings
 
 
 def main(chembl_evidence: str, predictions: str, output_file: str) -> None:
@@ -100,28 +99,6 @@ def load_stop_reasons_classes(predictions: str) -> DataFrame:
         .drop('subMappings')
     )
 
-def initialize_spark():
-    """Spins up a Spark session."""
-
-    # Initialize spark session
-    spark_mem_limit = detect_spark_memory_limit()
-    spark_conf = (
-        SparkConf()
-        .set('spark.driver.memory', f'{spark_mem_limit}g')
-        .set('spark.executor.memory', f'{spark_mem_limit}g')
-        .set('spark.driver.maxResultSize', '0')
-        .set('spark.debug.maxToStringFields', '2000')
-        .set('spark.sql.execution.arrow.maxRecordsPerBatch', '500000')
-    )
-    spark = (
-        SparkSession.builder
-        .config(conf=spark_conf)
-        .master('local[*]')
-        .getOrCreate()
-    )
-    logging.info(f'Spark version: {spark.version}')
-
-    return spark
 
 def get_parser():
     """Get parser object for script ChEMBL.py."""
@@ -170,7 +147,7 @@ if __name__ == '__main__':
         logging.StreamHandler(sys.stderr)
 
     global spark
-    spark = initialize_spark()
+    spark = initialize_sparksession()
 
     main(
         chembl_evidence=args.chembl_evidence,
