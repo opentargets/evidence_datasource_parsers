@@ -128,7 +128,7 @@ rule cancerBiomarkers:
         drug_index = config['cancerBiomarkers']['drugIndex'],
         schema = f"{config['global']['schema']}/opentargets.json"
     output:
-        GS.remote(f"{config['cancerBiomarkers']['outputBucket']}/cancer_biomarkers-{timeStamp}.json.gz")
+        'cancer_biomarkers.json.gz'
     log:
         GS.remote(logFile)
     shell:
@@ -151,7 +151,7 @@ rule chembl:
     params:
         schema = f"{config['global']['schema']}/opentargets.json"
     output:
-        evidenceFile = GS.remote(f"{config['ChEMBL']['outputBucket']}/chembl-{timeStamp}.json.gz")
+        evidenceFile = 'chembl.json.gz'
     log:
         GS.remote(logFile)
     shell:
@@ -170,8 +170,8 @@ rule clingen:
         cacheDir = config['global']['cacheDir'],
         schema = f"{config['global']['schema']}/opentargets.json"
     output:
-        summaryTable = GS.remote(f"{config['ClinGen']['inputBucket']}/clingen-Gene-Disease-Summary-{timeStamp}.csv"),
-        evidenceFile = GS.remote(f"{config['ClinGen']['outputBucket']}/clingen-{timeStamp}.json.gz")
+        evidenceFile = 'clingen.json.gz',
+        summaryTable = 'clingen-Gene-Disease-Summary.csv'
     log:
         GS.remote(logFile)
     shell:
@@ -197,7 +197,7 @@ rule crispr:
     params:
         schema = f"{config['global']['schema']}/opentargets.json"
     output:
-        evidenceFile = GS.remote(f"{config['CRISPR']['outputBucket']}/crispr-{timeStamp}.json.gz")
+        evidenceFile = 'crispr.json.gz'
     log:
         GS.remote(logFile)
     shell:
@@ -217,7 +217,7 @@ rule epmc:
     params:
         schema = f"{config['global']['schema']}/opentargets.json"
     output:
-        evidenceFile = GS.remote(f"{config['EPMC']['outputBucket']}/epmc-{timeStamp}.json.gz")
+        evidenceFile = 'epmc.json.gz'
     log:
         GS.remote(logFile)
     shell:
@@ -239,16 +239,16 @@ rule gene2Phenotype:
         cacheDir = config['global']['cacheDir'],
         schema = f"{config['global']['schema']}/opentargets.json"
     output:
-        ddBucket = GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/DDG2P-{timeStamp}.csv.gz"),
-        eyeBucket = GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/EyeG2P-{timeStamp}.csv.gz"),
-        skinBucket = GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/SkinG2P-{timeStamp}.csv.gz"),
-        cancerBucket = GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/CancerG2P-{timeStamp}.csv.gz"),
-        evidenceFile= GS.remote(f"{config['Gene2Phenotype']['outputBucket']}/gene2phenotype-{timeStamp}.json.gz")
+        ddBucket = 'DDG2P.csv.gz',
+        eyeBucket = 'EyeG2P.csv.gz',
+        skinBucket = 'SkinG2P.csv.gz',
+        cancerBucket = 'CancerG2P.csv.gz',
+        evidenceFile = 'gene2phenotype.json.gz'
     log:
         GS.remote(logFile)
     shell:
         """
-        # Retain the inputs and save to GCS.
+        # Retain the inputs. They will be later uploaded to GCS.
         cp {input.ddPanel} {output.ddBucket}
         cp {input.eyePanel} {output.eyeBucket}
         cp {input.skinPanel} {output.skinBucket}
@@ -273,7 +273,7 @@ rule intogen:
     params:
         schema = f"{config['global']['schema']}/opentargets.json"
     output:
-        evidenceFile = GS.remote(f"{config['intOGen']['outputBucket']}/intogen-{timeStamp}.json.gz")
+        evidenceFile = 'intogen.json.gz'
     log:
         GS.remote(logFile)
     shell:
@@ -294,7 +294,7 @@ rule orphanet:
         cacheDir = config['global']['cacheDir'],
         schema = f"{config['global']['schema']}/opentargets.json"
     output:
-        GS.remote(f"{config['Orphanet']['outputBucket']}/orphanet-{timeStamp}.json.gz")
+        'orphanet.json.gz'
     log:
         GS.remote(logFile)
     shell:
@@ -315,7 +315,7 @@ rule panelApp:
         cacheDir = config['global']['cacheDir'],
         schema = f"{config['global']['schema']}/opentargets.json"
     output:
-        evidenceFile = GS.remote(f"{config['PanelApp']['outputBucket']}/genomics_england-{timeStamp}.json.gz")
+        evidenceFile = 'genomics_england.json.gz'
     log:
         GS.remote(logFile)
     shell:
@@ -333,9 +333,8 @@ rule phenodigm:
         cacheDir = config['global']['cacheDir'],
         schema = f"{config['global']['schema']}/opentargets.json"
     output:
-        evidenceFile=GS.remote(f"{config['Phenodigm']['evidenceOutputBucket']}/phenodigm-{timeStamp}.json.gz"),
-        mousePhenotypes=GS.remote(f"{config['Phenodigm']['phenotypesOutputBucket']}/mouse_phenotypes-{timeStamp}."
-                                  f"json.gz")
+        evidenceFile='phenodigm.json.gz',
+        mousePhenotypes='mouse_phenotypes.json.gz'
     log:
         GS.remote(logFile)
     shell:
@@ -357,7 +356,7 @@ rule progeny:
     params:
         schema = f"{config['global']['schema']}/opentargets.json"
     output:
-        evidenceFile = GS.remote(f"{config['PROGENy']['outputBucket']}/progeny-{timeStamp}.json.gz")
+        evidenceFile = 'progeny.json.gz'
     log:
         GS.remote(logFile)
     shell:
@@ -378,7 +377,7 @@ rule slapenrich:
     params:
         schema = f"{config['global']['schema']}/opentargets.json"
     output:
-        evidenceFile = GS.remote(f"{config['SLAPEnrich']['outputBucket']}/slapenrich-{timeStamp}.json.gz")
+        evidenceFile = 'slapenrich.json.gz'
     log:
         GS.remote(logFile)
     shell:
@@ -398,7 +397,7 @@ rule sysbio:
     params:
         schema = f"{config['global']['schema']}/opentargets.json"
     output:
-        evidenceFile = GS.remote(f"{config['SysBio']['outputBucket']}/sysbio-{timeStamp}.json.gz")
+        evidenceFile = 'sysbio.json.gz'
     log:
         GS.remote(logFile)
     shell:
@@ -416,7 +415,7 @@ rule TargetEnablingPackages:
     params:
         schema = f"{config['global']['schema']}/opentargets_tep.json"
     output:
-        GS.remote(f"{config['TEP']['outputBucket']}/tep-{timeStamp}.json.gz")
+        'tep.json.gz'
     log:
         GS.remote(logFile)
     shell:
@@ -435,7 +434,7 @@ rule TargetSafety:
         sr = config['TargetSafety']['safetyRisk'],
         schema = f"{config['global']['schema']}/opentargets_target_safety.json"
     output:
-        GS.remote(f"{config['TargetSafety']['outputBucket']}/safetyLiabilities-{timeStamp}.json.gz")
+        'safetyLiabilities.json.gz'
     log:
         GS.remote(logFile)
     shell:
