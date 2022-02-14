@@ -1,0 +1,57 @@
+{
+    "sharedMetadata": {
+        "logFoldChangeCutoffPVal": 0.05,
+        "logFoldChangeCutoffFDR": 0.25,
+        "interactionCutoffPVal": 0.05
+    },
+    "experiments": [
+        {
+            "dataset": "COLO1",
+            "diseaseFromSourceMappedId": "EFO_1001951",
+            "diseaseFromSource": "colorectal carcinoma",
+            "logFoldChangeFile": "ANALYSIS/GENERAL_STATS/ENCORE_COLO1/SCALED_EXACT/RUNMERGED_SAMPLES/AVERAGE_CELL_LINE/All.gene.stats.annotated.txt",
+            "geminiFile": "ANALYSIS/GEMINI_STATS/ENCORE_COLO1_FINAL/EXACT_SCALED/STRONG_ALL.annotated.txt",
+            "blissFile": "ANALYSIS/BLISS_STATS/ENCORE_COLO1_FINAL/COLO1_EXACT_SCALED_ZSCORE.txt"
+        },
+        {
+            "dataset": "COLO2",
+            "diseaseFromSourceMappedId": "EFO_1001951",
+            "diseaseFromSource": "colorectal carcinoma",
+            "logFoldChangeFile": "ANALYSIS/GENERAL_STATS/ENCORE_COLO2/SCALED_EXACT/RUNMERGED_SAMPLES/AVERAGE_CELL_LINE/All.gene.stats.annotated.txt",
+            "geminiFile": null,
+            "blissFile": null
+        },
+        {
+            "dataset": "COLO3",
+            "diseaseFromSourceMappedId": "EFO_1001951",
+            "diseaseFromSource": "colorectal carcinoma",
+            "logFoldChangeFile": "ANALYSIS/GENERAL_STATS/ENCORE_COLO3/SCALED_EXACT/RUNMERGED_SAMPLES/AVERAGE_CELL_LINE/All.gene.stats.annotated.txt",
+            "geminiFile": null,
+            "blissFile": null
+        },
+        {
+            "dataset": "BRCA1",
+            "diseaseFromSourceMappedId": "EFO_0000305",
+            "diseaseFromSource": "breast carcinoma",
+            "logFoldChangeFile": "ANALYSIS/GENERAL_STATS/ENCORE_BRCA1/SCALED_EXACT/RUNMERGED_SAMPLES/AVERAGE_CELL_LINE/All.gene.stats.annotated.txt",
+            "geminiFile": "ANALYSIS/GEMINI_STATS/ENCORE_BRCA1_FINAL/EXACT_SCALED/STRONG_ALL.annotated.txt",
+            "blissFile": "ANALYSIS/BLISS_STATS/ENCORE_BRCA1_FINAL/BRCA1_EXACT_SCALED_ZSCORE.txt"
+        },
+        {
+            "dataset": "BRCA2",
+            "diseaseFromSourceMappedId": "EFO_0000305",
+            "diseaseFromSource": "breast carcinoma",
+            "logFoldChangeFile": null,
+            "geminiFile": null,
+            "blissFile": null
+        },
+        {
+            "dataset": "BRCA3",
+            "diseaseFromSourceMappedId": "EFO_0000305",
+            "diseaseFromSource": "breast carcinoma",
+            "logFoldChangeFile": null,
+            "geminiFile": null,
+            "blissFile": null
+        }
+    ]
+}
