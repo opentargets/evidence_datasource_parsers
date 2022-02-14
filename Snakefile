@@ -27,7 +27,6 @@ rule all:
         GS.remote(f"{config['PanelApp']['outputBucket']}/genomics_england-{timeStamp}.json.gz"),
         GS.remote(f"{config['Phenodigm']['evidenceOutputBucket']}/phenodigm-{timeStamp}.json.gz"),
         GS.remote(f"{config['Phenodigm']['phenotypesOutputBucket']}/mouse_phenotypes-{timeStamp}.json.gz"),
-        GS.remote(f"{config['PheWAS']['outputBucket']}/phewas_catalog-{timeStamp}.json.gz"),
         GS.remote(f"{config['PROGENy']['outputBucket']}/progeny-{timeStamp}.json.gz"),
         GS.remote(f"{config['SLAPEnrich']['outputBucket']}/slapenrich-{timeStamp}.json.gz"),
         GS.remote(f"{config['SysBio']['outputBucket']}/sysbio-{timeStamp}.json.gz"),
@@ -278,28 +277,6 @@ rule phenodigm:
         opentargets_validator --schema {params.schema} {output.evidenceFile}
         """
 
-## phewas                   : processes phenome-wide association studies data from PheWAS
-rule phewas:
-    input:
-        inputFile = GS.remote(f"{config['PheWAS']['inputBucket']}/phewas-catalog-19-10-2018.csv"),
-        consequencesFile = GS.remote(f"{config['PheWAS']['inputBucket']}/phewas_w_consequences.csv"),
-        diseaseMapping = HTTP.remote(config['PheWAS']['diseaseMapping'])
-    params:
-        schema = f"{config['global']['schema']}/opentargets.json"
-    output:
-        evidenceFile = GS.remote(f"{config['PheWAS']['outputBucket']}/phewas_catalog-{timeStamp}.json.gz")
-    log:
-        GS.remote(logFile)
-    shell:
-        """
-        python modules/PheWAS.py \
-          --inputFile {input.inputFile} \
-          --consequencesFile {input.consequencesFile} \
-          --diseaseMapping {input.diseaseMapping} \
-          --outputFile {output.evidenceFile}
-        opentargets_validator --schema {params.schema} {output.evidenceFile}
-        """
-
 ## progeny                  : processes gene expression data from TCGA derived from PROGENy
 rule progeny:
     input:
@@ -361,7 +338,6 @@ rule sysbio:
           --outputFile {output.evidenceFile}
         opentargets_validator --schema {params.schema} {output.evidenceFile}
         """
-
 
 # --- Target annotation data sources parsers --- #
 ## TEP                    : Fetching Target Enabling Packages (TEP) data from Structural Genomics Consortium
