@@ -13,25 +13,101 @@ timeStamp = datetime.now().strftime("%Y-%m-%d")
 configfile: 'configuration.yaml'
 logFile = f"{config['global']['logDir']}/evidence_parser-{timeStamp}.log"
 
-# --- All rules --- #
+# Generate and upload all files.
 rule all:
     input:
-        GS.remote(f"{config['cancerBiomarkers']['outputBucket']}/cancer_biomarkers-{timeStamp}.json.gz"),
-        GS.remote(f"{config['ChEMBL']['outputBucket']}/chembl-{timeStamp}.json.gz"),
-        GS.remote(f"{config['ClinGen']['outputBucket']}/clingen-{timeStamp}.json.gz"),
-        GS.remote(f"{config['CRISPR']['outputBucket']}/crispr-{timeStamp}.json.gz"),
-        GS.remote(f"{config['EPMC']['outputBucket']}/epmc-{timeStamp}.json.gz"),
-        GS.remote(f"{config['Gene2Phenotype']['outputBucket']}/gene2phenotype-{timeStamp}.json.gz"),
-        GS.remote(f"{config['intOGen']['outputBucket']}/intogen-{timeStamp}.json.gz"),
-        GS.remote(f"{config['Orphanet']['outputBucket']}/orphanet-{timeStamp}.json.gz"),
-        GS.remote(f"{config['PanelApp']['outputBucket']}/genomics_england-{timeStamp}.json.gz"),
-        GS.remote(f"{config['Phenodigm']['evidenceOutputBucket']}/phenodigm-{timeStamp}.json.gz"),
-        GS.remote(f"{config['Phenodigm']['phenotypesOutputBucket']}/mouse_phenotypes-{timeStamp}.json.gz"),
-        GS.remote(f"{config['PROGENy']['outputBucket']}/progeny-{timeStamp}.json.gz"),
-        GS.remote(f"{config['SLAPEnrich']['outputBucket']}/slapenrich-{timeStamp}.json.gz"),
-        GS.remote(f"{config['SysBio']['outputBucket']}/sysbio-{timeStamp}.json.gz"),
-        GS.remote(f"{config['TEP']['outputBucket']}/tep-{timeStamp}.json.gz"),
-        GS.remote(f"{config['TargetSafety']['outputBucket']}/safetyLiabilities-{timeStamp}.json.gz")
+        cancer_biomarkers = 'cancer_biomarkers.json.gz',
+        chembl = 'chembl.json.gz',
+        clingen_evidence = 'clingen.json.gz',
+        clingen_summary = 'clingen-Gene-Disease-Summary.csv',
+        crispr = 'crispr.json.gz',
+        epmc = 'epmc.json.gz',
+        gene2phenotype = 'gene2phenotype.json.gz',
+        gene2phenotype_dd = 'DDG2P.csv.gz',
+        gene2phenotype_eye = 'EyeG2P.csv.gz',
+        gene2phenotype_skin = 'SkinG2P.csv.gz',
+        gene2phenotype_cancer = 'CancerG2P.csv.gz',
+        intogen = 'intogen.json.gz',
+        orphanet = 'orphanet.json.gz',
+        genomics_england = 'genomics_england.json.gz',
+        phenodigm = 'phenodigm.json.gz',
+        mouse_phenotypes = 'mouse_phenotypes.json.gz',
+        progeny = 'progeny.json.gz',
+        slapenrich = 'slapenrich.json.gz',
+        sysbio = 'sysbio.json.gz',
+        tep = 'tep.json.gz',
+        safetyLiabilities = 'safetyLiabilities.json.gz'
+    output:
+        cancer_biomarkers = GS.remote(f"{config['cancerBiomarkers']['outputBucket']}/cancer_biomarkers-{timeStamp}.json.gz"),
+        chembl = GS.remote(f"{config['ChEMBL']['outputBucket']}/chembl-{timeStamp}.json.gz"),
+        clingen_evidence = GS.remote(f"{config['ClinGen']['outputBucket']}/clingen-{timeStamp}.json.gz"),
+        clingen_summary = GS.remote(f"{config['ClinGen']['inputBucket']}/clingen-Gene-Disease-Summary-{timeStamp}.csv"),
+        crispr = GS.remote(f"{config['CRISPR']['outputBucket']}/crispr-{timeStamp}.json.gz"),
+        epmc = GS.remote(f"{config['EPMC']['outputBucket']}/epmc-{timeStamp}.json.gz"),
+        gene2phenotype = GS.remote(f"{config['Gene2Phenotype']['outputBucket']}/gene2phenotype-{timeStamp}.json.gz"),
+        gene2phenotype_dd = GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/DDG2P-{timeStamp}.csv.gz"),
+        gene2phenotype_eye = GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/EyeG2P-{timeStamp}.csv.gz"),
+        gene2phenotype_skin = GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/SkinG2P-{timeStamp}.csv.gz"),
+        gene2phenotype_cancer = GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/CancerG2P-{timeStamp}.csv.gz"),
+        intogen = GS.remote(f"{config['intOGen']['outputBucket']}/intogen-{timeStamp}.json.gz"),
+        orphanet = GS.remote(f"{config['Orphanet']['outputBucket']}/orphanet-{timeStamp}.json.gz"),
+        genomics_england = GS.remote(f"{config['PanelApp']['outputBucket']}/genomics_england-{timeStamp}.json.gz"),
+        phenodigm = GS.remote(f"{config['Phenodigm']['evidenceOutputBucket']}/phenodigm-{timeStamp}.json.gz"),
+        mouse_phenotypes = GS.remote(f"{config['Phenodigm']['phenotypesOutputBucket']}/mouse_phenotypes-{timeStamp}.json.gz"),
+        progeny = GS.remote(f"{config['PROGENy']['outputBucket']}/progeny-{timeStamp}.json.gz"),
+        slapenrich = GS.remote(f"{config['SLAPEnrich']['outputBucket']}/slapenrich-{timeStamp}.json.gz"),
+        sysbio = GS.remote(f"{config['SysBio']['outputBucket']}/sysbio-{timeStamp}.json.gz"),
+        tep = GS.remote(f"{config['TEP']['outputBucket']}/tep-{timeStamp}.json.gz"),
+        safetyLiabilities = GS.remote(f"{config['TargetSafety']['outputBucket']}/safetyLiabilities-{timeStamp}.json.gz")
+    shell:
+        """
+        cp {input.cancer_biomarkers} {output.cancer_biomarkers}
+        cp {input.chembl} {output.chembl}
+        cp {input.clingen_evidence} {output.clingen_evidence}
+        cp {input.clingen_summary} {output.clingen_summary}
+        cp {input.crispr} {output.crispr}
+        cp {input.epmc} {output.epmc}
+        cp {input.gene2phenotype} {output.gene2phenotype}
+        cp {input.gene2phenotype_dd} {output.gene2phenotype_dd}
+        cp {input.gene2phenotype_eye} {output.gene2phenotype_eye}
+        cp {input.gene2phenotype_skin} {output.gene2phenotype_skin}
+        cp {input.gene2phenotype_cancer} {output.gene2phenotype_cancer}
+        cp {input.intogen} {output.intogen}
+        cp {input.orphanet} {output.orphanet}
+        cp {input.genomics_england} {output.genomics_england}
+        cp {input.phenodigm} {output.phenodigm}
+        cp {input.mouse_phenotypes} {output.mouse_phenotypes}
+        cp {input.progeny} {output.progeny}
+        cp {input.slapenrich} {output.slapenrich}
+        cp {input.sysbio} {output.sysbio}
+        cp {input.tep} {output.tep}
+        cp {input.safetyLiabilities} {output.safetyLiabilities}
+        """
+
+# Only generate the files, but do not upload them.
+rule local:
+    input:
+        'cancer_biomarkers.json.gz',
+        'chembl.json.gz',
+        'clingen.json.gz',
+        'clingen-Gene-Disease-Summary.csv',
+        'crispr.json.gz',
+        'epmc.json.gz',
+        'gene2phenotype.json.gz',
+        'DDG2P.csv.gz',
+        'EyeG2P.csv.gz',
+        'SkinG2P.csv.gz',
+        'CancerG2P.csv.gz',
+        'intogen.json.gz',
+        'orphanet.json.gz',
+        'genomics_england.json.gz',
+        'phenodigm.json.gz',
+        'mouse_phenotypes.json.gz',
+        'progeny.json.gz',
+        'slapenrich.json.gz',
+        'sysbio.json.gz',
+        'tep.json.gz',
+        'safetyLiabilities.json.gz'
 
 # --- Auxiliary Rules --- #
 ## help                     : prints help comments for Snakefile
@@ -39,11 +115,6 @@ rule help:
     input: "Snakefile"
     shell:
         "sed -n 's/^##//p' {input}"
-
-## clean                    : prints help comments for Snakefile
-rule clean:
-    shell:
-        "rm -rf tmp"
 
 # --- Data sources parsers --- #
 ## cancerBiomarkers          : processes the Cancers Biomarkers database from Cancer Genome Interpreter
