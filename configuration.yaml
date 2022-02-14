@@ -38,10 +38,6 @@ PanelApp:
 Phenodigm:
   evidenceOutputBucket: gs://otar000-evidence_input/PhenoDigm/json
   phenotypesOutputBucket: gs://otar001-core/MousePhenotypes
-PheWAS:
-  inputBucket: gs://otar000-evidence_input/PheWAS/data_files
-  diseaseMapping: https://raw.githubusercontent.com/opentargets/mappings/master/phewascat.mappings.tsv
-  outputBucket: gs://otar000-evidence_input/PheWAS/json
 PROGENy:
   inputBucket: gs://otar000-evidence_input/PROGENy/data_files
   diseaseMapping: resources/cancer2EFO_mappings.tsv
