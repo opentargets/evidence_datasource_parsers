@@ -114,7 +114,7 @@ class ParseHypotheses:
             .join(observed_df, on=['gene', 'hypothesis'], how='inner')
 
             # Filter hypotheses where at least one was True:
-            .filter(col('expected') | col('observed'))
+            # .filter(col('expected') | col('observed'))
 
             # From the hypothesis column eg. CRIS_subtype-B ectract the type CRIS_subtype and the call: B
             .withColumn('hypothesis_type', element_at(split(col('hypothesis'), '-'), 1))
