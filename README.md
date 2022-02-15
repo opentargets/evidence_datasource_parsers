@@ -115,12 +115,6 @@ The intOGen parser generates evidence strings from three files that need to be i
 - _intogen_cohorts.tsv_: It contains information about the analysed cohorts and it can be downloaded from the [intOGen website](https://www.intogen.org/download). In the current implementation, the total number of samples included in each cohort is used to calculate the percentage of samples that carry a relevant mutation in a driver gene.
 - _intogen_Compendium_Cancer_Genes.tsv_: It contains the genes that have been identified as _drivers_ in at least one cohort and information related to  the methods that yield significant results, the q-value and additional data about mutations. It can be downloaded from the same place as the cohorts file.
 
-### PheWAS catalog
-The PheWAS parser processes three files:
-- phewas-catalog-19-10-2018.csv: Main tsv file containing information from phenome-wide association studies. The file is located in the [PheWAS bucket](https://storage.googleapis.com/otar000-evidence_input/PheWAS/data_files/phewas-catalog-19-10-2018.csv).
-- phewas_w_consequences.csv: File containing PheWAS data enriched with data from the Genetics Portal on the variant and its functional consequence. This file is located in the [PheWAS bucket](https://storage.googleapis.com/otar000-evidence_input/PheWAS/data_files/phewas_w_consequences.csv).
-- phewascat.mappings.tsv: File containing the mappings between the phenotypes provided by PheWAS and its respective disease listed in EFO. This file is located in [our mappings repo](https://raw.githubusercontent.com/opentargets/mappings/master/phewascat.mappings.tsv).
-
 ### CRISPR
 The CRISPR parser processes three files available in the `resources` directory:
 - _crispr_evidence.tsv_: Main file that contains the prioritisation score as well as target, disease and publication information. It was adapted from supplementary table 6 in the [Behan et al. 2019](https://www.nature.com/articles/s41586-019-1103-9) paper.
