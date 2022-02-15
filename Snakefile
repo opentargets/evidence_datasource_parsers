@@ -57,7 +57,7 @@ rule all:                     # Generate all files and upload them to Google Clo
         # The way this works is that remote filenames are actually represented by Snakemake as pseudo-local files.
         # Snakemake will catch the "os.rename" (the same way it would have caught a "mv" call) and proceed with
         # uploading the files.
-        for local_filename, remote_filename in zip(LOCAL_FILENAMES, REMOTE_FILENAMES):
+        for local_filename, remote_filename in zip(input, output):
             os.rename(local_filename, remote_filename)
 
 rule local:                   # Generate all files, but do not upload them.
