@@ -42,8 +42,13 @@ ALL_FILES = [
 LOCAL_FILENAMES = [f[0] for f in ALL_FILES]
 REMOTE_FILENAMES = [f[1] for f in ALL_FILES]
 
-## all          : Generate all files and upload them to Google Cloud Storage with the current datestamps.
-rule all:
+# --- Auxiliary Rules --- #
+rule help:                    # Print help comments for Snakefile.
+    input: "Snakefile"
+    shell:
+        "sed -n 's/^rule//p' {input}"
+
+rule all:                     # Generate all files and upload them to Google Cloud Storage with the current datestamps.
     input:
         LOCAL_FILENAMES
     output:
@@ -55,21 +60,12 @@ rule all:
         for local_filename, remote_filename in zip(LOCAL_FILENAMES, REMOTE_FILENAMES):
             os.rename(local_filename, remote_filename)
 
-## local          : Generate all files, but do not upload them.
-rule local:
+rule local:                   # Generate all files, but do not upload them.
     input:
         LOCAL_FILENAMES
 
-# --- Auxiliary Rules --- #
-## help                     : prints help comments for Snakefile
-rule help:
-    input: "Snakefile"
-    shell:
-        "sed -n 's/^##//p' {input}"
-
 # --- Data sources parsers --- #
-## cancerBiomarkers          : processes the Cancers Biomarkers database from Cancer Genome Interpreter
-rule cancerBiomarkers:
+rule cancerBiomarkers:        # Process the Cancers Biomarkers database from Cancer Genome Interpreter.
     input:
         biomarkers_table = GS.remote(f"{config['cancerBiomarkers']['inputBucket']}/cancerbiomarkers-2018-05-01.tsv"),
         source_table = GS.remote(f"{config['cancerBiomarkers']['inputBucket']}/cancer_biomarker_source.jsonl"),
@@ -94,8 +90,7 @@ rule cancerBiomarkers:
         opentargets_validator --schema {params.schema} {output}
         """
 
-## chembl                   : adds the category of why a clinical trial has stopped early to the ChEMBL evidence
-rule chembl:
+rule chembl:                  # Add the category of why a clinical trial has stopped early to the ChEMBL evidence.
     input:
         evidenceFile = GS.remote(config['ChEMBL']['evidence']),
         stopReasonCategories = GS.remote(config['ChEMBL']['stopReasonCategories'])
@@ -114,8 +109,7 @@ rule chembl:
         opentargets_validator --schema {params.schema} {output}
         """
 
-## clingen                  : processes the Gene Validity Curations table from ClinGen
-rule clingen:
+rule clingen:                 # Process the Gene Validity Curations table from ClinGen.
     params:
         summaryTableWeb = config['ClinGen']['webSource'],
         cacheDir = config['global']['cacheDir'],
@@ -139,8 +133,7 @@ rule clingen:
         opentargets_validator --schema {params.schema} {output.evidenceFile}
         """
 
-## crispr                   : processes cancer therapeutic targets using CRISPR–Cas9 screens
-rule crispr:
+rule crispr:                  # Process cancer therapeutic targets using CRISPR–Cas9 screens.
     input:
         evidenceFile = GS.remote(f"{config['CRISPR']['inputBucket']}/crispr_evidence.tsv"),
         descriptionsFile = GS.remote(f"{config['CRISPR']['inputBucket']}/crispr_descriptions.tsv"),
@@ -161,8 +154,7 @@ rule crispr:
         opentargets_validator --schema {params.schema} {output.evidenceFile}
         """
 
-## epmc                     : processes target/disease evidence strings from ePMC cooccurrence files
-rule epmc:
+rule epmc:                    # Process target/disease evidence strings from ePMC cooccurrence files.
     input:
         inputCooccurences = directory(GS.remote(config['EPMC']['inputBucket']))
     params:
@@ -179,8 +171,7 @@ rule epmc:
         opentargets_validator --schema {params.schema} {output.evidenceFile}
         """
 
-## gene2Phenotype           : processes four gene panels from Gene2Phenotype
-rule gene2Phenotype:
+rule gene2Phenotype:          # Process four gene panels from Gene2Phenotype.
     input:
         ddPanel = HTTP.remote(config['Gene2Phenotype']['webSource_dd_panel']),
         eyePanel = HTTP.remote(config['Gene2Phenotype']['webSource_eye_panel']),
@@ -215,8 +206,7 @@ rule gene2Phenotype:
         opentargets_validator --schema {params.schema} {output.evidenceFile}
         """
 
-## intogen                  : processes cohorts and driver genes data from intOGen
-rule intogen:
+rule intogen:                 # Process cohorts and driver genes data from intOGen.
     input:
         inputGenes = GS.remote(f"{config['intOGen']['inputBucket']}/Compendium_Cancer_Genes.tsv"),
         inputCohorts = GS.remote(f"{config['intOGen']['inputBucket']}/cohorts.tsv"),
@@ -237,8 +227,7 @@ rule intogen:
         opentargets_validator --schema {params.schema} {output.evidenceFile}
         """
 
-## Orphanet                 : Processing disease/target evidence from Orphanet
-rule orphanet:
+rule orphanet:                # Process disease/target evidence from Orphanet.
     input:
         HTTP.remote(config['Orphanet']['webSource'])
     params:
@@ -258,8 +247,7 @@ rule orphanet:
         opentargets_validator --schema {params.schema} {output}
         """
 
-## panelApp                 : processes gene panels data curated by Genomics England
-rule panelApp:
+rule panelApp:                # Process gene panels data curated by Genomics England.
     input:
         inputFile = GS.remote(f"{config['PanelApp']['inputBucket']}/All_genes_20200928-1959.tsv")
     params:
@@ -278,8 +266,7 @@ rule panelApp:
         opentargets_validator --schema {params.schema} {output.evidenceFile}
         """
 
-## phenodigm                : processes target-disease evidence and mouseModels dataset by querying the IMPC SOLR API
-rule phenodigm:
+rule phenodigm:               # Process target-disease evidence and mouseModels dataset by querying the IMPC SOLR API.
     params:
         cacheDir = config['global']['cacheDir'],
         schema = f"{config['global']['schema']}/opentargets.json"
@@ -298,8 +285,7 @@ rule phenodigm:
         opentargets_validator --schema {params.schema} {output.evidenceFile}
         """
 
-## progeny                  : processes gene expression data from TCGA derived from PROGENy
-rule progeny:
+rule progeny:                 # Process gene expression data from TCGA derived from PROGENy.
     input:
         inputFile = GS.remote(f"{config['PROGENy']['inputBucket']}/progeny_normalVStumor_opentargets.txt"),
         diseaseMapping = config['PROGENy']['diseaseMapping'],
@@ -320,8 +306,7 @@ rule progeny:
         opentargets_validator --schema {params.schema} {output.evidenceFile}
         """
 
-## slapenrich               : processes cancer-target evidence strings derived from SLAPenrich
-rule slapenrich:
+rule slapenrich:              # Process cancer-target evidence strings derived from SLAPenrich.
     input:
         inputFile = GS.remote(f"{config['SLAPEnrich']['inputBucket']}/slapenrich_opentargets-21-12-2017.tsv"),
         diseaseMapping = config['SLAPEnrich']['diseaseMapping']
@@ -340,8 +325,7 @@ rule slapenrich:
         opentargets_validator --schema {params.schema} {output.evidenceFile}
         """
 
-## sysbio                   : processes key driver genes for specific diseases that have been curated from Systems Biology papers
-rule sysbio:
+rule sysbio:                  # Process key driver genes for specific diseases that have been curated from Systems Biology papers.
     input:
         evidenceFile = GS.remote(f"{config['SysBio']['inputBucket']}/sysbio_evidence-31-01-2019.tsv"),
         studyFile = GS.remote(f"{config['SysBio']['inputBucket']}/sysbio_publication_info_nov2018.tsv")
@@ -361,8 +345,7 @@ rule sysbio:
         """
 
 # --- Target annotation data sources parsers --- #
-## TEP                    : Fetching Target Enabling Packages (TEP) data from Structural Genomics Consortium
-rule TargetEnablingPackages:
+rule TargetEnablingPackages:  # Fetching Target Enabling Packages (TEP) data from Structural Genomics Consortium
     params:
         schema = f"{config['global']['schema']}/opentargets_tep.json"
     output:
@@ -376,8 +359,7 @@ rule TargetEnablingPackages:
         opentargets_validator --schema {params.schema} {output}
         """
 
-## Target Safety        : processes data from different sources that describe target safety liabilities
-rule TargetSafety:
+rule TargetSafety:            # Process data from different sources that describe target safety liabilities.
     input:
         toxcast = GS.remote(config['TargetSafety']['toxcast'])
     params:
