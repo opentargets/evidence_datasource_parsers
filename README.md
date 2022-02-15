@@ -45,10 +45,12 @@ conda env remove -n evidence_datasource_parsers_lock
 conda env create --file envs/environment-lock.yml
 conda activate evidence_datasource_parsers_lock
 export PYTHONPATH="$PYTHONPATH:$(pwd)"
-
-# Generate and upload the evidence.
-snakemake --cores all
 ```
+
+At this point, we are ready to run the Snakemake pipeline. The following options are available:
+* `snakemake --cores all`: Display help (the list of possible rules to be run) and do not run anything.
+* `snakemake --cores all --until local`: Generate all files, but do not upload them to Google Cloud Storage. The files generated in this way do not have prefixes, e.g. `cancer_biomarkers.json.gz`. This is done intentially, so that the pipeline can be re-run the next day without having to re-generate all of the files.
+* `snakemake --cores all --until all`: Generate all files and then upload them to Google Cloud Storage.
 
 ## Processing Genetics Portal evidence
 Evidence generation for the Genetics Portal is not automated in the Snakefile. It can be done separately using the following commands. It is planned that this step will eventually become part of the Genetics Portal release pipeline.
