@@ -100,9 +100,10 @@ rule chembl:                  # Add the category of why a clinical trial has sto
     output:
         evidenceFile = 'chembl.json.gz'
     log:
-        GS.remote(logFile)
+        'log/chembl.log'
     shell:
         """
+        exec &> {log}
         python modules/ChEMBL.py  \
             --chembl_evidence {input.evidenceFile} \
             --predictions {input.stopReasonCategories} \
@@ -119,9 +120,10 @@ rule clingen:                 # Process the Gene Validity Curations table from C
         evidenceFile = 'clingen.json.gz',
         summaryTable = 'clingen-Gene-Disease-Summary.csv'
     log:
-        GS.remote(logFile)
+        'log/clingen.log'
     shell:
         """
+        exec &> {log}
         # Download directly because HTTP RemoteProvider does not handle retries correctly.
         wget -q -O clingen_summary.csv {params.summaryTableWeb}
         # Retain the original summary table and store that in GCS.
@@ -144,9 +146,10 @@ rule crispr:                  # Process cancer therapeutic targets using CRISPRâ
     output:
         evidenceFile = 'crispr.json.gz'
     log:
-        GS.remote(logFile)
+        'log/crispr.log'
     shell:
         """
+        exec &> {log}
         python modules/CRISPR.py \
           --evidence_file {input.evidenceFile} \
           --descriptions_file {input.descriptionsFile} \
@@ -157,15 +160,16 @@ rule crispr:                  # Process cancer therapeutic targets using CRISPRâ
 
 rule epmc:                    # Process target/disease evidence strings from ePMC cooccurrence files.
     input:
-        inputCooccurences = directory(GS.remote(config['EPMC']['inputBucket']))
+        inputCooccurences = GS.remote(config['EPMC']['inputBucket'])
     params:
         schema = f"{config['global']['schema']}/opentargets.json"
     output:
         evidenceFile = 'epmc.json.gz'
     log:
-        GS.remote(logFile)
+        'log/epmc.log'
     shell:
         """
+        exec &> {log}
         python modules/EPMC.py \
           --cooccurrenceFile {input.inputCooccurences} \
           --output {output.evidenceFile}
@@ -188,9 +192,10 @@ rule gene2Phenotype:          # Process four gene panels from Gene2Phenotype.
         cancerBucket = 'CancerG2P.csv.gz',
         evidenceFile = 'gene2phenotype.json.gz'
     log:
-        GS.remote(logFile)
+        'log/gene2Phenotype.log'
     shell:
         """
+        exec &> {log}
         # Retain the inputs. They will be later uploaded to GCS.
         cp {input.ddPanel} {output.ddBucket}
         cp {input.eyePanel} {output.eyeBucket}
@@ -217,9 +222,10 @@ rule intogen:                 # Process cohorts and driver genes data from intOG
     output:
         evidenceFile = 'intogen.json.gz'
     log:
-        GS.remote(logFile)
+        'log/intogen.log'
     shell:
         """
+        exec &> {log}
         python modules/IntOGen.py \
           --inputGenes {input.inputGenes} \
           --inputCohorts {input.inputCohorts} \
@@ -237,9 +243,10 @@ rule orphanet:                # Process disease/target evidence from Orphanet.
     output:
         'orphanet.json.gz'
     log:
-        GS.remote(logFile)
+        'log/orphanet.log'
     shell:
         """
+        exec &> {log}
         python modules/Orphanet.py \
           --input_file {input} \
           --output_file {output} \
@@ -257,9 +264,10 @@ rule panelApp:                # Process gene panels data curated by Genomics Eng
     output:
         evidenceFile = 'genomics_england.json.gz'
     log:
-        GS.remote(logFile)
+        'log/panelApp.log'
     shell:
         """
+        exec &> {log}
         python modules/PanelApp.py \
           --input-file {input.inputFile} \
           --output-file {output.evidenceFile} \
@@ -275,9 +283,10 @@ rule phenodigm:               # Process target-disease evidence and mouseModels 
         evidenceFile='phenodigm.json.gz',
         mousePhenotypes='mouse_phenotypes.json.gz'
     log:
-        GS.remote(logFile)
+        'log/phenodigm.log'
     shell:
         """
+        exec &> {log}
         python modules/PhenoDigm.py \
           --cache-dir {params.cacheDir} \
           --output-evidence {output.evidenceFile} \
@@ -296,9 +305,10 @@ rule progeny:                 # Process gene expression data from TCGA derived f
     output:
         evidenceFile = 'progeny.json.gz'
     log:
-        GS.remote(logFile)
+        'log/progeny.log'
     shell:
         """
+        exec &> {log}
         python modules/PROGENY.py \
           --inputFile {input.inputFile} \
           --diseaseMapping {input.diseaseMapping} \
@@ -316,9 +326,10 @@ rule slapenrich:              # Process cancer-target evidence strings derived f
     output:
         evidenceFile = 'slapenrich.json.gz'
     log:
-        GS.remote(logFile)
+        'log/slapenrich.log'
     shell:
         """
+        exec &> {log}
         python modules/SLAPEnrich.py \
           --inputFile {input.inputFile} \
           --diseaseMapping {input.diseaseMapping} \
@@ -335,9 +346,10 @@ rule sysbio:                  # Process key driver genes for specific diseases t
     output:
         evidenceFile = 'sysbio.json.gz'
     log:
-        GS.remote(logFile)
+        'log/sysbio.log'
     shell:
         """
+        exec &> {log}
         python modules/SystemsBiology.py \
           --evidenceFile {input.evidenceFile} \
           --studyFile {input.studyFile} \
@@ -352,9 +364,10 @@ rule TargetEnablingPackages:  # Fetching Target Enabling Packages (TEP) data fro
     output:
         'tep.json.gz'
     log:
-        GS.remote(logFile)
+        'log/TargetEnablingPackages.log'
     shell:
         """
+        exec &> {log}
         python modules/TEP.py  \
           --output_file {output}
         opentargets_validator --schema {params.schema} {output}
@@ -370,9 +383,10 @@ rule TargetSafety:            # Process data from different sources that describ
     output:
         'safetyLiabilities.json.gz'
     log:
-        GS.remote(logFile)
+        'log/TargetEnablingPackages.log'
     shell:
         """
+        exec &> {log}
         python modules/TargetSafety.py  \
             --adverse_events {params.ae} \
             --safety_risk {params.sr} \
