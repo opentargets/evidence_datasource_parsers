@@ -6,13 +6,9 @@ from snakemake.remote.HTTP import RemoteProvider as HTTPRemoteProvider
 GS = GSRemoteProvider()
 HTTP = HTTPRemoteProvider()
 
-# --- Settings --- #
-# Current date in YYYY-MM-DD format:
-timeStamp = datetime.now().strftime("%Y-%m-%d")
-
-# Configuration is read from the config yaml:
+# Settings.
+timeStamp = datetime.now().strftime("%Y-%m-%d")  # YYYY-MM-DD.
 configfile: 'configuration.yaml'
-logFile = f"{config['global']['logDir']}/evidence_parser-{timeStamp}.log"
 
 # The master list of all files with their local and remote filenames to avoid code duplication. Only the files specified
 # in this list will be generated and uploaded by the "all" and "local" rules.
@@ -42,7 +38,7 @@ ALL_FILES = [
 LOCAL_FILENAMES = [f[0] for f in ALL_FILES]
 REMOTE_FILENAMES = [f[1] for f in ALL_FILES]
 
-# --- Auxiliary Rules --- #
+# Auxiliary rules.
 rule help:                    # Print help comments for Snakefile.
     input: "Snakefile"
     shell:
@@ -59,17 +55,19 @@ rule all:                     # Generate all files and upload them to Google Clo
         # uploading the files.
         for local_filename, remote_filename in zip(input, output):
             os.rename(local_filename, remote_filename)
+        # Upload the directory with logs to Google Cloud Storage and timestamp it.
+        os.rename('log', f"{config['global']['logDir']}/evidence_parser-{timeStamp}")
 
 rule local:                   # Generate all files, but do not upload them.
     input:
         LOCAL_FILENAMES
 
-# --- Data sources parsers --- #
+# Data source parsers.
 rule cancerBiomarkers:        # Process the Cancers Biomarkers database from Cancer Genome Interpreter.
     input:
         biomarkers_table = GS.remote(f"{config['cancerBiomarkers']['inputBucket']}/cancerbiomarkers-2018-05-01.tsv"),
         source_table = GS.remote(f"{config['cancerBiomarkers']['inputBucket']}/cancer_biomarker_source.jsonl"),
-        disease_table = GS.remote(f"{config['cancerBiomarkers']['inputBucket']}/cancer_biomarker_disease.jsonl"),
+        disease_table = GS.remote(f"{config['cancerBiomarkers']['inputBucket']}/cancer_biomarker_disease.jsonl")
     params:
         # Downloaded separately using wget, because FTP.RemoteProvider cannot handle recursive directory downloads.
         drug_index = config['cancerBiomarkers']['drugIndex'],
@@ -77,9 +75,12 @@ rule cancerBiomarkers:        # Process the Cancers Biomarkers database from Can
     output:
         'cancer_biomarkers.json.gz'
     log:
-        GS.remote(logFile)
+        'log/cancerBiomarkers.log'
     shell:
         """
+        # In this and the following rules, the exec call redirects the output of all subsequent commands (both STDOUT
+        # and STDERR) to the specified log file. 
+        exec &> {log}
         wget -q -r ftp://{params.drug_index}
         python modules/cancerBiomarkers.py \
           --biomarkers_table {input.biomarkers_table} \
