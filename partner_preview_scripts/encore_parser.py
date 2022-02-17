@@ -5,6 +5,7 @@ import argparse
 import datetime
 import json
 import logging
+from numpy import array
 import requests
 import os
 import sys
@@ -12,7 +13,7 @@ from functools import reduce
 
 
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, struct, regexp_replace, udf, lit, expr, split, explode
+from pyspark.sql.functions import col, struct, regexp_replace, udf, lit, expr, split, explode, array
 from pyspark.sql.types import StringType, StructType, StructField, ArrayType, FloatType
 from pyspark.sql.dataframe import DataFrame
 
@@ -400,7 +401,7 @@ class EncoreEvidenceGenerator:
 
             # Joining with cell passport data containing diseaseCellLines and biomarkers info:
             .join(
-                self.cell_passport_df.select(col('id').alias('cellId'), 'diseaseCellLines', 'biomarkerList'), 
+                self.cell_passport_df.select(col('id').alias('cellId'), 'diseaseCellLines', 'biomarkerList'),
                 on='cellId', how='left'
             )
             .persist()
@@ -410,6 +411,8 @@ class EncoreEvidenceGenerator:
 
         evidence_df = (
             merged_dataset
+
+            .withColumn('diseaseCellLines', array(col('diseaseCellLines')))
 
             # Parsing/exploding gene names and target roles:
             .withColumn('id', self.parse_targets(col('id'), col('Note1')))
@@ -433,7 +436,7 @@ class EncoreEvidenceGenerator:
 
             .persist()
         )
-
+        evidence_df.printSchema()
         return evidence_df
 
 
