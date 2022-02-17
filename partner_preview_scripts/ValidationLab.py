@@ -346,7 +346,7 @@ def parse_experiment(spark: SparkSession, parameters: dict, cellPassportDf: Data
         .join(validationHypotheses_df, on='gene', how='left')
 
         # Rename existing columns need to be updated:
-        .withColumnRenamed('gene', 'targetFromSource')
+        .withColumnRenamed('gene', 'targetFromSourceId')
         .withColumnRenamed('cell-line', 'name')
 
         # Parsing resource score:
