@@ -90,13 +90,13 @@ class OTAR_CRISPR_study_parser(object):
         evidence_fields = [
             'targetFromSourceId', 'diseaseFromSourceMappedId', 'projectDescription',
             'projectId', 'studyId', 'studyOverview', 'contrast', 'crisprScreenLibrary',
-            'cellType', 'cellLineBackground', 'geneticBackground',
-            'statisticalTestTail', 'resourceScore', 'log2FoldChangeValue'
+            'cellType', 'cellLineBackground', 'geneticBackground', 'statisticalTestTail', 'resourceScore', 'log2FoldChangeValue'
         ]
         self.merged_dataset = (
             self.study_df
             .assign(statisticalTestTail=lambda df: df.filterColumn.map(FILTER_COLUMN_MAP))
             .merge(hits_df, on='studyId', how='inner')
+
             .explode('diseaseFromSourceMappedId')
             .filter(items=evidence_fields)
             .assign(
@@ -181,16 +181,15 @@ def main(study_table, output_file, data_folder) -> None:
 if __name__ == '__main__':
 
     # Parsing arguments:
-    parser = argparse.ArgumentParser(
-        description='Script to parse internally generated datasets for OTAR projects.')
-    parser.add_argument('-s', '--study_table', type=str, required=True,
-                        help='A Google spreadsheet URL with the study description of the available projects.')
+    parser = argparse.ArgumentParser(description='Script to parse internally generated datasets for OTAR projects.')
+
     parser.add_argument(
-        '-o', '--output', help='Output json.gz file with the evidece.', required=False, type=str)
-    parser.add_argument('-l', '--log_file', help='Generated logs can be saved into this file.',
-                        required=False, type=str)
-    parser.add_argument('-d', '--data_folder',
-                        help='Folder with the data files.', required=True, type=str)
+        '-s', '--study_table', type=str, required=True,
+        help='A Google spreadsheet URL with the study description of the available projects.'
+    )
+    parser.add_argument('-o', '--output', required=False, type=str, help='Output json.gz file with the evidece.')
+    parser.add_argument('-l', '--log_file', required=False, type=str, help='Logs are saved into this file.')
+    parser.add_argument('-d', '--data_folder', help='Folder with the data files.', required=True, type=str)
     args = parser.parse_args()
 
     study_table = args.study_table
