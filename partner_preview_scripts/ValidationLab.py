@@ -158,8 +158,6 @@ class ParseHypotheses:
             .withColumn('gene', upper(col('gene')))
         )
 
-        print(hypothesis_df.select('gene').distinct().show(100))
-
         # The first column is the gene name, the rest are the hypotheses:
         hypothesis_columns = hypothesis_df.columns[1:]
 
