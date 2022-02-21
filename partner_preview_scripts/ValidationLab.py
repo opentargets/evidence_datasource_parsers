@@ -158,6 +158,8 @@ class ParseHypotheses:
             .withColumn('gene', upper(col('gene')))
         )
 
+        print(hypothesis_df.select('gene').distinct().show(100))
+
         # The first column is the gene name, the rest are the hypotheses:
         hypothesis_columns = hypothesis_df.columns[1:]
 
@@ -341,6 +343,9 @@ def parse_experiment(spark: SparkSession, parameters: dict, cellPassportDf: Data
     evidence = (
         # Reading evidence:
         spark.read.csv(experimentFile, sep='\t', header=True)
+
+        # Genes need to be uppercase:
+        .withColumn('gene', upper(col('gene')))
 
         # Joining hypothesis data:
         .join(validationHypotheses_df, on='gene', how='left')
