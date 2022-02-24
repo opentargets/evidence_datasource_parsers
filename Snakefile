@@ -163,7 +163,7 @@ rule crispr:                  # Process cancer therapeutic targets using CRISPRâ
 
 rule epmc:                    # Process target/disease evidence strings from ePMC cooccurrence files.
     input:
-        inputCooccurences = GS.remote(config['EPMC']['inputBucket'])
+        inputCooccurences = directory(GS.remote(config['EPMC']['inputBucket']))
     params:
         schema = f"{config['global']['schema']}/opentargets.json"
     output:
