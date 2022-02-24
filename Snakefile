@@ -1,4 +1,5 @@
 import os
+import tarfile
 from datetime import datetime
 from snakemake.remote.GS import RemoteProvider as GSRemoteProvider
 from snakemake.remote.HTTP import RemoteProvider as HTTPRemoteProvider
@@ -55,8 +56,10 @@ rule all:                     # Generate all files and upload them to Google Clo
         # uploading the files.
         for local_filename, remote_filename in zip(input, output):
             os.rename(local_filename, remote_filename)
-        # Upload the directory with logs to Google Cloud Storage and timestamp it.
-        os.rename('log', f"{config['global']['logDir']}/evidence_parser-{timeStamp}")
+        # Compress, timestamp, and upload the logs.
+        with tarfile.open(f"{config['global']['logDir']}/evidence_parser-{timeStamp}.tar.gz", 'w:gz') as archive:
+            for filename in os.listdir('log'):
+                archive.add(filename)
 
 rule local:                   # Generate all files, but do not upload them.
     input:

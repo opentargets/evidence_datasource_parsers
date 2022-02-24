@@ -16,7 +16,6 @@ By default, the generated evidence will be validated using the latest master sna
 # Set parameters.
 export INSTANCE_NAME=evidence-generation
 export INSTANCE_ZONE=europe-west1-d
-
 # Create the instance and SSH.
 gcloud compute instances create \
   ${INSTANCE_NAME} \
@@ -27,6 +26,7 @@ gcloud compute instances create \
   --scopes=https://www.googleapis.com/auth/cloud-platform \
   --create-disk=auto-delete=yes,boot=yes,device-name=${INSTANCE_NAME},image=projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20210927,mode=rw,size=2000,type=projects/open-targets-eu-dev/zones/europe-west1-d/diskTypes/pd-balanced
 gcloud compute ssh --zone ${INSTANCE_ZONE} ${INSTANCE_NAME}
+
 screen
 
 # Install the dependencies.
@@ -34,8 +34,10 @@ sudo apt update
 sudo apt install -y \
   openjdk-8-jdk-headless \
   snakemake
+
 wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh
-bash ~/miniconda.sh
+bash ~/miniconda.sh -b
+~/miniconda3/bin/conda init
 exec bash
 
 # Activate the environment.
