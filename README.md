@@ -56,6 +56,10 @@ At this point, we are ready to run the Snakemake pipeline. The following options
 
 All individual parser rules are strictly local. The only rule which uploads files to Google Cloud Storage (all at once) is "all".
 
+Some additional parameters which can be useful for debugging:
+* `--keep-incomplete`: This will keep the output files of failed jobs. Must only be used with local runs. Note that Snakemake uses the presence of the output files to decide which jobs to run, so the incomplete files must be removed after investigation and before any re-runs of the workflow.
+* `--dry-run`: Do not run the workflow, and only show the list of jobs to be run.
+
 ## Processing Genetics Portal evidence
 Evidence generation for the Genetics Portal is not automated in the Snakefile. It can be done separately using the following commands. It is planned that this step will eventually become part of the Genetics Portal release pipeline.
 
