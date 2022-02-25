@@ -49,15 +49,15 @@ rule all:                     # Generate all files and upload them to Google Clo
     input:
         LOCAL_FILENAMES
     output:
-        REMOTE_FILENAMES
+        REMOTE_FILENAMES + [f"{config['global']['logDir']}/evidence_parser-{timeStamp}.tar.gz"]
     run:
         # The way this works is that remote filenames are actually represented by Snakemake as pseudo-local files.
         # Snakemake will catch the "os.rename" (the same way it would have caught a "mv" call) and proceed with
         # uploading the files.
-        for local_filename, remote_filename in zip(input, output):
+        for local_filename, remote_filename in zip(input, output[:-1]):
             os.rename(local_filename, remote_filename)
         # Compress, timestamp, and upload the logs.
-        with tarfile.open(f"{config['global']['logDir']}/evidence_parser-{timeStamp}.tar.gz", 'w:gz') as archive:
+        with tarfile.open(output[-1], 'w:gz') as archive:
             for filename in os.listdir('log'):
                 archive.add(filename)
 
