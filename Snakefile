@@ -59,7 +59,7 @@ rule all:                     # Generate all files and upload them to Google Clo
         # Compress, timestamp, and upload the logs.
         with tarfile.open(output[-1], 'w:gz') as archive:
             for filename in os.listdir('log'):
-                archive.add(filename)
+                archive.add(os.path.join('log', filename))
 
 rule local:                   # Generate all files, but do not upload them.
     input:
