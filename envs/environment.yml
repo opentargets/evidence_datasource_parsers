@@ -1,20 +1,17 @@
 name: evidence_datasource_parsers
-channels:
-  - conda-forge
-  - bioconda
 dependencies:
   - beautifulsoup4=4.10.0
-  - conda-lock=0.10.0
   - numpy=1.19.2
-  - opentargets-validator=0.7.0
   - pandas=1.2.2
-  - pip=21.0.1
-  - pronto=2.4.3
+  - pip=22.0.4
   - pyspark=3.1.2
   - python=3.7.9
   - requests=2.25.1
   - retry=0.9.2
-  - snakemake==6.0.0
+  # Specifying the bioconda channel directly in order to dramatically speed up the build
+  - bioconda::opentargets-validator=0.8.0
+  - bioconda::pronto=2.4.3
+  - bioconda::snakemake=7.2.1
   - pip:
     - ontoma==1.0.2
     - pandarallel==1.5.2
