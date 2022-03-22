@@ -51,7 +51,8 @@ export PYTHONPATH="$PYTHONPATH:$(pwd)"
 
 At this point, we are ready to run the Snakemake pipeline. The following options are available:
 * `snakemake --cores all`: Display help (the list of possible rules to be run) and do not run anything.
-* `snakemake --cores all --until local`: Generate all files, but do not upload them to Google Cloud Storage. The files generated in this way do not have prefixes, e.g. `cancer_biomarkers.json.gz`. This is done intentially, so that the pipeline can be re-run the next day without having to re-generate all of the files.
+* `snakemake --cores all --until local`: Generate all files, but do not upload them to Google Cloud Storage. The files generated in this way do not have prefixes, e.g. `cancer_biomarkers.json.gz`. This is done intentionally, so that the pipeline can be re-run the next day without having to re-generate all the files.
+  + It is also possible to locally run only a single rule by substituting its name instead of “local”.
 * `snakemake --cores all --until all`: Generate all files and then upload them to Google Cloud Storage.
 
 All individual parser rules are strictly local. The only rule which uploads files to Google Cloud Storage (all at once) is "all".

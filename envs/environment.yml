@@ -11,7 +11,7 @@ dependencies:
   # Specifying the bioconda channel directly in order to dramatically speed up the build
   - bioconda::opentargets-validator=0.8.0
   - bioconda::pronto=2.4.3
-  - bioconda::snakemake=7.2.1
+  - bioconda::snakemake=7.3.0
   - pip:
     - ontoma==1.0.2
     - pandarallel==1.5.2
