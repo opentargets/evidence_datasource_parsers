@@ -10,7 +10,7 @@ from functools import reduce
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import (
     array, col, lit, struct, udf, when, collect_list,
-    expr, first, element_at, split, collect_set, upper
+    expr, first, element_at, split, collect_set, upper, log
 )
 from pyspark.sql.types import StringType, StructType, StructField, BooleanType
 from pyspark.sql.dataframe import DataFrame
@@ -128,7 +128,7 @@ class ParseHypotheses:
                 'status',
                 when(col('expected') & col('observed'), 'observed and expected')
                 .when(col('expected'), 'expected but not observed')
-                .when(col('observed'), 'observed but not expected"')
+                .when(col('observed'), 'observed but not expected')
                 .otherwise('not expected and not observed')
             )
             .withColumn('hypothesis', struct('hypothesis.*', 'status'))
@@ -354,6 +354,9 @@ def parse_experiment(spark: SparkSession, parameters: dict, cellPassportDf: Data
 
         # Parsing resource score:
         .withColumn('resourceScore', col('effect-size').cast("double"))
+        .withColumn('resourceScore', 
+            when(col('resourceScore') > 0, col('resourceScore')).otherwise(lit(0))
+        )
 
         # Generate the binary confidence calls:
         .withColumn(
