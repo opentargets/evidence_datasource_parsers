@@ -35,7 +35,7 @@ def main(regeneron_data: str, gwas_studies: str, output_file: str) -> None:
     Args:
     """
     logging.info(f"File with the results from the Regeneron burden analyses: {regeneron_data}")
-    logging.info(f"File with the Regeneron related studies in the GWAS Catalog: {gwas_studies}")
+    logging.info(f"File with GWAS Catalog studies: {gwas_studies}")
 
     # Load data
 
@@ -96,10 +96,11 @@ def main(regeneron_data: str, gwas_studies: str, output_file: str) -> None:
         .persist()
     )
 
-    # TODO: Account for the transformed "None"s and assert p value != 0
-
+    assert regeneron_df.filter(col('P-value') == 0).count(), "P-value is not 0 for some associations."
+    
+    # Write output
+    logging.info('Evidence strings have been processed. Saving...')
     evd_df = parse_regeneron_evidence(regeneron_df)
-
     write_evidence_strings(evd_df, output_file)
 
     logging.info(f"{evd_df.count()} evidence strings have been saved to {output_file}. Exiting.")
