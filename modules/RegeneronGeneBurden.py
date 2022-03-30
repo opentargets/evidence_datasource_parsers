@@ -1,22 +1,21 @@
 #!/usr/bin/env python
-"""This module adds the category of why a clinical trial has stopped early to the ChEMBL evidence."""
+"""This module extracts and processes target/disease evidence from the raw data published in PMID:34662886."""
 
 import argparse
 import logging
 import sys
 
-from pyspark.sql.functions import array, element_at, expr, col, lit, regexp_extract, split, when
-
 from numpy import nan
 from pandas import concat, read_excel
 from pyspark.sql.dataframe import DataFrame
+from pyspark.sql.functions import array, element_at, expr, col, concat, lit, split, translate, when
 from pyspark.sql.types import DoubleType, IntegerType
 
 from common.evidence import initialize_sparksession, write_evidence_strings
 
 ANCESTRY_TO_ID = {"EUR": "HANCESTRO_0005", "EAS": "HANCESTRO_0009", "AFR": "HANCESTRO_0010", "SAS": "HANCESTRO_0006"}
 
-MARKER_DESCRIPTION = {
+MARKER_TO_METHOD_DESC = {
     "M1.singleton": "Burden test carried out with singleton pLOF variants.",
     "M1.0001": "Burden test carried out with pLOFs with a MAF smaller than 0.001%.",
     "M1.001": "Burden test carried out with pLOFs with a MAF smaller than 0.01%.",
@@ -73,12 +72,16 @@ def main(regeneron_data: str, gwas_studies: str, output_file: str) -> None:
         .replace({nan: None})
         .astype(str)
     ).withColumn("Study tag", split("Study tag", "__SV").getItem(0))
-    gwas_studies_df = spark.read.csv(gwas_studies, sep="\t", header=True).select(
-        col("STUDY ACCESSION").alias("Study Accession"),
-        element_at(split("MAPPED_TRAIT_URI", "/"), -1).alias("MAPPED_TRAIT"),
+    gwas_studies_df = (
+        spark.read.csv(gwas_studies, header=True, inferSchema=True, sep="\t")
+        .filter(col("LINK").contains("34662886"))
+        .select(
+            col("STUDY ACCESSION").alias("Study Accession"),
+            element_at(split("MAPPED_TRAIT_URI", "/"), -1).alias("MAPPED_TRAIT"),
+        )
     )
 
-    assert gwas_studies.count() > 7900, "Downloaded GWAS studies data are not complete."
+    assert gwas_studies_df.count() > 7900, "Downloaded GWAS studies data are not complete."
 
     regeneron_df = (
         # Combine European with Non European associations
@@ -110,77 +113,100 @@ def parse_regeneron_evidence(regeneron_df: DataFrame) -> DataFrame:
     Returns:
         evd_df: DataFrame with the Regeneron data following the t/d evidence schema.
     """
-    TO_KEEP = ["datasourceId", "datatypeId", "targetFromSourceId", "diseaseFromSource", "diseaseFromSourceMappedId", "pValueMantissa", "pValueExponent", "beta", "betaConfidenceIntervalLower", "betaConfidenceIntervalUpper", "oddsRatio", "oddsRatioConfidenceIntervalLower", "oddsRatioConfidenceIntervalUpper", "resourceScore", "ancestry", "ancestryId", "literature", "projectId", "cohortId", "studyId", "studySampleSize", "studyCases", "statisticalMethod", "statisticalMethodOverview"]
+    TO_KEEP = [
+        "datasourceId",
+        "datatypeId",
+        "targetFromSourceId",
+        "diseaseFromSource",
+        "diseaseFromSourceMappedId",
+        "pValueMantissa",
+        "pValueExponent",
+        "beta",
+        "betaConfidenceIntervalLower",
+        "betaConfidenceIntervalUpper",
+        "oddsRatio",
+        "oddsRatioConfidenceIntervalLower",
+        "oddsRatioConfidenceIntervalUpper",
+        "resourceScore",
+        "ancestry",
+        "ancestryId",
+        "literature",
+        "projectId",
+        "cohortId",
+        "studyId",
+        "studySampleSize",
+        "studyCases",
+        "statisticalMethod",
+        "statisticalMethodOverview",
+    ]
 
-    evd_df = (
+    return (
         regeneron_df.withColumn("datasourceId", lit("gene_burden"))
         .withColumn("datatypeId", lit("genetic_association"))
         .withColumn("literature", array(lit("34662886")))
         .withColumn("projectId", lit("REGENERON"))
-        .withColumn("projectId", lit("UK Biobank"))
+        .withColumn("cohortId", lit("UK Biobank"))
         .withColumnRenamed("Gene", "targetFromSourceId")
         .withColumnRenamed("Trait", "diseaseFromSource")
         .withColumnRenamed("MAPPED_TRAIT", "diseaseFromSourceMappedId")
         .withColumn("resourceScore", col("P-value").cast(DoubleType()))
         .withColumn("pValueMantissa", split(col("P-value"), "e").getItem(0).cast(DoubleType()))
         .withColumn("pValueExponent", split(col("P-value"), "e").getItem(1).cast(IntegerType()))
+        .withColumn("effectParsed", split(translate(col('Effect (95% CI)'), '(),', ''), ' '))
         .withColumn(
             "beta",
             when(
                 col("Trait type") == "BT",
-                regexp_extract(col("Effect (95% CI)"), "[\-]?\d+[\.]?\d+", 0).cast(DoubleType()),
+                col("effectParsed").getItem(0).cast(DoubleType()),
             ),
         )
         .withColumn(
             "betaConfidenceIntervalLower",
             when(
                 col("Trait type") == "BT",
-                regexp_extract(col("Effect (95% CI)"), "[\-]?\d+[\.]?\d+", 1).cast(DoubleType()),
+                col("effectParsed").getItem(1).cast(DoubleType()),
             ),
         )
         .withColumn(
             "betaConfidenceIntervalUpper",
             when(
                 col("Trait type") == "BT",
-                regexp_extract(col("Effect (95% CI)"), "[\-]?\d+[\.]?\d+", 2).cast(DoubleType()),
+                col("effectParsed").getItem(2).cast(DoubleType()),
             ),
         )
         .withColumn(
             "oddsRatio",
             when(
-                col("Trait type") == "BT",
-                regexp_extract(col("Effect (95% CI)"), "[\-]?\d+[\.]?\d+", 0).cast(DoubleType()),
+                col("Trait type") == "QT",
+                col("effectParsed").getItem(0).cast(DoubleType()),
             ),
         )
         .withColumn(
             "oddsRatioConfidenceIntervalLower",
             when(
-                col("Trait type") == "BT",
-                regexp_extract(col("Effect (95% CI)"), "[\-]?\d+[\.]?\d+", 1).cast(DoubleType()),
+                col("Trait type") == "QT",
+                col("effectParsed").getItem(1).cast(DoubleType()),
             ),
         )
         .withColumn(
             "oddsRatioConfidenceIntervalUpper",
             when(
-                col("Trait type") == "BT",
-                regexp_extract(col("Effect (95% CI)"), "[\-]?\d+[\.]?\d+", 2).cast(DoubleType()),
+                col("Trait type") == "QT",
+                col("effectParsed").getItem(2).cast(DoubleType()),
             ),
         )
         .withColumnRenamed("ancestry", "Ancestry")
         .withColumn("ancestryId", col("ancestry"))
         .replace(to_replace=ANCESTRY_TO_ID, subset=['ancestryId'])
-        .withColumnRenamed("studyId", "Study Accession")
+        .withColumnRenamed("Study Accession", "studyId")
         .withColumn("studySampleSize", lit(3))
         .withColumn("studyCases", lit(2))
         .withColumn("statisticalMethod", concat(lit("ADD-WGR-FIRTH_"), col("Marker")))
         .withColumn("statisticalMethodOverview", col("Marker"))
-        .replace(to_replace=MARKER_DESCRIPTION, subset=['statisticalMethodOverview'])
-
-        .select(*TO_KEEP)
+        .replace(to_replace=MARKER_TO_METHOD_DESC, subset=['statisticalMethodOverview'])
+        .select(TO_KEEP)
         .distinct()
     )
-
-    return evd_df
 
 
 def get_parser():
@@ -204,6 +230,13 @@ def get_parser():
         help='Output gzipped json file following the target safety liabilities data model.',
         type=str,
         required=True,
+    )
+    parser.add_argument(
+        '--log_file',
+        help='Destination of the logs generated by this script. Defaults to None',
+        type=str,
+        nargs='?',
+        default=None,
     )
 
     return parser
