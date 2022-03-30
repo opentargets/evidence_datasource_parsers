@@ -28,11 +28,12 @@ Add or update any direct dependencies to [`environment.yml`](environment.yml) (C
 * Do not forget to remove any dependencies which are no longer required.
 * When a package is available through both Conda and PIP, install via Conda.
 
-Recreate and activate the environment:
+Recreate and activate the environment. Resolving all dependencies can take around 10 minutes, which is expected.
 ```bash
 if [[ "${CONDA_DEFAULT_ENV}" == "evidence_datasource_parsers" ]]; then conda deactivate; fi
 conda env remove -n evidence_datasource_parsers
-conda env create -f environment.yml
+conda env remove -n evidence_datasource_parsers_lock
+time conda env create -f environment.yml python=3.7 -vv
 conda activate evidence_datasource_parsers
 ```
 * Resolve the version conflicts if any arise.

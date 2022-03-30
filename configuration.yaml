@@ -1,12 +1,13 @@
 global:
   logDir: gs://otar000-evidence_input/parser_logs
   cacheDir: cache_dir
+  # This is a directory prefix; individual schemas relative to it are specified by each rule.
   schema: https://raw.githubusercontent.com/opentargets/json_schema/master
 
 cancerBiomarkers:
   inputBucket: gs://otar000-evidence_input/CancerBiomarkers/data_files
   outputBucket: gs://otar000-evidence_input/CancerBiomarkers/json
-  # Downloaded separately using wget, because FTP.RemoteProvider cannot handle recurisve directory downloads.
+  # Downloaded separately using wget, because FTP.RemoteProvider cannot handle recursive directory downloads.
   drugIndex: ftp.ebi.ac.uk/pub/databases/opentargets/platform/21.09/output/etl/parquet/diseases
 ClinGen:
   webSource: https://search.clinicalgenome.org/kb/gene-validity/download
@@ -16,13 +17,13 @@ CRISPR:
   inputBucket: gs://otar000-evidence_input/CRISPR/data_files
   outputBucket: gs://otar000-evidence_input/CRISPR/json
 EPMC:
-  inputBucket: gs://open-targets-pre-data-releases/22.02.2/output/literature/cooccurrences
+  inputBucket: gs://open-targets-pre-data-releases/22.02.4/output/literature/parquet/cooccurrences
   outputBucket: gs://otar000-evidence_input/EPMC/json
 Gene2Phenotype:
-  webSource_dd_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/DDG2P.csv.gz
-  webSource_eye_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/EyeG2P.csv.gz
-  webSource_skin_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/SkinG2P.csv.gz
-  webSource_cancer_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/CancerG2P.csv.gz
+  webSource_dd_panel: http://ftp.ebi.ac.uk/pub/databases/gene2phenotype/DD/DDG2P_1_12_2021.csv.gz
+  webSource_eye_panel: http://ftp.ebi.ac.uk/pub/databases/gene2phenotype/Eye/EyeG2P_1_12_2021.csv.gz
+  webSource_skin_panel: http://ftp.ebi.ac.uk/pub/databases/gene2phenotype/Skin/SkinG2P_1_12_2021.csv.gz
+  webSource_cancer_panel: http://ftp.ebi.ac.uk/pub/databases/gene2phenotype/Cancer/CancerG2P_1_12_2021.csv.gz
   inputBucket: gs://otar000-evidence_input/Gene2Phenotype/data_files
   outputBucket: gs://otar000-evidence_input/Gene2Phenotype/json
 intOGen:
@@ -53,8 +54,8 @@ SysBio:
 TEP:
   outputBucket: gs://otar001-core/TEPs
 TargetSafety:
-  adverseEvents: 'https://raw.githubusercontent.com/opentargets/curation/master/target_safety/adverse_effects.tsv'
-  safetyRisk: 'https://raw.githubusercontent.com/opentargets/curation/master/target_safety/safety_risks.tsv'
+  adverseEvents: https://raw.githubusercontent.com/opentargets/curation/master/target_safety/adverse_effects.tsv
+  safetyRisk: https://raw.githubusercontent.com/opentargets/curation/master/target_safety/safety_risks.tsv
   toxcast: gs://otar001-core/TargetSafety/data_files/toxcast/ToxCast_2021-08-17.tsv
   outputBucket: gs://otar001-core/TargetSafety/json
 ChEMBL:
