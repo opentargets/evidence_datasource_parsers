@@ -6,10 +6,10 @@ import logging
 import sys
 
 from numpy import nan
-from pandas import concat, read_excel
+from pandas import read_excel
 from pyspark.sql.dataframe import DataFrame
-from pyspark.sql.functions import array, element_at, expr, col, concat, lit, split, translate, when
-from pyspark.sql.types import DoubleType, IntegerType
+from pyspark.sql.functions import aggregate, array, element_at, expr, col, concat, lit, split, translate, when
+from pyspark.sql.types import ArrayType, DoubleType, IntegerType
 
 from common.evidence import initialize_sparksession, write_evidence_strings
 
@@ -61,9 +61,11 @@ def main(regeneron_data: str, gwas_studies: str, output_file: str) -> None:
         .withColumn("Ancestry", lit("EUR"))
         .withColumnRenamed("UKB detailed trait name", "Study tag")
     )
+
     non_eur_evd_df = spark.createDataFrame(
         read_excel(regeneron_data, sheet_name="SD3").filter(items=TO_KEEP).replace({nan: None}).astype(str)
     ).withColumnRenamed("Trait_String", "Study tag")
+
     summary_stats_df = spark.createDataFrame(
         read_excel(regeneron_data, sheet_name="SD4", skiprows=0, header=1)
         .iloc[2:]
@@ -72,6 +74,7 @@ def main(regeneron_data: str, gwas_studies: str, output_file: str) -> None:
         .replace({nan: None})
         .astype(str)
     ).withColumn("Study tag", split("Study tag", "__SV").getItem(0))
+
     gwas_studies_df = (
         spark.read.csv(gwas_studies, header=True, inferSchema=True, sep="\t")
         .filter(col("LINK").contains("34662886"))
@@ -80,7 +83,6 @@ def main(regeneron_data: str, gwas_studies: str, output_file: str) -> None:
             element_at(split("MAPPED_TRAIT_URI", "/"), -1).alias("MAPPED_TRAIT"),
         )
     )
-
     assert gwas_studies_df.count() > 7900, "Downloaded GWAS studies data are not complete."
 
     regeneron_df = (
@@ -96,11 +98,11 @@ def main(regeneron_data: str, gwas_studies: str, output_file: str) -> None:
         .persist()
     )
 
-    assert regeneron_df.filter(col('P-value') == 0).count(), "P-value is not 0 for some associations."
-    
     # Write output
     logging.info('Evidence strings have been processed. Saving...')
     evd_df = parse_regeneron_evidence(regeneron_df)
+    assert evd_df.filter(col('resourceScore') == 0).count() >= 0, "P-value is 0 for some associations."
+
     write_evidence_strings(evd_df, output_file)
 
     logging.info(f"{evd_df.count()} evidence strings have been saved to {output_file}. Exiting.")
@@ -153,55 +155,77 @@ def parse_regeneron_evidence(regeneron_df: DataFrame) -> DataFrame:
         .withColumn("resourceScore", col("P-value").cast(DoubleType()))
         .withColumn("pValueMantissa", split(col("P-value"), "e").getItem(0).cast(DoubleType()))
         .withColumn("pValueExponent", split(col("P-value"), "e").getItem(1).cast(IntegerType()))
+        # Parse interval by removing unwanted characters and splitting.
+        # Ex: "-0.097 (-0.125, -0.069)" -> [-0.097, -0.125, -0.069]
         .withColumn("effectParsed", split(translate(col('Effect (95% CI)'), '(),', ''), ' '))
         .withColumn(
             "beta",
             when(
-                col("Trait type") == "BT",
+                col("Trait type") == "QT",
                 col("effectParsed").getItem(0).cast(DoubleType()),
             ),
         )
         .withColumn(
             "betaConfidenceIntervalLower",
             when(
-                col("Trait type") == "BT",
+                col("Trait type") == "QT",
                 col("effectParsed").getItem(1).cast(DoubleType()),
             ),
         )
         .withColumn(
             "betaConfidenceIntervalUpper",
             when(
-                col("Trait type") == "BT",
+                col("Trait type") == "QT",
                 col("effectParsed").getItem(2).cast(DoubleType()),
             ),
         )
         .withColumn(
             "oddsRatio",
             when(
-                col("Trait type") == "QT",
+                col("Trait type") == "BT",
                 col("effectParsed").getItem(0).cast(DoubleType()),
             ),
         )
         .withColumn(
             "oddsRatioConfidenceIntervalLower",
             when(
-                col("Trait type") == "QT",
+                col("Trait type") == "BT",
                 col("effectParsed").getItem(1).cast(DoubleType()),
             ),
         )
         .withColumn(
             "oddsRatioConfidenceIntervalUpper",
             when(
-                col("Trait type") == "QT",
+                col("Trait type") == "BT",
                 col("effectParsed").getItem(2).cast(DoubleType()),
             ),
         )
+
         .withColumnRenamed("ancestry", "Ancestry")
         .withColumn("ancestryId", col("ancestry"))
         .replace(to_replace=ANCESTRY_TO_ID, subset=['ancestryId'])
         .withColumnRenamed("Study Accession", "studyId")
-        .withColumn("studySampleSize", lit(3))
-        .withColumn("studyCases", lit(2))
+
+        # Parse number of individuals and sum them up.
+        # Ex: "421865|1618|2" -> 423485
+        .withColumn(
+            "studyCases",
+            aggregate(
+                split(col('N cases with 0|1|2 copies of effect allele'), '\|').cast(ArrayType(IntegerType())),
+                lit(0),
+                lambda acc, x: acc + x,
+            ),
+        )
+        .withColumn(
+            "studyControls",
+            aggregate(
+                split(col('N controls with 0|1|2 copies of effect allele'), '\|').cast(ArrayType(IntegerType())),
+                lit(0),
+                lambda acc, x: acc + x,
+            ),
+        )
+        .withColumn("studySampleSize", col('studyCases') + col('studyControls'))
+
         .withColumn("statisticalMethod", concat(lit("ADD-WGR-FIRTH_"), col("Marker")))
         .withColumn("statisticalMethodOverview", col("Marker"))
         .replace(to_replace=MARKER_TO_METHOD_DESC, subset=['statisticalMethodOverview'])
