@@ -12,17 +12,17 @@ from pyspark.sql.types import DoubleType, IntegerType
 from common.evidence import initialize_sparksession, write_evidence_strings
 
 METHOD_DESC = {
-    "ptvraredmg": "Burden test carried out with singleton pLOF variants.",
-    "UR": "Burden test carried out with pLOFs with a MAF smaller than 0.001%.",
-    "raredmg": "Burden test carried out with pLOFs with a MAF smaller than 0.01%.",
-    "URmtr": "Burden test carried out with pLOFs with a MAF smaller than 0.1%.",
-    "ptv": "Burden test carried out with pLOFs with a MAF smaller than 1%.",
-    "rec": "Burden test carried out with singleton pLOFs and deleterious missense variants.",
-    "syn": "Burden test carried out with pLOFs and deleterious missense with a MAF smaller than 0.001%.",
-    "raredmgmtr": "Burden test carried out with pLOFs and deleterious missense with a MAF smaller than 0.01%.",
-    "ptv5pcnt": "Burden test carried out with pLOFs and deleterious missense with a MAF smaller than 0.1%.",
-    "flexdmg": "Burden test carried out with pLOFs and deleterious missense with a MAF smaller than 1%.",
-    "flexnonsynmtr": "Burden test carried out with pLOFs and deleterious missense with a MAF smaller than 1%.",
+    "ptv": "Burden test carried out with PTVs with a MAF smaller than 0.1%.",
+    "ptv5pcnt": "Burden test carried out with PTVs with a MAF smaller than 5%.",
+    "UR": "Burden test carried out with ultra rare damaging variants (MAF ≈ 0%).",
+    "URmtr": "Burden test carried out with MTR-informed ultra rare damaging variants (MAF ≈ 0%).",
+    "raredmg": "Burden test carried out with rare missense variants with a MAF smaller than 0.005%.",
+    "raredmgmtr": "Burden test carried out with MTR-informed rare missense variants with a MAF smaller than 0.005%.",
+    "flexdmg": "Burden test carried out with damaging variants with a MAF smaller than 0.01%.",
+    "flexnonsyn": "Burden test carried out with non synonymous variants with a MAF smaller than 0.01%.",
+    "flexnonsynmtr": "Burden test carried out with MTR-informed non synonymous variants with a MAF smaller than 0.01%.",
+    "ptvraredmg": "Burden test carried out with PTV or rare missense variants.",
+    "rec": "Burden test carried out with non-synonymous recessive variants with a MAF smaller than 1%.",
 }
 
 
@@ -39,22 +39,25 @@ def main(az_binary_data: str, az_quant_data: str, output_file: str) -> None:
         spark.read.parquet(az_binary_data)
         .withColumnRenamed("BinOddsRatioLCI", "LCI")
         .withColumnRenamed("BinOddsRatioUCI", "UCI")
+
+        # Combine binary and quantitative evidence into one dataframe
         .unionByName(spark.read.parquet(az_quant_data), allowMissingColumns=True)
+
+        # Filter out associations from the synonymous model used as a negative control
+        .filter(col("CollapsingModel") != "syn")
         .filter(col('pValue') <= 2e-9)
         .distinct()
         .repartition(20)
         .persist()
     )
 
-    assert 12000 < az_phewas_df.count() < 13000, "AZ PheWAS Portal number of evidence are different from expected."
-
     # Write output
     evd_df = parse_az_phewas_evidence(az_phewas_df)
+    assert 12000 < evd_df.count() < 13000, "AZ PheWAS Portal number of evidence are different from expected."
     assert evd_df.filter(col('resourceScore') == 0).count() >= 0, "P-value is 0 for some associations."
     logging.info('Evidence strings have been processed. Saving...')
 
     write_evidence_strings(evd_df, output_file)
-
     logging.info(f"{evd_df.count()} evidence strings have been saved to {output_file}. Exiting.")
 
 
@@ -90,7 +93,7 @@ def parse_az_phewas_evidence(az_phewas_df: DataFrame) -> DataFrame:
         "studyCases",
         "statisticalMethod",
         "statisticalMethodOverview",
-        "urls"
+        "urls",
     ]
 
     BASE_URL = "https://azphewas.com/geneView/7e2a7fab-97f0-45f7-9297-f976f7e667c8/%s/glr/%s"
@@ -152,7 +155,7 @@ def parse_az_phewas_evidence(az_phewas_df: DataFrame) -> DataFrame:
 
 
 def get_parser():
-    """Get parser object for script RegeneronGeneBurden.py."""
+    """Get parser object for script AzGeneBurden.py."""
     parser = argparse.ArgumentParser(description=__doc__)
 
     parser.add_argument(
