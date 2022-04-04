@@ -7,6 +7,7 @@ import sys
 
 from numpy import nan
 from pandas import read_excel
+from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.functions import aggregate, array, element_at, expr, col, concat, lit, split, translate, when
 from pyspark.sql.types import ArrayType, DoubleType, IntegerType
@@ -29,7 +30,7 @@ MARKER_TO_METHOD_DESC = {
 }
 
 
-def main(regeneron_data: str, gwas_studies: str) -> DataFrame:
+def main(regeneron_data: str, gwas_studies: str, spark_instance: SparkSession) -> DataFrame:
     """
     This module extracts and processes target/disease evidence from the raw data published in PMID:34662886.
     Args:
@@ -55,18 +56,18 @@ def main(regeneron_data: str, gwas_studies: str) -> DataFrame:
     ]
 
     eur_evd_df = (
-        spark.createDataFrame(
+        spark_instance.createDataFrame(
             read_excel(regeneron_data, sheet_name="SD2").filter(items=TO_KEEP).replace({nan: None}).astype(str)
         )
         .withColumn("Ancestry", lit("EUR"))
         .withColumnRenamed("UKB detailed trait name", "Study tag")
     )
 
-    non_eur_evd_df = spark.createDataFrame(
+    non_eur_evd_df = spark_instance.createDataFrame(
         read_excel(regeneron_data, sheet_name="SD3").filter(items=TO_KEEP).replace({nan: None}).astype(str)
     ).withColumnRenamed("Trait_String", "Study tag")
 
-    summary_stats_df = spark.createDataFrame(
+    summary_stats_df = spark_instance.createDataFrame(
         read_excel(regeneron_data, sheet_name="SD4", skiprows=0, header=1)
         .iloc[2:]
         .reset_index(drop=True)
@@ -76,7 +77,7 @@ def main(regeneron_data: str, gwas_studies: str) -> DataFrame:
     ).withColumn("Study tag", split("Study tag", "__SV").getItem(0))
 
     gwas_studies_df = (
-        spark.read.csv(gwas_studies, header=True, inferSchema=True, sep="\t")
+        spark_instance.read.csv(gwas_studies, header=True, inferSchema=True, sep="\t")
         .filter(col("LINK").contains("34662886"))
         .select(
             col("STUDY ACCESSION").alias("Study Accession"),
@@ -236,19 +237,19 @@ def get_parser():
 
     parser.add_argument(
         '--regeneron_data',
-        help='Input gzipped JSON with the evidence submitted by ChEMBL',
+        help='Input Excel file with the data published in PMID:34662886.',
         type=str,
         required=True,
     )
     parser.add_argument(
         '--gwas_studies',
-        help='Input TSV containing the categories of the clinical trial reason to stop. Instructions for applying the ML model here: https://github.com/ireneisdoomed/stopReasons.',
+        help='Input TSV containing all GWAS Catalog studies.',
         type=str,
         required=True,
     )
     parser.add_argument(
         '--output',
-        help='Output gzipped json file following the target safety liabilities data model.',
+        help='Output gzipped json file following the gene_burden evidence data model.',
         type=str,
         required=True,
     )
@@ -277,10 +278,9 @@ if __name__ == "__main__":
     else:
         logging.StreamHandler(sys.stderr)
 
-    global spark
     spark = initialize_sparksession()
 
-    evd_df = main(regeneron_data=args.regeneron_data, gwas_studies=args.gwas_studies)
+    evd_df = main(regeneron_data=args.regeneron_data, gwas_studies=args.gwas_studies, spark_instance=spark)
 
     write_evidence_strings(evd_df, args.output)
     logging.info(f"Evidence strings have been saved to {args.output}. Exiting.")

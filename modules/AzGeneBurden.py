@@ -5,6 +5,7 @@ import argparse
 import logging
 import sys
 
+from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.functions import array, format_string, col, lit, split, when
 from pyspark.sql.types import DoubleType, IntegerType
@@ -26,7 +27,7 @@ METHOD_DESC = {
 }
 
 
-def main(az_binary_data: str, az_quant_data: str) -> DataFrame:
+def main(az_binary_data: str, az_quant_data: str, spark_instance: SparkSession) -> DataFrame:
     """
     This module extracts and processes target/disease evidence from the raw AstraZeneca PheWAS Portal.
     """
@@ -35,11 +36,11 @@ def main(az_binary_data: str, az_quant_data: str) -> DataFrame:
 
     # Load data
     az_phewas_df = (
-        spark.read.parquet(az_binary_data)
+        spark_instance.read.parquet(az_binary_data)
         .withColumnRenamed("BinOddsRatioLCI", "LCI")
         .withColumnRenamed("BinOddsRatioUCI", "UCI")
         # Combine binary and quantitative evidence into one dataframe
-        .unionByName(spark.read.parquet(az_quant_data), allowMissingColumns=True)
+        .unionByName(spark_instance.read.parquet(az_quant_data), allowMissingColumns=True)
         .filter(col('pValue') <= 2e-9)
         .distinct()
         .repartition(20)
@@ -181,7 +182,7 @@ def get_parser():
     )
     parser.add_argument(
         '--output',
-        help='Output gzipped json file following the target safety liabilities data model.',
+        help='Output gzipped json file following the gene_burden evidence data model.',
         type=str,
         required=True,
     )
@@ -210,10 +211,9 @@ if __name__ == "__main__":
     else:
         logging.StreamHandler(sys.stderr)
 
-    global spark
     spark = initialize_sparksession()
 
-    evd_df = main(az_binary_data=args.az_binary_data, az_quant_data=args.az_quant_data)
+    evd_df = main(az_binary_data=args.az_binary_data, az_quant_data=args.az_quant_data, spark_instance=spark)
 
     write_evidence_strings(evd_df, args.output)
     logging.info(f"Evidence strings have been saved to {args.output}. Exiting.")
