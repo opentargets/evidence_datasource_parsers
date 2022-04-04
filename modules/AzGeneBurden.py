@@ -39,17 +39,16 @@ def main(az_binary_data: str, az_quant_data: str, output_file: str) -> None:
         spark.read.parquet(az_binary_data)
         .withColumnRenamed("BinOddsRatioLCI", "LCI")
         .withColumnRenamed("BinOddsRatioUCI", "UCI")
-
         # Combine binary and quantitative evidence into one dataframe
         .unionByName(spark.read.parquet(az_quant_data), allowMissingColumns=True)
-
-        # Filter out associations from the synonymous model used as a negative control
-        .filter(col("CollapsingModel") != "syn")
         .filter(col('pValue') <= 2e-9)
         .distinct()
         .repartition(20)
         .persist()
     )
+
+    # Filter out associations from the synonymous model used as a negative control
+    az_phewas_df = remove_false_positives(az_phewas_df)
 
     # Write output
     evd_df = parse_az_phewas_evidence(az_phewas_df)
@@ -59,6 +58,18 @@ def main(az_binary_data: str, az_quant_data: str, output_file: str) -> None:
 
     write_evidence_strings(evd_df, output_file)
     logging.info(f"{evd_df.count()} evidence strings have been saved to {output_file}. Exiting.")
+
+
+def remove_false_positives(az_phewas_df: DataFrame) -> DataFrame:
+    """Remove associations present in the synonymous negative control."""
+
+    false_positives = az_phewas_df.filter(col('CollapsingModel') == "syn").select("Gene", "Phenotype").distinct()
+    true_positives = az_phewas_df.join(false_positives, on=["Gene", "Phenotype"], how="left_anti").distinct()
+    logging.info(
+        f"{az_phewas_df.count() - true_positives.count()} false positive evidence of association have been dropped."
+    )
+
+    return true_positives
 
 
 def parse_az_phewas_evidence(az_phewas_df: DataFrame) -> DataFrame:
