@@ -16,7 +16,6 @@ By default, the generated evidence will be validated using the latest master sna
 # Set parameters.
 export INSTANCE_NAME=evidence-generation
 export INSTANCE_ZONE=europe-west1-d
-
 # Create the instance and SSH.
 gcloud compute instances create \
   ${INSTANCE_NAME} \
@@ -27,6 +26,7 @@ gcloud compute instances create \
   --scopes=https://www.googleapis.com/auth/cloud-platform \
   --create-disk=auto-delete=yes,boot=yes,device-name=${INSTANCE_NAME},image=projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20210927,mode=rw,size=2000,type=projects/open-targets-eu-dev/zones/europe-west1-d/diskTypes/pd-balanced
 gcloud compute ssh --zone ${INSTANCE_ZONE} ${INSTANCE_NAME}
+
 screen
 
 # Install the dependencies.
@@ -34,8 +34,10 @@ sudo apt update
 sudo apt install -y \
   openjdk-8-jdk-headless \
   snakemake
+
 wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh
-bash ~/miniconda.sh
+bash ~/miniconda.sh -b
+~/miniconda3/bin/conda init
 exec bash
 
 # Activate the environment.
@@ -45,10 +47,19 @@ conda env remove -n evidence_datasource_parsers_lock
 conda env create --file envs/environment-lock.yml
 conda activate evidence_datasource_parsers_lock
 export PYTHONPATH="$PYTHONPATH:$(pwd)"
-
-# Generate and upload the evidence.
-snakemake --cores all
 ```
+
+At this point, we are ready to run the Snakemake pipeline. The following options are available:
+* `snakemake --cores all`: Display help (the list of possible rules to be run) and do not run anything.
+* `snakemake --cores all --until local`: Generate all files, but do not upload them to Google Cloud Storage. The files generated in this way do not have prefixes, e.g. `cancer_biomarkers.json.gz`. This is done intentionally, so that the pipeline can be re-run the next day without having to re-generate all the files.
+  + It is also possible to locally run only a single rule by substituting its name instead of “local”.
+* `snakemake --cores all --until all`: Generate all files and then upload them to Google Cloud Storage.
+
+All individual parser rules are strictly local. The only rule which uploads files to Google Cloud Storage (all at once) is "all".
+
+Some additional parameters which can be useful for debugging:
+* `--keep-incomplete`: This will keep the output files of failed jobs. Must only be used with local runs. Note that Snakemake uses the presence of the output files to decide which jobs to run, so the incomplete files must be removed after investigation and before any re-runs of the workflow.
+* `--dry-run`: Do not run the workflow, and only show the list of jobs to be run.
 
 ## Processing Genetics Portal evidence
 Evidence generation for the Genetics Portal is not automated in the Snakefile. It can be done separately using the following commands. It is planned that this step will eventually become part of the Genetics Portal release pipeline.
