@@ -20,6 +20,7 @@ ALL_FILES = [
     ('clingen-Gene-Disease-Summary.csv', GS.remote(f"{config['ClinGen']['inputBucket']}/clingen-Gene-Disease-Summary-{timeStamp}.csv")),
     ('crispr.json.gz', GS.remote(f"{config['CRISPR']['outputBucket']}/crispr-{timeStamp}.json.gz")),
     ('epmc.json.gz', GS.remote(f"{config['EPMC']['outputBucket']}/epmc-{timeStamp}.json.gz")),
+    ('gene_burden.json.gz', GS.remote(f"{config['GeneBurden']['outputBucket']}/gene_burden-{timeStamp}.json.gz")),
     ('gene2phenotype.json.gz', GS.remote(f"{config['Gene2Phenotype']['outputBucket']}/gene2phenotype-{timeStamp}.json.gz")),
     ('DDG2P.csv.gz', GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/DDG2P-{timeStamp}.csv.gz")),
     ('EyeG2P.csv.gz', GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/EyeG2P-{timeStamp}.csv.gz")),
@@ -182,28 +183,29 @@ rule epmc:                    # Process target/disease evidence strings from ePM
 ## geneBurden               : processes gene burden data from AZ PheWAS Portal and REGENERON Burden Analyses
 rule geneBurden:
     input:
-        az_phewas_binary = GS.remote(config['GeneBurden']['azPhewasBinary']),
-        az_phewas_quant = GS.remote(config['GeneBurden']['azPhewasQuantitative']),
-        regeneron_exwas = GS.remote(config['GeneBurden']['regeneronExwas']),
-        gwas_studies = HTTPRemoteProvider().remote(config['GeneBurden']['gwasStudies'])
+        azPhewasBinary = GS.remote(config['GeneBurden']['azPhewasBinary']),
+        azPhewasQuant = GS.remote(config['GeneBurden']['azPhewasQuantitative']),
+        regeneronExwas = GS.remote(config['GeneBurden']['regeneronExwas']),
+        gwasStudies = HTTPRemoteProvider().remote(config['GeneBurden']['gwasStudies'])
     params:
         schema = f"{config['global']['schema']}/opentargets.json"
     output:
         gwasStudies = GS.remote(f"{config['GeneBurden']['inputBucket']}/gwas_studies-{timeStamp}.tsv"),
-        evidenceFile = GS.remote(f"{config['GeneBurden']['outputBucket']}/gene_burden-{timeStamp}.json.gz")
+        evidenceFile = "geneBurden.json.gz"
     log:
-        GS.remote(logFile)
+        'log/geneBurden.log'
     shell:
         """
-        # Retain the inputs and save to GCS.
-        cp {input.gwas_studies} {output.gwasStudies}
+        exec &> {log}
         python modules/GeneBurden.py \
-            --az_binary_data {input.az_phewas_binary} \
-            --az_quant_data {input.az_phewas_quant} \
-            --regeneron_data {input.regeneron_exwas} \
+            --az_binary_data {input.azPhewasBinary} \
+            --az_quant_data {input.azPhewasQuant} \
+            --regeneron_data {input.regeneronExwas} \
             --gwas_studies {input.gwasStudies} \
             --output {output.evidenceFile}
         opentargets_validator --schema {params.schema} {output.evidenceFile}
+        # Retain the inputs and save to GCS.
+        cp {input.gwasStudies} {output.gwasStudies}
         """
 
 ## gene2Phenotype           : processes four gene panels from Gene2Phenotype
