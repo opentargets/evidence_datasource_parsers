@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""This module extracts and processes target/disease evidence from the raw data published in PMID:34662886."""
+"""This module extracts and processes target/disease evidence from the AstraZeneca PheWAS Portal."""
 
 import argparse
 import logging
@@ -26,10 +26,9 @@ METHOD_DESC = {
 }
 
 
-def main(az_binary_data: str, az_quant_data: str, output_file: str) -> None:
+def main(az_binary_data: str, az_quant_data: str) -> DataFrame:
     """
-    This module extracts and processes target/disease evidence from the raw data published in PMID:34662886.
-    Args:
+    This module extracts and processes target/disease evidence from the raw AstraZeneca PheWAS Portal.
     """
     logging.info(f"File with the AZ PheWAS Portal binary traits associations: {az_binary_data}")
     logging.info(f"File with the AZ PheWAS Portal quantitative traits associations: {az_quant_data}")
@@ -54,10 +53,9 @@ def main(az_binary_data: str, az_quant_data: str, output_file: str) -> None:
     evd_df = parse_az_phewas_evidence(az_phewas_df)
     assert 12000 < evd_df.count() < 13000, "AZ PheWAS Portal number of evidence are different from expected."
     assert evd_df.filter(col('resourceScore') == 0).count() >= 0, "P-value is 0 for some associations."
-    logging.info('Evidence strings have been processed. Saving...')
+    logging.info(f"{evd_df.count()} evidence strings have been processed.")
 
-    write_evidence_strings(evd_df, output_file)
-    logging.info(f"{evd_df.count()} evidence strings have been saved to {output_file}. Exiting.")
+    return evd_df
 
 
 def remove_false_positives(az_phewas_df: DataFrame) -> DataFrame:
@@ -215,4 +213,7 @@ if __name__ == "__main__":
     global spark
     spark = initialize_sparksession()
 
-    main(az_binary_data=args.az_binary_data, az_quant_data=args.az_quant_data, output_file=args.output)
+    evd_df = main(az_binary_data=args.az_binary_data, az_quant_data=args.az_quant_data)
+
+    write_evidence_strings(evd_df, args.output)
+    logging.info(f"Evidence strings have been saved to {args.output}. Exiting.")

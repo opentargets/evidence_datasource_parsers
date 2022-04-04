@@ -29,7 +29,7 @@ MARKER_TO_METHOD_DESC = {
 }
 
 
-def main(regeneron_data: str, gwas_studies: str, output_file: str) -> None:
+def main(regeneron_data: str, gwas_studies: str) -> DataFrame:
     """
     This module extracts and processes target/disease evidence from the raw data published in PMID:34662886.
     Args:
@@ -99,18 +99,17 @@ def main(regeneron_data: str, gwas_studies: str, output_file: str) -> None:
     )
 
     # Write output
-    logging.info('Evidence strings have been processed. Saving...')
     evd_df = parse_regeneron_evidence(regeneron_df)
+    assert 7000 < evd_df.count() < 8000, "AZ PheWAS Portal number of evidence are different from expected."
     assert evd_df.filter(col('resourceScore') == 0).count() >= 0, "P-value is 0 for some associations."
+    logging.info(f"{evd_df.count()} evidence strings have been processed.")
 
-    write_evidence_strings(evd_df, output_file)
-
-    logging.info(f"{evd_df.count()} evidence strings have been saved to {output_file}. Exiting.")
+    return evd_df
 
 
 def parse_regeneron_evidence(regeneron_df: DataFrame) -> DataFrame:
     """
-    Parse the genetics evidence.
+    Parse REGENERON's ExWAS analyses.
     Args:
         regeneron_df: DataFrame with the Regeneron data
     Returns:
@@ -200,12 +199,10 @@ def parse_regeneron_evidence(regeneron_df: DataFrame) -> DataFrame:
                 col("effectParsed").getItem(2).cast(DoubleType()),
             ),
         )
-
         .withColumnRenamed("ancestry", "Ancestry")
         .withColumn("ancestryId", col("ancestry"))
         .replace(to_replace=ANCESTRY_TO_ID, subset=['ancestryId'])
         .withColumnRenamed("Study Accession", "studyId")
-
         # Parse number of individuals and sum them up.
         # Ex: "421865|1618|2" -> 423485
         .withColumn(
@@ -225,7 +222,6 @@ def parse_regeneron_evidence(regeneron_df: DataFrame) -> DataFrame:
             ),
         )
         .withColumn("studySampleSize", col('studyCases') + col('studyControls'))
-
         .withColumn("statisticalMethod", concat(lit("ADD-WGR-FIRTH_"), col("Marker")))
         .withColumn("statisticalMethodOverview", col("Marker"))
         .replace(to_replace=MARKER_TO_METHOD_DESC, subset=['statisticalMethodOverview'])
@@ -284,4 +280,7 @@ if __name__ == "__main__":
     global spark
     spark = initialize_sparksession()
 
-    main(regeneron_data=args.regeneron_data, gwas_studies=args.gwas_studies, output_file=args.output)
+    evd_df = main(regeneron_data=args.regeneron_data, gwas_studies=args.gwas_studies)
+
+    write_evidence_strings(evd_df, args.output)
+    logging.info(f"Evidence strings have been saved to {args.output}. Exiting.")
