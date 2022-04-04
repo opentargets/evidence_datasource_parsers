@@ -157,6 +157,33 @@ rule epmc:
         opentargets_validator --schema {params.schema} {output.evidenceFile}
         """
 
+## geneBurden               : processes gene burden data from AZ PheWAS Portal and REGENERON Burden Analyses
+rule geneBurden:
+    input:
+        az_phewas_binary = GS.remote(config['GeneBurden']['azPhewasBinary']),
+        az_phewas_quant = GS.remote(config['GeneBurden']['azPhewasQuantitative']),
+        regeneron_exwas = GS.remote(config['GeneBurden']['regeneronExwas']),
+        gwas_studies = HTTPRemoteProvider().remote(config['GeneBurden']['gwasStudies'])
+    params:
+        schema = f"{config['global']['schema']}/opentargets.json"
+    output:
+        gwasStudies = GS.remote(f"{config['GeneBurden']['inputBucket']}/gwas_studies-{timeStamp}.tsv"),
+        evidenceFile = GS.remote(f"{config['GeneBurden']['outputBucket']}/gene_burden-{timeStamp}.json.gz")
+    log:
+        GS.remote(logFile)
+    shell:
+        """
+        # Retain the inputs and save to GCS.
+        cp {input.gwas_studies} {output.gwasStudies}
+        python modules/GeneBurden.py \
+            --az_binary_data {input.az_phewas_binary} \
+            --az_quant_data {input.az_phewas_quant} \
+            --regeneron_data {input.regeneron_exwas} \
+            --gwas_studies {input.gwasStudies} \
+            --output {output.evidenceFile}
+        opentargets_validator --schema {params.schema} {output.evidenceFile}
+        """
+
 ## gene2Phenotype           : processes four gene panels from Gene2Phenotype
 rule gene2Phenotype:
     input:

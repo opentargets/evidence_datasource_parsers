@@ -8,6 +8,10 @@ cancerBiomarkers:
   outputBucket: gs://otar000-evidence_input/CancerBiomarkers/json
   # Downloaded separately using wget, because FTP.RemoteProvider cannot handle recurisve directory downloads.
   drugIndex: ftp.ebi.ac.uk/pub/databases/opentargets/platform/21.09/output/etl/parquet/diseases
+ChEMBL:
+  evidence: gs://otar008-chembl/cttv008-20-01-2022.json.gz
+  stopReasonCategories: gs://otar000-evidence_input/ChEMBL/data_files/chembl_predictions-2022-01-24.tsv
+  outputBucket: gs://otar000-evidence_input/ChEMBL/json
 ClinGen:
   webSource: https://search.clinicalgenome.org/kb/gene-validity/download
   inputBucket: gs://otar000-evidence_input/ClinGen/data_files
@@ -18,6 +22,13 @@ CRISPR:
 EPMC:
   inputBucket: gs://open-targets-pre-data-releases/22.02.2/output/literature/cooccurrences
   outputBucket: gs://otar000-evidence_input/EPMC/json
+GeneBurden:
+  azPhewasBinary: gs://otar000-evidence_input/GeneBurden/data_files/azphewas-com-450k-phewas-binary
+  azPhewasQuantitative: gs://otar000-evidence_input/GeneBurden/data_files/azphewas-com-450k-phewas-quantitative
+  regeneronExwas: gs://otar000-evidence_input/GeneBurden/data_files/41586_2021_4103_MOESM5_ESM.xlsx
+  gwasStudies: https://www.ebi.ac.uk/gwas/api/search/downloads/studies_alternative
+  inputBucket: gs://otar000-evidence_input/GeneBurden/data_files
+  outputBucket: gs://otar000-evidence_input/GeneBurden/json
 Gene2Phenotype:
   webSource_dd_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/DDG2P.csv.gz
   webSource_eye_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/EyeG2P.csv.gz
@@ -57,7 +68,3 @@ TargetSafety:
   safetyRisk: 'https://raw.githubusercontent.com/opentargets/curation/master/target_safety/safety_risks.tsv'
   toxcast: gs://otar001-core/TargetSafety/data_files/toxcast/ToxCast_2021-08-17.tsv
   outputBucket: gs://otar001-core/TargetSafety/json
-ChEMBL:
-  evidence: gs://otar008-chembl/cttv008-20-01-2022.json.gz
-  stopReasonCategories: gs://otar000-evidence_input/ChEMBL/data_files/chembl_predictions-2022-01-24.tsv
-  outputBucket: gs://otar000-evidence_input/ChEMBL/json
