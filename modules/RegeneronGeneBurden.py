@@ -95,6 +95,7 @@ def main(regeneron_data: str, gwas_studies: str, spark_instance: SparkSession) -
         .join(summary_stats_df, on="Study tag", how="left")
         # add mapped trait from GWAS Catalog
         .join(gwas_studies_df, on="Study Accession", how="left")
+        .filter(col('pValue') <= 2.18e-11)
         .distinct()
         .persist()
     )
@@ -102,7 +103,9 @@ def main(regeneron_data: str, gwas_studies: str, spark_instance: SparkSession) -
     evd_df = parse_regeneron_evidence(regeneron_df)
     assert 7000 < evd_df.count() < 8000, "AZ PheWAS Portal number of evidence are different from expected."
     assert evd_df.filter(col('resourceScore') == 0).count() >= 0, "P-value is 0 for some associations."
-    assert evd_df.filter(col('studySampleSize').isNull()).count() == 0, "Study sample size is missing for some associations."
+    assert (
+        evd_df.filter(col('studySampleSize').isNull()).count() == 0
+    ), "Study sample size is missing for some associations."
     logging.info(f"{evd_df.count()} evidence strings have been processed.")
 
     return evd_df
@@ -223,7 +226,12 @@ def parse_regeneron_evidence(regeneron_df: DataFrame) -> DataFrame:
                 lambda acc, x: acc + x,
             ),
         )
-        .withColumn("studySampleSize", when(col('studyControls').isNotNull(), col('studyCases') + col('studyControls')).otherwise(col('studyCases')))
+        .withColumn(
+            "studySampleSize",
+            when(col('studyControls').isNotNull(), col('studyCases') + col('studyControls')).otherwise(
+                col('studyCases')
+            ),
+        )
         .withColumn("statisticalMethod", concat(lit("ADD-WGR-FIRTH_"), col("Marker")))
         .withColumn("statisticalMethodOverview", col("Marker"))
         .replace(to_replace=MARKER_TO_METHOD_DESC, subset=['statisticalMethodOverview'])
