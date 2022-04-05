@@ -7,10 +7,10 @@ import sys
 
 from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
-from pyspark.sql.functions import array, format_string, col, lit, split, when
+from pyspark.sql.functions import array, format_string, col, lit, udf, when
 from pyspark.sql.types import DoubleType, IntegerType
 
-from common.evidence import initialize_sparksession, write_evidence_strings
+from common.evidence import get_exponent, get_mantissa, initialize_sparksession, write_evidence_strings
 
 METHOD_DESC = {
     "ptv": "Burden test carried out with PTVs with a MAF smaller than 0.1%.",
@@ -79,7 +79,7 @@ def parse_az_phewas_evidence(az_phewas_df: DataFrame) -> DataFrame:
     Returns:
         evd_df: DataFrame with the Regeneron data following the t/d evidence schema.
     """
-    TO_KEEP = [
+    to_keep = [
         "datasourceId",
         "datatypeId",
         "targetFromSourceId",
@@ -106,7 +106,9 @@ def parse_az_phewas_evidence(az_phewas_df: DataFrame) -> DataFrame:
         "urls",
     ]
 
-    BASE_URL = "https://azphewas.com/geneView/7e2a7fab-97f0-45f7-9297-f976f7e667c8/%s/glr/%s"
+    base_url = "https://azphewas.com/geneView/7e2a7fab-97f0-45f7-9297-f976f7e667c8/%s/glr/%s"
+    get_exponent_udf = udf(get_exponent, IntegerType())
+    get_mantissa_udf = udf(get_mantissa, DoubleType())
 
     return (
         az_phewas_df.withColumn("datasourceId", lit("gene_burden"))
@@ -116,10 +118,10 @@ def parse_az_phewas_evidence(az_phewas_df: DataFrame) -> DataFrame:
         .withColumn("cohortId", lit("UK Biobank"))
         .withColumnRenamed("Gene", "targetFromSourceId")
         .withColumnRenamed("Phenotype", "diseaseFromSource")
-        .withColumn("diseaseFromSourceMappedId", lit("placeholder"))
+        .withColumn("diseaseFromSourceMappedId", lit(None))
         .withColumn("resourceScore", col("pValue").cast(DoubleType()))
-        .withColumn("pValueMantissa", split(col("pValue"), "e").getItem(0).cast(DoubleType()))
-        .withColumn("pValueExponent", split(col("pValue"), "e").getItem(1).cast(IntegerType()))
+        .withColumn("pValueMantissa", get_mantissa_udf(col("pValue")))
+        .withColumn("pValueExponent", get_exponent_udf(col("pValue")))
         .withColumn(
             "beta",
             when(col("Type") == "Quantitative", col("beta")),
@@ -155,11 +157,11 @@ def parse_az_phewas_evidence(az_phewas_df: DataFrame) -> DataFrame:
         .replace(to_replace=METHOD_DESC, subset=['statisticalMethodOverview'])
         .withColumn(
             "urls",
-            when(col("Type") == "Binary", format_string(BASE_URL, col("targetFromSourceId"), lit("binary"))).otherwise(
-                format_string(BASE_URL, col("targetFromSourceId"), lit("continuous"))
+            when(col("Type") == "Binary", format_string(base_url, col("targetFromSourceId"), lit("binary"))).otherwise(
+                format_string(base_url, col("targetFromSourceId"), lit("continuous"))
             ),
         )
-        .select(TO_KEEP)
+        .select(to_keep)
         .distinct()
     )
 

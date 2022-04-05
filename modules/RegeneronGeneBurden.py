@@ -9,10 +9,10 @@ from numpy import nan
 from pandas import read_excel
 from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
-from pyspark.sql.functions import aggregate, array, element_at, expr, col, concat, lit, split, translate, when
+from pyspark.sql.functions import aggregate, array, element_at, expr, col, concat, lit, split, translate, udf, when
 from pyspark.sql.types import ArrayType, DoubleType, IntegerType
 
-from common.evidence import initialize_sparksession, write_evidence_strings
+from common.evidence import get_exponent, get_mantissa, initialize_sparksession, write_evidence_strings
 
 ANCESTRY_TO_ID = {"EUR": "HANCESTRO_0005", "EAS": "HANCESTRO_0009", "AFR": "HANCESTRO_0010", "SAS": "HANCESTRO_0006"}
 
@@ -95,7 +95,7 @@ def main(regeneron_data: str, gwas_studies: str, spark_instance: SparkSession) -
         .join(summary_stats_df, on="Study tag", how="left")
         # add mapped trait from GWAS Catalog
         .join(gwas_studies_df, on="Study Accession", how="left")
-        .filter(col('pValue') <= 2.18e-11)
+        .filter(col('P-Value') <= 2.18e-11)
         .distinct()
         .persist()
     )
@@ -119,7 +119,7 @@ def parse_regeneron_evidence(regeneron_df: DataFrame) -> DataFrame:
     Returns:
         evd_df: DataFrame with the Regeneron data following the t/d evidence schema.
     """
-    TO_KEEP = [
+    to_keep = [
         "datasourceId",
         "datatypeId",
         "targetFromSourceId",
@@ -146,6 +146,9 @@ def parse_regeneron_evidence(regeneron_df: DataFrame) -> DataFrame:
         "statisticalMethodOverview",
     ]
 
+    get_exponent_udf = udf(get_exponent, IntegerType())
+    get_mantissa_udf = udf(get_mantissa, DoubleType())
+
     return (
         regeneron_df.withColumn("datasourceId", lit("gene_burden"))
         .withColumn("datatypeId", lit("genetic_association"))
@@ -156,8 +159,8 @@ def parse_regeneron_evidence(regeneron_df: DataFrame) -> DataFrame:
         .withColumnRenamed("Trait", "diseaseFromSource")
         .withColumnRenamed("MAPPED_TRAIT", "diseaseFromSourceMappedId")
         .withColumn("resourceScore", col("P-value").cast(DoubleType()))
-        .withColumn("pValueMantissa", split(col("P-value"), "e").getItem(0).cast(DoubleType()))
-        .withColumn("pValueExponent", split(col("P-value"), "e").getItem(1).cast(IntegerType()))
+        .withColumn("pValueMantissa", get_mantissa_udf(col("P-value")))
+        .withColumn("pValueExponent", get_exponent_udf(col("P-value")))
         # Parse interval by removing unwanted characters and splitting.
         # Ex: "-0.097 (-0.125, -0.069)" -> [-0.097, -0.125, -0.069]
         .withColumn("effectParsed", split(translate(col('Effect (95% CI)'), '(),', ''), ' '))
@@ -235,7 +238,7 @@ def parse_regeneron_evidence(regeneron_df: DataFrame) -> DataFrame:
         .withColumn("statisticalMethod", concat(lit("ADD-WGR-FIRTH_"), col("Marker")))
         .withColumn("statisticalMethodOverview", col("Marker"))
         .replace(to_replace=MARKER_TO_METHOD_DESC, subset=['statisticalMethodOverview'])
-        .select(TO_KEEP)
+        .select(to_keep)
         .distinct()
     )
 
@@ -290,6 +293,8 @@ if __name__ == "__main__":
     spark = initialize_sparksession()
 
     evd_df = main(regeneron_data=args.regeneron_data, gwas_studies=args.gwas_studies, spark_instance=spark)
+    print(evd_df.first())
+    print(evd_df.printSchema())
 
     write_evidence_strings(evd_df, args.output)
     logging.info(f"Evidence strings have been saved to {args.output}. Exiting.")

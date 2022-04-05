@@ -1,9 +1,12 @@
+from decimal import Decimal
 import os
-from psutil import virtual_memory
 import tempfile
 
+from psutil import virtual_memory
 from pyspark.conf import SparkConf
 from pyspark.sql import SparkSession
+from pyspark.sql.functions import udf
+from pyspark.sql.types import DoubleType, IntegerType
 
 def detect_spark_memory_limit():
     """Spark does not automatically use all available memory on a machine. When working on large datasets, this may
@@ -46,3 +49,12 @@ def initialize_sparksession() -> SparkSession:
     )
 
     return spark
+
+def get_exponent(number: float) -> int:
+    """Get the exponent of a number."""
+    (sign, digits, exponent) = Decimal(number).as_tuple()
+    return len(digits) + exponent - 1
+
+def get_mantissa(number: float) -> float:
+    """Get the mantissa of a number."""
+    return float(Decimal(number).scaleb(-get_exponent(number)).normalize())
