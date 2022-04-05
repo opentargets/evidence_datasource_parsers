@@ -8,7 +8,7 @@ cancerBiomarkers:
   inputBucket: gs://otar000-evidence_input/CancerBiomarkers/data_files
   outputBucket: gs://otar000-evidence_input/CancerBiomarkers/json
   # Downloaded separately using wget, because FTP.RemoteProvider cannot handle recursive directory downloads.
-  drugIndex: ftp.ebi.ac.uk/pub/databases/opentargets/platform/21.09/output/etl/parquet/diseases
+  drugIndex: ftp.ebi.ac.uk/pub/databases/opentargets/platform/22.02/output/etl/parquet/diseases
 ChEMBL:
   evidence: gs://otar008-chembl/cttv008-20-01-2022.json.gz
   stopReasonCategories: gs://otar000-evidence_input/ChEMBL/data_files/chembl_predictions-2022-01-24.tsv
