@@ -191,7 +191,7 @@ rule geneBurden:
         schema = f"{config['global']['schema']}/opentargets.json"
     output:
         gwasStudies = GS.remote(f"{config['GeneBurden']['inputBucket']}/gwas_studies-{timeStamp}.tsv"),
-        evidenceFile = "geneBurden.json.gz"
+        evidenceFile = "gene_burden.json.gz"
     log:
         'log/geneBurden.log'
     shell:
