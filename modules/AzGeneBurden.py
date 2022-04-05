@@ -7,7 +7,7 @@ import sys
 
 from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
-from pyspark.sql.functions import array, format_string, col, lit, udf, when
+from pyspark.sql.functions import array, format_string, col, lit, struct, udf, when
 from pyspark.sql.types import DoubleType, IntegerType
 
 from common.evidence import get_exponent, get_mantissa, initialize_sparksession, write_evidence_strings
@@ -41,7 +41,7 @@ def main(az_binary_data: str, az_quant_data: str, spark_instance: SparkSession) 
         .withColumnRenamed("BinOddsRatioUCI", "UCI")
         # Combine binary and quantitative evidence into one dataframe
         .unionByName(spark_instance.read.parquet(az_quant_data), allowMissingColumns=True)
-        .filter(col('pValue') <= 2e-9)
+        .filter((col('pValue') <= 2e-9) & (col('pValue') > 0.0))
         .distinct()
         .repartition(20)
         .persist()
@@ -52,8 +52,16 @@ def main(az_binary_data: str, az_quant_data: str, spark_instance: SparkSession) 
 
     # Write output
     evd_df = parse_az_phewas_evidence(az_phewas_df)
-    assert 12000 < evd_df.count() < 13000, "AZ PheWAS Portal number of evidence are different from expected."
-    assert evd_df.filter(col('resourceScore') == 0).count() >= 0, "P-value is 0 for some associations."
+
+    if evd_df.filter(col('resourceScore') == 0).count() != 0:
+        logging.error("There are evidence with a P value of 0.")
+        raise AssertionError(
+            f"There are {evd_df.filter(col('resourceScore') == 0).count()} evidence with a P value of 0."
+        )
+
+    if not 12000 < evd_df.count() < 13000:
+        logging.error(f"AZ PheWAS Portal number of evidence are different from expected: {evd_df.count()}")
+        raise AssertionError("AZ PheWAS Portal number of evidence are different from expected.")
     logging.info(f"{evd_df.count()} evidence strings have been processed.")
 
     return evd_df
@@ -156,11 +164,12 @@ def parse_az_phewas_evidence(az_phewas_df: DataFrame) -> DataFrame:
         .withColumn("statisticalMethodOverview", col("statisticalMethod"))
         .replace(to_replace=METHOD_DESC, subset=['statisticalMethodOverview'])
         .withColumn(
-            "urls",
+            "url",
             when(col("Type") == "Binary", format_string(base_url, col("targetFromSourceId"), lit("binary"))).otherwise(
                 format_string(base_url, col("targetFromSourceId"), lit("continuous"))
             ),
         )
+        .withColumn("urls", array(struct(col("url").alias('url'))))
         .select(to_keep)
         .distinct()
     )

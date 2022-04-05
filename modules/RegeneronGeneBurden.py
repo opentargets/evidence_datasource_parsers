@@ -101,11 +101,21 @@ def main(regeneron_data: str, gwas_studies: str, spark_instance: SparkSession) -
     )
 
     evd_df = parse_regeneron_evidence(regeneron_df)
-    assert 7000 < evd_df.count() < 8000, "AZ PheWAS Portal number of evidence are different from expected."
-    assert evd_df.filter(col('resourceScore') == 0).count() >= 0, "P-value is 0 for some associations."
-    assert (
-        evd_df.filter(col('studySampleSize').isNull()).count() == 0
-    ), "Study sample size is missing for some associations."
+    if evd_df.filter(col('resourceScore') == 0).count() != 0:
+        logging.error("There are evidence with a P value of 0.")
+        raise AssertionError(
+            f"There are {evd_df.filter(col('resourceScore') == 0).count()} evidence with a P value of 0."
+        )
+
+    if not 7000 < evd_df.count() < 8000:
+        logging.error(f"REGENERON number of evidence are different from expected: {evd_df.count()}")
+        raise AssertionError("AZ PheWAS Portal number of evidence are different from expected.")
+
+    if evd_df.filter(col('studySampleSize').isNull()).count() != 0:
+        logging.error(f"There are {evd_df.filter(col('studySampleSize').isNull()).count()} evidence with a null sample size.")
+        raise AssertionError(
+            f"Study sample size is missing for some associations."
+        )
     logging.info(f"{evd_df.count()} evidence strings have been processed.")
 
     return evd_df
@@ -293,8 +303,6 @@ if __name__ == "__main__":
     spark = initialize_sparksession()
 
     evd_df = main(regeneron_data=args.regeneron_data, gwas_studies=args.gwas_studies, spark_instance=spark)
-    print(evd_df.first())
-    print(evd_df.printSchema())
 
     write_evidence_strings(evd_df, args.output)
     logging.info(f"Evidence strings have been saved to {args.output}. Exiting.")
