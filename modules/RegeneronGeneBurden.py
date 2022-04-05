@@ -99,10 +99,10 @@ def main(regeneron_data: str, gwas_studies: str, spark_instance: SparkSession) -
         .persist()
     )
 
-    # Write output
     evd_df = parse_regeneron_evidence(regeneron_df)
     assert 7000 < evd_df.count() < 8000, "AZ PheWAS Portal number of evidence are different from expected."
     assert evd_df.filter(col('resourceScore') == 0).count() >= 0, "P-value is 0 for some associations."
+    assert evd_df.filter(col('studySampleSize').isNull()).count() == 0, "Study sample size is missing for some associations."
     logging.info(f"{evd_df.count()} evidence strings have been processed.")
 
     return evd_df
@@ -204,8 +204,9 @@ def parse_regeneron_evidence(regeneron_df: DataFrame) -> DataFrame:
         .withColumn("ancestryId", col("ancestry"))
         .replace(to_replace=ANCESTRY_TO_ID, subset=['ancestryId'])
         .withColumnRenamed("Study Accession", "studyId")
-        # Parse number of individuals and sum them up.
+        # Parse number of individuals and sum them up. Bear in mind that studyControls can be null
         # Ex: "421865|1618|2" -> 423485
+        # Ex: "NA|NA|NA" -> null
         .withColumn(
             "studyCases",
             aggregate(
@@ -222,7 +223,7 @@ def parse_regeneron_evidence(regeneron_df: DataFrame) -> DataFrame:
                 lambda acc, x: acc + x,
             ),
         )
-        .withColumn("studySampleSize", col('studyCases') + col('studyControls'))
+        .withColumn("studySampleSize", when(col('studyControls').isNotNull(), col('studyCases') + col('studyControls')).otherwise(col('studyCases')))
         .withColumn("statisticalMethod", concat(lit("ADD-WGR-FIRTH_"), col("Marker")))
         .withColumn("statisticalMethodOverview", col("Marker"))
         .replace(to_replace=MARKER_TO_METHOD_DESC, subset=['statisticalMethodOverview'])
