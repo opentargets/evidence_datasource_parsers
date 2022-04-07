@@ -18,15 +18,15 @@ ANCESTRY_TO_ID = {"EUR": "HANCESTRO_0005", "EAS": "HANCESTRO_0009", "AFR": "HANC
 
 MARKER_TO_METHOD_DESC = {
     "M1.singleton": "Burden test carried out with singleton pLOF variants.",
-    "M1.0001": "Burden test carried out with pLOFs with a MAF smaller than 0.001%.",
-    "M1.001": "Burden test carried out with pLOFs with a MAF smaller than 0.01%.",
-    "M1.01": "Burden test carried out with pLOFs with a MAF smaller than 0.1%.",
-    "M1.1": "Burden test carried out with pLOFs with a MAF smaller than 1%.",
-    "M3.singleton": "Burden test carried out with singleton pLOFs and deleterious missense variants.",
-    "M3.0001": "Burden test carried out with pLOFs and deleterious missense with a MAF smaller than 0.001%.",
-    "M3.001": "Burden test carried out with pLOFs and deleterious missense with a MAF smaller than 0.01%.",
-    "M3.01": "Burden test carried out with pLOFs and deleterious missense with a MAF smaller than 0.1%.",
-    "M3.1": "Burden test carried out with pLOFs and deleterious missense with a MAF smaller than 1%.",
+    "M1.0001": "Burden test carried out with pLOF variants with a MAF smaller than 0.001%.",
+    "M1.001": "Burden test carried out with pLOF variants with a MAF smaller than 0.01%.",
+    "M1.01": "Burden test carried out with pLOF variants with a MAF smaller than 0.1%.",
+    "M1.1": "Burden test carried out with pLOF variants with a MAF smaller than 1%.",
+    "M3.singleton": "Burden test carried out with singleton pLOF and deleterious missense variants.",
+    "M3.0001": "Burden test carried out with pLOF and deleterious missense variants with a MAF smaller than 0.001%.",
+    "M3.001": "Burden test carried out with pLOF and deleterious missense variants with a MAF smaller than 0.01%.",
+    "M3.01": "Burden test carried out with pLOF and deleterious missense variants with a MAF smaller than 0.1%.",
+    "M3.1": "Burden test carried out with pLOFs and deleterious missense variants with a MAF smaller than 1%.",
 }
 
 
@@ -35,7 +35,7 @@ def main(regeneron_data: str, gwas_studies: str, spark_instance: SparkSession) -
     This module extracts and processes target/disease evidence from the raw data published in PMID:34662886.
     Args:
     """
-    logging.info(f"File with the results from the Regeneron burden analyses: {regeneron_data}")
+    logging.info(f"File with the results from the REGENERON burden analyses: {regeneron_data}")
     logging.info(f"File with GWAS Catalog studies: {gwas_studies}")
 
     # Load data
@@ -164,7 +164,7 @@ def parse_regeneron_evidence(regeneron_df: DataFrame) -> DataFrame:
         .withColumn("datatypeId", lit("genetic_association"))
         .withColumn("literature", array(lit("34662886")))
         .withColumn("projectId", lit("REGENERON"))
-        .withColumn("cohortId", lit("UK Biobank"))
+        .withColumn("cohortId", lit("UK Biobank 450k"))
         .withColumnRenamed("Gene", "targetFromSourceId")
         .withColumnRenamed("Trait", "diseaseFromSource")
         .withColumnRenamed("MAPPED_TRAIT", "diseaseFromSourceMappedId")

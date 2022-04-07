@@ -121,7 +121,7 @@ def parse_az_phewas_evidence(az_phewas_df: DataFrame) -> DataFrame:
         .withColumn("datatypeId", lit("genetic_association"))
         .withColumn("literature", array(lit("34375979")))
         .withColumn("projectId", lit("AstraZeneca PheWAS Portal"))
-        .withColumn("cohortId", lit("UK Biobank"))
+        .withColumn("cohortId", lit("UK Biobank 450k"))
         .withColumnRenamed("Gene", "targetFromSourceId")
         .withColumnRenamed("Phenotype", "diseaseFromSource")
         .withColumn("diseaseFromSourceMappedId", lit(None))
