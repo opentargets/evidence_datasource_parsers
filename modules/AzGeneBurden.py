@@ -50,7 +50,8 @@ def main(az_binary_data: str, az_quant_data: str, spark_instance: SparkSession) 
             .withColumnRenamed("YesQV", "nCasesQV"),
             allowMissingColumns=True,
         )
-        .filter((col('pValue') <= 2e-9) & (col('pValue') > 0.0))
+        .withColumn("pValue", col("pValue").cast(DoubleType()))
+        .filter(col("pValue") <= 2e-9)
         .distinct()
         .repartition(20)
         .persist()
@@ -58,6 +59,16 @@ def main(az_binary_data: str, az_quant_data: str, spark_instance: SparkSession) 
 
     # Filter out associations from the synonymous model used as a negative control
     az_phewas_df = remove_false_positives(az_phewas_df)
+
+    # WARNING: There are some associations with a p-value of 0.0 in the AstraZeneca PheWAS Portal.
+    # This is a bug we still have to ellucidate and it might be due to a float overflow.
+    # These evidence need to be manually corrected in order not to lose them and for them to pass validation
+    # As an interim solution, their p value will equal to the minimum in the evidence set.
+    logging.warning(f"There are {az_phewas_df.filter(col('pValue') == 0.0).count()} evidence with a p-value of 0.0.")
+    minimum_pvalue = az_phewas_df.filter(col('pValue') > 0.0).agg({"pValue": "min"}).collect()[0]["min(pValue)"]
+    az_phewas_df = az_phewas_df.withColumn(
+        "pValue", when(col("pValue") == 0.0, minimum_pvalue).otherwise(col("pValue"))
+    )
 
     # Write output
     evd_df = parse_az_phewas_evidence(az_phewas_df)
@@ -135,7 +146,7 @@ def parse_az_phewas_evidence(az_phewas_df: DataFrame) -> DataFrame:
         .withColumnRenamed("Gene", "targetFromSourceId")
         .withColumnRenamed("Phenotype", "diseaseFromSource")
         .withColumn("diseaseFromSourceMappedId", lit(None))
-        .withColumn("resourceScore", col("pValue").cast(DoubleType()))
+        .withColumn("resourceScore", col("pValue"))
         .withColumn("pValueMantissa", get_mantissa_udf(col("pValue")))
         .withColumn("pValueExponent", get_exponent_udf(col("pValue")))
         .withColumn(
