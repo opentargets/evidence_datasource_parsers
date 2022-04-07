@@ -111,10 +111,8 @@ def parse_az_phewas_evidence(az_phewas_df: DataFrame) -> DataFrame:
         "studyCases",
         "statisticalMethod",
         "statisticalMethodOverview",
-        "urls",
     ]
 
-    base_url = "https://azphewas.com/geneView/7e2a7fab-97f0-45f7-9297-f976f7e667c8/%s/glr/%s"
     get_exponent_udf = udf(get_exponent, IntegerType())
     get_mantissa_udf = udf(get_mantissa, DoubleType())
 
@@ -163,13 +161,6 @@ def parse_az_phewas_evidence(az_phewas_df: DataFrame) -> DataFrame:
         .withColumnRenamed("CollapsingModel", "statisticalMethod")
         .withColumn("statisticalMethodOverview", col("statisticalMethod"))
         .replace(to_replace=METHOD_DESC, subset=['statisticalMethodOverview'])
-        .withColumn(
-            "url",
-            when(col("Type") == "Binary", format_string(base_url, col("targetFromSourceId"), lit("binary"))).otherwise(
-                format_string(base_url, col("targetFromSourceId"), lit("continuous"))
-            ),
-        )
-        .withColumn("urls", array(struct(col("url").alias('url'))))
         .select(to_keep)
         .distinct()
     )
