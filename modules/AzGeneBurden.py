@@ -37,10 +37,19 @@ def main(az_binary_data: str, az_quant_data: str, spark_instance: SparkSession) 
     # Load data
     az_phewas_df = (
         spark_instance.read.parquet(az_binary_data)
+        # Renaming of some columns to match schemas of both binary and quantitative evidence
         .withColumnRenamed("BinOddsRatioLCI", "LCI")
         .withColumnRenamed("BinOddsRatioUCI", "UCI")
+        .withColumnRenamed("BinNcases", "nCases")
+        .withColumnRenamed("BinQVcases", "nCasesQV")
+        .withColumnRenamed("BinNcontrols", "nControls")
         # Combine binary and quantitative evidence into one dataframe
-        .unionByName(spark_instance.read.parquet(az_quant_data), allowMissingColumns=True)
+        .unionByName(
+            spark_instance.read.parquet(az_quant_data)
+            .withColumn("nCases", col("nSamples"))
+            .withColumnRenamed("YesQV", "nCasesQV"),
+            allowMissingColumns=True,
+        )
         .filter((col('pValue') <= 2e-9) & (col('pValue') > 0.0))
         .distinct()
         .repartition(20)
@@ -109,6 +118,7 @@ def parse_az_phewas_evidence(az_phewas_df: DataFrame) -> DataFrame:
         "cohortId",
         "studySampleSize",
         "studyCases",
+        "studyCasesWithQV",
         "statisticalMethod",
         "statisticalMethodOverview",
     ]
@@ -155,9 +165,8 @@ def parse_az_phewas_evidence(az_phewas_df: DataFrame) -> DataFrame:
         .withColumn("ancestry", lit("EUR"))
         .withColumn("ancestryId", lit("HANCESTRO_0005"))
         .withColumnRenamed("nSamples", "studySampleSize")
-        .withColumn(
-            "studyCases", when(col("Type") == "Quantitative", col("studySampleSize")).otherwise(col("BinNcases"))
-        )
+        .withColumnRenamed("nCases", "studyCases")
+        .withColumnRenamed("nCasesQV", "studyCasesWithQV")
         .withColumnRenamed("CollapsingModel", "statisticalMethod")
         .withColumn("statisticalMethodOverview", col("statisticalMethod"))
         .replace(to_replace=METHOD_DESC, subset=['statisticalMethodOverview'])

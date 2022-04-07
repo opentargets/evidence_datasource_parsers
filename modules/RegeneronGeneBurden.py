@@ -9,7 +9,7 @@ from numpy import nan
 from pandas import read_excel
 from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
-from pyspark.sql.functions import aggregate, array, element_at, expr, col, concat, lit, split, translate, udf, when
+from pyspark.sql.functions import aggregate, array, element_at, expr, col, concat, lit, slice, split, translate, udf, when
 from pyspark.sql.types import ArrayType, DoubleType, IntegerType
 
 from common.evidence import get_exponent, get_mantissa, initialize_sparksession, write_evidence_strings
@@ -112,10 +112,10 @@ def main(regeneron_data: str, gwas_studies: str, spark_instance: SparkSession) -
         raise AssertionError("AZ PheWAS Portal number of evidence are different from expected.")
 
     if evd_df.filter(col('studySampleSize').isNull()).count() != 0:
-        logging.error(f"There are {evd_df.filter(col('studySampleSize').isNull()).count()} evidence with a null sample size.")
-        raise AssertionError(
-            f"Study sample size is missing for some associations."
+        logging.error(
+            f"There are {evd_df.filter(col('studySampleSize').isNull()).count()} evidence with a null sample size."
         )
+        raise AssertionError(f"Study sample size is missing for some associations.")
     logging.info(f"{evd_df.count()} evidence strings have been processed.")
 
     return evd_df
@@ -152,6 +152,7 @@ def parse_regeneron_evidence(regeneron_df: DataFrame) -> DataFrame:
         "studyId",
         "studySampleSize",
         "studyCases",
+        "studyCasesWithQV",
         "statisticalMethod",
         "statisticalMethodOverview",
     ]
@@ -221,12 +222,25 @@ def parse_regeneron_evidence(regeneron_df: DataFrame) -> DataFrame:
         .replace(to_replace=ANCESTRY_TO_ID, subset=['ancestryId'])
         .withColumnRenamed("Study Accession", "studyId")
         # Parse number of individuals and sum them up. Bear in mind that studyControls can be null
-        # Ex: "421865|1618|2" -> 423485
+        # Ex: "421865|1618|2" -> [421865, 1618, 2] -> 423485
         # Ex: "NA|NA|NA" -> null
+        # To extract the cases with a qualifying variant, the array is sliced to only aggregate the second and third element
         .withColumn(
             "studyCases",
             aggregate(
                 split(col('N cases with 0|1|2 copies of effect allele'), '\|').cast(ArrayType(IntegerType())),
+                lit(0),
+                lambda acc, x: acc + x,
+            ),
+        )
+        .withColumn(
+            "studyCasesWithQV",
+            aggregate(
+                slice(
+                    split(col('N cases with 0|1|2 copies of effect allele'), '\|').cast(ArrayType(IntegerType())),
+                    start=2,
+                    length=2,
+                ),
                 lit(0),
                 lambda acc, x: acc + x,
             ),
