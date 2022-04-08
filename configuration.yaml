@@ -36,8 +36,8 @@ Orphanet:
 PanelApp:
   inputBucket: gs://otar000-evidence_input/GenomicsEngland/data_files
   outputBucket: gs://otar000-evidence_input/GenomicsEngland/json
-Phenodigm:
-  evidenceOutputBucket: gs://otar000-evidence_input/PhenoDigm/json
+IMPC:
+  evidenceOutputBucket: gs://otar000-evidence_input/IMPC/json
   phenotypesOutputBucket: gs://otar001-core/MousePhenotypes
 PROGENy:
   inputBucket: gs://otar000-evidence_input/PROGENy/data_files

@@ -28,8 +28,8 @@ ALL_FILES = [
     ('intogen.json.gz', GS.remote(f"{config['intOGen']['outputBucket']}/intogen-{timeStamp}.json.gz")),
     ('orphanet.json.gz', GS.remote(f"{config['Orphanet']['outputBucket']}/orphanet-{timeStamp}.json.gz")),
     ('genomics_england.json.gz', GS.remote(f"{config['PanelApp']['outputBucket']}/genomics_england-{timeStamp}.json.gz")),
-    ('phenodigm.json.gz', GS.remote(f"{config['Phenodigm']['evidenceOutputBucket']}/phenodigm-{timeStamp}.json.gz")),
-    ('mouse_phenotypes.json.gz', GS.remote(f"{config['Phenodigm']['phenotypesOutputBucket']}/mouse_phenotypes-{timeStamp}.json.gz")),
+    ('impc.json.gz', GS.remote(f"{config['IMPC']['evidenceOutputBucket']}/impc-{timeStamp}.json.gz")),
+    ('mouse_phenotypes.json.gz', GS.remote(f"{config['IMPC']['phenotypesOutputBucket']}/mouse_phenotypes-{timeStamp}.json.gz")),
     ('progeny.json.gz', GS.remote(f"{config['PROGENy']['outputBucket']}/progeny-{timeStamp}.json.gz")),
     ('slapenrich.json.gz', GS.remote(f"{config['SLAPEnrich']['outputBucket']}/slapenrich-{timeStamp}.json.gz")),
     ('sysbio.json.gz', GS.remote(f"{config['SysBio']['outputBucket']}/sysbio-{timeStamp}.json.gz")),
@@ -278,19 +278,19 @@ rule panelApp:                # Process gene panels data curated by Genomics Eng
         opentargets_validator --schema {params.schema} {output.evidenceFile}
         """
 
-rule phenodigm:               # Process target-disease evidence and mouseModels dataset by querying the IMPC SOLR API.
+rule impc:               # Process target-disease evidence and mouseModels dataset by querying the IMPC SOLR API.
     params:
         cacheDir = config['global']['cacheDir'],
         schema = f"{config['global']['schema']}/opentargets.json"
     output:
-        evidenceFile='phenodigm.json.gz',
+        evidenceFile='impc.json.gz',
         mousePhenotypes='mouse_phenotypes.json.gz'
     log:
-        'log/phenodigm.log'
+        'log/impc.log'
     shell:
         """
         exec &> {log}
-        python modules/PhenoDigm.py \
+        python modules/IMPC.py \
           --cache-dir {params.cacheDir} \
           --output-evidence {output.evidenceFile} \
           --output-mouse-phenotypes {output.mousePhenotypes} \

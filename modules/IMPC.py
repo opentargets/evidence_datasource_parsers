@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Evidence parser for the animal model sources from PhenoDigm."""
+"""Evidence parser for the animal model sources from IMPC."""
 
 import argparse
 import logging
@@ -93,7 +93,7 @@ class ImpcSolrRetriever:
                     break
 
 
-class PhenoDigm:
+class IMPC:
     """Retrieve the data, load it into Spark, process and write the resulting evidence strings."""
 
     # Human gene mappings.
@@ -155,10 +155,10 @@ class PhenoDigm:
         self.logger.info('Fetching Mammalian Phenotype ontology definitions from MGI.')
         urllib.request.urlretrieve(self.MGI_MP_URI, os.path.join(self.cache_dir, self.MGI_MP_FILENAME))
 
-        self.logger.info('Fetching PhenoDigm data from IMPC SOLR.')
+        self.logger.info('Fetching data from IMPC SOLR.')
         impc_solr_retriever = ImpcSolrRetriever()
         for data_type in IMPC_SOLR_TABLES:
-            self.logger.info(f'Fetching PhenoDigm data type {data_type}.')
+            self.logger.info(f'Fetching data type {data_type}.')
             filename = os.path.join(self.cache_dir, self.IMPC_FILENAME.format(data_type=data_type))
             impc_solr_retriever.fetch_data(data_type, filename)
 
@@ -354,7 +354,7 @@ class PhenoDigm:
             )
         )
 
-    def generate_phenodigm_evidence_strings(self, score_cutoff):
+    def generate_IMPC_evidence_strings(self, score_cutoff):
         """Generate the evidence by renaming, transforming and joining the columns."""
         # Map mouse model phenotypes into human terms.
         model_human_phenotypes = (
@@ -428,7 +428,7 @@ class PhenoDigm:
             .withColumnRenamed('disease_id', 'diseaseFromSourceId')
             .withColumnRenamed('disease_term', 'diseaseFromSource')
             # Add constant value columns.
-            .withColumn('datasourceId', pf.lit('phenodigm'))
+            .withColumn('datasourceId', pf.lit('impc'))
             .withColumn('datatypeId', pf.lit('animal_model'))
         )
 
@@ -522,22 +522,22 @@ def main(
     logging.basicConfig(**logging_config)
 
     # Process the data.
-    phenodigm = PhenoDigm(logging, cache_dir, local)
+    impc = IMPC(logging, cache_dir, local)
     if not use_cached:
         logging.info('Update the HGNC/MGI/SOLR cache.')
-        phenodigm.update_cache()
+        impc.update_cache()
 
     logging.info('Load gene mappings and SOLR data from local cache.')
-    phenodigm.load_data_from_cache()
+    impc.load_data_from_cache()
 
     logging.info('Build the evidence strings.')
-    phenodigm.generate_phenodigm_evidence_strings(score_cutoff)
+    impc.generate_IMPC_evidence_strings(score_cutoff)
 
     logging.info('Generate the mousePhenotypes dataset.')
-    phenodigm.generate_mouse_phenotypes_dataset()
+    impc.generate_mouse_phenotypes_dataset()
 
     logging.info('Collect and write the datasets.')
-    phenodigm.write_datasets(evidence_output, mouse_phenotypes_output)
+    impc.write_datasets(evidence_output, mouse_phenotypes_output)
 
 
 if __name__ == '__main__':
