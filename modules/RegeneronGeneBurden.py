@@ -91,11 +91,15 @@ def main(regeneron_data: str, gwas_studies: str, spark_instance: SparkSession) -
         eur_evd_df.union(non_eur_evd_df)
         # Keep only gene based analyses
         .filter(expr("`Marker type` == 'Burden'"))
-        # add study accession from sumstats
+        # Add study accession from sumstats
         .join(summary_stats_df, on="Study tag", how="left")
-        # add mapped trait from GWAS Catalog
+        # Add mapped trait from GWAS Catalog
         .join(gwas_studies_df, on="Study Accession", how="left")
         .filter(col('P-Value') <= 2.18e-11)
+        # WARNING: One gene name is corrupted by Excel's automatic conversion to a date (2021-03-08 00:00:00). 
+        # Given the name and the associations it reports, it makes sense that it is MARCHF8 (ENSG00000165406).
+        # For the moment we will remove them until this is fixed.
+        .filter(~col("Gene").contains("2021"))
         .distinct()
         .persist()
     )

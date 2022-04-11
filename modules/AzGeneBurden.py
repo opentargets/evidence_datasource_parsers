@@ -177,7 +177,7 @@ def parse_az_phewas_evidence(az_phewas_df: DataFrame) -> DataFrame:
         .withColumn("ancestryId", lit("HANCESTRO_0005"))
         .withColumnRenamed("nSamples", "studySampleSize")
         .withColumnRenamed("nCases", "studyCases")
-        .withColumnRenamed("nCasesQV", "studyCasesWithQualifyingVar")
+        .withColumnRenamed("nCasesQV", "studyCasesWithQualifyingVariants")
         .withColumnRenamed("CollapsingModel", "statisticalMethod")
         .withColumn("statisticalMethodOverview", col("statisticalMethod"))
         .replace(to_replace=METHOD_DESC, subset=['statisticalMethodOverview'])
