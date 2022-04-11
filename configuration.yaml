@@ -2,7 +2,7 @@ global:
   logDir: gs://otar000-evidence_input/parser_logs
   cacheDir: cache_dir
   # This is a directory prefix; individual schemas relative to it are specified by each rule.
-  schema: https://raw.githubusercontent.com/opentargets/json_schema/master
+  schema: https://raw.githubusercontent.com/opentargets/json_schema/il-cases-qv
 
 cancerBiomarkers:
   inputBucket: gs://otar000-evidence_input/CancerBiomarkers/data_files
