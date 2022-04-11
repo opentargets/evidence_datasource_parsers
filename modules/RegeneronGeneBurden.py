@@ -152,7 +152,7 @@ def parse_regeneron_evidence(regeneron_df: DataFrame) -> DataFrame:
         "studyId",
         "studySampleSize",
         "studyCases",
-        "studyCasesWithQV",
+        "studyCasesWithQualifyingVariants",
         "statisticalMethod",
         "statisticalMethodOverview",
     ]
@@ -234,7 +234,7 @@ def parse_regeneron_evidence(regeneron_df: DataFrame) -> DataFrame:
             ),
         )
         .withColumn(
-            "studyCasesWithQV",
+            "studyCasesWithQualifyingVariants",
             aggregate(
                 slice(
                     split(col('N cases with 0|1|2 copies of effect allele'), '\|').cast(ArrayType(IntegerType())),
