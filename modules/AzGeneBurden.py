@@ -7,7 +7,7 @@ import sys
 
 from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
-from pyspark.sql.functions import array, format_string, col, lit, struct, udf, when
+from pyspark.sql.functions import array, col, lit, udf, when
 from pyspark.sql.types import DoubleType, IntegerType
 
 from common.evidence import get_exponent, get_mantissa, initialize_sparksession, write_evidence_strings
@@ -51,7 +51,7 @@ def main(az_binary_data: str, az_quant_data: str, spark_instance: SparkSession) 
             allowMissingColumns=True,
         )
         .withColumn("pValue", col("pValue").cast(DoubleType()))
-        .filter(col("pValue") <= 2e-9)
+        .filter(col("pValue") <= 1e-7)
         .distinct()
         .repartition(20)
         .persist()
@@ -79,7 +79,7 @@ def main(az_binary_data: str, az_quant_data: str, spark_instance: SparkSession) 
             f"There are {evd_df.filter(col('resourceScore') == 0).count()} evidence with a P value of 0."
         )
 
-    if not 12000 < evd_df.count() < 13000:
+    if not 17000 < evd_df.count() < 18000:
         logging.error(f"AZ PheWAS Portal number of evidence are different from expected: {evd_df.count()}")
         raise AssertionError("AZ PheWAS Portal number of evidence are different from expected.")
     logging.info(f"{evd_df.count()} evidence strings have been processed.")
