@@ -184,7 +184,6 @@ def parse_genetics_evidence(genetics_df: DataFrame) -> DataFrame:
             'literature',
             when(col('pmid') != '', array(regexp_extract(col('pmid'), r'PMID:(\d+)$', 1)))
             .when(col('study_id').contains('SAIGE'), array(lit('30104761')))
-            .when(col('study_id').contains('NEALE'), array(lit(None))),
         )
         .withColumn(
             'cohortId',
