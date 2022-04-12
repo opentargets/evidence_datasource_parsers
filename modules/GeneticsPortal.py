@@ -23,6 +23,7 @@ from pyspark.sql.functions import (
 
 from common.evidence import detect_spark_memory_limit
 
+
 def main(
     locus2gene: str,
     toploci: str,
@@ -44,9 +45,7 @@ def main(
     l2g_df = process_l2g_table(locus2gene, threshold)
     pvals_df = process_toploci_table(toploci)
     studies_df = process_study_table(study_index)
-    variant_consequences_df = process_consequences_table(
-        variant_index, vep_consequences
-    )
+    variant_consequences_df = process_consequences_table(variant_index, vep_consequences)
     variant_rsid_df = process_variant_rsid(variant_index)
 
     # Join datasets together
@@ -77,9 +76,7 @@ def main(
     logging.info('Evidence strings have been processed. Saving...')
     genetics_df = parse_genetics_evidence(genetics_df)
     write_evidence_strings(genetics_df, output_file)
-    logging.info(
-        f'{genetics_df.count()} evidence strings have been saved to {output_file}. Exiting.'
-    )
+    logging.info(f'{genetics_df.count()} evidence strings have been saved to {output_file}. Exiting.')
 
     return 0
 
@@ -100,21 +97,15 @@ def get_parser():
         type=str,
         required=True,
     )
-    parser.add_argument(
-        '--study', help='Table with all the studies.', type=str, required=True
-    )
+    parser.add_argument('--study', help='Table with all the studies.', type=str, required=True)
     parser.add_argument(
         '--variantIndex',
         help='Table with the variant indices (from gnomad 2.x).',
         type=str,
         required=True,
     )
-    parser.add_argument(
-        '--ecoCodes', help='Table with consequence ECO codes.', type=str, required=True
-    )
-    parser.add_argument(
-        '--outputFile', help='Output gzipped json file.', type=str, required=True
-    )
+    parser.add_argument('--ecoCodes', help='Table with consequence ECO codes.', type=str, required=True)
+    parser.add_argument('--outputFile', help='Output gzipped json file.', type=str, required=True)
     parser.add_argument(
         '--threshold',
         help='Threshold applied on l2g score for filtering.',
@@ -158,12 +149,7 @@ def initialize_spark():
         .set('spark.debug.maxToStringFields', '2000')
         .set('spark.sql.execution.arrow.maxRecordsPerBatch', '500000')
     )
-    spark = (
-        SparkSession.builder
-        .config(conf=spark_conf)
-        .master('local[*]')
-        .getOrCreate()
-    )
+    spark = SparkSession.builder.config(conf=spark_conf).master('local[*]').getOrCreate()
     logging.info(f'Spark version: {spark.version}')
 
     return spark
@@ -176,9 +162,9 @@ def load_eco_dict(vep_consequences: str):
     """
 
     # Load
-    eco_df = spark.read.csv(
-        vep_consequences, sep='\t', header=True, inferSchema=True
-    ).select('Term', 'Accession', col('eco_score').cast(DoubleType()))
+    eco_df = spark.read.csv(vep_consequences, sep='\t', header=True, inferSchema=True).select(
+        'Term', 'Accession', col('eco_score').cast(DoubleType())
+    )
 
     # Convert to python dict
     eco_dict = {}
@@ -196,12 +182,15 @@ def parse_genetics_evidence(genetics_df: DataFrame) -> DataFrame:
     return (
         genetics_df.withColumn(
             'literature',
-            when(
-                col('pmid') != '', array(regexp_extract(col('pmid'), r'PMID:(\d+)$', 1))
-            )
+            when(col('pmid') != '', array(regexp_extract(col('pmid'), r'PMID:(\d+)$', 1)))
             .when(col('study_id').contains('SAIGE'), array(lit('30104761')))
-            .when(col('study_id').contains('NEALE'), array(lit(None)))
-            .otherwise(None),
+            .when(col('study_id').contains('NEALE'), array(lit(None))),
+        )
+        .withColumn(
+            'cohortId',
+            when(col('study_id').contains('SAIGE'), array(lit('UK Biobank 500k'))).when(
+                col('study_id').contains('NEALE'), array(lit('UK Biobank 500k'))
+            ),
         )
         .select(
             lit('ot_genetics_portal').alias('datasourceId'),
@@ -211,9 +200,7 @@ def parse_genetics_evidence(genetics_df: DataFrame) -> DataFrame:
             col('literature'),
             col('pub_author').alias('publicationFirstAuthor'),
             'projectId',
-            substring(col('pub_date'), 1, 4)
-            .cast(IntegerType())
-            .alias('publicationYear'),
+            substring(col('pub_date'), 1, 4).cast(IntegerType()).alias('publicationYear'),
             col('trait_reported').alias('diseaseFromSource'),
             col('study_id').alias('studyId'),
             col('sample_size').alias('studySampleSize'),
@@ -227,16 +214,10 @@ def parse_genetics_evidence(genetics_df: DataFrame) -> DataFrame:
             col('beta_ci_upper').alias('betaConfidenceIntervalUpper'),
             col('y_proba_full_model').alias('resourceScore'),
             col('rsid').alias('variantRsId'),
-            concat_ws('_', col('chrom'), col('pos'), col('ref'), col('alt')).alias(
-                'variantId'
-            ),
-            regexp_extract(col('consequence_link'), r'\/(SO.+)$', 1).alias(
-                'variantFunctionalConsequenceId'
-            ),
+            concat_ws('_', col('chrom'), col('pos'), col('ref'), col('alt')).alias('variantId'),
+            regexp_extract(col('consequence_link'), r'\/(SO.+)$', 1).alias('variantFunctionalConsequenceId'),
         )
-        .dropDuplicates(
-            ['variantId', 'studyId', 'targetFromSourceId', 'diseaseFromSourceMappedId']
-        )
+        .dropDuplicates(['variantId', 'studyId', 'targetFromSourceId', 'diseaseFromSourceMappedId'])
     )
 
 
@@ -355,9 +336,7 @@ def process_consequences_table(variant_index: str, vep_consequences: str) -> Dat
         # Extract most sereve csq per gene.
         # Create UDF that reverse sorts csq terms using eco score dict, then select
         # the first item. Then apply UDF to all rows in the data.
-        lambda arr: sorted(
-            arr, key=lambda x: eco_dicts.value[0].get(x, 0), reverse=True
-        )[0],
+        lambda arr: sorted(arr, key=lambda x: eco_dicts.value[0].get(x, 0), reverse=True)[0],
         StringType(),
     )
 
@@ -386,9 +365,7 @@ def process_consequences_table(variant_index: str, vep_consequences: str) -> Dat
             'tc.consequence_terms as csq_arr',
         )
         # Get most severe consequences
-        .withColumn(
-            'most_severe_gene_csq', get_most_severe_consequence_udf(col('csq_arr'))
-        ).withColumn(
+        .withColumn('most_severe_gene_csq', get_most_severe_consequence_udf(col('csq_arr'))).withColumn(
             'consequence_link', get_consequence_link_udf(col('most_severe_gene_csq'))
         )
     )
