@@ -146,24 +146,8 @@ The SLAPenrich parser processes two files:
 - `slapenrich_opentargets.tsv`: Main file that contains a systematic comparison of on somatic mutations from TCGA across 25 different cancer types and a collection of pathway gene sets from Reactome. This file can be downloaded [here](https://storage.googleapis.com/otar000-evidence_input/SLAPEnrich/data_file/slapenrich_opentargets-21-12-2017.tsv) from the _otar000-evidence_input_ bucket.
 - `cancer2EFO_mappings.tsv`: File containing the mappings between the acronym of the type of cancer and its respective disease listed in EFO. This file can be found in the `resources` directory.
 
-### PhenoDigm
+### IMPC
 
 Generates the mouse model target-disease evidence by querying the IMPC SOLR API.
 
 The base of the evidence is the `disease_model_summary` table, which is unique on the combination of (`model_id`, `disease_id`). When target information is added, an original row may explode into multiple evidence strings. As a result, the final output is unique on the combination of (`biologicalModelId`, `targetFromSourceId`, `targetInModelId`, `diseaseFromSourceId`).
-
-To set up the environment and run:
-```sh
-python3 -m venv phenodigm_venv
-source phenodigm_venv/bin/activate
-pip3 install -r requirements.txt
-python3 modules/PhenoDigm.py --cache-dir phenodigm_cache --output phenodigm.json.gz
-```
-
-Additional optional arguments are available. Run `python3 modules/PhenoDigm.py -h` for details.
-
-Approximate resource requirements and benchmarks:
-* Total wall clock running time: 6 minutes on AMD Ryzen 5 3600 (6 cores / 12 threads).
-  - Fetch the data from SOLR: 4 minutes.
-  - Ingest the data and generate the evidence strings: 2 minutes.
-* Peak RAM usage: 1.5 GB.

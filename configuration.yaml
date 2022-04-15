@@ -2,7 +2,7 @@ global:
   logDir: gs://otar000-evidence_input/parser_logs
   cacheDir: cache_dir
   # This is a directory prefix; individual schemas relative to it are specified by each rule.
-  schema: https://raw.githubusercontent.com/opentargets/json_schema/master
+  schema: https://raw.githubusercontent.com/opentargets/json_schema/2.2.4
 
 cancerBiomarkers:
   inputBucket: gs://otar000-evidence_input/CancerBiomarkers/data_files
@@ -36,8 +36,8 @@ Orphanet:
 PanelApp:
   inputBucket: gs://otar000-evidence_input/GenomicsEngland/data_files
   outputBucket: gs://otar000-evidence_input/GenomicsEngland/json
-Phenodigm:
-  evidenceOutputBucket: gs://otar000-evidence_input/PhenoDigm/json
+IMPC:
+  evidenceOutputBucket: gs://otar000-evidence_input/IMPC/json
   phenotypesOutputBucket: gs://otar001-core/MousePhenotypes
 PROGENy:
   inputBucket: gs://otar000-evidence_input/PROGENy/data_files
@@ -59,6 +59,6 @@ TargetSafety:
   toxcast: gs://otar001-core/TargetSafety/data_files/toxcast/ToxCast_2021-08-17.tsv
   outputBucket: gs://otar001-core/TargetSafety/json
 ChEMBL:
-  evidence: gs://otar008-chembl/cttv008-20-01-2022.json.gz
-  stopReasonCategories: gs://otar000-evidence_input/ChEMBL/data_files/chembl_predictions-2022-01-24.tsv
+  evidence: gs://otar008-chembl/cttv008-08-04-2022.json.gz
+  stopReasonCategories: gs://otar000-evidence_input/ChEMBL/data_files/chembl_predictions-2022-04-08.tsv
   outputBucket: gs://otar000-evidence_input/ChEMBL/json
