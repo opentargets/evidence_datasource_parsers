@@ -14,6 +14,7 @@ from pyspark.sql.functions import (
     aggregate,
     array,
     element_at,
+    explode,
     expr,
     col,
     concat,
@@ -90,11 +91,14 @@ def main(regeneron_data: str, gwas_studies: str, spark_instance: SparkSession) -
 
     gwas_studies_df = (
         spark_instance.read.csv(gwas_studies, header=True, inferSchema=True, sep='\t')
-        .filter(col('LINK').contains('34662886'))
+        .filter(col('PUBMEDID') == '34662886')
+        # There might be multiple mapped traits that need to be splitted
+        .withColumn('MAPPED_TRAIT_URI', explode(split(col('MAPPED_TRAIT_URI'), ', ')))
         .select(
             col('STUDY ACCESSION').alias('Study Accession'),
             element_at(split('MAPPED_TRAIT_URI', '/'), -1).alias('MAPPED_TRAIT'),
         )
+        .distinct()
     )
     unmapped_gwas_studies = detect_unmapped_gwas_studies(gwas_studies_df)
     if len(unmapped_gwas_studies) > 0:

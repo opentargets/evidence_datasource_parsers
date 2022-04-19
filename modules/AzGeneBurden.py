@@ -110,9 +110,9 @@ def parse_az_phewas_evidence(az_phewas_df: DataFrame) -> DataFrame:
     """
     Parse Astra Zeneca's PheWAS Portal evidence.
     Args:
-        az_phewas_df: DataFrame with the Regeneron data
+        az_phewas_df: DataFrame with Astra Zeneca's PheWAS Portal data
     Returns:
-        evd_df: DataFrame with the Regeneron data following the t/d evidence schema.
+        evd_df: DataFrame with Astra Zeneca's data following the t/d evidence schema.
     """
     to_keep = [
         'datasourceId',
