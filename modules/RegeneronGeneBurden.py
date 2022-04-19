@@ -4,12 +4,26 @@
 import argparse
 import logging
 import sys
+from typing import List
 
 from numpy import nan
 from pandas import read_excel
 from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
-from pyspark.sql.functions import aggregate, array, element_at, expr, col, concat, lit, slice, split, translate, udf, when
+from pyspark.sql.functions import (
+    aggregate,
+    array,
+    element_at,
+    expr,
+    col,
+    concat,
+    lit,
+    slice,
+    split,
+    translate,
+    udf,
+    when,
+)
 from pyspark.sql.types import ArrayType, DoubleType, IntegerType
 
 from common.evidence import get_exponent, get_mantissa, initialize_sparksession, write_evidence_strings
@@ -81,9 +95,12 @@ def main(regeneron_data: str, gwas_studies: str, spark_instance: SparkSession) -
         .filter(col("LINK").contains("34662886"))
         .select(
             col("STUDY ACCESSION").alias("Study Accession"),
-            element_at(split("MAPPED_TRAIT_URI", "/"), -1).alias("MAPPED_TRAIT"),
+            element_at(split("MAPPED_TRAIT_URI", "/"), -1).alias('MAPPED_TRAIT'),
         )
     )
+    unmapped_gwas_studies = detect_unmapped_gwas_studies(gwas_studies_df)
+    if len(unmapped_gwas_studies) > 0:
+        gwas_studies_df = gwas_studies_df.filter(~col('Study Accession').isin(unmapped_gwas_studies))
     assert gwas_studies_df.count() > 7900, "Downloaded GWAS studies data are not complete."
 
     regeneron_df = (
@@ -96,7 +113,7 @@ def main(regeneron_data: str, gwas_studies: str, spark_instance: SparkSession) -
         # Add mapped trait from GWAS Catalog
         .join(gwas_studies_df, on="Study Accession", how="left")
         .filter(col('P-Value') <= 2.18e-11)
-        # WARNING: One gene name is corrupted by Excel's automatic conversion to a date (2021-03-08 00:00:00). 
+        # WARNING: One gene name is corrupted by Excel's automatic conversion to a date (2021-03-08 00:00:00).
         # Given the name and the associations it reports, it makes sense that it is MARCHF8 (ENSG00000165406).
         # For the moment we will remove them until this is fixed.
         .filter(~col("Gene").contains("2021"))
@@ -269,6 +286,21 @@ def parse_regeneron_evidence(regeneron_df: DataFrame) -> DataFrame:
         .select(to_keep)
         .distinct()
     )
+
+
+def detect_unmapped_gwas_studies(gwas_studies: DataFrame) -> List[str]:
+    """
+    GWAS Catalog does not support studies without a mapped trait.
+    This function checks this condition is met in their downloads page and prints a warning otherwise.
+    """
+    unmapped_studies = gwas_studies.filter(col('MAPPED_TRAIT').isNull()).toPandas()['Study Accession'].unique().tolist()
+    if len(unmapped_studies) > 0:
+        logging.warning(
+            f"WARNING: {len(unmapped_studies)} studies in GWAS Catalog have no mapped trait. "
+            f"These studies will be ignored."
+        )
+        print(unmapped_studies)
+    return unmapped_studies
 
 
 def get_parser():
