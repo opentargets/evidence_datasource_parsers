@@ -8,7 +8,7 @@ import sys
 from pandas import read_excel
 from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
-from pyspark.sql.functions import array, col, lit, udf, when
+from pyspark.sql.functions import array, col, explode, lit, split, udf, when
 from pyspark.sql.types import DoubleType, IntegerType
 
 from common.evidence import get_exponent, get_mantissa, initialize_sparksession, write_evidence_strings
@@ -36,9 +36,13 @@ def main(az_binary_data: str, az_quant_data: str, az_trait_mappings: str, spark_
     logging.info(f'File with the AZ PheWAS Portal quantitative traits associations: {az_quant_data}')
 
     # Load data
-    az_trait_mappings_df = spark_instance.createDataFrame(
-        read_excel(az_trait_mappings, sheet_name='Sheet1').filter(items=['Phenotype', 'EFO'])
-    ).distinct()
+    az_trait_mappings_df = (
+        spark_instance.createDataFrame(
+            read_excel(az_trait_mappings, sheet_name='Sheet1').filter(items=['Phenotype', 'EFO'])
+        )
+        .withColumn('EFO', explode(split(col('EFO'), '|')))
+        .distinct()
+    )
     az_phewas_df = (
         spark_instance.read.parquet(az_binary_data)
         # Renaming of some columns to match schemas of both binary and quantitative evidence

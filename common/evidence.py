@@ -5,8 +5,6 @@ import tempfile
 from psutil import virtual_memory
 from pyspark.conf import SparkConf
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import udf
-from pyspark.sql.types import DoubleType, IntegerType
 
 def detect_spark_memory_limit():
     """Spark does not automatically use all available memory on a machine. When working on large datasets, this may
