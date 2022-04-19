@@ -5,6 +5,7 @@ import argparse
 import logging
 import sys
 
+from pandas import read_excel
 from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.functions import array, col, lit, udf, when
@@ -27,7 +28,7 @@ METHOD_DESC = {
 }
 
 
-def main(az_binary_data: str, az_quant_data: str, spark_instance: SparkSession) -> DataFrame:
+def main(az_binary_data: str, az_quant_data: str, az_trait_mappings: str, spark_instance: SparkSession) -> DataFrame:
     """
     This module extracts and processes target/disease evidence from the raw AstraZeneca PheWAS Portal.
     """
@@ -35,6 +36,10 @@ def main(az_binary_data: str, az_quant_data: str, spark_instance: SparkSession) 
     logging.info(f"File with the AZ PheWAS Portal quantitative traits associations: {az_quant_data}")
 
     # Load data
+    az_trait_mappings_df = spark_instance.createDataFrame(
+        read_excel(az_trait_mappings, sheet_name='Sheet1')
+        .filter(items=['Phenotype', 'EFO'])
+    ).distinct()
     az_phewas_df = (
         spark_instance.read.parquet(az_binary_data)
         # Renaming of some columns to match schemas of both binary and quantitative evidence
@@ -50,6 +55,9 @@ def main(az_binary_data: str, az_quant_data: str, spark_instance: SparkSession) 
             .withColumnRenamed("YesQV", "nCasesQV"),
             allowMissingColumns=True,
         )
+        # Add mapped trait from GWAS Catalog WIP sheet
+        # This is a temporary solution, as the AZ studies are not yet integrated into the GWAS Catalog
+        .join(az_trait_mappings_df, on="Phenotype", how="left")
         .withColumn("pValue", col("pValue").cast(DoubleType()))
         .filter(col("pValue") <= 1e-7)
         .distinct()
@@ -145,7 +153,7 @@ def parse_az_phewas_evidence(az_phewas_df: DataFrame) -> DataFrame:
         .withColumn("cohortId", lit("UK Biobank 450k"))
         .withColumnRenamed("Gene", "targetFromSourceId")
         .withColumnRenamed("Phenotype", "diseaseFromSource")
-        .withColumn("diseaseFromSourceMappedId", lit(None))
+        .withColumnRenamed("EFO", "diseaseFromSourceMappedId")
         .withColumn("resourceScore", col("pValue"))
         .withColumn("pValueMantissa", get_mantissa_udf(col("pValue")))
         .withColumn("pValueExponent", get_exponent_udf(col("pValue")))
@@ -203,6 +211,12 @@ def get_parser():
         required=True,
     )
     parser.add_argument(
+        '--az_trait_mappings',
+        help='Input Excel containing the AZ traits with their EFO mappings.',
+        type=str,
+        required=True,
+    )
+    parser.add_argument(
         '--output',
         help='Output gzipped json file following the gene_burden evidence data model.',
         type=str,
@@ -235,7 +249,7 @@ if __name__ == "__main__":
 
     spark = initialize_sparksession()
 
-    evd_df = main(az_binary_data=args.az_binary_data, az_quant_data=args.az_quant_data, spark_instance=spark)
+    evd_df = main(az_binary_data=args.az_binary_data, az_quant_data=args.az_quant_data, az_trait_mappings=args.az_trait_mappings, spark_instance=spark)
 
     write_evidence_strings(evd_df, args.output)
     logging.info(f"Evidence strings have been saved to {args.output}. Exiting.")
