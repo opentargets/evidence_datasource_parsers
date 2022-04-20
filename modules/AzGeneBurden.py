@@ -8,7 +8,7 @@ import sys
 from pandas import read_excel
 from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
-from pyspark.sql.functions import array, col, explode, lit, split, udf, when
+from pyspark.sql.functions import array, col, explode, expr, lit, udf, when
 from pyspark.sql.types import DoubleType, IntegerType
 
 from common.evidence import get_exponent, get_mantissa, initialize_sparksession, write_evidence_strings
@@ -40,7 +40,7 @@ def main(az_binary_data: str, az_quant_data: str, az_trait_mappings: str, spark_
         spark_instance.createDataFrame(
             read_excel(az_trait_mappings, sheet_name='Sheet1').filter(items=['Phenotype', 'EFO'])
         )
-        .withColumn('EFO', explode(split(col('EFO'), '\|')))
+        .withColumn('EFO', explode(expr("regexp_extract_all(EFO, '([A-Za-z]+_[0-9]+)')")))
         .distinct()
     )
     az_phewas_df = (

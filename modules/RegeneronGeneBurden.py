@@ -93,11 +93,8 @@ def main(regeneron_data: str, gwas_studies: str, spark_instance: SparkSession) -
         spark_instance.read.csv(gwas_studies, header=True, inferSchema=True, sep='\t')
         .filter(col('PUBMEDID') == '34662886')
         # There might be multiple mapped traits that need to be splitted
-        .withColumn('MAPPED_TRAIT_URI', explode(split(col('MAPPED_TRAIT_URI'), ', ')))
-        .select(
-            col('STUDY ACCESSION').alias('Study Accession'),
-            element_at(split('MAPPED_TRAIT_URI', '/'), -1).alias('MAPPED_TRAIT'),
-        )
+        .withColumn('MAPPED_TRAIT', explode(expr("regexp_extract_all(MAPPED_TRAIT_URI, '([A-Za-z]+_[0-9]+)')")))
+        .select(col('STUDY ACCESSION').alias('Study Accession'), 'MAPPED_TRAIT')
         .distinct()
     )
     unmapped_gwas_studies = detect_unmapped_gwas_studies(gwas_studies_df)
@@ -150,7 +147,7 @@ def parse_regeneron_evidence(regeneron_df: DataFrame) -> DataFrame:
     Args:
         regeneron_df: DataFrame with the Regeneron data
     Returns:
-        evd_df: DataFrame with the Regeneron data following the t/d evidence schema.
+        DataFrame with the Regeneron data following the t/d evidence schema.
     """
     to_keep = [
         'datasourceId',
