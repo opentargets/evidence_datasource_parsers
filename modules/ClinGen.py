@@ -3,12 +3,10 @@
 
 import argparse
 import logging
-import os
-import tempfile
 
 from pyspark.conf import SparkConf
 from pyspark.sql import DataFrame, SparkSession
-from pyspark.sql.functions import array, col, first, lit, monotonically_increasing_id, struct, trim
+from pyspark.sql.functions import array, col, lit, monotonically_increasing_id, struct, trim
 from pyspark.sql.types import StringType, StructType, TimestampType
 
 from common.ontology import add_efo_mapping
