@@ -1,10 +1,11 @@
-from decimal import Decimal
+import math
 import os
 import tempfile
 
 from psutil import virtual_memory
 from pyspark.conf import SparkConf
 from pyspark.sql import SparkSession
+
 
 def detect_spark_memory_limit():
     """Spark does not automatically use all available memory on a machine. When working on large datasets, this may
@@ -18,8 +19,11 @@ def write_evidence_strings(evidence, output_file):
     """Exports the table to a compressed JSON file containing the evidence strings."""
     with tempfile.TemporaryDirectory() as tmp_dir_name:
         (
-            evidence.coalesce(1).write.format('json').mode('overwrite')
-            .option('compression', 'org.apache.hadoop.io.compress.GzipCodec').save(tmp_dir_name)
+            evidence.coalesce(1)
+            .write.format('json')
+            .mode('overwrite')
+            .option('compression', 'org.apache.hadoop.io.compress.GzipCodec')
+            .save(tmp_dir_name)
         )
         json_chunks = [f for f in os.listdir(tmp_dir_name) if f.endswith('.json.gz')]
         assert len(json_chunks) == 1, f'Expected one JSON file, but found {len(json_chunks)}.'
@@ -40,8 +44,7 @@ def initialize_sparksession() -> SparkSession:
         .set('spark.ui.showConsoleProgress', 'false')
     )
     spark = (
-        SparkSession.builder
-        .config(conf=spark_conf)
+        SparkSession.builder.config(conf=spark_conf)
         .master('local[*]')
         .config("spark.driver.bindAddress", "127.0.0.1")
         .getOrCreate()
@@ -49,11 +52,12 @@ def initialize_sparksession() -> SparkSession:
 
     return spark
 
+
 def get_exponent(number: float) -> int:
     """Get the exponent of a number."""
-    (sign, digits, exponent) = Decimal(number).as_tuple()
-    return len(digits) + exponent - 1
+    return int(math.log10(number)) + 1
+
 
 def get_mantissa(number: float) -> float:
     """Get the mantissa of a number."""
-    return float(Decimal(number).scaleb(-get_exponent(number)).normalize())
+    return number / (10 ** get_exponent(number))
