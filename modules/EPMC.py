@@ -71,9 +71,7 @@ def main(cooccurrenceFile, outputFile):
         # Casting integer pmid column to string:
         .withColumn("pmid", F.trim(F.col('pmid').cast(StringType())))
         # Publication identifier is a pmid if available, otherwise pmcid
-        .withColumn(
-            'publicationIdentifier', F.when(F.col('pmid').isNull(), F.col('pmcid')).otherwise(F.col('pmid'))
-        )
+        .withColumn('publicationIdentifier', F.when(F.col('pmid').isNull(), F.col('pmcid')).otherwise(F.col('pmid')))
         # Filtering for disease/target cooccurrences:
         .filter(
             (F.col('type') == 'GP-DS')
