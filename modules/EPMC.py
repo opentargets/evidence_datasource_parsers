@@ -11,16 +11,50 @@ from common.evidence import initialize_sparksession, read_path, write_evidence_s
 
 
 # The following target labels are excluded as they were grounded to too many target Ids
-EXCLUDED_TARGET_TERMS = ['TEC', 'TECS', 'Tec', 'tec', '\'', '(', ')', '-', '-S', 'S', 'S-', 'SS', 'SSS',
-    'Ss', 'Ss-', 's', 's-', 'ss', 'U3', 'U6', 'u6', 'SNORA70', 'U2', 'U8']
+EXCLUDED_TARGET_TERMS = [
+    'TEC',
+    'TECS',
+    'Tec',
+    'tec',
+    '\'',
+    '(',
+    ')',
+    '-',
+    '-S',
+    'S',
+    'S-',
+    'SS',
+    'SSS',
+    'Ss',
+    'Ss-',
+    's',
+    's-',
+    'ss',
+    'U3',
+    'U6',
+    'u6',
+    'SNORA70',
+    'U2',
+    'U8',
+]
 
 # The following are the relevant sections for disease/target associations as described in PMID28587637
-SECTIONS_OF_INTEREST = ["title", "abstract", "intro", "case", "figure", "table", 
-    "discuss", "concl", "results", "appendix", "other"]
+SECTIONS_OF_INTEREST = [
+    "title",
+    "abstract",
+    "intro",
+    "case",
+    "figure",
+    "table",
+    "discuss",
+    "concl",
+    "results",
+    "appendix",
+    "other",
+]
+
 
 def main(cooccurrenceFile, outputFile):
-
-    
 
     # Log parameters:
     logging.info(f'Cooccurrence file: {cooccurrenceFile}')
@@ -32,34 +66,28 @@ def main(cooccurrenceFile, outputFile):
         # Reading file:
         read_path(cooccurrenceFile, spark)
         .repartition(200)
-
         # Filter out pairs found in unwanted sections
         .filter(pf.col('section').isin(SECTIONS_OF_INTEREST))
-
         # Casting integer pmid column to string:
         .withColumn("pmid", pf.trim(pf.col('pmid').cast(StringType())))
-
         # Publication identifier is a pmid if available, otherwise pmcid
         .withColumn(
-            'publicationIdentifier',
-            pf.when(pf.col('pmid').isNull(), pf.col('pmcid'))
-            .otherwise(pf.col('pmid'))
+            'publicationIdentifier', pf.when(pf.col('pmid').isNull(), pf.col('pmcid')).otherwise(pf.col('pmid'))
         )
-
         # Filtering for disease/target cooccurrences:
         .filter(
-            (pf.col('type') == 'GP-DS') &  # Filter gene/protein - disease cooccurrence
-            (pf.col('isMapped')) &  # Filtering for mapped cooccurrences
-            (pf.col('publicationIdentifier').isNotNull()) &  # Making sure at least the pmid or the pmcid is given:
-            (pf.length(pf.col('text')) < 600) &  # Exclude sentences with more than 600 characters
-            (pf.col('label1').isin(EXCLUDED_TARGET_TERMS) == False)  # Excluding target labels from the exclusion list
+            (pf.col('type') == 'GP-DS')
+            & (pf.col('isMapped'))  # Filter gene/protein - disease cooccurrence
+            & (pf.col('publicationIdentifier').isNotNull())  # Filtering for mapped cooccurrences
+            & (pf.length(pf.col('text')) < 600)  # Making sure at least the pmid or the pmcid is given:
+            & (  # Exclude sentences with more than 600 characters
+                pf.col('label1').isin(EXCLUDED_TARGET_TERMS) == False
+            )  # Excluding target labels from the exclusion list
         )
-
         # Renaming columns:
         .withColumnRenamed('keywordId1', 'targetFromSourceId')
         .withColumnRenamed('keywordId2', 'diseaseFromSourceMappedId')
-
-                # Aggregating data by publication, target and disease:
+        # Aggregating data by publication, target and disease:
         .groupBy(['publicationIdentifier', 'targetFromSourceId', 'diseaseFromSourceMappedId'])
         .agg(
             pf.collect_set(pf.col('pmcid')).alias('pmcIds'),
@@ -71,31 +99,35 @@ def main(cooccurrenceFile, outputFile):
                     pf.col('end1').alias('tEnd'),
                     pf.col('start2').alias('dStart'),
                     pf.col('end2').alias('dEnd'),
-                    pf.col('section')
+                    pf.col('section'),
                 )
             ).alias('textMiningSentences'),
-            pf.sum(pf.col('evidence_score')).alias('resourceScore')
+            pf.sum(pf.col('evidence_score')).alias('resourceScore'),
         )
-
         # Nullify pmcIds if empty array
         .withColumn('pmcIds', pf.when(pf.size('pmcIds') != 0, pf.col('pmcIds')))
-
         # Only evidence with score above 1 is considered:
         .filter(pf.col('resourceScore') > 1)
-
     )
 
     # Final formatting and saving data:
     evidence = (
         agg_cooccurrence_df
-
         # Adding literal columns:
-        .withColumn('datasourceId', pf.lit('europepmc'))
-        .withColumn('datatypeId', pf.lit('literature'))
-
+        .withColumn('datasourceId', pf.lit('europepmc')).withColumn('datatypeId', pf.lit('literature'))
         # Reorder columns:
-        .select(['datasourceId', 'datatypeId', 'targetFromSourceId', 'diseaseFromSourceMappedId', 'resourceScore',
-                 'literature', 'textMiningSentences', 'pmcIds'])
+        .select(
+            [
+                'datasourceId',
+                'datatypeId',
+                'targetFromSourceId',
+                'diseaseFromSourceMappedId',
+                'resourceScore',
+                'literature',
+                'textMiningSentences',
+                'pmcIds',
+            ]
+        )
     )
 
     write_evidence_strings(evidence, outputFile)
@@ -105,21 +137,26 @@ def main(cooccurrenceFile, outputFile):
     logging.debug(f"Number of publications: {agg_cooccurrence_df.select(pf.col('publicationIdentifier')).count()}")
     logging.debug(f"Number of targets: {evidence.select(pf.col('targetFromSourceId')).distinct().count()}")
     logging.debug(f"Number of diseases: {evidence.select(pf.col('diseaseFromSourceMappedId')).distinct().count()}")
-    logging.debug(f"Number of associations: {evidence.select(pf.col('diseaseFromSourceMappedId'), pf.col('targetFromSourceId')).dropDuplicates().count()}")
-    logging.debug(f"Number of publications without pubmed ID: {agg_cooccurrence_df.filter(pf.col('pmid').isNull()).select('pmcid').distinct().count()}")
-
+    logging.debug(
+        f"Number of associations: {evidence.select(pf.col('diseaseFromSourceMappedId'), pf.col('targetFromSourceId')).dropDuplicates().count()}"
+    )
+    logging.debug(
+        f"Number of publications without pubmed ID: {agg_cooccurrence_df.filter(pf.col('pmid').isNull()).select('pmcid').distinct().count()}"
+    )
 
 
 def parse_args():
 
     parser = argparse.ArgumentParser(
-        description='This script generates target/disease evidence strings from ePMC cooccurrence files.')
+        description='This script generates target/disease evidence strings from ePMC cooccurrence files.'
+    )
     parser.add_argument(
-        '--cooccurrenceFile', help='Partioned parquet file with the ePMC cooccurrences', type=str, required=True)
+        '--cooccurrenceFile', help='Partioned parquet file with the ePMC cooccurrences', type=str, required=True
+    )
     parser.add_argument(
-        '--outputFile', help='Resulting evidence file saved as compressed JSON.', type=str, required=True)
-    parser.add_argument(
-        '--logFile', help='Destination of the logs generated by this script.', type=str, required=False)
+        '--outputFile', help='Resulting evidence file saved as compressed JSON.', type=str, required=True
+    )
+    parser.add_argument('--logFile', help='Destination of the logs generated by this script.', type=str, required=False)
     args = parser.parse_args()
 
     # extract parameters:
