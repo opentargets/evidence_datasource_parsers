@@ -17,7 +17,7 @@ CRISPR:
   inputBucket: gs://otar000-evidence_input/CRISPR/data_files
   outputBucket: gs://otar000-evidence_input/CRISPR/json
 EPMC:
-  inputBucket: gs://open-targets-pre-data-releases/22.02.4/output/literature/parquet/cooccurrences
+  inputBucket: gs://open-targets-pre-data-releases/22.04/output/literature-etl/json/cooccurrences
   outputBucket: gs://otar000-evidence_input/EPMC/json
 Gene2Phenotype:
   webSource_dd_panel: http://ftp.ebi.ac.uk/pub/databases/gene2phenotype/DD/DDG2P_1_12_2021.csv.gz
