@@ -3,7 +3,7 @@ from psutil import virtual_memory
 import tempfile
 
 from pyspark.conf import SparkConf
-from pyspark.sql import SparkSession
+from pyspark.sql import DataFrame, SparkSession
 
 def detect_spark_memory_limit():
     """Spark does not automatically use all available memory on a machine. When working on large datasets, this may
@@ -46,3 +46,46 @@ def initialize_sparksession() -> SparkSession:
     )
 
     return spark
+
+def read_path(path: str, spark_instance) -> DataFrame:
+    """Automatically detect the format of the input data and read it into the Spark dataframe. The supported formats
+    are: a single TSV file; a single JSON file; a directory with JSON files; a directory with Parquet files."""
+    if path is None:
+        return None
+
+    # The provided path must exist and must be either a file or a directory.
+    assert os.path.exists(path), f'The provided path {path} does not exist.'
+    assert os.path.isdir(path) or os.path.isfile(path), \
+        f'The provided path {path} is neither a file or a directory.'
+
+    # Case 1: We are provided with a single file.
+    if os.path.isfile(path):
+        if path.endswith('.csv'):
+            return spark_instance.read.csv(path, header=True, inferSchema=True)
+        if path.endswith('.tsv'):
+            return spark_instance.read.csv(path, sep='\t', header=True)
+        elif path.endswith(('.json', '.json.gz', '.jsonl', '.jsonl.gz')):
+            return spark_instance.read.json(path)
+        else:
+            raise AssertionError(f'The format of the provided file {path} is not supported.')
+
+    # Case 2: We are provided with a directory. Let's peek inside to see what it contains.
+    all_files = [
+        os.path.join(dp, filename)
+        for dp, dn, filenames in os.walk(path)
+        for filename in filenames
+    ]
+
+    # It must be either exclusively JSON, or exclusively Parquet.
+    json_files = [fn for fn in all_files if fn.endswith(('.json', '.json.gz', '.jsonl', '.jsonl.gz'))]
+    parquet_files = [fn for fn in all_files if fn.endswith('.parquet')]
+    assert not(json_files and parquet_files), f'The provided directory {path} contains a mix of JSON and Parquet.'
+    assert json_files or parquet_files, f'The provided directory {path} contains neither JSON nor Parquet.'
+
+    # A directory with JSON files.
+    if json_files:
+        return spark_instance.read.option('recursiveFileLookup', 'true').json(path)
+
+    # A directory with Parquet files.
+    if parquet_files:
+        return spark_instance.read.parquet(path)

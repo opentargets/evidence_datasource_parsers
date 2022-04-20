@@ -9,7 +9,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql.types import StringType
 import pyspark.sql.functions as pf
 
-from common.evidence import detect_spark_memory_limit, write_evidence_strings
+from common.evidence import detect_spark_memory_limit, read_path, write_evidence_strings
 
 
 # The following target labels are excluded as they were grounded to too many target Ids
@@ -49,7 +49,7 @@ def main(cooccurrenceFile, outputFile):
     # Load/filter datasets:
     filtered_cooccurrence_df = (
         # Reading file:
-        spark.read.parquet(cooccurrenceFile)
+        read_path(cooccurrenceFile, spark)
 
         # Filter out pairs found in unwanted sections
         .filter(pf.col('section').isin(SECTIONS_OF_INTEREST))
