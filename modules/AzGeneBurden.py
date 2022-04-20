@@ -40,7 +40,7 @@ def main(az_binary_data: str, az_quant_data: str, az_trait_mappings: str, spark_
         spark_instance.createDataFrame(
             read_excel(az_trait_mappings, sheet_name='Sheet1').filter(items=['Phenotype', 'EFO'])
         )
-        .withColumn('EFO', explode(split(col('EFO'), '|')))
+        .withColumn('EFO', explode(split(col('EFO'), '\|')))
         .distinct()
     )
     az_phewas_df = (
