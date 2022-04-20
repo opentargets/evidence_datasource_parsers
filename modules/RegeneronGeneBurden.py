@@ -13,7 +13,6 @@ from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.functions import (
     aggregate,
     array,
-    element_at,
     explode,
     expr,
     col,
@@ -53,7 +52,7 @@ def main(regeneron_data: str, gwas_studies: str, spark_instance: SparkSession) -
     logging.info(f'File with GWAS Catalog studies: {gwas_studies}')
 
     # Load data
-    TO_KEEP = [
+    to_keep = [
         'Gene',
         'Trait',
         'Trait type',
@@ -70,14 +69,14 @@ def main(regeneron_data: str, gwas_studies: str, spark_instance: SparkSession) -
 
     eur_evd_df = (
         spark_instance.createDataFrame(
-            read_excel(regeneron_data, sheet_name='SD2').filter(items=TO_KEEP).replace({nan: None}).astype(str)
+            read_excel(regeneron_data, sheet_name='SD2').filter(items=to_keep).replace({nan: None}).astype(str)
         )
         .withColumn('Ancestry', lit('EUR'))
         .withColumnRenamed('UKB detailed trait name', 'Study tag')
     )
 
     non_eur_evd_df = spark_instance.createDataFrame(
-        read_excel(regeneron_data, sheet_name='SD3').filter(items=TO_KEEP).replace({nan: None}).astype(str)
+        read_excel(regeneron_data, sheet_name='SD3').filter(items=to_keep).replace({nan: None}).astype(str)
     ).withColumnRenamed('Trait_String', 'Study tag')
 
     summary_stats_df = spark_instance.createDataFrame(
@@ -190,8 +189,8 @@ def parse_regeneron_evidence(regeneron_df: DataFrame) -> DataFrame:
         .withColumnRenamed('Trait', 'diseaseFromSource')
         .withColumnRenamed('MAPPED_TRAIT', 'diseaseFromSourceMappedId')
         .withColumn('resourceScore', col('P-value').cast(DoubleType()))
-        .withColumn('pValueMantissa', get_mantissa_udf(col('P-value')))
-        .withColumn('pValueExponent', get_exponent_udf(col('P-value')))
+        .withColumn('pValueMantissa', get_mantissa_udf(col('resourceScore')))
+        .withColumn('pValueExponent', get_exponent_udf(col('resourceScore')))
         # Parse interval by removing unwanted characters and splitting.
         # Ex: '-0.097 (-0.125, -0.069)' -> [-0.097, -0.125, -0.069]
         .withColumn('effectParsed', split(translate(col('Effect (95% CI)'), '(),', ''), ' '))
