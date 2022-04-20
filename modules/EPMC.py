@@ -4,12 +4,10 @@ import argparse
 import logging
 import sys
 
-from pyspark.conf import SparkConf
-from pyspark.sql import SparkSession
 from pyspark.sql.types import StringType
 import pyspark.sql.functions as pf
 
-from common.evidence import detect_spark_memory_limit, read_path, write_evidence_strings
+from common.evidence import initialize_sparksession, read_path, write_evidence_strings
 
 
 # The following target labels are excluded as they were grounded to too many target Ids
@@ -22,24 +20,7 @@ SECTIONS_OF_INTEREST = ["title", "abstract", "intro", "case", "figure", "table",
 
 def main(cooccurrenceFile, outputFile):
 
-    # Initialize spark session
-    spark_mem_limit = detect_spark_memory_limit()
-    spark_conf = (
-        SparkConf()
-        .set('spark.driver.memory', f'{spark_mem_limit}g')
-        .set('spark.executor.memory', f'{spark_mem_limit}g')
-        .set('spark.driver.maxResultSize', '0')
-        .set('spark.debug.maxToStringFields', '2000')
-        .set('spark.sql.execution.arrow.maxRecordsPerBatch', '500000')
-    )
-    spark = (
-        SparkSession.builder
-        .config(conf=spark_conf)
-        .master('local[*]')
-        .getOrCreate()
-    )
-
-    logging.info(f'Spark version: {spark.version}')
+    
 
     # Log parameters:
     logging.info(f'Cooccurrence file: {cooccurrenceFile}')
@@ -165,6 +146,9 @@ if __name__ == '__main__':
         logging.config.fileConfig(filename=logFile)
     else:
         logging.StreamHandler(sys.stderr)
+
+    global spark
+    spark = initialize_sparksession()
 
     # Calling main function:
     main(cooccurrenceFile, outputFile)
