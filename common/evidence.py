@@ -37,6 +37,7 @@ def initialize_sparksession() -> SparkSession:
         .set('spark.driver.maxResultSize', '0')
         .set('spark.debug.maxToStringFields', '2000')
         .set('spark.sql.execution.arrow.maxRecordsPerBatch', '500000')
+        .set('spark.ui.showConsoleProgress', 'false')
     )
     spark = (
         SparkSession.builder
