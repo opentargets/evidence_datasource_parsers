@@ -47,9 +47,10 @@ def main(cooccurrenceFile, outputFile):
     logging.info('Generating evidence:')
 
     # Load/filter datasets:
-    filtered_cooccurrence_df = (
+    agg_cooccurrence_df = (
         # Reading file:
         read_path(cooccurrenceFile, spark)
+        .repartition(200)
 
         # Filter out pairs found in unwanted sections
         .filter(pf.col('section').isin(SECTIONS_OF_INTEREST))
@@ -77,15 +78,7 @@ def main(cooccurrenceFile, outputFile):
         .withColumnRenamed('keywordId1', 'targetFromSourceId')
         .withColumnRenamed('keywordId2', 'diseaseFromSourceMappedId')
 
-        .repartition(200)
-    )
-
-
-    # Aggregating cooccurrence, get score apply filter:
-    aggregated_df = (
-        filtered_cooccurrence_df
-
-        # Aggregating data by publication, target and disease:
+                # Aggregating data by publication, target and disease:
         .groupBy(['publicationIdentifier', 'targetFromSourceId', 'diseaseFromSourceMappedId'])
         .agg(
             pf.collect_set(pf.col('pmcid')).alias('pmcIds'),
@@ -108,14 +101,12 @@ def main(cooccurrenceFile, outputFile):
 
         # Only evidence with score above 1 is considered:
         .filter(pf.col('resourceScore') > 1)
-    )
 
-    # Report number of evidence:
-    logging.info(f'Number of evidence: {aggregated_df.count()}')
+    )
 
     # Final formatting and saving data:
     evidence = (
-        aggregated_df
+        agg_cooccurrence_df
 
         # Adding literal columns:
         .withColumn('datasourceId', pf.lit('europepmc'))
@@ -128,12 +119,13 @@ def main(cooccurrenceFile, outputFile):
 
     write_evidence_strings(evidence, outputFile)
     logging.info('EPMC disease target evidence saved.')
+    logging.info(f'Number of evidence: {agg_cooccurrence_df.count()}')
     # Report on the number of diseases, targets and associations if loglevel == "debug" to avoid cost on computation time:
-    logging.debug(f"Number of publications: {aggregated_df.select(pf.col('publicationIdentifier')).count()}")
+    logging.debug(f"Number of publications: {agg_cooccurrence_df.select(pf.col('publicationIdentifier')).count()}")
     logging.debug(f"Number of targets: {evidence.select(pf.col('targetFromSourceId')).distinct().count()}")
     logging.debug(f"Number of diseases: {evidence.select(pf.col('diseaseFromSourceMappedId')).distinct().count()}")
     logging.debug(f"Number of associations: {evidence.select(pf.col('diseaseFromSourceMappedId'), pf.col('targetFromSourceId')).dropDuplicates().count()}")
-    logging.debug(f"Number of publications without pubmed ID: {aggregated_df.filter(pf.col('pmid').isNull()).select('pmcid').distinct().count()}")
+    logging.debug(f"Number of publications without pubmed ID: {agg_cooccurrence_df.filter(pf.col('pmid').isNull()).select('pmcid').distinct().count()}")
 
 
 
