@@ -76,14 +76,10 @@ def main(cooccurrenceFile, outputFile):
         # Renaming columns:
         .withColumnRenamed('keywordId1', 'targetFromSourceId')
         .withColumnRenamed('keywordId2', 'diseaseFromSourceMappedId')
+
+        .repartition(200)
     )
 
-    # Report on the number of diseases, targets and associations if loglevel == "debug" to avoid cost on computation time:
-    logging.debug(f"Number of publications: {filtered_cooccurrence_df.select(pf.col('publicationIdentifier')).distinct().count()}")
-    logging.debug(f"Number of targets: {filtered_cooccurrence_df.select(pf.col('targetFromSourceId')).distinct().count()}")
-    logging.debug(f"Number of diseases: {filtered_cooccurrence_df.select(pf.col('diseaseFromSourceMappedId')).distinct().count()}")
-    logging.debug(f"Number of associations: {filtered_cooccurrence_df.select(pf.col('diseaseFromSourceMappedId'), pf.col('targetFromSourceId')).dropDuplicates().count()}")
-    logging.debug(f"Number of publications without pubmed ID: {filtered_cooccurrence_df.filter(pf.col('pmid').isNull()).select('pmcid').distinct().count()}")
 
     # Aggregating cooccurrence, get score apply filter:
     aggregated_df = (
@@ -132,6 +128,13 @@ def main(cooccurrenceFile, outputFile):
 
     write_evidence_strings(evidence, outputFile)
     logging.info('EPMC disease target evidence saved.')
+    # Report on the number of diseases, targets and associations if loglevel == "debug" to avoid cost on computation time:
+    logging.debug(f"Number of publications: {aggregated_df.select(pf.col('publicationIdentifier')).count()}")
+    logging.debug(f"Number of targets: {evidence.select(pf.col('targetFromSourceId')).distinct().count()}")
+    logging.debug(f"Number of diseases: {evidence.select(pf.col('diseaseFromSourceMappedId')).distinct().count()}")
+    logging.debug(f"Number of associations: {evidence.select(pf.col('diseaseFromSourceMappedId'), pf.col('targetFromSourceId')).dropDuplicates().count()}")
+    logging.debug(f"Number of publications without pubmed ID: {aggregated_df.filter(pf.col('pmid').isNull()).select('pmcid').distinct().count()}")
+
 
 
 def parse_args():
