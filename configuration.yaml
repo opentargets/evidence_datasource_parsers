@@ -26,6 +26,7 @@ EPMC:
 GeneBurden:
   azPhewasBinary: gs://otar000-evidence_input/GeneBurden/data_files/azphewas-com-450k-phewas-binary
   azPhewasQuantitative: gs://otar000-evidence_input/GeneBurden/data_files/azphewas-com-450k-phewas-quantitative
+  azTraitMappings: gs://otar000-evidence_input/GeneBurden/data_files/AZ_Traits.xlsx
   regeneronExwas: gs://otar000-evidence_input/GeneBurden/data_files/41586_2021_4103_MOESM5_ESM.xlsx
   gwasStudies: https://www.ebi.ac.uk/gwas/api/search/downloads/studies_alternative
   inputBucket: gs://otar000-evidence_input/GeneBurden/data_files

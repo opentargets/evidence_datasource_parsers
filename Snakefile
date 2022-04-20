@@ -185,6 +185,7 @@ rule geneBurden:
     input:
         azPhewasBinary = GS.remote(config['GeneBurden']['azPhewasBinary']),
         azPhewasQuant = GS.remote(config['GeneBurden']['azPhewasQuantitative']),
+        azTraitMappings = GS.remote(config['GeneBurden']['azTraitMappings']),
         regeneronExwas = GS.remote(config['GeneBurden']['regeneronExwas']),
         gwasStudies = HTTPRemoteProvider().remote(config['GeneBurden']['gwasStudies'])
     params:
@@ -200,6 +201,7 @@ rule geneBurden:
         python modules/GeneBurden.py \
             --az_binary_data {input.azPhewasBinary} \
             --az_quant_data {input.azPhewasQuant} \
+            --az_trait_mappings {input.azTraitMappings} \
             --regeneron_data {input.regeneronExwas} \
             --gwas_studies {input.gwasStudies} \
             --output {output.evidenceFile}
