@@ -174,7 +174,7 @@ rule epmc:                    # Process target/disease evidence strings from ePM
         """
         exec &> {log}
         python modules/EPMC.py \
-          --cooccurrenceFile {input.inputCooccurences} \
+          --cooccurrences {input.inputCooccurences} \
           --output {output.evidenceFile}
         opentargets_validator --schema {params.schema} {output.evidenceFile}
         """
