@@ -1,9 +1,10 @@
 import os
-from psutil import virtual_memory
 import tempfile
 
+from psutil import virtual_memory
 from pyspark.conf import SparkConf
 from pyspark.sql import SparkSession
+
 
 def detect_spark_memory_limit():
     """Spark does not automatically use all available memory on a machine. When working on large datasets, this may
@@ -17,8 +18,11 @@ def write_evidence_strings(evidence, output_file):
     """Exports the table to a compressed JSON file containing the evidence strings."""
     with tempfile.TemporaryDirectory() as tmp_dir_name:
         (
-            evidence.coalesce(1).write.format('json').mode('overwrite')
-            .option('compression', 'org.apache.hadoop.io.compress.GzipCodec').save(tmp_dir_name)
+            evidence.coalesce(1)
+            .write.format('json')
+            .mode('overwrite')
+            .option('compression', 'org.apache.hadoop.io.compress.GzipCodec')
+            .save(tmp_dir_name)
         )
         json_chunks = [f for f in os.listdir(tmp_dir_name) if f.endswith('.json.gz')]
         assert len(json_chunks) == 1, f'Expected one JSON file, but found {len(json_chunks)}.'
@@ -36,10 +40,10 @@ def initialize_sparksession() -> SparkSession:
         .set('spark.driver.maxResultSize', '0')
         .set('spark.debug.maxToStringFields', '2000')
         .set('spark.sql.execution.arrow.maxRecordsPerBatch', '500000')
+        .set('spark.ui.showConsoleProgress', 'false')
     )
     spark = (
-        SparkSession.builder
-        .config(conf=spark_conf)
+        SparkSession.builder.config(conf=spark_conf)
         .master('local[*]')
         .config("spark.driver.bindAddress", "127.0.0.1")
         .getOrCreate()
