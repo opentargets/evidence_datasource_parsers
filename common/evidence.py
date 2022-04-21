@@ -61,4 +61,4 @@ def get_exponent(number: float) -> int:
 
 def get_mantissa(number: float) -> float:
     """Get the mantissa of a number."""
-    return float(Decimal(number / (10 ** get_exponent(number))).normalize())
+    return round(number / (10 ** get_exponent(number)), 3)
