@@ -8,10 +8,10 @@ import sys
 from pandas import read_excel
 from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
-from pyspark.sql.functions import array, col, explode, expr, lit, udf, when
+from pyspark.sql.functions import array, col, explode, expr, lit, log10, pow, when
 from pyspark.sql.types import DoubleType, IntegerType
 
-from common.evidence import get_exponent, get_mantissa, initialize_sparksession, write_evidence_strings
+from common.evidence import initialize_sparksession, write_evidence_strings
 
 METHOD_DESC = {
     'ptv': 'Burden test carried out with PTVs with a MAF smaller than 0.1%.',
@@ -145,9 +145,6 @@ def parse_az_phewas_evidence(az_phewas_df: DataFrame) -> DataFrame:
         'statisticalMethodOverview',
     ]
 
-    get_exponent_udf = udf(get_exponent, IntegerType())
-    get_mantissa_udf = udf(get_mantissa, DoubleType())
-
     return (
         az_phewas_df.withColumn('datasourceId', lit('gene_burden'))
         .withColumn('datatypeId', lit('genetic_association'))
@@ -158,8 +155,8 @@ def parse_az_phewas_evidence(az_phewas_df: DataFrame) -> DataFrame:
         .withColumnRenamed('Phenotype', 'diseaseFromSource')
         .withColumnRenamed('EFO', 'diseaseFromSourceMappedId')
         .withColumn('resourceScore', col('pValue'))
-        .withColumn('pValueMantissa', get_mantissa_udf(col('pValue')))
-        .withColumn('pValueExponent', get_exponent_udf(col('pValue')))
+        .withColumn('pValueExponent', log10(col('pValue')).cast(IntegerType()) - lit(1))
+        .withColumn('pValueMantissa', col('pValue') / pow(lit(10), col('pValueExponent')))
         .withColumn(
             'beta',
             when(col('Type') == 'Quantitative', col('beta')),

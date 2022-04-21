@@ -18,15 +18,16 @@ from pyspark.sql.functions import (
     col,
     concat,
     lit,
+    log10,
+    pow,
     slice,
     split,
     translate,
-    udf,
     when,
 )
 from pyspark.sql.types import ArrayType, DoubleType, IntegerType
 
-from common.evidence import get_exponent, get_mantissa, initialize_sparksession, write_evidence_strings
+from common.evidence import initialize_sparksession, write_evidence_strings
 
 ANCESTRY_TO_ID = {'EUR': 'HANCESTRO_0005', 'EAS': 'HANCESTRO_0009', 'AFR': 'HANCESTRO_0010', 'SAS': 'HANCESTRO_0006'}
 
@@ -176,9 +177,6 @@ def parse_regeneron_evidence(regeneron_df: DataFrame) -> DataFrame:
         'statisticalMethodOverview',
     ]
 
-    get_exponent_udf = udf(get_exponent, IntegerType())
-    get_mantissa_udf = udf(get_mantissa, DoubleType())
-
     return (
         regeneron_df.withColumn('datasourceId', lit('gene_burden'))
         .withColumn('datatypeId', lit('genetic_association'))
@@ -188,9 +186,10 @@ def parse_regeneron_evidence(regeneron_df: DataFrame) -> DataFrame:
         .withColumnRenamed('Gene', 'targetFromSourceId')
         .withColumnRenamed('Trait', 'diseaseFromSource')
         .withColumnRenamed('MAPPED_TRAIT', 'diseaseFromSourceMappedId')
-        .withColumn('resourceScore', col('P-value').cast(DoubleType()))
-        .withColumn('pValueMantissa', get_mantissa_udf(col('resourceScore')))
-        .withColumn('pValueExponent', get_exponent_udf(col('resourceScore')))
+        .withColumn('P-value', col('P-value').cast(DoubleType()))
+        .withColumn('resourceScore', col('P-value'))
+        .withColumn('pValueExponent', log10(col('P-value')).cast(IntegerType()) - lit(1))
+        .withColumn('pValueMantissa', col('P-value') / pow(lit(10), col('pValueExponent')))
         # Parse interval by removing unwanted characters and splitting.
         # Ex: '-0.097 (-0.125, -0.069)' -> [-0.097, -0.125, -0.069]
         .withColumn('effectParsed', split(translate(col('Effect (95% CI)'), '(),', ''), ' '))

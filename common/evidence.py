@@ -1,4 +1,3 @@
-from decimal import Decimal
 import os
 import tempfile
 
@@ -51,14 +50,3 @@ def initialize_sparksession() -> SparkSession:
     )
 
     return spark
-
-
-def get_exponent(number: float) -> int:
-    """Get the exponent of a number."""
-    (sign, digits, exponent) = Decimal(number).as_tuple()
-    return len(digits) + exponent - 1
-
-
-def get_mantissa(number: float) -> float:
-    """Get the mantissa of a number."""
-    return round(number / (10 ** get_exponent(number)), 3)
