@@ -54,17 +54,17 @@ SECTIONS_OF_INTEREST = [
 ]
 
 
-def main(cooccurrenceFile, outputFile):
+def main(cooccurrences, outputFile):
 
     # Log parameters:
-    logging.info(f'Cooccurrence file: {cooccurrenceFile}')
+    logging.info(f'Cooccurrence file: {cooccurrences}')
     logging.info(f'Output file: {outputFile}')
     logging.info('Generating evidence:')
 
     # Load/filter datasets:
     agg_cooccurrence_df = (
         # Reading file:
-        read_path(cooccurrenceFile, spark)
+        read_path(cooccurrences, spark)
         .repartition(200)
         # Filter out pairs found in unwanted sections
         .filter(F.col('section').isin(SECTIONS_OF_INTEREST))
@@ -133,13 +133,13 @@ def main(cooccurrenceFile, outputFile):
     logging.info(f'Number of evidence: {agg_cooccurrence_df.count()}')
     # Report on the number of diseases, targets and associations if loglevel == "debug" to avoid cost on computation time:
     logging.debug(f"Number of publications: {agg_cooccurrence_df.select(F.col('publicationIdentifier')).count()}")
+    logging.debug(
+        f"Number of publications without pubmed ID: {agg_cooccurrence_df.filter(F.col('publicationIdentifier').contains('PMC')).select('publicationIdentifier').distinct().count()}"
+    )
     logging.debug(f"Number of targets: {evidence.select(F.col('targetFromSourceId')).distinct().count()}")
     logging.debug(f"Number of diseases: {evidence.select(F.col('diseaseFromSourceMappedId')).distinct().count()}")
     logging.debug(
         f"Number of associations: {evidence.select(F.col('diseaseFromSourceMappedId'), F.col('targetFromSourceId')).dropDuplicates().count()}"
-    )
-    logging.debug(
-        f"Number of publications without pubmed ID: {agg_cooccurrence_df.filter(F.col('pmid').isNull()).select('pmcid').distinct().count()}"
     )
 
 
@@ -149,7 +149,7 @@ def parse_args():
         description='This script generates target/disease evidence strings from ePMC cooccurrence files.'
     )
     parser.add_argument(
-        '--cooccurrenceFile', help='Partioned parquet file with the ePMC cooccurrences', type=str, required=True
+        '--cooccurrences', help='Directory of parquet with the ePMC cooccurrences', type=str, required=True
     )
     parser.add_argument(
         '--outputFile', help='Resulting evidence file saved as compressed JSON.', type=str, required=True
@@ -158,17 +158,17 @@ def parse_args():
     args = parser.parse_args()
 
     # extract parameters:
-    cooccurrenceFile = args.cooccurrenceFile
+    cooccurrences = args.cooccurrences
     logFile = args.logFile
     outputFile = args.outputFile
 
-    return (cooccurrenceFile, logFile, outputFile)
+    return (cooccurrences, logFile, outputFile)
 
 
 if __name__ == '__main__':
 
     # Parse arguments:
-    cooccurrenceFile, logFile, outputFile = parse_args()
+    cooccurrences, logFile, outputFile = parse_args()
 
     # Initialize logger based on the provided logfile.
     # If no logfile is specified, logs are written to stderr
@@ -186,4 +186,4 @@ if __name__ == '__main__':
     spark = initialize_sparksession()
 
     # Calling main function:
-    main(cooccurrenceFile, outputFile)
+    main(cooccurrences, outputFile)
