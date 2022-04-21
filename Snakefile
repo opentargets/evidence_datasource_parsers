@@ -70,10 +70,9 @@ rule cancerBiomarkers:        # Process the Cancers Biomarkers database from Can
     input:
         biomarkers_table = GS.remote(f"{config['cancerBiomarkers']['inputBucket']}/cancerbiomarkers-2018-05-01.tsv"),
         source_table = GS.remote(f"{config['cancerBiomarkers']['inputBucket']}/cancer_biomarker_source.jsonl"),
-        disease_table = GS.remote(f"{config['cancerBiomarkers']['inputBucket']}/cancer_biomarker_disease.jsonl")
+        disease_table = GS.remote(f"{config['cancerBiomarkers']['inputBucket']}/cancer_biomarker_disease.jsonl"),
+        drug_index = directory(GS.remote(config['cancerBiomarkers']['drugIndex']))
     params:
-        # Downloaded separately using wget, because FTP.RemoteProvider cannot handle recursive directory downloads.
-        drug_index = config['cancerBiomarkers']['drugIndex'],
         schema = f"{config['global']['schema']}/opentargets.json"
     output:
         'cancer_biomarkers.json.gz'
@@ -84,12 +83,11 @@ rule cancerBiomarkers:        # Process the Cancers Biomarkers database from Can
         # In this and the following rules, the exec call redirects the output of all subsequent commands (both STDOUT
         # and STDERR) to the specified log file. 
         exec &> {log}
-        wget -q -r ftp://{params.drug_index}
         python modules/cancerBiomarkers.py \
           --biomarkers_table {input.biomarkers_table} \
           --source_table {input.source_table} \
           --disease_table {input.disease_table} \
-          --drug_index {params.drug_index} \
+          --drug_index {input.drug_index} \
           --output_file {output}
         opentargets_validator --schema {params.schema} {output}
         """
