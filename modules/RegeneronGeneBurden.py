@@ -20,6 +20,7 @@ from pyspark.sql.functions import (
     lit,
     log10,
     pow,
+    round,
     slice,
     split,
     translate,

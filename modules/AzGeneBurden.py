@@ -8,7 +8,7 @@ import sys
 from pandas import read_excel
 from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
-from pyspark.sql.functions import array, col, explode, expr, lit, log10, pow, when
+from pyspark.sql.functions import array, col, explode, expr, lit, log10, pow, round, when
 from pyspark.sql.types import DoubleType, IntegerType
 
 from common.evidence import initialize_sparksession, write_evidence_strings
