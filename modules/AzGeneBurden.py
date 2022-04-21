@@ -156,7 +156,7 @@ def parse_az_phewas_evidence(az_phewas_df: DataFrame) -> DataFrame:
         .withColumnRenamed('EFO', 'diseaseFromSourceMappedId')
         .withColumn('resourceScore', col('pValue'))
         .withColumn('pValueExponent', log10(col('pValue')).cast(IntegerType()) - lit(1))
-        .withColumn('pValueMantissa', col('pValue') / pow(lit(10), col('pValueExponent')))
+        .withColumn('pValueMantissa', round(col('pValue') / pow(lit(10), col('pValueExponent')), 3))
         .withColumn(
             'beta',
             when(col('Type') == 'Quantitative', col('beta')),

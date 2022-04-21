@@ -189,7 +189,7 @@ def parse_regeneron_evidence(regeneron_df: DataFrame) -> DataFrame:
         .withColumn('P-value', col('P-value').cast(DoubleType()))
         .withColumn('resourceScore', col('P-value'))
         .withColumn('pValueExponent', log10(col('P-value')).cast(IntegerType()) - lit(1))
-        .withColumn('pValueMantissa', col('P-value') / pow(lit(10), col('pValueExponent')))
+        .withColumn('pValueMantissa', round(col('P-value') / pow(lit(10), col('pValueExponent')), 3))
         # Parse interval by removing unwanted characters and splitting.
         # Ex: '-0.097 (-0.125, -0.069)' -> [-0.097, -0.125, -0.069]
         .withColumn('effectParsed', split(translate(col('Effect (95% CI)'), '(),', ''), ' '))
