@@ -62,7 +62,7 @@ def main(
     logging.info(f'{evidence_df.count()} evidence strings have been saved to {output_file}')
 
 def read_input_file(
-    dd_file: str, eye_file: str, skin_file: str, cancer_file: str
+    dd_file: str, eye_file: str, skin_file: str, cancer_file: str, cardiac_file: str
 ) -> DataFrame:
     '''
     Reads G2P's panel CSV files into a Spark DataFrame forcing the schema
@@ -90,7 +90,7 @@ def read_input_file(
 
     return (
         spark.read.csv(
-            [dd_file, eye_file, skin_file, cancer_file], schema=gene2phenotype_schema, enforceSchema=True, header=True
+            [dd_file, eye_file, skin_file, cancer_file, cardiac_file], schema=gene2phenotype_schema, enforceSchema=True, header=True
         )
     )
 
@@ -174,6 +174,9 @@ if __name__ == "__main__":
     parser.add_argument('-c', '--cancer_panel',
                         help='Cancer panel file downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads',
                         required=True, type=str)
+    parser.add_argument('-cr', '--cardiac_panel',
+                        help='Cardiac panel file downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads',
+                        required=True, type=str)
     parser.add_argument('-o', '--output_file', help='Absolute path of the gzipped, JSON evidence file.', required=True, type=str)
     parser.add_argument('-l', '--log_file', help='Filename to store the parser logs.', type=str)
     parser.add_argument('--cache_dir', required=False, help='Directory to store the OnToma cache files in.')
@@ -189,6 +192,7 @@ if __name__ == "__main__":
     eye_file = args.eye_panel
     skin_file = args.skin_panel
     cancer_file = args.cancer_panel
+    cardiac_file = args.cardiac_panel
     output_file = args.output_file
     log_file = args.log_file
     cache_dir = args.cache_dir
@@ -210,6 +214,7 @@ if __name__ == "__main__":
     logging.info(f'Eye panel file: {eye_file}')
     logging.info(f'Skin panel file: {skin_file}')
     logging.info(f'Cancer panel file: {cancer_file}')
+    logging.info(f'Cardiac panel file: {cardiac_file}')
 
     # Calling main:
-    main(dd_file, eye_file, skin_file, cancer_file, output_file, cache_dir, local)
+    main(dd_file, eye_file, skin_file, cancer_file, cardiac_file, output_file, cache_dir, local)
