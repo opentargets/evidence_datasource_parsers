@@ -25,7 +25,7 @@ G2P_mutationCsq2functionalCsq = {
 
 
 def main(
-    dd_file: str, eye_file: str, skin_file: str, cancer_file: str, output_file: str, cache_dir: str, local: bool = False
+    dd_file: str, eye_file: str, skin_file: str, cancer_file: str, cardiac_file: str, output_file: str, cache_dir: str, local: bool = False
 ) -> None:
 
     # Initialize spark session
@@ -49,7 +49,7 @@ def main(
 
     # Read and process G2P's tables into evidence strings
     gene2phenotype_df = read_input_file(
-        dd_file, eye_file, skin_file, cancer_file)
+        dd_file, eye_file, skin_file, cancer_file, cardiac_file)
     logging.info('Gene2Phenotype panels have been imported. Processing evidence strings.')
 
     evidence_df = process_gene2phenotype(gene2phenotype_df)
