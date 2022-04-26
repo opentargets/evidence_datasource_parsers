@@ -32,10 +32,11 @@ GeneBurden:
   inputBucket: gs://otar000-evidence_input/GeneBurden/data_files
   outputBucket: gs://otar000-evidence_input/GeneBurden/json
 Gene2Phenotype:
-  webSource_dd_panel: http://ftp.ebi.ac.uk/pub/databases/gene2phenotype/DD/DDG2P_1_12_2021.csv.gz
-  webSource_eye_panel: http://ftp.ebi.ac.uk/pub/databases/gene2phenotype/Eye/EyeG2P_1_12_2021.csv.gz
-  webSource_skin_panel: http://ftp.ebi.ac.uk/pub/databases/gene2phenotype/Skin/SkinG2P_1_12_2021.csv.gz
-  webSource_cancer_panel: http://ftp.ebi.ac.uk/pub/databases/gene2phenotype/Cancer/CancerG2P_1_12_2021.csv.gz
+  webSource_dd_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/DDG2P.csv.gz
+  webSource_eye_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/EyeG2P.csv.gz
+  webSource_skin_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/SkinG2P.csv.gz
+  webSource_cancer_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/CancerG2P.csv.gz
+  webSource_cardiac_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/CardiacG2P.csv.gz
   inputBucket: gs://otar000-evidence_input/Gene2Phenotype/data_files
   outputBucket: gs://otar000-evidence_input/Gene2Phenotype/json
 intOGen:

@@ -216,7 +216,8 @@ rule gene2Phenotype:
         ddPanel = HTTP.remote(config['Gene2Phenotype']['webSource_dd_panel']),
         eyePanel = HTTP.remote(config['Gene2Phenotype']['webSource_eye_panel']),
         skinPanel = HTTP.remote(config['Gene2Phenotype']['webSource_skin_panel']),
-        cancerPanel = HTTP.remote(config['Gene2Phenotype']['webSource_cancer_panel'])
+        cancerPanel = HTTP.remote(config['Gene2Phenotype']['webSource_cancer_panel']),
+        cardiacPanel = HTTP.remote(config['Gene2Phenotype']['webSource_cardiac_panel'])
     params:
         cacheDir = config['global']['cacheDir'],
         schema = f"{config['global']['schema']}/opentargets.json"
@@ -225,6 +226,7 @@ rule gene2Phenotype:
         eyeBucket = 'EyeG2P.csv.gz',
         skinBucket = 'SkinG2P.csv.gz',
         cancerBucket = 'CancerG2P.csv.gz',
+        cardiacBucket = 'CardiacG2P.csv.gz',
         evidenceFile = 'gene2phenotype.json.gz'
     log:
         'log/gene2Phenotype.log'
@@ -236,11 +238,13 @@ rule gene2Phenotype:
         cp {input.eyePanel} {output.eyeBucket}
         cp {input.skinPanel} {output.skinBucket}
         cp {input.cancerPanel} {output.cancerBucket}
+        cp {input.cardiacPanel} {output.cardiacBucket}
         python modules/Gene2Phenotype.py \
           --dd_panel {input.ddPanel} \
           --eye_panel {input.eyePanel} \
           --skin_panel {input.skinPanel} \
           --cancer_panel {input.cancerPanel} \
+          --cardiac_panel {input.cardiacPanel} \
           --output_file {output.evidenceFile} \
           --cache_dir {params.cacheDir} \
           --local
