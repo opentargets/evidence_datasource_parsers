@@ -276,7 +276,7 @@ rule panelApp:                # Process gene panels data curated by Genomics Eng
         opentargets_validator --schema {params.schema} {output.evidenceFile}
         """
 
-rule impc:               # Process target-disease evidence and mouseModels dataset by querying the IMPC SOLR API.
+rule impc:                    # Process target-disease evidence and mouseModels dataset by querying the IMPC SOLR API.
     params:
         cacheDir = config['global']['cacheDir'],
         schema = f"{config['global']['schema']}/opentargets.json"
