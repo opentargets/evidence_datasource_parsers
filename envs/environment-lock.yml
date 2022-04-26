@@ -236,7 +236,7 @@ dependencies:
   - slacker=0.14.0
   - smart_open=5.2.1
   - smmap=3.0.5
-  - snakemake=7.3.0
+  - snakemake=7.3.8
   - snakemake-minimal=7.3.0
   - snappy=1.1.8
   - soupsieve=2.3.1
