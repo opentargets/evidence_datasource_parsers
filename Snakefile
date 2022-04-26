@@ -216,7 +216,7 @@ rule gene2Phenotype:
         ddPanel = HTTP.remote(config['Gene2Phenotype']['webSource_dd_panel']),
         eyePanel = HTTP.remote(config['Gene2Phenotype']['webSource_eye_panel']),
         skinPanel = HTTP.remote(config['Gene2Phenotype']['webSource_skin_panel']),
-        cancerPanel = HTTP.remote(config['Gene2Phenotype']['webSource_cancer_panel'])
+        cancerPanel = HTTP.remote(config['Gene2Phenotype']['webSource_cancer_panel']),
         cardiacPanel = HTTP.remote(config['Gene2Phenotype']['webSource_cardiac_panel'])
     params:
         cacheDir = config['global']['cacheDir'],
@@ -226,7 +226,7 @@ rule gene2Phenotype:
         eyeBucket = 'EyeG2P.csv.gz',
         skinBucket = 'SkinG2P.csv.gz',
         cancerBucket = 'CancerG2P.csv.gz',
-        cardiacBucket = 'CardiacG2P.csv.gz'
+        cardiacBucket = 'CardiacG2P.csv.gz',
         evidenceFile = 'gene2phenotype.json.gz'
     log:
         'log/gene2Phenotype.log'

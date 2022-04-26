@@ -36,6 +36,7 @@ Gene2Phenotype:
   webSource_eye_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/EyeG2P.csv.gz
   webSource_skin_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/SkinG2P.csv.gz
   webSource_cancer_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/CancerG2P.csv.gz
+  webSource_cardiac_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/CardiacG2P.csv.gz
   inputBucket: gs://otar000-evidence_input/Gene2Phenotype/data_files
   outputBucket: gs://otar000-evidence_input/Gene2Phenotype/json
 intOGen:
