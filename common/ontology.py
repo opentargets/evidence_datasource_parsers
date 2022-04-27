@@ -39,7 +39,7 @@ def _ontoma_udf(row, ontoma_instance):
     return [m.id_ot_schema for m in mappings]
 
 
-def add_efo_mapping(evidence_strings, spark_instance, ontoma_cache_dir=None):
+def add_efo_mapping(evidence_strings, spark_instance, ontoma_cache_dir=None, efo_version='latest'):
     """Given evidence strings with diseaseFromSource and diseaseFromSourceId fields, try to populate EFO mapping
     field diseaseFromSourceMappedId. In case there are multiple matches, the evidence strings will be exploded
     accordingly.
@@ -50,7 +50,7 @@ def add_efo_mapping(evidence_strings, spark_instance, ontoma_cache_dir=None):
     disease_info_to_map = evidence_strings.select('diseaseFromSource', 'diseaseFromSourceId').distinct().toPandas()
 
     logging.info('Initialise OnToma instance')
-    ontoma_instance = OnToma(cache_dir=ontoma_cache_dir)
+    ontoma_instance = OnToma(cache_dir=ontoma_cache_dir, efo_release=efo_version)
 
     logging.info('Map disease information to EFO.')
     disease_info_to_map['diseaseFromSourceMappedId'] = disease_info_to_map.parallel_apply(
