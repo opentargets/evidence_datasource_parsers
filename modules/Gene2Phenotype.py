@@ -135,7 +135,7 @@ def process_gene2phenotype(gene2phenotype_df: DataFrame) -> DataFrame:
                 col('disease ontology').isNotNull(), array(col('disease ontology'))                
             )
             .when(
-                (~col('disease mim').contains('No disease mim')) & (col('disease mim').isNotNull()), concat(lit('OMIM:'), col('diseaseFromSourceId'))
+                (~col('disease mim').contains('No disease mim')) & (col('disease mim').isNotNull()), concat(lit('OMIM:'), col('disease mim'))
             )
             .otherwise(lit(None))
         )
