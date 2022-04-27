@@ -126,19 +126,19 @@ def process_gene2phenotype(gene2phenotype_df: DataFrame) -> DataFrame:
                 col('allelic requirement').isNotNull(),
                 array(col('allelic requirement'))
             )
+        )
+
+        # Process diseaseFromSourceId:
+        .withColumn(
+            'diseaseFromSourceId', 
+            when(
+                col('disease ontology').isNotNull(), array(col('disease ontology'))                
+            )
             .when(
-                col('disease ontology').isNotNull(),
-                array(col('disease ontology'))                
+                (~col('disease mim').contains('No disease mim')) & (col('disease mim').isNotNull()), concat(lit('OMIM:'), col('diseaseFromSourceId'))
             )
             .otherwise(lit(None))
         )
-
-        # Process diseaseFromSource
-        .withColumn(
-            'diseaseFromSourceId',
-            when(~col('disease mim').contains('No disease mim'), col('disease mim'))
-        )
-        .withColumn('diseaseFromSourceId', concat(lit('OMIM:'), col('diseaseFromSourceId')))
 
         # Cleaning up disease names:
         .withColumn('diseaseFromSource', regexp_replace(col('diseaseFromSource'), r'.+-related ', ''))
