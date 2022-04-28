@@ -1,5 +1,6 @@
 import os
 import tempfile
+from typing import Union, List
 
 from psutil import virtual_memory
 from pyspark.conf import SparkConf
@@ -12,6 +13,21 @@ def detect_spark_memory_limit():
     of physical memory and allow Spark to use (almost) all of it."""
     mem_gib = virtual_memory().total >> 30
     return int(mem_gib * 0.9)
+
+
+def join_with_aliases(
+    left: DataFrame, right: DataFrame, on: Union[str, List[str]], how: str, right_prefix: str = 'right'
+) -> DataFrame:
+    """
+    Join two dataframes with aliases on a single or a list of columns.
+    This is useful when we need to alias any of the joining columns to avoid ambiguity and
+    the dataframes are joined in more than one column.
+    """
+    # Backticks are needed to account for column names that contain spaces.
+    renamed_right_cols = [
+        f"`{col}` as `{col}_{right_prefix}`" if col not in on else f"`{col}`" for col in right.columns
+    ]
+    return left.join(right.selectExpr(renamed_right_cols), on=on, how=how)
 
 
 def write_evidence_strings(evidence, output_file):
@@ -51,6 +67,7 @@ def initialize_sparksession() -> SparkSession:
 
     return spark
 
+
 def read_path(path: str, spark_instance) -> DataFrame:
     """Automatically detect the format of the input data and read it into the Spark dataframe. The supported formats
     are: a single TSV file; a single JSON file; a directory with JSON files; a directory with Parquet files."""
@@ -59,8 +76,7 @@ def read_path(path: str, spark_instance) -> DataFrame:
 
     # The provided path must exist and must be either a file or a directory.
     assert os.path.exists(path), f'The provided path {path} does not exist.'
-    assert os.path.isdir(path) or os.path.isfile(path), \
-        f'The provided path {path} is neither a file or a directory.'
+    assert os.path.isdir(path) or os.path.isfile(path), f'The provided path {path} is neither a file or a directory.'
 
     # Case 1: We are provided with a single file.
     if os.path.isfile(path):
@@ -74,16 +90,12 @@ def read_path(path: str, spark_instance) -> DataFrame:
             raise AssertionError(f'The format of the provided file {path} is not supported.')
 
     # Case 2: We are provided with a directory. Let's peek inside to see what it contains.
-    all_files = [
-        os.path.join(dp, filename)
-        for dp, dn, filenames in os.walk(path)
-        for filename in filenames
-    ]
+    all_files = [os.path.join(dp, filename) for dp, dn, filenames in os.walk(path) for filename in filenames]
 
     # It must be either exclusively JSON, or exclusively Parquet.
     json_files = [fn for fn in all_files if fn.endswith(('.json', '.json.gz', '.jsonl', '.jsonl.gz'))]
     parquet_files = [fn for fn in all_files if fn.endswith('.parquet')]
-    assert not(json_files and parquet_files), f'The provided directory {path} contains a mix of JSON and Parquet.'
+    assert not (json_files and parquet_files), f'The provided directory {path} contains a mix of JSON and Parquet.'
     assert json_files or parquet_files, f'The provided directory {path} contains neither JSON nor Parquet.'
 
     # A directory with JSON files.
