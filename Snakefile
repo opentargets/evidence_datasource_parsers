@@ -20,6 +20,7 @@ ALL_FILES = [
     ('clingen-Gene-Disease-Summary.csv', GS.remote(f"{config['ClinGen']['inputBucket']}/clingen-Gene-Disease-Summary-{timeStamp}.csv")),
     ('crispr.json.gz', GS.remote(f"{config['CRISPR']['outputBucket']}/crispr-{timeStamp}.json.gz")),
     ('epmc.json.gz', GS.remote(f"{config['EPMC']['outputBucket']}/epmc-{timeStamp}.json.gz")),
+    ('gene_burden.json.gz', GS.remote(f"{config['GeneBurden']['outputBucket']}/gene_burden-{timeStamp}.json.gz")),
     ('gene2phenotype.json.gz', GS.remote(f"{config['Gene2Phenotype']['outputBucket']}/gene2phenotype-{timeStamp}.json.gz")),
     ('DDG2P.csv.gz', GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/DDG2P-{timeStamp}.csv.gz")),
     ('EyeG2P.csv.gz', GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/EyeG2P-{timeStamp}.csv.gz")),
@@ -177,12 +178,44 @@ rule epmc:                    # Process target/disease evidence strings from ePM
         opentargets_validator --schema {params.schema} {output.evidenceFile}
         """
 
-rule gene2Phenotype:          # Process four gene panels from Gene2Phenotype.
+## geneBurden               : processes gene burden data from AZ PheWAS Portal and REGENERON Burden Analyses
+rule geneBurden:
+    input:
+        azPhewasBinary = GS.remote(config['GeneBurden']['azPhewasBinary']),
+        azPhewasQuant = GS.remote(config['GeneBurden']['azPhewasQuantitative']),
+        azTraitMappings = GS.remote(config['GeneBurden']['azTraitMappings']),
+        regeneronExwas = GS.remote(config['GeneBurden']['regeneronExwas']),
+        gwasStudies = HTTPRemoteProvider().remote(config['GeneBurden']['gwasStudies'])
+    params:
+        schema = f"{config['global']['schema']}/opentargets.json"
+    output:
+        gwasStudies = GS.remote(f"{config['GeneBurden']['inputBucket']}/gwas_studies-{timeStamp}.tsv"),
+        evidenceFile = "gene_burden.json.gz"
+    log:
+        'log/geneBurden.log'
+    shell:
+        """
+        exec &> {log}
+        python modules/GeneBurden.py \
+            --az_binary_data {input.azPhewasBinary} \
+            --az_quant_data {input.azPhewasQuant} \
+            --az_trait_mappings {input.azTraitMappings} \
+            --regeneron_data {input.regeneronExwas} \
+            --gwas_studies {input.gwasStudies} \
+            --output {output.evidenceFile}
+        opentargets_validator --schema {params.schema} {output.evidenceFile}
+        # Retain the inputs and save to GCS.
+        cp {input.gwasStudies} {output.gwasStudies}
+        """
+
+## gene2Phenotype           : processes four gene panels from Gene2Phenotype
+rule gene2Phenotype:
     input:
         ddPanel = HTTP.remote(config['Gene2Phenotype']['webSource_dd_panel']),
         eyePanel = HTTP.remote(config['Gene2Phenotype']['webSource_eye_panel']),
         skinPanel = HTTP.remote(config['Gene2Phenotype']['webSource_skin_panel']),
-        cancerPanel = HTTP.remote(config['Gene2Phenotype']['webSource_cancer_panel'])
+        cancerPanel = HTTP.remote(config['Gene2Phenotype']['webSource_cancer_panel']),
+        cardiacPanel = HTTP.remote(config['Gene2Phenotype']['webSource_cardiac_panel'])
     params:
         cacheDir = config['global']['cacheDir'],
         schema = f"{config['global']['schema']}/opentargets.json"
@@ -191,6 +224,7 @@ rule gene2Phenotype:          # Process four gene panels from Gene2Phenotype.
         eyeBucket = 'EyeG2P.csv.gz',
         skinBucket = 'SkinG2P.csv.gz',
         cancerBucket = 'CancerG2P.csv.gz',
+        cardiacBucket = 'CardiacG2P.csv.gz',
         evidenceFile = 'gene2phenotype.json.gz'
     log:
         'log/gene2Phenotype.log'
@@ -202,11 +236,13 @@ rule gene2Phenotype:          # Process four gene panels from Gene2Phenotype.
         cp {input.eyePanel} {output.eyeBucket}
         cp {input.skinPanel} {output.skinBucket}
         cp {input.cancerPanel} {output.cancerBucket}
+        cp {input.cardiacPanel} {output.cardiacBucket}
         python modules/Gene2Phenotype.py \
           --dd_panel {input.ddPanel} \
           --eye_panel {input.eyePanel} \
           --skin_panel {input.skinPanel} \
           --cancer_panel {input.cancerPanel} \
+          --cardiac_panel {input.cardiacPanel} \
           --output_file {output.evidenceFile} \
           --cache_dir {params.cacheDir} \
           --local
