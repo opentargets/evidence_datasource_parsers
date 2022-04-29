@@ -1,4 +1,5 @@
 import logging
+import os
 import random
 import time
 
@@ -39,7 +40,7 @@ def _ontoma_udf(row, ontoma_instance):
     return [m.id_ot_schema for m in mappings]
 
 
-def add_efo_mapping(evidence_strings, spark_instance, ontoma_cache_dir=None, efo_version='latest'):
+def add_efo_mapping(evidence_strings, spark_instance, ontoma_cache_dir=None, efo_version=None):
     """Given evidence strings with diseaseFromSource and diseaseFromSourceId fields, try to populate EFO mapping
     field diseaseFromSourceMappedId. In case there are multiple matches, the evidence strings will be exploded
     accordingly.
@@ -49,7 +50,16 @@ def add_efo_mapping(evidence_strings, spark_instance, ontoma_cache_dir=None, efo
     logging.info('Collect all distinct (disease name, disease ID) pairs.')
     disease_info_to_map = evidence_strings.select('diseaseFromSource', 'diseaseFromSourceId').distinct().toPandas()
 
-    logging.info('Initialise OnToma instance')
+    # If no EFO version is specified:
+    if not efo_version:
+        # try to extract from environment variable.
+        if "EFO_VERSION" in os.environ:
+            efo_version = os.environ["EFO_VERSION"]
+        # Set default version to latest.
+        else:
+            efo_version = 'latest'
+
+    logging.info('Initialise OnToma instance. Using EFO version {efo_version}')
     ontoma_instance = OnToma(cache_dir=ontoma_cache_dir, efo_release=efo_version)
 
     logging.info('Map disease information to EFO.')

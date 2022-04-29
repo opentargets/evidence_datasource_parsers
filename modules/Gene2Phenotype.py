@@ -54,7 +54,7 @@ def main(
 
     evidence_df = process_gene2phenotype(gene2phenotype_df)
 
-    evidence_df = add_efo_mapping(evidence_strings=evidence_df, ontoma_cache_dir=cache_dir, spark_instance=spark, efo_version='v3.40.0')
+    evidence_df = add_efo_mapping(evidence_strings=evidence_df, ontoma_cache_dir=cache_dir, spark_instance=spark)
     logging.info('Disease mappings have been added.')
 
     # Saving data:
@@ -132,7 +132,7 @@ def process_gene2phenotype(gene2phenotype_df: DataFrame) -> DataFrame:
         .withColumn(
             'diseaseFromSourceId', 
             when(
-                col('disease ontology').isNotNull(), array(col('disease ontology'))                
+                col('disease ontology').isNotNull(), col('disease ontology')
             )
             .when(
                 (~col('disease mim').contains('No disease mim')) & (col('disease mim').isNotNull()), concat(lit('OMIM:'), col('disease mim'))
