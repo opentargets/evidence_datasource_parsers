@@ -59,7 +59,7 @@ def add_efo_mapping(evidence_strings, spark_instance, ontoma_cache_dir=None, efo
         else:
             efo_version = 'latest'
 
-    logging.info('Initialise OnToma instance. Using EFO version {efo_version}')
+    logging.info(f'Initialise OnToma instance. Using EFO version {efo_version}')
     ontoma_instance = OnToma(cache_dir=ontoma_cache_dir, efo_release=efo_version)
 
     logging.info('Map disease information to EFO.')
