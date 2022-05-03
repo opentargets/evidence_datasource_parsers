@@ -57,6 +57,7 @@ def add_efo_mapping(evidence_strings, spark_instance, ontoma_cache_dir=None, efo
             efo_version = os.environ["EFO_VERSION"]
         # Set default version to latest.
         else:
+            logging.warning('No EFO version specified. Using latest version.')
             efo_version = 'latest'
 
     logging.info(f'Initialise OnToma instance. Using EFO version {efo_version}')
