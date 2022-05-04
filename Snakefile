@@ -11,6 +11,10 @@ HTTP = HTTPRemoteProvider()
 timeStamp = datetime.now().strftime("%Y-%m-%d")  # YYYY-MM-DD.
 configfile: 'configuration.yaml'
 
+# Extracting EFO version from the configuration and export to the environment:
+EFO_version = config['global']['EFOVersion']
+os.environ["EFO_VERSION"] = EFO_version
+
 # The master list of all files with their local and remote filenames to avoid code duplication. Only the files specified
 # in this list will be generated and uploaded by the "all" and "local" rules.
 ALL_FILES = [
