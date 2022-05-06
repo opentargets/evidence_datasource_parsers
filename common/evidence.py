@@ -1,11 +1,9 @@
 import os
 import tempfile
-from typing import Union, List
 
 from psutil import virtual_memory
 from pyspark.conf import SparkConf
 from pyspark.sql import DataFrame, SparkSession
-
 
 
 def detect_spark_memory_limit():
@@ -14,21 +12,6 @@ def detect_spark_memory_limit():
     of physical memory and allow Spark to use (almost) all of it."""
     mem_gib = virtual_memory().total >> 30
     return int(mem_gib * 0.9)
-
-
-def join_with_aliases(
-    left: DataFrame, right: DataFrame, on: Union[str, List[str]], how: str, right_prefix: str = 'right'
-) -> DataFrame:
-    """
-    Join two dataframes with aliases on a single or a list of columns.
-    This is useful when we need to alias any of the joining columns to avoid ambiguity and
-    the dataframes are joined in more than one column.
-    """
-    # Backticks are needed to account for column names that contain spaces.
-    renamed_right_cols = [
-        f"`{col}` as `{col}_{right_prefix}`" if col not in on else f"`{col}`" for col in right.columns
-    ]
-    return left.join(right.selectExpr(renamed_right_cols), on=on, how=how)
 
 
 def write_evidence_strings(evidence, output_file):

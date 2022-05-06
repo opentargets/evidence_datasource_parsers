@@ -152,7 +152,7 @@ rule crispr:                  # Process cancer therapeutic targets using CRISPRâ
     output:
         evidenceFile = 'crispr.json.gz'
     log:
-        f"log/crispr-{timeStamp}.log"
+        'log/crispr.log'
     shell:
         """
         exec &> {log}
