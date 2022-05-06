@@ -7,7 +7,7 @@ import sys
 
 from pyspark.conf import SparkConf
 from pyspark.sql import DataFrame, SparkSession
-from pyspark.sql.functions import array, col, concat, lit, split, udf, when
+from pyspark.sql.functions import array, col, concat, lit, split, udf, when, regexp_replace
 from pyspark.sql.types import IntegerType, StringType, StructType, TimestampType
 
 from common.ontology import add_efo_mapping
@@ -86,6 +86,10 @@ def read_input_file(
         .add('gene disease pair entry date', TimestampType())
         .add('cross cutting modifier', StringType())
         .add('mutation consequence flag', StringType())
+        .add('confidence value flag', StringType())
+        .add('comments', StringType())
+        .add('variant consequence', StringType())
+        .add('disease ontology', StringType())
     )
 
     return (
@@ -121,14 +125,23 @@ def process_gene2phenotype(gene2phenotype_df: DataFrame) -> DataFrame:
             when(
                 col('allelic requirement').isNotNull(),
                 array(col('allelic requirement'))
-            ))
-
-        # Process diseaseFromSource
-        .withColumn(
-            'diseaseFromSourceId',
-            when(~col('disease mim').contains('No disease mim'), col('disease mim'))
+            )
         )
-        .withColumn('diseaseFromSourceId', concat(lit('OMIM:'), col('diseaseFromSourceId')))
+
+        # Process diseaseFromSourceId:
+        .withColumn(
+            'diseaseFromSourceId', 
+            when(
+                col('disease ontology').isNotNull(), col('disease ontology')
+            )
+            .when(
+                (~col('disease mim').contains('No disease mim')) & (col('disease mim').isNotNull()), concat(lit('OMIM:'), col('disease mim'))
+            )
+            .otherwise(lit(None))
+        )
+
+        # Cleaning up disease names:
+        .withColumn('diseaseFromSource', regexp_replace(col('diseaseFromSource'), r'.+-related ', ''))
 
         # Map functional consequences:
         .withColumn("variantFunctionalConsequenceId", translate(G2P_mutationCsq2functionalCsq)("mutation consequence"))
@@ -143,7 +156,6 @@ def process_gene2phenotype(gene2phenotype_df: DataFrame) -> DataFrame:
             'diseaseFromSourceId', 'confidence', 'studyId', 'literature',
             'allelicRequirements', 'variantFunctionalConsequenceId'
         )
-
     )
 
     return evidence_df

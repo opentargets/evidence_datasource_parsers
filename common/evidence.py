@@ -7,6 +7,7 @@ from pyspark.conf import SparkConf
 from pyspark.sql import DataFrame, SparkSession
 
 
+
 def detect_spark_memory_limit():
     """Spark does not automatically use all available memory on a machine. When working on large datasets, this may
     cause Java heap space errors, even though there is plenty of RAM available. To fix this, we detect the total amount

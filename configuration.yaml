@@ -3,6 +3,7 @@ global:
   cacheDir: cache_dir
   # This is a directory prefix; individual schemas relative to it are specified by each rule.
   schema: https://raw.githubusercontent.com/opentargets/json_schema/2.2.4
+  EFOVersion: v3.40.0
 
 cancerBiomarkers:
   inputBucket: gs://otar000-evidence_input/CancerBiomarkers/data_files

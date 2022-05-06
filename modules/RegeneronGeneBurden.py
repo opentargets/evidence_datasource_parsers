@@ -6,16 +6,29 @@ import logging
 import sys
 from typing import List
 
-from common.evidence import (initialize_sparksession, join_with_aliases,
-                             write_evidence_strings)
 from numpy import nan
 from pandas import read_excel
 from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
-from pyspark.sql.functions import (aggregate, array, col, concat, explode,
-                                   expr, lit, log10, pow, round, slice, split,
-                                   translate, when)
+from pyspark.sql.functions import (
+    aggregate,
+    array,
+    explode,
+    expr,
+    col,
+    concat,
+    lit,
+    log10,
+    pow,
+    round,
+    slice,
+    split,
+    translate,
+    when,
+)
 from pyspark.sql.types import ArrayType, DoubleType, IntegerType
+
+from common.evidence import initialize_sparksession, write_evidence_strings
 
 ANCESTRY_TO_ID = {'EUR': 'HANCESTRO_0005', 'EAS': 'HANCESTRO_0009', 'AFR': 'HANCESTRO_0010', 'SAS': 'HANCESTRO_0006'}
 
@@ -68,27 +81,21 @@ def main(regeneron_data: str, gwas_studies: str, spark_instance: SparkSession) -
         read_excel(regeneron_data, sheet_name='SD3').filter(items=to_keep).replace({nan: None}).astype(str)
     ).withColumnRenamed('Trait_String', 'Study tag')
 
-    summary_stats_df = (
-        spark_instance.createDataFrame(
-            read_excel(regeneron_data, sheet_name='SD4', skiprows=0, header=1)
-            .iloc[2:]
-            .reset_index(drop=True)
-            .filter(items=['Study tag', 'Study Accession'])
-            .replace({nan: None})
-            .astype(str)
-        ).withColumn('Study tag', split('Study tag', '__SV').getItem(0))
-        # All reported sumstats are of European ancestry
-        .withColumn('Ancestry', lit('EUR'))
-    )
+    summary_stats_df = spark_instance.createDataFrame(
+        read_excel(regeneron_data, sheet_name='SD4', skiprows=0, header=1)
+        .iloc[2:]
+        .reset_index(drop=True)
+        .filter(items=['Study tag', 'Study Accession'])
+        .replace({nan: None})
+        .astype(str)
+    ).withColumn('Study tag', split('Study tag', '__SV').getItem(0))
 
     gwas_studies_df = (
         spark_instance.read.csv(gwas_studies, header=True, inferSchema=True, sep='\t')
         .filter(col('PUBMEDID') == '34662886')
         # There might be multiple mapped traits that need to be splitted
         .withColumn('MAPPED_TRAIT', explode(expr("regexp_extract_all(MAPPED_TRAIT_URI, '([A-Za-z]+_[0-9]+)')")))
-        # All studies are based on associations of European ancestry
-        .withColumn('Ancestry', lit('EUR'))
-        .select(col('STUDY ACCESSION').alias('Study Accession'), 'MAPPED_TRAIT', 'Ancestry')
+        .select(col('STUDY ACCESSION').alias('Study Accession'), 'MAPPED_TRAIT')
         .distinct()
     )
     unmapped_gwas_studies = detect_unmapped_gwas_studies(gwas_studies_df)
@@ -96,16 +103,15 @@ def main(regeneron_data: str, gwas_studies: str, spark_instance: SparkSession) -
         gwas_studies_df = gwas_studies_df.filter(~col('Study Accession').isin(unmapped_gwas_studies))
     assert gwas_studies_df.count() > 7900, 'Downloaded GWAS studies data are not complete.'
 
-    """
-    top_assoc_w_sumstat_join_cond = (regeneron_df['Study tag'] == summary_stats_df['Study tag_right']) & (
-        regeneron_df['Ancestry'] == summary_stats_df['Ancestry_right']
-    )
-    """
     regeneron_df = (
         # Combine European with Non European associations
         eur_evd_df.union(non_eur_evd_df)
         # Keep only gene based analyses
         .filter(expr("`Marker type` == 'Burden'"))
+        # Add study accession from sumstats
+        .join(summary_stats_df, on='Study tag', how='left')
+        # Add mapped trait from GWAS Catalog
+        .join(gwas_studies_df, on='Study Accession', how='left')
         .filter(col('P-Value') <= 2.18e-11)
         # WARNING: One gene name is corrupted by Excel's automatic conversion to a date (2021-03-08 00:00:00).
         # Given the name and the associations it reports, it makes sense that it is MARCHF8 (ENSG00000165406).
@@ -114,45 +120,6 @@ def main(regeneron_data: str, gwas_studies: str, spark_instance: SparkSession) -
         .distinct()
         .persist()
     )
-    """
-    # Add study accession from sumstats
-    .join(
-        summary_stats_df.select([col(c).alias(c + '_right') for c in summary_stats_df.columns]),
-        on=top_assoc_w_sumstat_join_cond,
-        how='left',
-    )
-    """
-    regeneron_df = (
-        # Add study accession from sumstats
-        regeneron_df.join(summary_stats_df, on=['Study tag', 'Ancestry'], how='left').drop('Ancestry')
-        # Add mapped trait from GWAS Catalog
-        .join(gwas_studies_df, on='Study Accession', how='left')
-    )
-
-    print(regeneron_df.show(5, False, True))
-    print(regeneron_df.select('Ancestry').distinct().show())
-
-    """
-        )
-    regeneron_df: a, b,c / 1, 2, 3
-    summary_stats_df: a, b, d / 1, 2, 4 / x, y, z
-    output: a, b, c / 1, 2, 3 / x, y, null
-
-    a.join(b, a['value_left'] == b['value_right'], how='left')
-
-    a 1
-    b 2
-    c 3
-
-    a 1 x
-    b 2 y
-    d 4 z
-
-    a 1 x
-    b 2 y 
-    c 3 null
-
-    """
 
     evd_df = parse_regeneron_evidence(regeneron_df)
     if evd_df.filter(col('resourceScore') == 0).count() != 0:
