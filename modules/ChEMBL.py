@@ -30,7 +30,7 @@ def main(chembl_evidence: str, predictions: str, output_file: str) -> None:
     logging.info(f'Classes of reason to stop table: {predictions}')
 
     # Load input into dataframes
-    chembl_df = spark.read.json(chembl_evidence).repartition(20).persist()
+    chembl_df = spark.read.json(chembl_evidence).persist()
     predictions_df = (
         load_stop_reasons_classes(predictions)
         .withColumnRenamed('why_stopped', 'studyStopReason')
