@@ -74,13 +74,11 @@ def main(cooccurrences, outputFile):
         .withColumn('publicationIdentifier', F.when(F.col('pmid').isNull(), F.col('pmcid')).otherwise(F.col('pmid')))
         # Filtering for disease/target cooccurrences:
         .filter(
-            (F.col('type') == 'GP-DS')
-            & (F.col('isMapped'))  # Filter gene/protein - disease cooccurrence
-            & (F.col('publicationIdentifier').isNotNull())  # Filtering for mapped cooccurrences
-            & (F.length(F.col('text')) < 600)  # Making sure at least the pmid or the pmcid is given:
-            & (  # Exclude sentences with more than 600 characters
-                F.col('label1').isin(EXCLUDED_TARGET_TERMS) == False
-            )  # Excluding target labels from the exclusion list
+            (F.col('type') == 'GP-DS')  # Filter gene/protein - disease cooccurrence
+            & F.col('isMapped')  # Filtering for mapped cooccurrences
+            & F.col('publicationIdentifier').isNotNull(). # Making sure at least the pmid or the pmcid is given:
+            & (F.length(F.col('text')) < 600) # Exclude sentences with more than 600 characters
+            & (F.col('label1').isin(EXCLUDED_TARGET_TERMS) == False)  # Excluding target labels from the exclusion list
         )
         # Renaming columns:
         .withColumnRenamed('keywordId1', 'targetFromSourceId')
