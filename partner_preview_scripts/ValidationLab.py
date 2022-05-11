@@ -79,6 +79,10 @@ BIOMARKERMAPS = {
     'APC_status': {
         'description': 'APC mutation status: ',
         'name': 'APC-',
+    },
+    'BRAF_status': {
+        'description': 'BRAF mutation status: ',
+        'name': 'BRAF-'
     }
 }
 class ParseHypotheses:
@@ -198,11 +202,11 @@ def get_biomarker(columnName, biomarker):
         }
     else:
         logging.warning(
-            f'Could not find direct mapping for {columnName}:{biomarker}')
+            f'Could not find direct mapping for {columnName}: {biomarker}')
         return None
 
 
-def parse_experimental_parameters(parmeter_file: str) -> dict:
+def parse_experimental_parameters(parmeterFile: str) -> dict:
     """
     Parse experimental parameters from a file.
 
@@ -212,7 +216,7 @@ def parse_experimental_parameters(parmeter_file: str) -> dict:
     Returns:
         A dictionary of experimental parameters.
     """
-    with open(parmeter_file, 'r') as f:
+    with open(parmeterFile, 'r') as f:
         return json.load(f)
 
 
@@ -240,7 +244,7 @@ def get_cell_passport_data(spark: SparkSession, cell_passport_file: str) -> Data
     )
 
 
-def parse_experiment(spark: SparkSession, parameters: dict, cellPassportDf: DataFrame) -> DataFrame:
+def parse_experiment(spark: SparkSession, parameters: dict, cellPassportDf: DataFrame, dataFolder:str) -> DataFrame:
     """
     Parse experiment data from a file.
 
@@ -248,13 +252,14 @@ def parse_experiment(spark: SparkSession, parameters: dict, cellPassportDf: Data
         spark: Spark session.
         parameters: Dictionary of experimental parameters.
         cellPassportDf: Dataframe of cell passport data.
+        dataFolder: Location of the input data files.
 
     Returns:
         A dataframe of experiment data.
     """
 
     # Extracting parameters:
-    experimentFile = parameters['experimentData']
+    experimentFile = f"{dataFolder}/{parameters['experimentData']}"
     contrast = parameters['contrast']
     studyOverview = parameters['studyOverview']
     projectId = parameters['projectId']
@@ -262,19 +267,19 @@ def parse_experiment(spark: SparkSession, parameters: dict, cellPassportDf: Data
     diseaseFromSource = parameters['diseaseFromSource']
     diseaseFromSourceMapId = parameters['diseaseFromSourceMappedId']
     confidenceCutoff = parameters['confidenceCutoff']
-    cellLineFile = parameters['cellLineFile']
+    cellLineFile = f"{dataFolder}/{parameters['cellLineFile']}"
 
     # The hypothesis is defined by two datasets:
-    hypotheisExpectedFile = parameters['hypothesisFileExpected']
-    hypotheisObservedFile = parameters['hypothesisFileObserved']
-
+    hypotheisExpectedFile = f"{dataFolder}/{parameters['hypothesisFileExpected']}"
+    hypotheisObservedFile = f"{dataFolder}/{parameters['hypothesisFileObserved']}"
+    print(cellLineFile)
     # Cell line data:
     # Reading cell metadata from validation lab:
     validation_lab_cell_lines = (
         spark.read.csv(cellLineFile, sep='\t', header=True)
 
         # Renaming columns:
-        .withColumnRenamed('celline', 'name')
+        .withColumnRenamed('cell_line', 'name')
         .withColumnRenamed('tissue', 'source')  # <- in subsequent releases this value will be important
 
         # Joining dataset with cell model data read downloaded from Sanger website:
@@ -350,11 +355,11 @@ def parse_experiment(spark: SparkSession, parameters: dict, cellPassportDf: Data
 
         # Rename existing columns need to be updated:
         .withColumnRenamed('gene', 'targetFromSourceId')
-        .withColumnRenamed('cell-line', 'name')
+        .withColumnRenamed('cell_line', 'name')
 
         # Parsing resource score:
-        .withColumn('resourceScore', col('effect-size').cast("double"))
-        .withColumn('resourceScore', 
+        .withColumn('resourceScore', col('effect_size').cast("double"))
+        .withColumn('resourceScore',
             when(col('resourceScore') > 0, col('resourceScore')).otherwise(lit(0))
         )
 
@@ -366,7 +371,7 @@ def parse_experiment(spark: SparkSession, parameters: dict, cellPassportDf: Data
         )
         .withColumn(
             'expectedConfidence',
-            when(col('expected-to-pass') == 'TRUE', lit('significant'))
+            when(col('expected_to_pass') == 'TRUE', lit('significant'))
             .otherwise(lit('not significant'))
         )
 
@@ -389,7 +394,7 @@ def parse_experiment(spark: SparkSession, parameters: dict, cellPassportDf: Data
         .join(validation_lab_cell_lines, on='name', how='left')
 
         # Drop unused columns:
-        .drop(*['name', 'pass-fail', 'expected-to-pass', 'effect-size'])
+        .drop(*['name', 'pass_fail', 'expected_to_pass', 'effect_size'])
 
         # Temporary renaming biomarkers:
         .withColumnRenamed('biomarkers', 'biomarkerList')
@@ -399,13 +404,13 @@ def parse_experiment(spark: SparkSession, parameters: dict, cellPassportDf: Data
     return evidence
 
 
-def main(inputFile: str, outputFile: str, cellPassportFile:str) -> None:
+def main(configFile: str, outputFile: str, cellPassportFile: str, dataFolder: str) -> None:
 
     # Initialize spark session
     spark = initialize_sparksession()
 
     # Parse experimental parameters:
-    parameters = parse_experimental_parameters(inputFile)
+    parameters = parse_experimental_parameters(configFile)
 
     # Opening and parsing the cell passport data from Sanger:
     cell_passport_df = get_cell_passport_data(spark, cellPassportFile)
@@ -418,7 +423,7 @@ def main(inputFile: str, outputFile: str, cellPassportFile:str) -> None:
     # Create evidence for all experiments:
     evidence_dfs = []
     for experiment in parameters['experiments']:
-        evidence_dfs.append(parse_experiment(spark, experiment, cell_passport_df))
+        evidence_dfs.append(parse_experiment(spark, experiment, cell_passport_df, dataFolder))
 
     # combine all evidence dataframes into one:
     combined_evidence_df = reduce(lambda df1, df2: df1.union(df2), evidence_dfs)
@@ -434,11 +439,12 @@ if __name__ == '__main__':
         description='This script parse validation lab data and generates disease target evidence.')
     parser.add_argument('--output_file', '-o', type=str,
                         help='Output file. gzipped JSON', required=True)
-    parser.add_argument('--input_file', '-i', type=str,
+    parser.add_argument('--parameter_file', '-i', type=str,
                         help='A JSON file describing exeriment metadata', required=True)
     parser.add_argument('--log_file', type=str,
                         help='File into which the logs are saved', required=False)
     parser.add_argument('--cell_passport_file', type=str, help='Cell passport file', required=True)
+    parser.add_argument('--data_folder', type=str, help='Location of input files to process.', required=True)
     args = parser.parse_args()
 
     # If no logfile is specified, logs are written to the standard error:
@@ -453,4 +459,4 @@ if __name__ == '__main__':
         logging.StreamHandler(sys.stderr)
 
     # Passing all the required arguments:
-    main(args.input_file, args.output_file, args.cell_passport_file)
+    main(args.parameter_file, args.output_file, args.cell_passport_file, args.data_folder)
