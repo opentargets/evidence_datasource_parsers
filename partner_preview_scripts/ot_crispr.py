@@ -23,24 +23,12 @@ class OTAR_CRISPR_study_parser(object):
 
         self.study_file = study_url
 
-        # Read and process study table:
-        study_df = (
-            pd.read_csv(study_url, skiprows=[1])
-            .assign(
-                # Split mapped diseases to list:
-                diseaseFromSourceMappedId=lambda df: df.diseases.str.replace(' ', '').str.split('|'),
-
-                # Split data files to list:
-                dataFiles=lambda df: df.dataFile.str.replace(' ', '').str.split('|')
-            )
-        )
-
         # Store the study dataframe after dropping problematic studies:
         self.study_df = (
-            study_df
+            pd.read_json(study_url)
 
             # drop rows with no study id or data file:
-            .loc[study_df.studyId.notna() & study_df.dataFile.notna()]
+            .loc[lambda df: df.studyId.notna() & df.dataFiles.notna()]
         )
 
         # Test and warn if multiple studies have the same study id:
@@ -58,8 +46,16 @@ class OTAR_CRISPR_study_parser(object):
         # Looping through the studies and generating evidence:
         # Reading all data files and filter for significant hits:
         study_columns = [
-            'studyId', 'dataFiles', 'dataFileType', 'filterColumn', 'threshold',
-            'projectId', 'ControlDataset', 'projectDescription'
+            'releaseDate',
+            'releaseVersion',
+            'studyId',
+            'dataFiles',
+            'dataFileType',
+            'filterColumn',
+            'threshold',
+            'projectId',
+            'ControlDataset',
+            'projectDescription'
         ]
 
         hits = (
@@ -90,7 +86,8 @@ class OTAR_CRISPR_study_parser(object):
         evidence_fields = [
             'targetFromSourceId', 'diseaseFromSourceMappedId', 'projectDescription',
             'projectId', 'studyId', 'studyOverview', 'contrast', 'crisprScreenLibrary',
-            'cellType', 'cellLineBackground', 'geneticBackground', 'statisticalTestTail', 'resourceScore', 'log2FoldChangeValue'
+            'cellType', 'cellLineBackground', 'geneticBackground', 'statisticalTestTail', 
+            'resourceScore', 'log2FoldChangeValue', 'releaseDate', 'releaseVersion',
         ]
         self.merged_dataset = (
             self.study_df
@@ -183,13 +180,10 @@ if __name__ == '__main__':
     # Parsing arguments:
     parser = argparse.ArgumentParser(description='Script to parse internally generated datasets for OTAR projects.')
 
-    parser.add_argument(
-        '-s', '--study_table', type=str, required=True,
-        help='A Google spreadsheet URL with the study description of the available projects.'
-    )
+    parser.add_argument('-s', '--study_table', type=str, required=True, help='A JSON file with study level metadata.')
     parser.add_argument('-o', '--output', required=False, type=str, help='Output json.gz file with the evidece.')
     parser.add_argument('-l', '--log_file', required=False, type=str, help='Logs are saved into this file.')
-    parser.add_argument('-d', '--data_folder', help='Folder with the data files.', required=True, type=str)
+    parser.add_argument('-d', '--data_folder', required=True, type=str, help='Folder with the data files.')
     args = parser.parse_args()
 
     study_table = args.study_table
