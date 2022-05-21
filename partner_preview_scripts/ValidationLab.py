@@ -244,7 +244,7 @@ def get_cell_passport_data(spark: SparkSession, cell_passport_file: str) -> Data
     )
 
 
-def parse_experiment(spark: SparkSession, parameters: dict, cellPassportDf: DataFrame, dataFolder:str) -> DataFrame:
+def parse_experiment(spark: SparkSession, parameters: dict, cellPassportDf: DataFrame, dataFolder: str) -> DataFrame:
     """
     Parse experiment data from a file.
 
@@ -359,7 +359,8 @@ def parse_experiment(spark: SparkSession, parameters: dict, cellPassportDf: Data
 
         # Parsing resource score:
         .withColumn('resourceScore', col('effect_size').cast("double"))
-        .withColumn('resourceScore',
+        .withColumn(
+            'resourceScore',
             when(col('resourceScore') > 0, col('resourceScore')).otherwise(lit(0))
         )
 
@@ -381,8 +382,6 @@ def parse_experiment(spark: SparkSession, parameters: dict, cellPassportDf: Data
         .withColumn('studyOverview', lit(studyOverview))
 
         # This column is specific for this dataset:
-        .withColumn('datasourceId', lit('ot_crispr_validation'))
-        .withColumn('datatypeId', lit('ot_validation_lab'))
         .withColumn("diseaseFromSourceMappedId", lit(diseaseFromSourceMapId))
         .withColumn("diseaseFromSource", lit(diseaseFromSource))
 
@@ -428,8 +427,14 @@ def main(configFile: str, outputFile: str, cellPassportFile: str, dataFolder: st
     # combine all evidence dataframes into one:
     combined_evidence_df = reduce(lambda df1, df2: df1.union(df2), evidence_dfs)
 
+    # Add annotation to the dataframe from the shared parameters:
+    shared_annotation_map = map(lambda item: (item[0], lit(item[1])), parameters['sharedParemeters'].items())
+
+    # Applying map on the dataframe:
+    annotated_evidence_df = reduce(lambda df, value: df.withColumn(*value), shared_annotation_map, combined_evidence_df)
+
     # Save the combined evidence dataframe:
-    write_evidence_strings(combined_evidence_df, outputFile)
+    write_evidence_strings(annotated_evidence_df, outputFile)
 
 
 if __name__ == '__main__':
