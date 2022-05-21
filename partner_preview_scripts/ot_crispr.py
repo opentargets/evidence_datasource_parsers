@@ -17,7 +17,6 @@ FILTER_COLUMN_MAP = {
     'pos|p-value': 'upper tail'
 }
 
-
 class OTAR_CRISPR_study_parser(object):
     def __init__(self, study_url: str) -> None:
 
