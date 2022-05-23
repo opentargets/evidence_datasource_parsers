@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
-"""Parser for data submitted from the Validation Lab."""
+"""Parser for data submitted from the Encore team."""
 
 import argparse
-import datetime
 import json
 import logging
-from numpy import array
 import requests
 import os
 import sys
@@ -19,12 +17,12 @@ from pyspark.sql.dataframe import DataFrame
 
 from common.evidence import initialize_sparksession, write_evidence_strings
 
-class GenerateDiseaseCellLines:
+class GenerateDiseaseCellLines:  # TODO: move to common.evidence
     """
     Generate "diseaseCellLines" object from a cell passport file.
 
     !!!
-    There's one important bit here: I have noticed that we frequenty get cell line names 
+    There's one important bit here: I have noticed that we frequenty get cell line names
     with missing dashes. Therefore the cell line names are cleaned up by removing dashes.
     It has to be done when joining with other datasets.
     !!!
@@ -146,6 +144,8 @@ class EncoreEvidenceGenerator:
         self.logFoldChangeCutoffFDR = shared_parameters["logFoldChangeCutoffFDR"]
         self.interactionCutoffPVal = shared_parameters["interactionCutoffPVal"]
         self.dataFolder = shared_parameters["dataFolder"]
+        self.releaseVersion = shared_parameters["releaseVersion"]
+        self.releaseDate = shared_parameters["releaseDate"]
 
     @staticmethod
     @udf(ArrayType(StructType([
@@ -257,7 +257,7 @@ class EncoreEvidenceGenerator:
                 col('cellLineData.zscore').cast(FloatType()).alias('geneticInteractionScore'),
                 col('cellLineData.pval').cast(FloatType()).alias('geneticInteractionPValue'),
             )
-            .withColumn('geneticInteractionMethod', lit('bliss'))
+            .withColumn('statisticalMethod', lit('bliss'))
         )
 
     def get_gemini_data(self, gemini_file: str) -> DataFrame:
@@ -320,7 +320,7 @@ class EncoreEvidenceGenerator:
                 col('cellLineData.pval').cast(FloatType()).alias('geneticInteractionPValue'),
                 col('cellLineData.FDR').cast(FloatType()).alias('geneticInteractionFDR')
             )
-            .withColumn('geneticInteractionMethod', lit('gemini'))
+            .withColumn('statisticalMethod', lit('gemini'))
             .persist()
         )
 
@@ -352,6 +352,11 @@ class EncoreEvidenceGenerator:
         logFoldChangeFile = parameters["logFoldChangeFile"]
         geminiFile = parameters["geminiFile"]
         blissFile = parameters["blissFile"]
+
+        # Testing if experiment needs to be skipped:
+        if parameters['skipStudy'] is True:
+            logging.info(f'Skipping study: {dataset}')
+            return None
 
         logging.info(f'Parsing experiment: {dataset}')
 
@@ -423,12 +428,14 @@ class EncoreEvidenceGenerator:
             .withColumn('datatypeId', lit('ot_partner'))
             .withColumn('datasourceId', lit('encore'))
             .withColumn('projectId', lit('OTAR2062'))
-            .withColumn('projectDescription', lit('Encore project')) ### TODO - fix this!
+            .withColumn('projectDescription', lit('Encore project'))  ### TODO - fix this!
             .withColumn('geneInteractionType', lit('cooperative'))
 
             # Adding disease information:
             .withColumn('diseaseFromSourceMappedId', lit(diseaseFromSourceMappedId))
             .withColumn('diseaseFromSource', lit(diseseFromSource))
+            .withColumn('releaseVersion', lit(self.releaseVersion))
+            .withColumn('releaseDate', lit(self.releaseDate))
 
             # Removing unused columns:
             .drop(*['cellLineName', 'cellId', 'Note1', 'Note2', 'id', 'genes'])
@@ -436,7 +443,11 @@ class EncoreEvidenceGenerator:
 
             .persist()
         )
-        evidence_df.printSchema()
+
+        # If there's a warning message for the sudy, add that:
+        if parameters['warningMessage'] is not None:
+            evidence_df = evidence_df.withColumn('warningMessage', lit(parameters['warningMessage']))
+
         return evidence_df
 
 
