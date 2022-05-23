@@ -457,8 +457,7 @@ def main(outputFile: str, parameters: dict, cellPassportFile: str) -> None:
     spark = initialize_sparksession()
 
     # Opening and parsing the cell passport data from Sanger:
-    diseaseCellLineGenerator = GenerateDiseaseCellLines(cellPassportFile, spark)
-    cell_passport_df = diseaseCellLineGenerator.get_mapping()
+    cell_passport_df = GenerateDiseaseCellLines(cellPassportFile, spark).get_mapping()
 
     logging.info(f'Cell passport dataframe has {cell_passport_df.count()} rows.')
     logging.info('Parsing experiment data...')
@@ -485,7 +484,7 @@ if __name__ == '__main__':
 
     # Reading output file name from the command line:
     parser = argparse.ArgumentParser(
-        description='This script parses ENCORE data a generates disease target evidence.')
+        description='This script parses ENCORE data and generates disease-target evidence.')
     parser.add_argument('--output_file', '-o', type=str,
                         help='Output file. gzipped JSON', required=True)
     parser.add_argument('--parameter_file', '-p', type=str,
