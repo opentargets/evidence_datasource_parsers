@@ -1,9 +1,13 @@
+import logging
 import os
 from psutil import virtual_memory
+import requests
 import tempfile
 
 from pyspark.conf import SparkConf
 from pyspark.sql import SparkSession
+import pyspark.sql.functions as f
+from pyspark.sql.types import StringType, StructField, StructType, ArrayType
 
 def detect_spark_memory_limit():
     """Spark does not automatically use all available memory on a machine. When working on large datasets, this may
@@ -46,3 +50,126 @@ def initialize_sparksession() -> SparkSession:
     )
 
     return spark
+
+
+class GenerateDiseaseCellLines:
+    """
+    Generate "diseaseCellLines" object from a cell passport file.
+
+    !!!
+    There's one important bit here: I have noticed that we frequenty get cell line names
+    with missing dashes. Therefore the cell line names are cleaned up by removing dashes.
+    It has to be done when joining with other datasets.
+    !!!
+
+    Args:
+        cellPassportFile: Path to the cell passport file.
+    """
+
+    def __init__(self, cellPassportFile: str, spark) -> None:
+        self.cellPassportFile = cellPassportFile
+        self.spark = spark
+        self.cellMap = self.generate_map()
+
+    def generate_map(self) -> None:
+        """Reading and procesing cell line data from the cell passport file.
+
+        The schema of the returned dataframe is:
+
+        root
+        |-- name: string (nullable = true)
+        |-- id: string (nullable = true)
+        |-- biomarkerList: array (nullable = true)
+        |    |-- element: struct (containsNull = true)
+        |    |    |-- name: string (nullable = true)
+        |    |    |-- description: string (nullable = true)
+        |-- diseaseCellLines: struct (nullable = false)
+        |    |-- tissue: string (nullable = true)
+        |    |-- name: string (nullable = true)
+        |    |-- id: string (nullable = true)
+        |    |-- tissueId: string (nullable = true)
+
+        Note:
+            * Microsatellite stability is the only inferred biomarker.
+            * The cell line name has the dashes removed.
+            * Id is the cell line identifier from Sanger
+            * Tissue id is the UBERON identifier for the tissue, fetched from OLS
+        """
+
+        # loading cell line annotation data from Sanger:
+        cell_df = (
+            self.spark.read
+            .option("multiline", True)  # <- this is crazy! Some annotation within the csv fields have newlines!
+            .csv(self.cellPassportFile, header=True, sep=',', quote='"')
+            .withColumn('biomarkerList', self.parse_msi_status(f.col('msi_status')))
+            .select(
+                f.col('model_name').alias('name'),
+                f.col('model_id').alias('id'),
+                f.col('tissue'),
+                f.col('biomarkerList')
+            )
+            .persist()
+        )
+
+        # Generating a unique set of tissues in a pandas dataframe:
+        tissues = cell_df.select('tissue').distinct().toPandas()
+        logging.info(f'Found {len(tissues)} tissues.')
+
+        # Generating a unique set of cell lines in a pandas series:
+        mappedTissues = tissues.assign(tissueId=lambda df: df.tissue.apply(self.lookup_uberon))
+        logging.info(f'Found mapping for {len(mappedTissues.loc[mappedTissues.tissueId.notna()])} tissues.')
+
+        # Converting to spark dataframe:
+        mappedTissues_spark = self.spark.createDataFrame(mappedTissues)
+
+        # Joining with cell lines:
+        return (
+            cell_df
+            .join(mappedTissues_spark, on='tissue', how='left')
+
+            # Generating the diseaseCellLines object:
+            .select(
+                'name',
+                'id',
+                'biomarkerList',
+                f.struct(['tissue', 'name', 'id', 'tissueId']).alias('diseaseCellLines')
+            )
+
+            # Cleaning up cell line name from dashes:
+            .withColumn('name', f.regexp_replace(f.col('name'), '-', ''))
+            .persist()
+        )
+
+    def get_mapping(self):
+        return self.cellMap
+
+    @staticmethod
+    def lookup_uberon(tissue_label: str) -> str:
+        """Mapping tissue labels to tissue identifiers (UBERON codes) via the OLS API."""
+
+        url = f'https://www.ebi.ac.uk/ols/api/search?q={tissue_label.lower()}&queryFields=label&ontology=uberon&exact=true'
+        r = requests.get(url).json()
+
+        if r['response']['numFound'] == 0:
+            return None
+        else:
+            return r['response']['docs'][0]['short_form']
+
+    @staticmethod
+    @f.udf(
+        ArrayType(
+            StructType([
+                StructField('name', StringType(), nullable=False),
+                StructField('description', StringType(), nullable=False)
+            ])
+        )
+    )
+    def parse_msi_status(status: str) -> dict:
+        """Based on the content of the MSI status, we generate the corresponding biomarker object."""
+
+        if status == 'MSI':
+            return [{"name": "MSI", "description": "Microsatellite instable"}]
+        if status == 'MSS':
+            return [{"name": "MSS", "description": "Microsatellite stable"}]
+        else:
+            return None
