@@ -63,13 +63,13 @@ class GenerateDiseaseCellLines:
     !!!
 
     Args:
-        cellPassportFile: Path to the cell passport file.
+        cell_passport_file: Path to the cell passport file.
     """
 
-    def __init__(self, cellPassportFile: str, spark) -> None:
-        self.cellPassportFile = cellPassportFile
+    def __init__(self, cell_passport_file: str, spark) -> None:
+        self.cell_passport_file = cell_passport_file
         self.spark = spark
-        self.cellMap = self.generate_map()
+        self.cell_map = self.generate_map()
 
     def generate_map(self) -> None:
         """Reading and procesing cell line data from the cell passport file.
@@ -100,7 +100,7 @@ class GenerateDiseaseCellLines:
         cell_df = (
             self.spark.read
             .option("multiline", True)  # <- this is crazy! Some annotation within the csv fields have newlines!
-            .csv(self.cellPassportFile, header=True, sep=',', quote='"')
+            .csv(self.cell_passport_file, header=True, sep=',', quote='"')
             .withColumn('biomarkerList', self.parse_msi_status(f.col('msi_status')))
             .select(
                 f.col('model_name').alias('name'),
@@ -116,16 +116,16 @@ class GenerateDiseaseCellLines:
         logging.info(f'Found {len(tissues)} tissues.')
 
         # Generating a unique set of cell lines in a pandas series:
-        mappedTissues = tissues.assign(tissueId=lambda df: df.tissue.apply(self.lookup_uberon))
-        logging.info(f'Found mapping for {len(mappedTissues.loc[mappedTissues.tissueId.notna()])} tissues.')
+        mapped_tissues = tissues.assign(tissueId=lambda df: df.tissue.apply(self.lookup_uberon))
+        logging.info(f'Found mapping for {len(mapped_tissues.loc[mapped_tissues.tissueId.notna()])} tissues.')
 
         # Converting to spark dataframe:
-        mappedTissues_spark = self.spark.createDataFrame(mappedTissues)
+        mapped_tissues_spark = self.spark.createDataFrame(mapped_tissues)
 
         # Joining with cell lines:
         return (
             cell_df
-            .join(mappedTissues_spark, on='tissue', how='left')
+            .join(mapped_tissues_spark, on='tissue', how='left')
 
             # Generating the diseaseCellLines object:
             .select(
@@ -141,7 +141,7 @@ class GenerateDiseaseCellLines:
         )
 
     def get_mapping(self):
-        return self.cellMap
+        return self.cell_map
 
     @staticmethod
     def lookup_uberon(tissue_label: str) -> str:

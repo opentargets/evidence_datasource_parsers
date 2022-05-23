@@ -23,12 +23,12 @@ class EncoreEvidenceGenerator:
         self.cell_passport_df = cell_passport_df
 
         # Parsing paramters:
-        self.logFoldChangeCutoffPVal = shared_parameters["logFoldChangeCutoffPVal"]
-        self.logFoldChangeCutoffFDR = shared_parameters["logFoldChangeCutoffFDR"]
-        self.interactionCutoffPVal = shared_parameters["interactionCutoffPVal"]
-        self.dataFolder = shared_parameters["dataFolder"]
-        self.releaseVersion = shared_parameters["releaseVersion"]
-        self.releaseDate = shared_parameters["releaseDate"]
+        self.log_fold_change_cutoff_p_val = shared_parameters["logFoldChangeCutoffPVal"]
+        self.log_fold_change_cutoff_FDR = shared_parameters["logFoldChangeCutoffFDR"]
+        self.interaction_cutoff_p_val = shared_parameters["interactionCutoffPVal"]
+        self.data_folder = shared_parameters["data_folder"]
+        self.release_version = shared_parameters["releaseVersion"]
+        self.release_date = shared_parameters["releaseDate"]
 
     @staticmethod
     @udf(ArrayType(StructType([
@@ -106,12 +106,12 @@ class EncoreEvidenceGenerator:
             )
         )
 
-    def get_bliss_data(self, blissFile: str) -> DataFrame:
+    def get_bliss_data(self, bliss_file: str) -> DataFrame:
         # Fixed statistical field names:
         stats_fields = ['zscore', 'pval']
 
         # Read data:
-        bliss_df = self.spark.read.csv(blissFile, sep='\t', header=True)
+        bliss_df = self.spark.read.csv(bliss_file, sep='\t', header=True)
 
         # Collect the cell lines from the lfc file header:
         cell_lines = set(['_'.join(x.split('_')[0:2]) for x in bliss_df.columns[4:] if x.startswith('SID')])
@@ -216,7 +216,7 @@ class EncoreEvidenceGenerator:
                 - diseaseFromSource: Name of the disease model of the experiment.
                 - diseaseFromSourceMappedId: EFO ID of the disease model of the experiment.
                 - logFoldChangeFile: File path to the log fold change file.
-                - geminifile: File path to the gemini file.
+                - geminiFile: File path to the gemini file.
                 - blissFile: File path to the bliss file.
 
         Returns:
@@ -229,11 +229,11 @@ class EncoreEvidenceGenerator:
             - Adding additional columns + finalizing evidence model
         """
 
-        diseseFromSource = parameters["diseaseFromSource"]
-        diseaseFromSourceMappedId = parameters["diseaseFromSourceMappedId"]
+        disease_from_source = parameters["diseaseFromSource"]
+        disease_from_source_mapped_id = parameters["diseaseFromSourceMappedId"]
         dataset = parameters["dataset"]
-        logFoldChangeFile = parameters["logFoldChangeFile"]
-        geminiFile = parameters["geminiFile"]
+        log_fold_change_file = parameters["logFoldChangeFile"]
+        gemini_file = parameters["geminiFile"]
         blissFile = parameters["blissFile"]
 
         # Testing if experiment needs to be skipped:
@@ -244,29 +244,29 @@ class EncoreEvidenceGenerator:
         logging.info(f'Parsing experiment: {dataset}')
 
         # if no log fold change file is provided, we will not generate any evidence.
-        if logFoldChangeFile is None:
+        if log_fold_change_file is None:
             logging.warning(f"No log fold change file provided for {dataset}.")
             return None
 
         # if no gemini file is provided, we will not generate any evidence.
-        if geminiFile is None:
+        if gemini_file is None:
             logging.warning(f"No gemini file provided for {dataset}.")
             return None
 
         # Reading lfc data:
-        lfc_file = f'{self.dataFolder}/{logFoldChangeFile}'
+        lfc_file = f'{self.data_folder}/{log_fold_change_file}'
         lfc_df = self.get_lfc_data(lfc_file)
         logging.info(f'Number of gene paris in the log(fold change) dataset: {lfc_df.select("id").count()} rows')
         logging.info(f'Number cell lines in the log(fold change) dataset: {lfc_df.select("cellLineName").distinct().count()} rows')
 
         # Reading gemini data:
-        gemini_file = f'{self.dataFolder}/{geminiFile}'
+        gemini_file = f'{self.data_folder}/{gemini_file}'
         gemini_df = self.get_gemini_data(gemini_file)
         logging.info(f'Number of gene paris in the gemini dataset: {gemini_df.select("id").count()} rows')
         logging.info(f'Number cell lines in the gemini dataset: {gemini_df.select("cellLineName").distinct().count()} rows')
 
         # Reading bliss data: <= not for now.
-        # bliss_file = f'{self.dataFolder}/{blissFile}'
+        # bliss_file = f'{self.data_folder}/{blissFile}'
         # bliss_df = self.get_bliss_data(bliss_file)
 
         # Merging lfc + gemini:
@@ -279,9 +279,9 @@ class EncoreEvidenceGenerator:
 
             # Applying filters on logFoldChange + interaction p-value thresholds:
             .filter(
-                (col('phenotypicConsequencePValue') <= self.logFoldChangeCutoffPVal) &
-                (col('phenotypicConsequenceFDR') <= self.logFoldChangeCutoffFDR) &
-                (col('geneticInteractionPValue') <= self.interactionCutoffPVal)
+                (col('phenotypicConsequencePValue') <= self.log_fold_change_cutoff_p_val) &
+                (col('phenotypicConsequenceFDR') <= self.log_fold_change_cutoff_FDR) &
+                (col('geneticInteractionPValue') <= self.interaction_cutoff_p_val)
             )
 
             # Cleaning the cell line annotation:
@@ -315,10 +315,10 @@ class EncoreEvidenceGenerator:
             .withColumn('geneInteractionType', lit('cooperative'))
 
             # Adding disease information:
-            .withColumn('diseaseFromSourceMappedId', lit(diseaseFromSourceMappedId))
-            .withColumn('diseaseFromSource', lit(diseseFromSource))
-            .withColumn('releaseVersion', lit(self.releaseVersion))
-            .withColumn('releaseDate', lit(self.releaseDate))
+            .withColumn('diseaseFromSourceMappedId', lit(disease_from_source_mapped_id))
+            .withColumn('diseaseFromSource', lit(disease_from_source))
+            .withColumn('releaseVersion', lit(self.release_version))
+            .withColumn('releaseDate', lit(self.release_date))
 
             # Removing unused columns:
             .drop(*['cellLineName', 'cellId', 'Note1', 'Note2', 'id', 'genes'])
@@ -404,7 +404,7 @@ if __name__ == '__main__':
         raise e(f'Could not read parameter file. {args.parameter_file}')
 
     # Updating parameters:
-    parameters['sharedMetadata']['dataFolder'] = args.data_folder
+    parameters['sharedMetadata']['data_folder'] = args.data_folder
 
     # Passing all the required arguments:
     main(args.output_file, parameters, args.cell_passport_file)
