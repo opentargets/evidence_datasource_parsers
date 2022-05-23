@@ -178,31 +178,31 @@ class ParseHypotheses:
     StructField("name", StringType(), False),
     StructField("description", StringType(), False)
 ]))
-def get_biomarker(columnName, biomarker):
+def get_biomarker(column_name, biomarker):
     '''This function returns with a struct with the biomarker name and description'''
 
     # If the biomarker has a direct mapping:
-    if 'direct_mapping' in BIOMARKERMAPS[columnName]:
+    if 'direct_mapping' in BIOMARKERMAPS[column_name]:
         try:
-            return BIOMARKERMAPS[columnName]['direct_mapping'][biomarker]
+            return BIOMARKERMAPS[column_name]['direct_mapping'][biomarker]
         except KeyError:
-            logging.warning(f'Could not find direct mapping for {columnName}:{biomarker}')
+            logging.warning(f'Could not find direct mapping for {column_name}:{biomarker}')
             return None
 
     # If the value needs to be parsed:
     if biomarker == 'wt':
         return {
-            'name': BIOMARKERMAPS[columnName]['name'] + biomarker,
-            'description': BIOMARKERMAPS[columnName]['description'] + 'wild type'
+            'name': BIOMARKERMAPS[column_name]['name'] + biomarker,
+            'description': BIOMARKERMAPS[column_name]['description'] + 'wild type'
         }
     elif biomarker == 'mut':
         return {
-            'name': BIOMARKERMAPS[columnName]['name'] + biomarker,
-            'description': BIOMARKERMAPS[columnName]['description'] + 'mutant'
+            'name': BIOMARKERMAPS[column_name]['name'] + biomarker,
+            'description': BIOMARKERMAPS[column_name]['description'] + 'mutant'
         }
     else:
         logging.warning(
-            f'Could not find direct mapping for {columnName}: {biomarker}')
+            f'Could not find direct mapping for {column_name}: {biomarker}')
         return None
 
 
@@ -244,7 +244,7 @@ def get_cell_passport_data(spark: SparkSession, cell_passport_file: str) -> Data
     )
 
 
-def parse_experiment(spark: SparkSession, parameters: dict, cellPassportDf: DataFrame, dataFolder: str) -> DataFrame:
+def parse_experiment(spark: SparkSession, parameters: dict, cellPassportDf: DataFrame, data_folder: str) -> DataFrame:
     """
     Parse experiment data from a file.
 
@@ -252,14 +252,14 @@ def parse_experiment(spark: SparkSession, parameters: dict, cellPassportDf: Data
         spark: Spark session.
         parameters: Dictionary of experimental parameters.
         cellPassportDf: Dataframe of cell passport data.
-        dataFolder: Location of the input data files.
+        data_folder: Location of the input data files.
 
     Returns:
         A dataframe of experiment data.
     """
 
     # Extracting parameters:
-    experimentFile = f"{dataFolder}/{parameters['experimentData']}"
+    experiment_file = f"{data_folder}/{parameters['experimentData']}"
     contrast = parameters['contrast']
     studyOverview = parameters['studyOverview']
     projectId = parameters['projectId']
@@ -267,16 +267,15 @@ def parse_experiment(spark: SparkSession, parameters: dict, cellPassportDf: Data
     diseaseFromSource = parameters['diseaseFromSource']
     diseaseFromSourceMapId = parameters['diseaseFromSourceMappedId']
     confidenceCutoff = parameters['confidenceCutoff']
-    cellLineFile = f"{dataFolder}/{parameters['cellLineFile']}"
+    cell_line_file = f"{data_folder}/{parameters['cellLineFile']}"
 
     # The hypothesis is defined by two datasets:
-    hypotheisExpectedFile = f"{dataFolder}/{parameters['hypothesisFileExpected']}"
-    hypotheisObservedFile = f"{dataFolder}/{parameters['hypothesisFileObserved']}"
-    print(cellLineFile)
-    # Cell line data:
+    hypothesis_expected_file = f"{data_folder}/{parameters['hypothesisFileExpected']}"
+    hypothesis_observed_file = f"{data_folder}/{parameters['hypothesisFileObserved']}"
+
     # Reading cell metadata from validation lab:
     validation_lab_cell_lines = (
-        spark.read.csv(cellLineFile, sep='\t', header=True)
+        spark.read.csv(cell_line_file, sep='\t', header=True)
 
         # Renaming columns:
         .withColumnRenamed('cell_line', 'name')
@@ -339,19 +338,19 @@ def parse_experiment(spark: SparkSession, parameters: dict, cellPassportDf: Data
 
     # Reading and processing hypothesis data:
     hypothesis_generator = ParseHypotheses(spark)
-    validationHypotheses_df = hypothesis_generator.parse_hypotheses(
-        expectedFile=hypotheisExpectedFile, observedFile=hypotheisObservedFile)
+    validation_hypotheses_df = hypothesis_generator.parse_hypotheses(
+        expectedFile=hypothesis_expected_file, observedFile=hypothesis_observed_file)
 
     # Reading experiment data from validation lab:
     evidence = (
         # Reading evidence:
-        spark.read.csv(experimentFile, sep='\t', header=True)
+        spark.read.csv(experiment_file, sep='\t', header=True)
 
         # Genes need to be uppercase:
         .withColumn('gene', upper(col('gene')))
 
         # Joining hypothesis data:
-        .join(validationHypotheses_df, on='gene', how='left')
+        .join(validation_hypotheses_df, on='gene', how='left')
 
         # Rename existing columns need to be updated:
         .withColumnRenamed('gene', 'targetFromSourceId')
@@ -403,16 +402,16 @@ def parse_experiment(spark: SparkSession, parameters: dict, cellPassportDf: Data
     return evidence
 
 
-def main(configFile: str, outputFile: str, cellPassportFile: str, dataFolder: str) -> None:
+def main(config_file: str, output_file: str, cell_passport_file: str, data_folder: str) -> None:
 
     # Initialize spark session
     spark = initialize_sparksession()
 
     # Parse experimental parameters:
-    parameters = parse_experimental_parameters(configFile)
+    parameters = parse_experimental_parameters(config_file)
 
     # Opening and parsing the cell passport data from Sanger:
-    cell_passport_df = get_cell_passport_data(spark, cellPassportFile)
+    cell_passport_df = get_cell_passport_data(spark, cell_passport_file)
 
     logging.info(
         f'Cell passport dataframe has {cell_passport_df.count()} rows.')
@@ -422,7 +421,7 @@ def main(configFile: str, outputFile: str, cellPassportFile: str, dataFolder: st
     # Create evidence for all experiments:
     evidence_dfs = []
     for experiment in parameters['experiments']:
-        evidence_dfs.append(parse_experiment(spark, experiment, cell_passport_df, dataFolder))
+        evidence_dfs.append(parse_experiment(spark, experiment, cell_passport_df, data_folder))
 
     # combine all evidence dataframes into one:
     combined_evidence_df = reduce(lambda df1, df2: df1.union(df2), evidence_dfs)
@@ -434,7 +433,7 @@ def main(configFile: str, outputFile: str, cellPassportFile: str, dataFolder: st
     annotated_evidence_df = reduce(lambda df, value: df.withColumn(*value), shared_annotation_map, combined_evidence_df)
 
     # Save the combined evidence dataframe:
-    write_evidence_strings(annotated_evidence_df, outputFile)
+    write_evidence_strings(annotated_evidence_df, output_file)
 
 
 if __name__ == '__main__':
