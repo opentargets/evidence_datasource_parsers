@@ -4,7 +4,6 @@
 import argparse
 import json
 import logging
-import requests
 import os
 import sys
 from functools import reduce
@@ -18,6 +17,21 @@ from pyspark.sql.dataframe import DataFrame
 from common.evidence import initialize_sparksession, write_evidence_strings, GenerateDiseaseCellLines
 
 class EncoreEvidenceGenerator:
+    """This parser generates disease/target evidence based on datafiles submitted by the Encore team.
+
+    Input for the parser:
+        - JSON configuration describing the experiments.
+
+    For each experiment the following input files are expected:
+        - lfc_file: log fold change values for every gene pairs, for every experiment.
+        - bliss_file: the analysed cooperative effect for each gene paris calculated by the BLISS analysis.
+        - gemini_file: the analysed cooperative effect for each gene paris calculated by the Gemini analysis.
+
+    The parser joins the lfc data with the cooperativity measurements by gene pairs and cell line.
+    Apply filter on gene pairs:
+        - only extract gene pairs with significant log fold change.
+        - only extract gene pairs with significant cooperative effect.
+    """
     def __init__(self, spark: SparkSession, cell_passport_df: DataFrame, shared_parameters: dict) -> None:
         self.spark = spark
         self.cell_passport_df = cell_passport_df
@@ -64,7 +78,17 @@ class EncoreEvidenceGenerator:
         return parsed
 
     def get_lfc_data(self, lfc_file: str) -> DataFrame:
-        """Reading log fold change file and generating a dataframe."""
+        """Reading log fold change file and generating a dataframe.
+
+        The table has results from CRISPR/Cas9 experiments: the p-value, false discovery rate (fdr)
+        and the log fold-change file describes the observed survival of the cells.
+
+        Each row is a gene pair, columns contain results from the measurements. Column names contain
+        information on the tested cell line (SIDM) and ocassionally the replicate (CSID) identifiers.
+
+        This really wide table is stacked to get only three numeric columns (p-value, fold-change and FDR),
+        plus string column with cell line.
+        """
 
         # Fixed statistical field names:
         stats_fields = ['p-value', 'fdr', 'lfc']
@@ -107,6 +131,10 @@ class EncoreEvidenceGenerator:
         )
 
     def get_bliss_data(self, bliss_file: str) -> DataFrame:
+        """Reading the BLISS cooperative effect file and generating a dataframe.
+
+        This function is still being developed, as the format is likely subject to change.
+        """
         # Fixed statistical field names:
         stats_fields = ['zscore', 'pval']
 
@@ -144,6 +172,11 @@ class EncoreEvidenceGenerator:
         )
 
     def get_gemini_data(self, gemini_file: str) -> DataFrame:
+        """Parsing cooperative effects calculated by gemini method
+
+        The structure of the file similar to the lfc file, the process follows a similar fashion,
+        except it slightly different. Different enough to get a separate function.
+        """
 
         # Fixed statistical field names:
         stats_fields = ['score', 'pval', 'FDR']
@@ -166,7 +199,7 @@ class EncoreEvidenceGenerator:
         else:
             raise ValueError(f'No Gene_Pair column in Gemini data: {",".join(gemini_df.columns)}')
 
-        # We check if there are all columns from all cell lines:
+        # We check if all stats columns available for all cell lines (this coming from a data joing bug at encore):
         missing_columns = [f'{cell}_{stat}' for cell in cell_lines for stat in stats_fields if f'{cell}_{stat}' not in gemini_df.columns]
         cells_to_drop = set(['_'.join(x.split('_')[:-1]) for x in missing_columns])
 
@@ -234,7 +267,7 @@ class EncoreEvidenceGenerator:
         dataset = parameters["dataset"]
         log_fold_change_file = parameters["logFoldChangeFile"]
         gemini_file = parameters["geminiFile"]
-        blissFile = parameters["blissFile"]
+        # blissFile = parameters["blissFile"] # <= not used
 
         # Testing if experiment needs to be skipped:
         if parameters['skipStudy'] is True:
@@ -265,7 +298,7 @@ class EncoreEvidenceGenerator:
         logging.info(f'Number of gene paris in the gemini dataset: {gemini_df.select("id").count()} rows')
         logging.info(f'Number cell lines in the gemini dataset: {gemini_df.select("cellLineName").distinct().count()} rows')
 
-        # Reading bliss data: <= not for now.
+        """WARNING: Based on the communication with the encore team, the BLISS dataset is currently considered unreliable."""
         # bliss_file = f'{self.data_folder}/{blissFile}'
         # bliss_df = self.get_bliss_data(bliss_file)
 
