@@ -344,7 +344,7 @@ class EncoreEvidenceGenerator:
             .withColumn('datatypeId', lit('ot_partner'))
             .withColumn('datasourceId', lit('encore'))
             .withColumn('projectId', lit('OTAR2062'))
-            .withColumn('projectDescription', lit('Encore project'))  ### TODO - fix this!
+            .withColumn('projectDescription', lit('Encore project'))
             .withColumn('geneInteractionType', lit('cooperative'))
 
             # Adding disease information:
