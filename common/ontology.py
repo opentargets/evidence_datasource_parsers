@@ -1,10 +1,13 @@
 import logging
+import os
 import random
 import time
 
+from numpy import nan
 from ontoma.interface import OnToma
 from pandarallel import pandarallel
 from pyspark.sql.functions import col, when
+from pyspark.sql.types import StringType, StructField, StructType
 
 ONTOMA_MAX_ATTEMPTS = 3
 pandarallel.initialize()
@@ -37,7 +40,7 @@ def _ontoma_udf(row, ontoma_instance):
     return [m.id_ot_schema for m in mappings]
 
 
-def add_efo_mapping(evidence_strings, spark_instance, ontoma_cache_dir=None):
+def add_efo_mapping(evidence_strings, spark_instance, ontoma_cache_dir=None, efo_version=None):
     """Given evidence strings with diseaseFromSource and diseaseFromSourceId fields, try to populate EFO mapping
     field diseaseFromSourceMappedId. In case there are multiple matches, the evidence strings will be exploded
     accordingly.
@@ -45,33 +48,47 @@ def add_efo_mapping(evidence_strings, spark_instance, ontoma_cache_dir=None):
     Currently, both source columns (diseaseFromSource and diseaseFromSourceId) need to be present in the original
     schema, although they do not have to be populated for all rows."""
     logging.info('Collect all distinct (disease name, disease ID) pairs.')
-    disease_info_to_map = (
-        evidence_strings
-        .select('diseaseFromSource', 'diseaseFromSourceId')
-        .distinct()
-        .toPandas()
-    )
+    disease_info_to_map = evidence_strings.select('diseaseFromSource', 'diseaseFromSourceId').distinct().toPandas()
 
-    logging.info('Initialise OnToma instance')
-    ontoma_instance = OnToma(cache_dir=ontoma_cache_dir)
+    # If no EFO version is specified:
+    if not efo_version:
+        # try to extract from environment variable.
+        if "EFO_VERSION" in os.environ:
+            efo_version = os.environ["EFO_VERSION"]
+        # Set default version to latest.
+        else:
+            logging.warning('No EFO version specified. Using latest version.')
+            efo_version = 'latest'
+
+    logging.info(f'Initialise OnToma instance. Using EFO version {efo_version}')
+    ontoma_instance = OnToma(cache_dir=ontoma_cache_dir, efo_release=efo_version)
 
     logging.info('Map disease information to EFO.')
     disease_info_to_map['diseaseFromSourceMappedId'] = disease_info_to_map.parallel_apply(
         _ontoma_udf, args=(ontoma_instance,), axis=1
     )
-    disease_info_to_map = disease_info_to_map.explode('diseaseFromSourceMappedId')
+    disease_info_to_map = (
+        disease_info_to_map.explode('diseaseFromSourceMappedId')
+        # Cast all null values to python None to avoid errors in Spark's DF
+        .fillna(nan).replace([nan], [None])
+    )
 
     logging.info('Join the resulting information into the evidence strings.')
-    disease_info_df = (
-        spark_instance
-        .createDataFrame(disease_info_to_map.astype(str))
-        .withColumn(
-            'diseaseFromSourceMappedId',
-            when(col('diseaseFromSourceMappedId') != 'nan', col('diseaseFromSourceMappedId'))
-        )
+    schema = StructType(
+        [
+            StructField("diseaseFromSource_right", StringType(), True),
+            StructField("diseaseFromSourceId_right", StringType(), True),
+            StructField("diseaseFromSourceMappedId", StringType(), True),
+        ]
     )
-    return evidence_strings.join(
-        disease_info_df,
-        on=['diseaseFromSource', 'diseaseFromSourceId'],
-        how='left'
+    disease_info_df = spark_instance.createDataFrame(disease_info_to_map, schema=schema).withColumn(
+        'diseaseFromSourceMappedId', when(col('diseaseFromSourceMappedId') != 'nan', col('diseaseFromSourceMappedId'))
+    )
+    # WARNING: Spark's join operator is not null safe by default and most of the times, `diseaseFromSourceId` will be null.
+    # `eqNullSafe` is a special null safe equality operator that is used to join the two dataframes.
+    join_cond = (evidence_strings.diseaseFromSource == disease_info_df.diseaseFromSource_right) & (
+        evidence_strings.diseaseFromSourceId.eqNullSafe(disease_info_df.diseaseFromSourceId_right)
+    )
+    return evidence_strings.join(disease_info_df, on=join_cond, how='left').drop(
+        'diseaseFromSource_right', 'diseaseFromSourceId_right'
     )

@@ -21,8 +21,11 @@ def write_evidence_strings(evidence, output_file):
     """Exports the table to a compressed JSON file containing the evidence strings."""
     with tempfile.TemporaryDirectory() as tmp_dir_name:
         (
-            evidence.coalesce(1).write.format('json').mode('overwrite')
-            .option('compression', 'org.apache.hadoop.io.compress.GzipCodec').save(tmp_dir_name)
+            evidence.coalesce(1)
+            .write.format('json')
+            .mode('overwrite')
+            .option('compression', 'org.apache.hadoop.io.compress.GzipCodec')
+            .save(tmp_dir_name)
         )
         json_chunks = [f for f in os.listdir(tmp_dir_name) if f.endswith('.json.gz')]
         assert len(json_chunks) == 1, f'Expected one JSON file, but found {len(json_chunks)}.'
@@ -40,10 +43,10 @@ def initialize_sparksession() -> SparkSession:
         .set('spark.driver.maxResultSize', '0')
         .set('spark.debug.maxToStringFields', '2000')
         .set('spark.sql.execution.arrow.maxRecordsPerBatch', '500000')
+        .set('spark.ui.showConsoleProgress', 'false')
     )
     spark = (
-        SparkSession.builder
-        .config(conf=spark_conf)
+        SparkSession.builder.config(conf=spark_conf)
         .master('local[*]')
         .config("spark.driver.bindAddress", "127.0.0.1")
         .getOrCreate()

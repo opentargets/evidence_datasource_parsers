@@ -101,7 +101,7 @@ def main(desc_file, evid_file, cell_file, out_file):
         )
 
         # Some of the target identifier are not Ensembl Gene id - replace them:
-        .replace(to_replace=CRISPR_SYMBOL_MAPPING, subset=['target_id'])
+        .replace(to_replace=CRISPR_SYMBOL_MAPPING, subset=['targetFromSourceId'])
 
         # Merging with descriptions:
         .join(merged_annotation, on='efo_id', how='outer')

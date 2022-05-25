@@ -7,7 +7,7 @@ import sys
 
 from pyspark.conf import SparkConf
 from pyspark.sql import DataFrame, SparkSession
-from pyspark.sql.functions import array, col, concat, lit, split, udf, when
+from pyspark.sql.functions import array, col, concat, lit, split, udf, when, regexp_replace
 from pyspark.sql.types import IntegerType, StringType, StructType, TimestampType
 
 from common.ontology import add_efo_mapping
@@ -25,7 +25,7 @@ G2P_mutationCsq2functionalCsq = {
 
 
 def main(
-    dd_file: str, eye_file: str, skin_file: str, cancer_file: str, output_file: str, cache_dir: str, local: bool = False
+    dd_file: str, eye_file: str, skin_file: str, cancer_file: str, cardiac_file: str, output_file: str, cache_dir: str, local: bool = False
 ) -> None:
 
     # Initialize spark session
@@ -49,7 +49,7 @@ def main(
 
     # Read and process G2P's tables into evidence strings
     gene2phenotype_df = read_input_file(
-        dd_file, eye_file, skin_file, cancer_file)
+        dd_file, eye_file, skin_file, cancer_file, cardiac_file)
     logging.info('Gene2Phenotype panels have been imported. Processing evidence strings.')
 
     evidence_df = process_gene2phenotype(gene2phenotype_df)
@@ -62,7 +62,7 @@ def main(
     logging.info(f'{evidence_df.count()} evidence strings have been saved to {output_file}')
 
 def read_input_file(
-    dd_file: str, eye_file: str, skin_file: str, cancer_file: str
+    dd_file: str, eye_file: str, skin_file: str, cancer_file: str, cardiac_file: str
 ) -> DataFrame:
     '''
     Reads G2P's panel CSV files into a Spark DataFrame forcing the schema
@@ -86,11 +86,15 @@ def read_input_file(
         .add('gene disease pair entry date', TimestampType())
         .add('cross cutting modifier', StringType())
         .add('mutation consequence flag', StringType())
+        .add('confidence value flag', StringType())
+        .add('comments', StringType())
+        .add('variant consequence', StringType())
+        .add('disease ontology', StringType())
     )
 
     return (
         spark.read.csv(
-            [dd_file, eye_file, skin_file, cancer_file], schema=gene2phenotype_schema, enforceSchema=True, header=True
+            [dd_file, eye_file, skin_file, cancer_file, cardiac_file], schema=gene2phenotype_schema, enforceSchema=True, header=True
         )
     )
 
@@ -121,14 +125,23 @@ def process_gene2phenotype(gene2phenotype_df: DataFrame) -> DataFrame:
             when(
                 col('allelic requirement').isNotNull(),
                 array(col('allelic requirement'))
-            ))
-
-        # Process diseaseFromSource
-        .withColumn(
-            'diseaseFromSourceId',
-            when(~col('disease mim').contains('No disease mim'), col('disease mim'))
+            )
         )
-        .withColumn('diseaseFromSourceId', concat(lit('OMIM:'), col('diseaseFromSourceId')))
+
+        # Process diseaseFromSourceId:
+        .withColumn(
+            'diseaseFromSourceId', 
+            when(
+                col('disease ontology').isNotNull(), col('disease ontology')
+            )
+            .when(
+                (~col('disease mim').contains('No disease mim')) & (col('disease mim').isNotNull()), concat(lit('OMIM:'), col('disease mim'))
+            )
+            .otherwise(lit(None))
+        )
+
+        # Cleaning up disease names:
+        .withColumn('diseaseFromSource', regexp_replace(col('diseaseFromSource'), r'.+-related ', ''))
 
         # Map functional consequences:
         .withColumn("variantFunctionalConsequenceId", translate(G2P_mutationCsq2functionalCsq)("mutation consequence"))
@@ -143,7 +156,6 @@ def process_gene2phenotype(gene2phenotype_df: DataFrame) -> DataFrame:
             'diseaseFromSourceId', 'confidence', 'studyId', 'literature',
             'allelicRequirements', 'variantFunctionalConsequenceId'
         )
-
     )
 
     return evidence_df
@@ -174,6 +186,9 @@ if __name__ == "__main__":
     parser.add_argument('-c', '--cancer_panel',
                         help='Cancer panel file downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads',
                         required=True, type=str)
+    parser.add_argument('-cr', '--cardiac_panel',
+                        help='Cardiac panel file downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads',
+                        required=True, type=str)
     parser.add_argument('-o', '--output_file', help='Absolute path of the gzipped, JSON evidence file.', required=True, type=str)
     parser.add_argument('-l', '--log_file', help='Filename to store the parser logs.', type=str)
     parser.add_argument('--cache_dir', required=False, help='Directory to store the OnToma cache files in.')
@@ -189,6 +204,7 @@ if __name__ == "__main__":
     eye_file = args.eye_panel
     skin_file = args.skin_panel
     cancer_file = args.cancer_panel
+    cardiac_file = args.cardiac_panel
     output_file = args.output_file
     log_file = args.log_file
     cache_dir = args.cache_dir
@@ -210,6 +226,7 @@ if __name__ == "__main__":
     logging.info(f'Eye panel file: {eye_file}')
     logging.info(f'Skin panel file: {skin_file}')
     logging.info(f'Cancer panel file: {cancer_file}')
+    logging.info(f'Cardiac panel file: {cardiac_file}')
 
     # Calling main:
-    main(dd_file, eye_file, skin_file, cancer_file, output_file, cache_dir, local)
+    main(dd_file, eye_file, skin_file, cancer_file, cardiac_file, output_file, cache_dir, local)

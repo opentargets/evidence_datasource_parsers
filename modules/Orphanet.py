@@ -7,62 +7,32 @@ import logging
 import sys
 
 import xml.etree.ElementTree as ET
-from pyspark.conf import SparkConf
-from pyspark.sql import DataFrame, Row, SparkSession
+from pyspark.sql import DataFrame, Row
 from pyspark.sql.functions import array_distinct, col, create_map, lit, split
 
 from common.ontology import add_efo_mapping
-from common.evidence import write_evidence_strings
+from common.evidence import initialize_sparksession, write_evidence_strings
 
 # The rest of the types are assigned to -> germline for allele origins
 EXCLUDED_ASSOCIATIONTYPES = [
-    "Major susceptibility factor in",
-    "Part of a fusion gene in",
-    "Candidate gene tested in",
-    "Role in the phenotype of",
-    "Biomarker tested in",
-    "Disease-causing somatic mutation(s) in"
+    'Major susceptibility factor in',
+    'Part of a fusion gene in',
+    'Candidate gene tested in',
+    'Role in the phenotype of',
+    'Biomarker tested in',
+    'Disease-causing somatic mutation(s) in',
 ]
 
 # Assigning variantFunctionalConsequenceId:
 CONSEQUENCE_MAP = {
-    "Disease-causing germline mutation(s) (loss of function) in": "SO_0002054",
-    "Disease-causing germline mutation(s) in": None,
-    "Modifying germline mutation in": None,
-    "Disease-causing germline mutation(s) (gain of function) in": "SO_0002053"
+    'Disease-causing germline mutation(s) (loss of function) in': 'SO_0002054',
+    'Disease-causing germline mutation(s) in': None,
+    'Modifying germline mutation in': None,
+    'Disease-causing germline mutation(s) (gain of function) in': 'SO_0002053',
 }
 
 
-def main(input_file: str, output_file: str, cache_dir: str, local: bool = False) -> None:
-
-    # Initialize spark session
-    if local:
-        sparkConf = (
-            SparkConf()
-            .set('spark.driver.memory', '15g')
-            .set('spark.executor.memory', '15g')
-            .set('spark.driver.maxResultSize', '0')
-            .set('spark.debug.maxToStringFields', '2000')
-            .set('spark.sql.execution.arrow.maxRecordsPerBatch', '500000')
-        )
-        spark = (
-            SparkSession.builder
-            .config(conf=sparkConf)
-            .master('local[*]')
-            .getOrCreate()
-        )
-    else:
-        sparkConf = (
-            SparkConf()
-            .set('spark.driver.maxResultSize', '0')
-            .set('spark.debug.maxToStringFields', '2000')
-            .set('spark.sql.execution.arrow.maxRecordsPerBatch', '500000')
-        )
-        spark = (
-            SparkSession.builder
-            .config(conf=sparkConf)
-            .getOrCreate()
-        )
+def main(input_file: str, output_file: str, cache_dir: str) -> None:
 
     # Read and process Orphanet's XML file into evidence strings
 
@@ -108,9 +78,9 @@ def parse_orphanet_xml(orphanet_file: str, spark_instance) -> DataFrame:
 
         # Extracting disease information:
         parsed_disorder = {
-            "diseaseFromSource": disorder.find('Name').text,
-            "diseaseFromSourceId": 'Orphanet_' + disorder.find('OrphaCode').text,
-            "type": disorder.find('DisorderType/Name').text,
+            'diseaseFromSource': disorder.find('Name').text,
+            'diseaseFromSourceId': 'Orphanet_' + disorder.find('OrphaCode').text,
+            'type': disorder.find('DisorderType/Name').text,
         }
 
         # One disease might be mapped to multiple genes:
@@ -122,7 +92,9 @@ def parse_orphanet_xml(orphanet_file: str, spark_instance) -> DataFrame:
             # Not all gene/disease association is backed up by publication:
             try:
                 evidence['literature'] = [
-                    pmid.replace('[PMID]', '').rstrip() for pmid in association.find('SourceOfValidation').text.split('_') if '[PMID]' in pmid
+                    pmid.replace('[PMID]', '').rstrip()
+                    for pmid in association.find('SourceOfValidation').text.split('_')
+                    if '[PMID]' in pmid
                 ]
             except AttributeError:
                 evidence['literature'] = None
@@ -136,7 +108,9 @@ def parse_orphanet_xml(orphanet_file: str, spark_instance) -> DataFrame:
 
             # Extracting ensembl gene id from cross references:
             ensembl_gene_id = [
-                xref.find('Reference').text for xref in gene.find('ExternalReferenceList') if 'ENSG' in xref.find('Reference').text
+                xref.find('Reference').text
+                for xref in gene.find('ExternalReferenceList')
+                if 'ENSG' in xref.find('Reference').text
             ]
             evidence['targetFromSourceId'] = ensembl_gene_id[0] if len(ensembl_gene_id) > 0 else None
 
@@ -158,23 +132,29 @@ def process_orphanet(orphanet_df: DataFrame) -> DataFrame:
     so_mapping_expr = create_map([lit(x) for x in chain(*CONSEQUENCE_MAP.items())])
 
     evidence_df = (
-        orphanet_df
-        .filter(
-            ~col('associationType').isin(EXCLUDED_ASSOCIATIONTYPES)
-        )
+        orphanet_df.filter(~col('associationType').isin(EXCLUDED_ASSOCIATIONTYPES))
         .filter(~col('targetFromSourceId').isNull())
         .withColumn('dataSourceId', lit('orphanet'))
         .withColumn('datatypeId', lit('genetic_association'))
-        .withColumn('alleleOrigins', split(lit('germline'), "_"))
+        .withColumn('alleleOrigins', split(lit('germline'), '_'))
         .withColumn('literature', array_distinct(col('literature')))
-        .withColumn('variantFunctionalConsequenceId', so_mapping_expr.getItem(col('associationType')))
+        .withColumn(
+            'variantFunctionalConsequenceId',
+            so_mapping_expr.getItem(col('associationType')),
+        )
         .drop('associationType', 'type')
-
         # Select the evidence relevant fields
         .select(
-            'datasourceId', 'datatypeId', 'alleleOrigins', 'confidence', 'diseaseFromSource',
-            'diseaseFromSourceId', 'literature', 'targetFromSource',
-            'targetFromSourceId'
+            'datasourceId',
+            'datatypeId',
+            'alleleOrigins',
+            'confidence',
+            'diseaseFromSource',
+            'diseaseFromSourceId',
+            'literature',
+            'targetFromSource',
+            'targetFromSourceId',
+            'variantFunctionalConsequenceId',
         )
         .persist()
     )
@@ -184,15 +164,32 @@ def process_orphanet(orphanet_df: DataFrame) -> DataFrame:
 
 if __name__ == '__main__':
 
-    parser = argparse.ArgumentParser(description=('Parse Orphanet gene-disease annotation downloaded from '
-                                                  'http://www.orphadata.org/data/xml/en_product6.xml'))
-    parser.add_argument('--input_file', help='Xml file containing target/disease associations.', type=str)
-    parser.add_argument('--output_file', help='Absolute path of the gzipped, JSON evidence file.', type=str)
-    parser.add_argument('--logFile', help='Destination of the logs generated by this script.', type=str, required=False)
-    parser.add_argument('--cache_dir', required=False, help='Directory to store the OnToma cache files in.')
+    parser = argparse.ArgumentParser(
+        description=(
+            'Parse Orphanet gene-disease annotation downloaded from '
+            'http://www.orphadata.org/data/xml/en_product6.xml'
+        )
+    )
     parser.add_argument(
-        '--local', action='store_true', required=False, default=False,
-        help='Flag to indicate if the script is executed locally or on the cluster'
+        '--input_file',
+        help='Xml file containing target/disease associations.',
+        type=str,
+    )
+    parser.add_argument(
+        '--output_file',
+        help='Absolute path of the gzipped, JSON evidence file.',
+        type=str,
+    )
+    parser.add_argument(
+        '--logFile',
+        help='Destination of the logs generated by this script.',
+        type=str,
+        required=False,
+    )
+    parser.add_argument(
+        '--cache_dir',
+        required=False,
+        help='Directory to store the OnToma cache files in.',
     )
 
     args = parser.parse_args()
@@ -201,7 +198,6 @@ if __name__ == '__main__':
     output_file = args.output_file
     log_file = args.logFile
     cache_dir = args.cache_dir
-    is_local = args.local
 
     # Initialize logging:
     logging.basicConfig(
@@ -209,9 +205,13 @@ if __name__ == '__main__':
         format='%(name)s - %(levelname)s - %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S',
     )
+
+    global spark
+    spark = initialize_sparksession()
+
     if log_file:
         logging.config.fileConfig(filename=log_file)
     else:
         logging.StreamHandler(sys.stderr)
 
-    main(input_file, output_file, cache_dir, is_local)
+    main(input_file, output_file, cache_dir)

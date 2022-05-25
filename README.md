@@ -16,7 +16,6 @@ By default, the generated evidence will be validated using the latest master sna
 # Set parameters.
 export INSTANCE_NAME=evidence-generation
 export INSTANCE_ZONE=europe-west1-d
-
 # Create the instance and SSH.
 gcloud compute instances create \
   ${INSTANCE_NAME} \
@@ -27,6 +26,7 @@ gcloud compute instances create \
   --scopes=https://www.googleapis.com/auth/cloud-platform \
   --create-disk=auto-delete=yes,boot=yes,device-name=${INSTANCE_NAME},image=projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20210927,mode=rw,size=2000,type=projects/open-targets-eu-dev/zones/europe-west1-d/diskTypes/pd-balanced
 gcloud compute ssh --zone ${INSTANCE_ZONE} ${INSTANCE_NAME}
+
 screen
 
 # Install the dependencies.
@@ -34,8 +34,10 @@ sudo apt update
 sudo apt install -y \
   openjdk-8-jdk-headless \
   snakemake
+
 wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh
-bash ~/miniconda.sh
+bash ~/miniconda.sh -b
+~/miniconda3/bin/conda init
 exec bash
 
 # Activate the environment.
@@ -45,10 +47,19 @@ conda env remove -n evidence_datasource_parsers_lock
 conda env create --file envs/environment-lock.yml
 conda activate evidence_datasource_parsers_lock
 export PYTHONPATH="$PYTHONPATH:$(pwd)"
-
-# Generate and upload the evidence.
-snakemake --cores all
 ```
+
+At this point, we are ready to run the Snakemake pipeline. The following options are available:
+* `snakemake --cores all`: Display help (the list of possible rules to be run) and do not run anything.
+* `snakemake --cores all --until local`: Generate all files, but do not upload them to Google Cloud Storage. The files generated in this way do not have prefixes, e.g. `cancer_biomarkers.json.gz`. This is done intentionally, so that the pipeline can be re-run the next day without having to re-generate all the files.
+  + It is also possible to locally run only a single rule by substituting its name instead of “local”.
+* `snakemake --cores all --until all`: Generate all files and then upload them to Google Cloud Storage.
+
+All individual parser rules are strictly local. The only rule which uploads files to Google Cloud Storage (all at once) is "all".
+
+Some additional parameters which can be useful for debugging:
+* `--keep-incomplete`: This will keep the output files of failed jobs. Must only be used with local runs. Note that Snakemake uses the presence of the output files to decide which jobs to run, so the incomplete files must be removed after investigation and before any re-runs of the workflow.
+* `--dry-run`: Do not run the workflow, and only show the list of jobs to be run.
 
 ## Processing Genetics Portal evidence
 Evidence generation for the Genetics Portal is not automated in the Snakefile. It can be done separately using the following commands. It is planned that this step will eventually become part of the Genetics Portal release pipeline.
@@ -115,12 +126,6 @@ The intOGen parser generates evidence strings from three files that need to be i
 - _intogen_cohorts.tsv_: It contains information about the analysed cohorts and it can be downloaded from the [intOGen website](https://www.intogen.org/download). In the current implementation, the total number of samples included in each cohort is used to calculate the percentage of samples that carry a relevant mutation in a driver gene.
 - _intogen_Compendium_Cancer_Genes.tsv_: It contains the genes that have been identified as _drivers_ in at least one cohort and information related to  the methods that yield significant results, the q-value and additional data about mutations. It can be downloaded from the same place as the cohorts file.
 
-### PheWAS catalog
-The PheWAS parser processes three files:
-- phewas-catalog-19-10-2018.csv: Main tsv file containing information from phenome-wide association studies. The file is located in the [PheWAS bucket](https://storage.googleapis.com/otar000-evidence_input/PheWAS/data_files/phewas-catalog-19-10-2018.csv).
-- phewas_w_consequences.csv: File containing PheWAS data enriched with data from the Genetics Portal on the variant and its functional consequence. This file is located in the [PheWAS bucket](https://storage.googleapis.com/otar000-evidence_input/PheWAS/data_files/phewas_w_consequences.csv).
-- phewascat.mappings.tsv: File containing the mappings between the phenotypes provided by PheWAS and its respective disease listed in EFO. This file is located in [our mappings repo](https://raw.githubusercontent.com/opentargets/mappings/master/phewascat.mappings.tsv).
-
 ### CRISPR
 The CRISPR parser processes three files available in the `resources` directory:
 - _crispr_evidence.tsv_: Main file that contains the prioritisation score as well as target, disease and publication information. It was adapted from supplementary table 6 in the [Behan et al. 2019](https://www.nature.com/articles/s41586-019-1103-9) paper.
@@ -141,24 +146,8 @@ The SLAPenrich parser processes two files:
 - `slapenrich_opentargets.tsv`: Main file that contains a systematic comparison of on somatic mutations from TCGA across 25 different cancer types and a collection of pathway gene sets from Reactome. This file can be downloaded [here](https://storage.googleapis.com/otar000-evidence_input/SLAPEnrich/data_file/slapenrich_opentargets-21-12-2017.tsv) from the _otar000-evidence_input_ bucket.
 - `cancer2EFO_mappings.tsv`: File containing the mappings between the acronym of the type of cancer and its respective disease listed in EFO. This file can be found in the `resources` directory.
 
-### PhenoDigm
+### IMPC
 
 Generates the mouse model target-disease evidence by querying the IMPC SOLR API.
 
 The base of the evidence is the `disease_model_summary` table, which is unique on the combination of (`model_id`, `disease_id`). When target information is added, an original row may explode into multiple evidence strings. As a result, the final output is unique on the combination of (`biologicalModelId`, `targetFromSourceId`, `targetInModelId`, `diseaseFromSourceId`).
-
-To set up the environment and run:
-```sh
-python3 -m venv phenodigm_venv
-source phenodigm_venv/bin/activate
-pip3 install -r requirements.txt
-python3 modules/PhenoDigm.py --cache-dir phenodigm_cache --output phenodigm.json.gz
-```
-
-Additional optional arguments are available. Run `python3 modules/PhenoDigm.py -h` for details.
-
-Approximate resource requirements and benchmarks:
-* Total wall clock running time: 6 minutes on AMD Ryzen 5 3600 (6 cores / 12 threads).
-  - Fetch the data from SOLR: 4 minutes.
-  - Ingest the data and generate the evidence strings: 2 minutes.
-* Peak RAM usage: 1.5 GB.
