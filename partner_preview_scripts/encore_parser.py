@@ -262,12 +262,12 @@ class EncoreEvidenceGenerator:
             - Adding additional columns + finalizing evidence model
         """
 
-        disease_from_source = parameters["diseaseFromSource"]
-        disease_from_source_mapped_id = parameters["diseaseFromSourceMappedId"]
-        dataset = parameters["dataset"]
-        log_fold_change_file = parameters["logFoldChangeFile"]
-        gemini_file = parameters["geminiFile"]
-        # blissFile = parameters["blissFile"] # <= not used
+        disease_from_source = parameters['diseaseFromSource']
+        disease_from_source_mapped_id = parameters['diseaseFromSourceMappedId']
+        dataset = parameters['dataset']
+        log_fold_change_file = parameters['logFoldChangeFile']
+        gemini_file = parameters['geminiFile']
+        # blissFile = parameters['blissFile'] # <= not used
 
         # Testing if experiment needs to be skipped:
         if parameters['skipStudy'] is True:
@@ -278,12 +278,12 @@ class EncoreEvidenceGenerator:
 
         # if no log fold change file is provided, we will not generate any evidence.
         if log_fold_change_file is None:
-            logging.warning(f"No log fold change file provided for {dataset}.")
+            logging.warning(f'No log fold change file provided for {dataset}.')
             return None
 
         # if no gemini file is provided, we will not generate any evidence.
         if gemini_file is None:
-            logging.warning(f"No gemini file provided for {dataset}.")
+            logging.warning(f'No gemini file provided for {dataset}.')
             return None
 
         # Reading lfc data:
