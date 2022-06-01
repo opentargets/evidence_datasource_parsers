@@ -2,14 +2,14 @@ pathway	target	reactomeId	description
 Androgen	AR	R-HSA-8940973	RUNX2 regulates osteoblast differentiation
 EGFR	EGFR	R-HSA-8856828	Clathrin-mediated endocytosis
 Estrogen	ESR1	R-HSA-8939902	Regulation of RUNX2 expression and activity
-Hypoxia	HIF1A	R-HSA-123456	XXX Pathway desc to be updated
-JAK.STAT	JAK1, JAK2, STAT1, STAT2	R-HSA-6785807	Interleukin-4 and 13 signaling
-MAPK	PRKMK1, MAP2K2, RAF1	R-HSA-2559580	Oxidative Stress Induced Senescence
+Hypoxia	HIF1A	R-HSA-1234174	Cellular response to hypoxia
+JAK.STAT	JAK1, JAK2, STAT1, STAT2	R-HSA-877300	Interferon gamma signaling
+MAPK	PRKMK1, MAP2K2, RAF1	R-HSA-5674135	MAP2K and MAPK activation
 NFkB	NFKB1, TLR4, RELA	R-HSA-9020702	Interleukin-1 signaling
 PI3K	PIK3CA, PIK3CA	R-HSA-8853659	RET signaling
 TGFb	TGFBR1, TGFBR2	R-HSA-2173788	Down regulation of TGF-beta receptor signaling
 TNFa	TNFRSF1A	R-HSA-5357956	TNFR1-induced NFkappaB signaling pathway
-Trail	TNFSF10, BCL2, BCL2L1, BCL2L2, MCL1	R-HSA-123456	XXX Pathway desc to be updated
+Trail	TNFSF10, BCL2, BCL2L1, BCL2L2, MCL1	R-HSA-75158	TRAIL signalling
 VEGF	KDR	R-HSA-1234158	Regulation of gene expression by Hypoxia-inducible Factor
 WNT	WNT3A, GSK3A, GSK3B	R-HSA-381340	Transcriptional regulation of white adipocyte differentiation
-p53	TP53	R-HSA-2559580	Oxidative Stress Induced Senescence
+p53	TP53	R-HSA-69563	p53-Dependent G1 DNA damage Response
