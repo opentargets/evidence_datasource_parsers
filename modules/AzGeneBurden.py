@@ -78,7 +78,7 @@ def main(az_binary_data: str, az_quant_data: str, az_trait_mappings: str, spark_
     logging.warning(f"There are {az_phewas_df.filter(col('pValue') == 0.0).count()} evidence with a p-value of 0.0.")
     minimum_pvalue = az_phewas_df.filter(col('pValue') > 0.0).agg({'pValue': 'min'}).collect()[0]['min(pValue)']
     az_phewas_df = az_phewas_df.withColumn(
-        'pValue', when(col('pValue') == 0.0, minimum_pvalue).otherwise(col('pValue'))
+        'pValue', when(col('pValue') == 0.0, lit(minimum_pvalue)).otherwise(col('pValue'))
     )
 
     # Write output
