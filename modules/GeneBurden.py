@@ -10,7 +10,7 @@ from pyspark import SparkFiles
 from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.functions import array, col, concat, lit, when
-from pyspark.sql.types import StringType
+from pyspark.sql.types import DoubleType, IntegerType, StringType, StructField, StructType
 
 from common.evidence import initialize_sparksession, write_evidence_strings
 from RegeneronGeneBurden import main as process_regeneron_gene_burden
@@ -60,23 +60,50 @@ def process_gene_burden_curation(curated_data: str, spark_instance: SparkSession
         .withColumn('oddsRatioConfidenceIntervalUpper', when(col('oddsRatio').isNotNull(), col('ConfidenceIntervalUpper')))
         .withColumn('betaConfidenceIntervalLower', when(col('beta').isNotNull(), col('ConfidenceIntervalLower')))
         .withColumn('betaConfidenceIntervalUpper', when(col('beta').isNotNull(), col('ConfidenceIntervalUpper')))
+        .drop('ConfidenceIntervalLower', 'ConfidenceIntervalUpper')
 
-        # 2. Gene specific URLs are available for the SCHEMA, epilepsy and ASC consortia data
-        .withColumn(
-            'url',
-            when(col('projectId').isin(['SCHEMA consortium', 'Epi25 collaborative', 'Autism Sequencing Consortium']), concat(col('url'), lit('/gene/'), col('targetFromSourceId')))
-        )
+        # 2. Collect PMID and allelic requirements in an array
+        .withColumn('literature', array(col('literature')))
+        .withColumn('allelicRequirements', when(col('allelicRequirements').isNotNull(), array(col('allelicRequirements'))))
 
-        # 3. Collect PMID in an array
-        .withColumn('literature', array(col('literature').cast(StringType())))
+        # 3. Add hardcoded values and drop URLs - will be handled by the FE
+        .withColumn('datasourceId', lit('gene_burden'))
+        .withColumn('datatypeId', lit('genetic_association'))
     )
 
 def read_gene_burden_curation(curated_data: str, spark_instance: SparkSession) -> DataFrame:
     """Read manual gene burden curation from remote to a Spark DataFrame."""
     
+    schema = StructType(
+        [StructField('projectId', StringType(), True),
+        StructField('targetFromSource', StringType(), True),
+        StructField('targetFromSourceId', StringType(), True),
+        StructField('diseaseFromSource', StringType(), True),
+        StructField('diseaseFromSourceMappedId', StringType(), True),
+        StructField('resourceScore', DoubleType(), True),
+        StructField('pValueMantissa', DoubleType(), True),
+        StructField('pValueExponent', IntegerType(), True),
+        StructField('oddsRatio', DoubleType(), True),
+        StructField('ConfidenceIntervalLower', DoubleType(), True),
+        StructField('ConfidenceIntervalUpper', DoubleType(), True),
+        StructField('beta', DoubleType(), True),
+        StructField('ancestry', StringType(), True),
+        StructField('ancestryId', StringType(), True),
+        StructField('cohortId', StringType(), True),
+        StructField('studyId', StringType(), True),
+        StructField('studySampleSize', IntegerType(), True),
+        StructField('studyCases', IntegerType(), True),
+        StructField('studyCasesWithQualifyingVariants', IntegerType(), True),
+        StructField('allelicRequirements', StringType(), True),
+        StructField('statisticalMethod', StringType(), True),
+        StructField('statisticalMethodOverview', StringType(), True),
+        StructField('literature', StringType(), True),
+        StructField('url', StringType(), True),
+    ])
+
     spark.sparkContext.addFile(curated_data)
 
-    return spark_instance.read.csv(SparkFiles.get(curated_data.split('/')[-1]), sep='\t', header=True, inferSchema=True)
+    return spark_instance.read.csv(SparkFiles.get(curated_data.split('/')[-1]), sep='\t', header=True, schema=schema)
 
 def get_parser():
     """Get parser object for script GeneBurden.py."""
