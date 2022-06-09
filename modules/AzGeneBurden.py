@@ -121,6 +121,7 @@ def parse_az_phewas_evidence(az_phewas_df: DataFrame) -> DataFrame:
     to_keep = [
         'datasourceId',
         'datatypeId',
+        'allelicRequirements',
         'targetFromSourceId',
         'diseaseFromSource',
         'diseaseFromSourceMappedId',
@@ -189,6 +190,7 @@ def parse_az_phewas_evidence(az_phewas_df: DataFrame) -> DataFrame:
         .withColumnRenamed('CollapsingModel', 'statisticalMethod')
         .withColumn('statisticalMethodOverview', col('statisticalMethod'))
         .replace(to_replace=METHOD_DESC, subset=['statisticalMethodOverview'])
+        .withColumn('allelicRequirements', when(col('statisticalMethod') == 'rec', array(lit('recessive'))).otherwise(array(lit('dominant'))))
         .select(to_keep)
         .distinct()
     )
