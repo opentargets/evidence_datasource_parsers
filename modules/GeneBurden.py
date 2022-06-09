@@ -9,7 +9,7 @@ import sys
 from pyspark import SparkFiles
 from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
-from pyspark.sql.functions import array, col, concat, lit, when
+from pyspark.sql.functions import array, col, lit, when
 from pyspark.sql.types import DoubleType, IntegerType, StringType, StructField, StructType
 
 from common.evidence import initialize_sparksession, write_evidence_strings
@@ -71,9 +71,10 @@ def process_gene_burden_curation(curated_data: str, spark_instance: SparkSession
         .withColumn(
             'allelicRequirements', when(col('allelicRequirements').isNotNull(), array(col('allelicRequirements')))
         )
-        # 3. Add hardcoded values and drop URLs - will be handled by the FE
+        # 3. Add hardcoded values and drop URLs (will be handled by the FE) and HGNC symbols
         .withColumn('datasourceId', lit('gene_burden'))
         .withColumn('datatypeId', lit('genetic_association'))
+        .drop('url', 'targetFromSource')
     )
 
 
