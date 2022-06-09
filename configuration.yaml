@@ -29,6 +29,7 @@ GeneBurden:
   azTraitMappings: gs://otar000-evidence_input/GeneBurden/data_files/AZ_Traits.xlsx
   regeneronExwas: gs://otar000-evidence_input/GeneBurden/data_files/41586_2021_4103_MOESM5_ESM.xlsx
   gwasStudies: https://www.ebi.ac.uk/gwas/api/search/downloads/studies_alternative
+  curation: https://raw.githubusercontent.com/opentargets/curation/il-2604/gene_burden/curated_evidence.tsv
   inputBucket: gs://otar000-evidence_input/GeneBurden/data_files
   outputBucket: gs://otar000-evidence_input/GeneBurden/json
 Gene2Phenotype:
