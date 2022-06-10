@@ -294,7 +294,6 @@ rule orphanet:                # Process disease/target evidence from Orphanet.
           --input_file {input} \
           --output_file {output} \
           --cache_dir {params.cacheDir} \
-          --local
         opentargets_validator --schema {params.schema} {output}
         """
 
