@@ -8,12 +8,12 @@ GS = GSRemoteProvider()
 HTTP = HTTPRemoteProvider()
 
 # Settings.
-timeStamp = datetime.now().strftime("%Y-%m-%d")  # YYYY-MM-DD.
+timeStamp = datetime.now().strftime('%Y-%m-%d')  # YYYY-MM-DD.
 configfile: 'configuration.yaml'
 
 # Extracting EFO version from the configuration and export to the environment:
 EFO_version = config['global']['EFOVersion']
-os.environ["EFO_VERSION"] = EFO_version
+os.environ['EFO_VERSION'] = EFO_version
 
 # The master list of all files with their local and remote filenames to avoid code duplication. Only the files specified
 # in this list will be generated and uploaded by the "all" and "local" rules.
@@ -82,11 +82,11 @@ rule cancerBiomarkers:        # Process the Cancers Biomarkers database from Can
     output:
         'cancer_biomarkers.json.gz'
     log:
-        'log/cancerBiomarkers.log'
+        'log/cancer_biomarkers.log'
     shell:
         """
         # In this and the following rules, the exec call redirects the output of all subsequent commands (both STDOUT
-        # and STDERR) to the specified log file. 
+        # and STDERR) to the specified log file.
         exec &> {log}
         python modules/cancerBiomarkers.py \
           --biomarkers_table {input.biomarkers_table} \
@@ -182,8 +182,7 @@ rule epmc:                    # Process target/disease evidence strings from ePM
         opentargets_validator --schema {params.schema} {output.evidenceFile}
         """
 
-## geneBurden               : processes gene burden data from AZ PheWAS Portal and REGENERON Burden Analyses
-rule geneBurden:
+rule geneBurden:              # Processes gene burden data from various burden analyses
     input:
         azPhewasBinary = GS.remote(config['GeneBurden']['azPhewasBinary']),
         azPhewasQuant = GS.remote(config['GeneBurden']['azPhewasQuantitative']),
@@ -197,7 +196,7 @@ rule geneBurden:
         gwasStudies = GS.remote(f"{config['GeneBurden']['inputBucket']}/gwas_studies-{timeStamp}.tsv"),
         evidenceFile = "gene_burden.json.gz"
     log:
-        'log/geneBurden.log'
+        'log/gene_burden.log'
     shell:
         """
         exec &> {log}
@@ -214,8 +213,7 @@ rule geneBurden:
         cp {input.gwasStudies} {output.gwasStudies}
         """
 
-## gene2Phenotype           : processes four gene panels from Gene2Phenotype
-rule gene2Phenotype:
+rule gene2Phenotype:          # Processes four gene panels from Gene2Phenotype
     input:
         ddPanel = HTTP.remote(config['Gene2Phenotype']['webSource_dd_panel']),
         eyePanel = HTTP.remote(config['Gene2Phenotype']['webSource_eye_panel']),
@@ -306,7 +304,7 @@ rule panelApp:                # Process gene panels data curated by Genomics Eng
     output:
         evidenceFile = 'genomics_england.json.gz'
     log:
-        'log/panelApp.log'
+        'log/genomics_england.log'
     shell:
         """
         exec &> {log}
@@ -400,13 +398,13 @@ rule sysbio:                  # Process key driver genes for specific diseases t
         """
 
 # --- Target annotation data sources parsers --- #
-rule TargetEnablingPackages:  # Fetching Target Enabling Packages (TEP) data from Structural Genomics Consortium
+rule targetEnablingPackages:  # Fetching Target Enabling Packages (TEP) data from Structural Genomics Consortium
     params:
         schema = f"{config['global']['schema']}/opentargets_tep.json"
     output:
         'tep.json.gz'
     log:
-        'log/TargetEnablingPackages.log'
+        'log/tep.log'
     shell:
         """
         exec &> {log}
@@ -415,7 +413,7 @@ rule TargetEnablingPackages:  # Fetching Target Enabling Packages (TEP) data fro
         opentargets_validator --schema {params.schema} {output}
         """
 
-rule TargetSafety:            # Process data from different sources that describe target safety liabilities.
+rule targetSafety:            # Process data from different sources that describe target safety liabilities.
     input:
         toxcast = GS.remote(config['TargetSafety']['toxcast'])
     params:
@@ -425,7 +423,7 @@ rule TargetSafety:            # Process data from different sources that describ
     output:
         'safetyLiabilities.json.gz'
     log:
-        'log/TargetEnablingPackages.log'
+        'log/safetyLiabilities.log'
     shell:
         """
         exec &> {log}
