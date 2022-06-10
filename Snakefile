@@ -188,13 +188,10 @@ rule geneBurden:
         azPhewasBinary = GS.remote(config['GeneBurden']['azPhewasBinary']),
         azPhewasQuant = GS.remote(config['GeneBurden']['azPhewasQuantitative']),
         azTraitMappings = GS.remote(config['GeneBurden']['azTraitMappings']),
-        regeneronExwas = GS.remote(config['GeneBurden']['regeneronExwas']),
-        gwasStudies = HTTPRemoteProvider().remote(config['GeneBurden']['gwasStudies']),
         curation = HTTPRemoteProvider().remote(config['GeneBurden']['gwasStudies']),
     params:
         schema = f"{config['global']['schema']}/opentargets.json"
     output:
-        gwasStudies = GS.remote(f"{config['GeneBurden']['inputBucket']}/gwas_studies-{timeStamp}.tsv"),
         evidenceFile = "gene_burden.json.gz"
     log:
         'log/geneBurden.log'
@@ -205,13 +202,9 @@ rule geneBurden:
             --az_binary_data {input.azPhewasBinary} \
             --az_quant_data {input.azPhewasQuant} \
             --az_trait_mappings {input.azTraitMappings} \
-            --regeneron_data {input.regeneronExwas} \
-            --gwas_studies {input.gwasStudies} \
             --curated_data {input.curation} \
             --output {output.evidenceFile}
         opentargets_validator --schema {params.schema} {output.evidenceFile}
-        # Retain the inputs and save to GCS.
-        cp {input.gwasStudies} {output.gwasStudies}
         """
 
 ## gene2Phenotype           : processes four gene panels from Gene2Phenotype
