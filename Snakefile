@@ -291,7 +291,7 @@ rule orphanet:                # Process disease/target evidence from Orphanet.
         python modules/Orphanet.py \
           --input_file {input} \
           --output_file {output} \
-          --cache_dir {params.cacheDir} \
+          --cache_dir {params.cacheDir}
         opentargets_validator --schema {params.schema} {output}
         """
 
