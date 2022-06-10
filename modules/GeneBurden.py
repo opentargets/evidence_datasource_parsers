@@ -70,6 +70,7 @@ def process_gene_burden_curation(curated_data: str, spark_instance: SparkSession
         .withColumn('datasourceId', lit('gene_burden'))
         .withColumn('datatypeId', lit('genetic_association'))
         .drop('url', 'targetFromSource')
+        .distinct()
     )
 
 
