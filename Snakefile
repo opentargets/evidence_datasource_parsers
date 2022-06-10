@@ -189,7 +189,8 @@ rule geneBurden:
         azPhewasQuant = GS.remote(config['GeneBurden']['azPhewasQuantitative']),
         azTraitMappings = GS.remote(config['GeneBurden']['azTraitMappings']),
         regeneronExwas = GS.remote(config['GeneBurden']['regeneronExwas']),
-        gwasStudies = HTTPRemoteProvider().remote(config['GeneBurden']['gwasStudies'])
+        gwasStudies = HTTPRemoteProvider().remote(config['GeneBurden']['gwasStudies']),
+        curation = HTTPRemoteProvider().remote(config['GeneBurden']['gwasStudies']),
     params:
         schema = f"{config['global']['schema']}/opentargets.json"
     output:
@@ -206,6 +207,7 @@ rule geneBurden:
             --az_trait_mappings {input.azTraitMappings} \
             --regeneron_data {input.regeneronExwas} \
             --gwas_studies {input.gwasStudies} \
+            --curated_data {input.curation} \
             --output {output.evidenceFile}
         opentargets_validator --schema {params.schema} {output.evidenceFile}
         # Retain the inputs and save to GCS.
