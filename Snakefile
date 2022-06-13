@@ -86,7 +86,7 @@ rule cancerBiomarkers:        # Process the Cancers Biomarkers database from Can
     shell:
         """
         # In this and the following rules, the exec call redirects the output of all subsequent commands (both STDOUT
-        # and STDERR) to the specified log file. 
+        # and STDERR) to the specified log file.
         exec &> {log}
         python modules/cancerBiomarkers.py \
           --biomarkers_table {input.biomarkers_table} \
@@ -185,11 +185,11 @@ rule epmc:                    # Process target/disease evidence strings from ePM
 ## geneBurden               : processes gene burden data from AZ PheWAS Portal and REGENERON Burden Analyses
 rule geneBurden:
     input:
+        azTraitMappings = GS.remote(config['GeneBurden']['azTraitMappings']),
+        curation = HTTPRemoteProvider().remote(config['GeneBurden']['curation']),
+    params:
         azPhewasBinary = GS.remote(config['GeneBurden']['azPhewasBinary']),
         azPhewasQuant = GS.remote(config['GeneBurden']['azPhewasQuantitative']),
-        azTraitMappings = GS.remote(config['GeneBurden']['azTraitMappings']),
-        curation = HTTPRemoteProvider().remote(config['GeneBurden']['gwasStudies']),
-    params:
         schema = f"{config['global']['schema']}/opentargets.json"
     output:
         evidenceFile = "gene_burden.json.gz"
@@ -199,8 +199,8 @@ rule geneBurden:
         """
         exec &> {log}
         python modules/GeneBurden.py \
-            --az_binary_data {input.azPhewasBinary} \
-            --az_quant_data {input.azPhewasQuant} \
+            --az_binary_data {params.azPhewasBinary} \
+            --az_quant_data {params.azPhewasQuant} \
             --az_trait_mappings {input.azTraitMappings} \
             --curated_data {input.curation} \
             --output {output.evidenceFile}
