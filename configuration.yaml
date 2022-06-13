@@ -2,7 +2,7 @@ global:
   logDir: gs://otar000-evidence_input/parser_logs
   cacheDir: cache_dir
   # This is a directory prefix; individual schemas relative to it are specified by each rule.
-  schema: https://raw.githubusercontent.com/opentargets/json_schema/2.2.4
+  schema: https://raw.githubusercontent.com/opentargets/json_schema/2.2.7
   EFOVersion: v3.40.0
 
 cancerBiomarkers:
@@ -27,8 +27,6 @@ GeneBurden:
   azPhewasBinary: gs://otar000-evidence_input/GeneBurden/data_files/azphewas-com-450k-phewas-binary
   azPhewasQuantitative: gs://otar000-evidence_input/GeneBurden/data_files/azphewas-com-450k-phewas-quantitative
   azTraitMappings: gs://otar000-evidence_input/GeneBurden/data_files/AZ_Traits.xlsx
-  regeneronExwas: gs://otar000-evidence_input/GeneBurden/data_files/41586_2021_4103_MOESM5_ESM.xlsx
-  gwasStudies: https://www.ebi.ac.uk/gwas/api/search/downloads/studies_alternative
   curation: https://raw.githubusercontent.com/opentargets/curation/master/gene_burden/curated_evidence.tsv
   inputBucket: gs://otar000-evidence_input/GeneBurden/data_files
   outputBucket: gs://otar000-evidence_input/GeneBurden/json

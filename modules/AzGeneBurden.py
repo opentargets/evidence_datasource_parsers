@@ -5,7 +5,6 @@ import argparse
 import logging
 import sys
 
-from pandas import read_excel
 from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.functions import array, col, explode, expr, lit, log10, pow, round, when
@@ -37,9 +36,7 @@ def main(az_binary_data: str, az_quant_data: str, az_trait_mappings: str, spark_
 
     # Load data
     az_trait_mappings_df = (
-        spark_instance.createDataFrame(
-            read_excel(az_trait_mappings, sheet_name='Sheet1').filter(items=['Phenotype', 'EFO'])
-        )
+        spark_instance.read.csv(az_trait_mappings, sep='\t', header=True)
         .withColumn('EFO', explode(expr("regexp_extract_all(EFO, '([A-Za-z]+_[0-9]+)')")))
         .distinct()
     )
@@ -214,7 +211,7 @@ def get_parser():
     )
     parser.add_argument(
         '--az_trait_mappings',
-        help='Input Excel containing the AZ traits with their EFO mappings.',
+        help='Input tsv containing the AZ traits with their EFO mappings.',
         type=str,
         required=True,
     )
