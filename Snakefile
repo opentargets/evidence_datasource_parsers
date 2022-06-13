@@ -76,7 +76,7 @@ rule cancerBiomarkers:        # Process the Cancers Biomarkers database from Can
         biomarkers_table = GS.remote(f"{config['cancerBiomarkers']['inputBucket']}/cancerbiomarkers-2018-05-01.tsv"),
         source_table = GS.remote(f"{config['cancerBiomarkers']['inputBucket']}/cancer_biomarker_source.jsonl"),
         disease_table = GS.remote(f"{config['cancerBiomarkers']['inputBucket']}/cancer_biomarker_disease.jsonl"),
-        drug_index = directory(GS.remote(config['cancerBiomarkers']['drugIndex']))
+        drug_index = GS.remote(config['cancerBiomarkers']['drugIndex'])
     params:
         schema = f"{config['global']['schema']}/opentargets.json"
     output:
@@ -166,7 +166,7 @@ rule crispr:                  # Process cancer therapeutic targets using CRISPRâ
 
 rule epmc:                    # Process target/disease evidence strings from ePMC cooccurrence files.
     input:
-        inputCooccurences = directory(GS.remote(config['EPMC']['inputBucket']))
+        inputCooccurences = GS.remote(config['EPMC']['inputBucket'])
     params:
         schema = f"{config['global']['schema']}/opentargets.json"
     output:
@@ -185,8 +185,8 @@ rule epmc:                    # Process target/disease evidence strings from ePM
 ## geneBurden               : processes gene burden data from AZ PheWAS Portal and REGENERON Burden Analyses
 rule geneBurden:
     input:
-        azPhewasBinary = directory(GS.remote(config['GeneBurden']['azPhewasBinary'])),
-        azPhewasQuant = directory(GS.remote(config['GeneBurden']['azPhewasQuantitative'])),
+        azPhewasBinary = GS.remote(config['GeneBurden']['azPhewasBinary']),
+        azPhewasQuant = GS.remote(config['GeneBurden']['azPhewasQuantitative']),
         azTraitMappings = GS.remote(config['GeneBurden']['azTraitMappings']),
         curation = HTTPRemoteProvider().remote(config['GeneBurden']['curation']),
     output:
@@ -199,8 +199,8 @@ rule geneBurden:
         """
         exec &> {log}
         python modules/GeneBurden.py \
-            --az_binary_data {params.azPhewasBinary} \
-            --az_quant_data {params.azPhewasQuant} \
+            --az_binary_data {input.azPhewasBinary} \
+            --az_quant_data {input.azPhewasQuant} \
             --az_trait_mappings {input.azTraitMappings} \
             --curated_data {input.curation} \
             --output {output.evidenceFile}
