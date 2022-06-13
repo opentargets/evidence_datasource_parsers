@@ -188,7 +188,7 @@ rule geneBurden:
         azPhewasBinary = GS.remote(config['GeneBurden']['azPhewasBinary']),
         azPhewasQuant = GS.remote(config['GeneBurden']['azPhewasQuantitative']),
         azTraitMappings = GS.remote(config['GeneBurden']['azTraitMappings']),
-        curation = HTTPRemoteProvider().remote(config['GeneBurden']['curation']),
+        curation = HTTP.remote(config['GeneBurden']['curation']),
     output:
         evidenceFile = "gene_burden.json.gz"
     params:
