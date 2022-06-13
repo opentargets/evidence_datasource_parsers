@@ -185,11 +185,10 @@ rule epmc:                    # Process target/disease evidence strings from ePM
 ## geneBurden               : processes gene burden data from AZ PheWAS Portal and REGENERON Burden Analyses
 rule geneBurden:
     input:
+        azPhewasBinary = directory(GS.remote(config['GeneBurden']['azPhewasBinary'])),
+        azPhewasQuant = directory(GS.remote(config['GeneBurden']['azPhewasQuantitative'])),
         azTraitMappings = GS.remote(config['GeneBurden']['azTraitMappings']),
         curation = HTTPRemoteProvider().remote(config['GeneBurden']['curation']),
-    params:
-        azPhewasBinary = GS.remote(config['GeneBurden']['azPhewasBinary']),
-        azPhewasQuant = GS.remote(config['GeneBurden']['azPhewasQuantitative']),
         schema = f"{config['global']['schema']}/opentargets.json"
     output:
         evidenceFile = "gene_burden.json.gz"
