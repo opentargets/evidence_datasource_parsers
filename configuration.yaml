@@ -25,7 +25,7 @@ EPMC:
 GeneBurden:
   azPhewasBinary: gs://otar000-evidence_input/GeneBurden/data_files/azphewas-com-450k-phewas-binary
   azPhewasQuantitative: gs://otar000-evidence_input/GeneBurden/data_files/azphewas-com-450k-phewas-quantitative
-  azTraitMappings: gs://otar000-evidence_input/GeneBurden/data_files/AZ_Traits.xlsx
+  azTraitMappings: https://raw.githubusercontent.com/opentargets/curation/master/mappings/disease/manual_string_az.tsv
   curation: https://raw.githubusercontent.com/opentargets/curation/master/gene_burden/curated_evidence.tsv
   inputBucket: gs://otar000-evidence_input/GeneBurden/data_files
   outputBucket: gs://otar000-evidence_input/GeneBurden/json
