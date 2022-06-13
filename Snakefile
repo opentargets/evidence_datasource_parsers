@@ -189,9 +189,10 @@ rule geneBurden:
         azPhewasQuant = directory(GS.remote(config['GeneBurden']['azPhewasQuantitative'])),
         azTraitMappings = GS.remote(config['GeneBurden']['azTraitMappings']),
         curation = HTTPRemoteProvider().remote(config['GeneBurden']['curation']),
-        schema = f"{config['global']['schema']}/opentargets.json"
     output:
         evidenceFile = "gene_burden.json.gz"
+    params:
+        schema = f"{config['global']['schema']}/opentargets.json"
     log:
         'log/geneBurden.log'
     shell:
