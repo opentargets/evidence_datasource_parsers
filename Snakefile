@@ -193,7 +193,7 @@ rule geneBurden:
     output:
         evidenceFile = "gene_burden.json.gz"
     params:
-        schema = "https://raw.githubusercontent.com/opentargets/json_schema/il-burden-literature/opentargets.json"
+        schema = f"{config['global']['schema']}/opentargets.json"
     log:
         'log/geneBurden.log'
     shell:
