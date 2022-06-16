@@ -13,7 +13,7 @@ from pyspark.sql.types import IntegerType
 from common.evidence import initialize_sparksession, read_trait_mappings, write_evidence_strings
 
 METHOD_DESC = {
-    'pLOF': 'Burden test carried out with rare pLOF variants.',
+    'pLoF': 'Burden test carried out with rare pLOF variants.',
     'missense|LC': 'Burden test carried out with rare missense variants including low-confidence pLOF and in-frame indels.',
     'synonymous': 'Burden test carried out with rare synonymous variants.',
     'pLoF|missense|LC': 'Burden test carried out with pLOF or missense variants.',
