@@ -5,7 +5,6 @@ import pandas as pd
 from psutil import virtual_memory
 from pyspark.conf import SparkConf
 from pyspark.sql import DataFrame, SparkSession
-from pyspark.sql.functions import col
 
 
 def detect_spark_memory_limit():
