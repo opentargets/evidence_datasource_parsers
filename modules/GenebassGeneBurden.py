@@ -28,7 +28,7 @@ def main(genebass_data: str, genebass_trait_mappings: str, spark_instance: Spark
     logging.info(f'File with the Genebass traits with their EFO mappings: {genebass_trait_mappings}')
 
     # Load data
-    genebass_trait_mappings_df = read_trait_mappings(genebass_trait_mappings, 'Genebass', spark_instance)
+    genebass_trait_mappings_df = read_trait_mappings(genebass_trait_mappings, study_name='Genebass', spark_instance=spark_instance)
     logging.info(f'{genebass_trait_mappings_df.count()} Genebass trait mappings have been loaded.')
 
     genebass_df = (
@@ -182,7 +182,7 @@ def get_parser():
     )
     parser.add_argument(
         '--genebass_trait_mappings',
-        help='Input CSV containing Genebass\'s traits with their EFO mappings.',
+        help='Input TSV containing Genebass\'s traits with their EFO mappings.',
         type=str,
         required=True,
     )

@@ -187,12 +187,13 @@ rule geneBurden:
     input:
         azPhewasBinary = GS.remote(config['GeneBurden']['azPhewasBinary']),
         azPhewasQuant = GS.remote(config['GeneBurden']['azPhewasQuantitative']),
-        azTraitMappings = GS.remote(config['GeneBurden']['azTraitMappings']),
         curation = HTTP.remote(config['GeneBurden']['curation']),
+        genebass = GS.remote(config['GeneBurden']['genebass']),
+        traitMappings = HTTP.remote(config['GeneBurden']['traitMappings']),
     output:
         evidenceFile = "gene_burden.json.gz"
     params:
-        schema = f"{config['global']['schema']}/opentargets.json"
+        schema = "https://raw.githubusercontent.com/opentargets/json_schema/il-burden-literature/opentargets.json"
     log:
         'log/geneBurden.log'
     shell:
@@ -201,8 +202,9 @@ rule geneBurden:
         python modules/GeneBurden.py \
             --az_binary_data {input.azPhewasBinary} \
             --az_quant_data {input.azPhewasQuant} \
-            --az_trait_mappings {input.azTraitMappings} \
             --curated_data {input.curation} \
+            --genebass_data {input.genebass} \
+            --trait_mappings {input.azTraitMappings} \
             --output {output.evidenceFile}
         opentargets_validator --schema {params.schema} {output.evidenceFile}
         """

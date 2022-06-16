@@ -36,7 +36,7 @@ def main(az_binary_data: str, az_quant_data: str, az_trait_mappings: str, spark_
     logging.info(f'File with the AZ PheWAS Portal quantitative traits associations: {az_quant_data}')
 
     # Load data
-    az_trait_mappings_df = read_trait_mappings(az_trait_mappings, 'AstraZeneca PheWAS Portal', spark_instance)
+    az_trait_mappings_df = read_trait_mappings(az_trait_mappings, study_name='AstraZeneca PheWAS Portal', spark_instance=spark_instance)
     logging.info(f'{az_trait_mappings_df.count()} AZs trait mappings have been loaded.')
 
     az_phewas_df = (
