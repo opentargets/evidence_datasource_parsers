@@ -67,11 +67,9 @@ def main(genebass_data: str, genebass_trait_mappings: str, spark_instance: Spark
         raise AssertionError(
             f"There are {evd_df.filter(col('resourceScore') == 0).count()} evidence with a P value of 0."
         )
-    '''
-    if not 17000 < evd_df.count() < 18000:
-        logging.error(f'AZ PheWAS Portal number of evidence are different from expected: {evd_df.count()}')
-        raise AssertionError('AZ PheWAS Portal number of evidence are different from expected.')
-    '''
+    if not 8_000 < evd_df.count() < 9_000:
+        logging.error(f'Genebass number of evidence are different from expected: {evd_df.count()}')
+        raise AssertionError('Genebass number of evidence are different from expected.')
     logging.info(f'{evd_df.count()} evidence strings have been processed.')
 
     return evd_df
