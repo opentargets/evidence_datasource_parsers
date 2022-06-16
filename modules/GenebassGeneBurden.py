@@ -7,10 +7,10 @@ import sys
 
 from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
-from pyspark.sql.functions import col, lit, log10, pow, round, when
+from pyspark.sql.functions import coalesce, col, lit, log10, pow, round, when
 from pyspark.sql.types import IntegerType
 
-from common.evidence import initialize_sparksession, write_evidence_strings
+from common.evidence import initialize_sparksession, read_trait_mappings, write_evidence_strings
 
 METHOD_DESC = {
     'pLOF': 'Burden test carried out with rare pLOF variants.',
@@ -20,27 +20,25 @@ METHOD_DESC = {
 }
 
 
-def main(genebass_data: str, genebass_mappings: str, spark_instance: SparkSession) -> DataFrame:
+def main(genebass_data: str, genebass_trait_mappings: str, spark_instance: SparkSession) -> DataFrame:
     """
     This module extracts and processes target/disease evidence from the raw Genebass Portal.
     """
     logging.info(f'File with the Genebass gene burden results: {genebass_data}')
-    logging.info(f'File with the Genebass traits with their EFO mappings traits: {genebass_mappings}')
+    logging.info(f'File with the Genebass traits with their EFO mappings: {genebass_trait_mappings}')
 
     # Load data
-    genebass_mappings_df = (
-        spark_instance.read.csv(genebass_mappings, header=True)
-        .filter(col('STUDY') == 'Genebass')
-        .select('PROPERTY_VALUE', 'SEMANTIC_TAG')
-    )
+    genebass_trait_mappings_df = read_trait_mappings(genebass_trait_mappings, 'Genebass', spark_instance)
+    logging.info(f'{genebass_trait_mappings_df.count()} Genebass trait mappings have been loaded.')
+
     genebass_df = (
         spark_instance.read.parquet(genebass_data)
-        .filter(col('Pvalue_Burden') == 6.7e-7)
+        .filter(col('Pvalue_Burden') <= 6.7e-7)
         .select(
             'gene_id',
             'annotation',
             'n_cases',
-            'n_controls',
+            coalesce('n_controls', lit(0)).alias('n_controls'),
             'trait_type',
             'phenocode',
             'description',
@@ -49,7 +47,11 @@ def main(genebass_data: str, genebass_mappings: str, spark_instance: SparkSessio
             'SE_Burden',
         )
         # Joining step with the mappings
-        .join(genebass_mappings_df, genebass_df['description'] == genebass_mappings_df['PROPERTY VALUE'], how='left')
+        .join(
+            genebass_trait_mappings_df.withColumnRenamed('PROPERTY_VALUE', 'description'),
+            on='description',
+            how='left',
+        )
         .distinct()
         .repartition(20)
         .persist()
@@ -130,7 +132,7 @@ def parse_genebass_evidence(genebass_df: DataFrame) -> DataFrame:
         .withColumn('ancestryId', lit('HANCESTRO_0009'))
         .withColumnRenamed('gene_id', 'targetFromSourceId')
         .withColumnRenamed('description', 'diseaseFromSource')
-        .withColumnRenamed('phecode', 'diseaseFromSourceId')
+        .withColumnRenamed('phenocode', 'diseaseFromSourceId')
         .withColumnRenamed('SEMANTIC_TAG', 'diseaseFromSourceMappedId')
         .withColumnRenamed('Pvalue_Burden', 'resourceScore')
         .withColumn('pValueExponent', log10(col('resourceScore')).cast(IntegerType()) - lit(1))
@@ -159,7 +161,7 @@ def parse_genebass_evidence(genebass_df: DataFrame) -> DataFrame:
             'oddsRatioConfidenceIntervalUpper',
             when(col('trait_type') == 'categorical', col('BETA_Burden') + col('SE_Burden')),
         )
-        .withColumn('studySampleSize', col('n_cases') + col('n_controls'))
+        .withColumn('studySampleSize', col('n_cases') + 'n_controls')
         .withColumnRenamed('n_cases', 'studyCases')
         .withColumnRenamed('annotation', 'statisticalMethod')
         .withColumn('statisticalMethodOverview', col('statisticalMethod'))
@@ -179,7 +181,7 @@ def get_parser():
         required=True,
     )
     parser.add_argument(
-        '--genebass_mappings',
+        '--genebass_trait_mappings',
         help='Input CSV containing Genebass\'s traits with their EFO mappings.',
         type=str,
         required=True,
@@ -219,7 +221,7 @@ if __name__ == '__main__':
 
     evd_df = main(
         genebass_data=args.genebass_data,
-        genebass_mappings=args.genebass_mappings,
+        genebass_trait_mappings=args.genebass_trait_mappings,
         spark_instance=spark,
     )
 
