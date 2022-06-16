@@ -28,7 +28,9 @@ def main(genebass_data: str, genebass_trait_mappings: str, spark_instance: Spark
     logging.info(f'File with the Genebass traits with their EFO mappings: {genebass_trait_mappings}')
 
     # Load data
-    genebass_trait_mappings_df = read_trait_mappings(genebass_trait_mappings, study_name='Genebass', spark_instance=spark_instance)
+    genebass_trait_mappings_df = read_trait_mappings(
+        genebass_trait_mappings, study_name='Genebass', spark_instance=spark_instance
+    )
     logging.info(f'{genebass_trait_mappings_df.count()} Genebass trait mappings have been loaded.')
 
     genebass_df = (
@@ -137,6 +139,8 @@ def parse_genebass_evidence(genebass_df: DataFrame) -> DataFrame:
         .withColumnRenamed('Pvalue_Burden', 'resourceScore')
         .withColumn('pValueExponent', log10(col('resourceScore')).cast(IntegerType()) - lit(1))
         .withColumn('pValueMantissa', round(col('resourceScore') / pow(lit(10), col('pValueExponent')), 3))
+        # Stats are split taking into consideration the type of the trait
+        # Those that are not continuous or categorical were reviewed and all of them are considered as categorical
         .withColumn(
             'beta',
             when(col('trait_type') == 'continuous', col('BETA_Burden')),
@@ -151,15 +155,21 @@ def parse_genebass_evidence(genebass_df: DataFrame) -> DataFrame:
         )
         .withColumn(
             'oddsRatio',
-            when(col('trait_type') == 'categorical', col('BETA_Burden')),
+            when(col('trait_type').isin(['categorical', 'icd_first_occurrence', 'icd10']), col('BETA_Burden')),
         )
         .withColumn(
             'oddsRatioConfidenceIntervalLower',
-            when(col('trait_type') == 'categorical', col('BETA_Burden') - col('SE_Burden')),
+            when(
+                col('trait_type').isin(['categorical', 'icd_first_occurrence', 'icd10']),
+                col('BETA_Burden') - col('SE_Burden'),
+            ),
         )
         .withColumn(
             'oddsRatioConfidenceIntervalUpper',
-            when(col('trait_type') == 'categorical', col('BETA_Burden') + col('SE_Burden')),
+            when(
+                col('trait_type').isin(['categorical', 'icd_first_occurrence', 'icd10']),
+                col('BETA_Burden') + col('SE_Burden'),
+            ),
         )
         .withColumn('studySampleSize', (col('n_cases') + coalesce('n_controls', lit(0))))
         .withColumnRenamed('n_cases', 'studyCases')
@@ -167,6 +177,7 @@ def parse_genebass_evidence(genebass_df: DataFrame) -> DataFrame:
         .withColumn('statisticalMethodOverview', col('statisticalMethod'))
         .replace(to_replace=METHOD_DESC, subset=['statisticalMethodOverview'])
         .select(to_keep)
+        .distinct()
     )
 
 
