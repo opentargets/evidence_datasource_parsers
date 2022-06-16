@@ -76,7 +76,7 @@ rule cancerBiomarkers:        # Process the Cancers Biomarkers database from Can
         biomarkers_table = GS.remote(f"{config['cancerBiomarkers']['inputBucket']}/cancerbiomarkers-2018-05-01.tsv"),
         source_table = GS.remote(f"{config['cancerBiomarkers']['inputBucket']}/cancer_biomarker_source.jsonl"),
         disease_table = GS.remote(f"{config['cancerBiomarkers']['inputBucket']}/cancer_biomarker_disease.jsonl"),
-        drug_index = directory(GS.remote(config['cancerBiomarkers']['drugIndex']))
+        drug_index = GS.remote(config['cancerBiomarkers']['drugIndex'])
     params:
         schema = f"{config['global']['schema']}/opentargets.json"
     output:
@@ -86,7 +86,7 @@ rule cancerBiomarkers:        # Process the Cancers Biomarkers database from Can
     shell:
         """
         # In this and the following rules, the exec call redirects the output of all subsequent commands (both STDOUT
-        # and STDERR) to the specified log file. 
+        # and STDERR) to the specified log file.
         exec &> {log}
         python modules/cancerBiomarkers.py \
           --biomarkers_table {input.biomarkers_table} \
@@ -166,7 +166,7 @@ rule crispr:                  # Process cancer therapeutic targets using CRISPRâ
 
 rule epmc:                    # Process target/disease evidence strings from ePMC cooccurrence files.
     input:
-        inputCooccurences = directory(GS.remote(config['EPMC']['inputBucket']))
+        inputCooccurences = GS.remote(config['EPMC']['inputBucket'])
     params:
         schema = f"{config['global']['schema']}/opentargets.json"
     output:
@@ -188,11 +188,11 @@ rule geneBurden:
         azPhewasBinary = GS.remote(config['GeneBurden']['azPhewasBinary']),
         azPhewasQuant = GS.remote(config['GeneBurden']['azPhewasQuantitative']),
         azTraitMappings = GS.remote(config['GeneBurden']['azTraitMappings']),
-        curation = HTTPRemoteProvider().remote(config['GeneBurden']['gwasStudies']),
-    params:
-        schema = f"{config['global']['schema']}/opentargets.json"
+        curation = HTTP.remote(config['GeneBurden']['curation']),
     output:
         evidenceFile = "gene_burden.json.gz"
+    params:
+        schema = f"{config['global']['schema']}/opentargets.json"
     log:
         'log/geneBurden.log'
     shell:
