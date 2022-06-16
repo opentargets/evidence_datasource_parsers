@@ -38,7 +38,7 @@ def main(genebass_data: str, genebass_trait_mappings: str, spark_instance: Spark
             'gene_id',
             'annotation',
             'n_cases',
-            coalesce('n_controls', lit(0)).alias('n_controls'),
+            'n_controls',
             'trait_type',
             'phenocode',
             'description',
@@ -161,7 +161,7 @@ def parse_genebass_evidence(genebass_df: DataFrame) -> DataFrame:
             'oddsRatioConfidenceIntervalUpper',
             when(col('trait_type') == 'categorical', col('BETA_Burden') + col('SE_Burden')),
         )
-        .withColumn('studySampleSize', col('n_cases') + 'n_controls')
+        .withColumn('studySampleSize', (col('n_cases') + coalesce('n_controls', lit(0))))
         .withColumnRenamed('n_cases', 'studyCases')
         .withColumnRenamed('annotation', 'statisticalMethod')
         .withColumn('statisticalMethodOverview', col('statisticalMethod'))
