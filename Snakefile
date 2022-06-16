@@ -204,7 +204,7 @@ rule geneBurden:
             --az_quant_data {input.azPhewasQuant} \
             --curated_data {input.curation} \
             --genebass_data {input.genebass} \
-            --trait_mappings {input.azTraitMappings} \
+            --trait_mappings {input.traitMappings} \
             --output {output.evidenceFile}
         opentargets_validator --schema {params.schema} {output.evidenceFile}
         """
