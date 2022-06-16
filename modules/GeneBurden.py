@@ -188,7 +188,7 @@ if __name__ == "__main__":
         az_quant_data=args.az_quant_data,
         curated_data=args.curated_data,
         genebass_data=args.genebass_data,
-        az_trait_mappings=args.az_trait_mappings,
+        trait_mappings=args.trait_mappings,
         spark_instance=spark,
     )
 
