@@ -2,8 +2,10 @@ import os
 import tempfile
 
 from psutil import virtual_memory
+from pyspark import SparkFiles
 from pyspark.conf import SparkConf
 from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql.functions import col
 
 
 def detect_spark_memory_limit():
@@ -89,3 +91,15 @@ def read_path(path: str, spark_instance) -> DataFrame:
     # A directory with Parquet files.
     if parquet_files:
         return spark_instance.read.parquet(path)
+
+
+def read_trait_mappings(trait_mappings: str, study_name: str, spark_instance: SparkSession) -> DataFrame:
+    """Load trait mappings to a dataframe."""
+
+    spark_instance.sparkContext.addFile(trait_mappings)
+
+    return (
+        spark_instance.read.csv(SparkFiles.get(trait_mappings.split('/')[-1]), sep='\t', header=True)
+        .filter(col('STUDY') == study_name)
+        .select('PROPERTY_VALUE', 'SEMANTIC_TAG')
+    )
