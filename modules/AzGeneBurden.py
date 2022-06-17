@@ -7,10 +7,10 @@ import sys
 
 from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
-from pyspark.sql.functions import array, col, explode, expr, lit, log10, pow, round, when
+from pyspark.sql.functions import array, col, lit, log10, pow, round, when
 from pyspark.sql.types import DoubleType, IntegerType
 
-from common.evidence import initialize_sparksession, write_evidence_strings
+from common.evidence import initialize_sparksession, import_trait_mappings, write_evidence_strings
 
 METHOD_DESC = {
     'ptv': 'Burden test carried out with PTVs with a MAF smaller than 0.1%.',
@@ -27,7 +27,7 @@ METHOD_DESC = {
 }
 
 
-def main(az_binary_data: str, az_quant_data: str, az_trait_mappings: str, spark_instance: SparkSession) -> DataFrame:
+def main(az_binary_data: str, az_quant_data: str, spark_instance: SparkSession) -> DataFrame:
     """
     This module extracts and processes target/disease evidence from the raw AstraZeneca PheWAS Portal.
     """
@@ -35,11 +35,6 @@ def main(az_binary_data: str, az_quant_data: str, az_trait_mappings: str, spark_
     logging.info(f'File with the AZ PheWAS Portal quantitative traits associations: {az_quant_data}')
 
     # Load data
-    az_trait_mappings_df = (
-        spark_instance.read.csv(az_trait_mappings, sep='\t', header=True)
-        .withColumn('EFO', explode(expr("regexp_extract_all(EFO, '([A-Za-z]+_[0-9]+)')")))
-        .distinct()
-    )
     az_phewas_df = (
         spark_instance.read.parquet(az_binary_data)
         # Renaming of some columns to match schemas of both binary and quantitative evidence
@@ -55,9 +50,6 @@ def main(az_binary_data: str, az_quant_data: str, az_trait_mappings: str, spark_
             .withColumnRenamed('YesQV', 'nCasesQV'),
             allowMissingColumns=True,
         )
-        # Add mapped trait from GWAS Catalog WIP sheet
-        # This is a temporary solution, as the AZ studies are not yet integrated into the GWAS Catalog
-        .join(az_trait_mappings_df, on='Phenotype', how='left')
         .withColumn('pValue', col('pValue').cast(DoubleType()))
         .filter(col('pValue') <= 1e-7)
         .distinct()
@@ -87,7 +79,7 @@ def main(az_binary_data: str, az_quant_data: str, az_trait_mappings: str, spark_
             f"There are {evd_df.filter(col('resourceScore') == 0).count()} evidence with a P value of 0."
         )
 
-    if not 17000 < evd_df.count() < 18000:
+    if not 17_000 < evd_df.count() < 19_000:
         logging.error(f'AZ PheWAS Portal number of evidence are different from expected: {evd_df.count()}')
         raise AssertionError('AZ PheWAS Portal number of evidence are different from expected.')
     logging.info(f'{evd_df.count()} evidence strings have been processed.')
@@ -151,7 +143,11 @@ def parse_az_phewas_evidence(az_phewas_df: DataFrame) -> DataFrame:
         .withColumn('cohortId', lit('UK Biobank 450k'))
         .withColumnRenamed('Gene', 'targetFromSourceId')
         .withColumnRenamed('Phenotype', 'diseaseFromSource')
-        .withColumnRenamed('EFO', 'diseaseFromSourceMappedId')
+        .join(
+            import_trait_mappings(),
+            on='diseaseFromSource',
+            how='left',
+        )
         .withColumn('resourceScore', col('pValue'))
         .withColumn('pValueExponent', log10(col('pValue')).cast(IntegerType()) - lit(1))
         .withColumn('pValueMantissa', round(col('pValue') / pow(lit(10), col('pValueExponent')), 3))
@@ -187,7 +183,10 @@ def parse_az_phewas_evidence(az_phewas_df: DataFrame) -> DataFrame:
         .withColumnRenamed('CollapsingModel', 'statisticalMethod')
         .withColumn('statisticalMethodOverview', col('statisticalMethod'))
         .replace(to_replace=METHOD_DESC, subset=['statisticalMethodOverview'])
-        .withColumn('allelicRequirements', when(col('statisticalMethod') == 'rec', array(lit('recessive'))).otherwise(array(lit('dominant'))))
+        .withColumn(
+            'allelicRequirements',
+            when(col('statisticalMethod') == 'rec', array(lit('recessive'))).otherwise(array(lit('dominant'))),
+        )
         .select(to_keep)
         .distinct()
     )
@@ -206,12 +205,6 @@ def get_parser():
     parser.add_argument(
         '--az_quant_data',
         help='Input parquet files with AZ\'s PheWAS associations of quantitative traits.',
-        type=str,
-        required=True,
-    )
-    parser.add_argument(
-        '--az_trait_mappings',
-        help='Input tsv containing the AZ traits with their EFO mappings.',
         type=str,
         required=True,
     )
@@ -251,7 +244,6 @@ if __name__ == '__main__':
     evd_df = main(
         az_binary_data=args.az_binary_data,
         az_quant_data=args.az_quant_data,
-        az_trait_mappings=args.az_trait_mappings,
         spark_instance=spark,
     )
 

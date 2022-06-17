@@ -186,8 +186,8 @@ rule geneBurden:              # Processes gene burden data from various burden a
     input:
         azPhewasBinary = GS.remote(config['GeneBurden']['azPhewasBinary']),
         azPhewasQuant = GS.remote(config['GeneBurden']['azPhewasQuantitative']),
-        azTraitMappings = GS.remote(config['GeneBurden']['azTraitMappings']),
         curation = HTTP.remote(config['GeneBurden']['curation']),
+        genebass = GS.remote(config['GeneBurden']['genebass']),
     output:
         evidenceFile = "gene_burden.json.gz"
     params:
@@ -200,8 +200,8 @@ rule geneBurden:              # Processes gene burden data from various burden a
         python modules/GeneBurden.py \
             --az_binary_data {input.azPhewasBinary} \
             --az_quant_data {input.azPhewasQuant} \
-            --az_trait_mappings {input.azTraitMappings} \
             --curated_data {input.curation} \
+            --genebass_data {input.genebass} \
             --output {output.evidenceFile}
         opentargets_validator --schema {params.schema} {output.evidenceFile}
         """

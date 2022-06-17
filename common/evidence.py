@@ -2,8 +2,10 @@ import os
 import tempfile
 
 from psutil import virtual_memory
+from pyspark import SparkFiles
 from pyspark.conf import SparkConf
 from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql.functions import col
 
 
 def detect_spark_memory_limit():
@@ -89,3 +91,21 @@ def read_path(path: str, spark_instance) -> DataFrame:
     # A directory with Parquet files.
     if parquet_files:
         return spark_instance.read.parquet(path)
+
+
+def import_trait_mappings() -> DataFrame:
+    """Load the remote trait mappings file to a Spark dataframe."""
+
+    remote_trait_mappings_url = (
+        'https://raw.githubusercontent.com/opentargets/curation/master/mappings/disease/manual_string.tsv'
+    )
+
+    SparkSession.getActiveSession().sparkContext.addFile(remote_trait_mappings_url)
+
+    return (
+        SparkSession.getActiveSession()
+        .read.csv(SparkFiles.get('manual_string.tsv'), header=True, sep='\t')
+        .select(
+            col('PROPERTY_VALUE').alias('diseaseFromSource'), col('SEMANTIC_TAG').alias('diseaseFromSourceMappedId')
+        )
+    )
