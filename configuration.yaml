@@ -28,7 +28,7 @@ GeneBurden:
   azPhewasQuantitative: gs://otar000-evidence_input/GeneBurden/data_files/azphewas-com-450k-phewas-quantitative
   curation: https://raw.githubusercontent.com/opentargets/curation/master/gene_burden/curated_evidence.tsv
   genebass: gs://otar000-evidence_input/GeneBurden/data_files/genebass_entries
-  traitMappings: https://github.com/opentargets/curation/blob/master/mappings/disease/manual_string.tsv?raw=true
+  traitMappings: https://raw.githubusercontent.com/opentargets/curation/master/mappings/disease/manual_string.tsv
   outputBucket: gs://otar000-evidence_input/GeneBurden/json
 Gene2Phenotype:
   webSource_dd_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/DDG2P.csv.gz
