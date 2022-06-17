@@ -10,7 +10,7 @@ from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.functions import array, col, lit, log10, pow, round, when
 from pyspark.sql.types import DoubleType, IntegerType
 
-from common.evidence import initialize_sparksession, read_trait_mappings, write_evidence_strings
+from common.evidence import initialize_sparksession, import_trait_mappings, write_evidence_strings
 
 METHOD_DESC = {
     'ptv': 'Burden test carried out with PTVs with a MAF smaller than 0.1%.',
@@ -49,13 +49,6 @@ def main(az_binary_data: str, az_quant_data: str, spark_instance: SparkSession) 
             .withColumn('nCases', col('nSamples'))
             .withColumnRenamed('YesQV', 'nCasesQV'),
             allowMissingColumns=True,
-        )
-        # Add mapped trait from GWAS Catalog WIP sheet
-        # This is a temporary solution, as the AZ studies are not yet integrated into the GWAS Catalog
-        .join(
-            read_trait_mappings(spark_instance=spark_instance).withColumnRenamed('PROPERTY_VALUE', 'Phenotype'),
-            on='Phenotype',
-            how='left',
         )
         .withColumn('pValue', col('pValue').cast(DoubleType()))
         .filter(col('pValue') <= 1e-7)
@@ -150,7 +143,11 @@ def parse_az_phewas_evidence(az_phewas_df: DataFrame) -> DataFrame:
         .withColumn('cohortId', lit('UK Biobank 450k'))
         .withColumnRenamed('Gene', 'targetFromSourceId')
         .withColumnRenamed('Phenotype', 'diseaseFromSource')
-        .withColumnRenamed('SEMANTIC_TAG', 'diseaseFromSourceMappedId')
+        .join(
+            import_trait_mappings(),
+            on='diseaseFromSource',
+            how='left',
+        )
         .withColumn('resourceScore', col('pValue'))
         .withColumn('pValueExponent', log10(col('pValue')).cast(IntegerType()) - lit(1))
         .withColumn('pValueMantissa', round(col('pValue') / pow(lit(10), col('pValueExponent')), 3))

@@ -10,7 +10,7 @@ from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.functions import coalesce, col, lit, log10, pow, round, when
 from pyspark.sql.types import IntegerType
 
-from common.evidence import initialize_sparksession, read_trait_mappings, write_evidence_strings
+from common.evidence import initialize_sparksession, import_trait_mappings, write_evidence_strings
 
 METHOD_DESC = {
     'pLoF': 'Burden test carried out with rare pLOF variants.',
@@ -41,12 +41,6 @@ def main(genebass_data: str, spark_instance: SparkSession) -> DataFrame:
             'Pvalue_Burden',
             'BETA_Burden',
             'SE_Burden',
-        )
-        # Bring trait to EFO mappings
-        .join(
-            read_trait_mappings(spark_instance).withColumnRenamed('PROPERTY_VALUE', 'description'),
-            on='description',
-            how='left',
         )
         .distinct()
         .repartition(20)
@@ -127,7 +121,11 @@ def parse_genebass_evidence(genebass_df: DataFrame) -> DataFrame:
         .withColumnRenamed('gene_id', 'targetFromSourceId')
         .withColumnRenamed('description', 'diseaseFromSource')
         .withColumnRenamed('phenocode', 'diseaseFromSourceId')
-        .withColumnRenamed('SEMANTIC_TAG', 'diseaseFromSourceMappedId')
+        .join(
+            import_trait_mappings(),
+            on='diseaseFromSource',
+            how='left',
+        )
         .withColumnRenamed('Pvalue_Burden', 'resourceScore')
         .withColumn('pValueExponent', log10(col('resourceScore')).cast(IntegerType()) - lit(1))
         .withColumn('pValueMantissa', round(col('resourceScore') / pow(lit(10), col('pValueExponent')), 3))
