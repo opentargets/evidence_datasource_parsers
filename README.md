@@ -3,10 +3,12 @@
 This repository contains a collection of modules which generate evidence for several internal data sources (“internal” meaning that the code is maintained by the data team; the data itself usually comes from sources outside Open Targets).
 
 ## How to generate the evidence
+
 This will create a Google Cloud instance, SSH into it, install the necessary dependencies, generate, validate, and upload the evidence. Tweak the commands as necessary.
 
 To run this, conditions related to the service accounts need to be satisfied:
-1. The service account must have a Storage Admin role for two buckets, _otar000-evidence_input_ and _otar001-core_.
+
+1. The service account must have a Storage Admin role for two buckets, `_otar000-evidence_input_` and `_otar001-core_`.
 2. The service account must have a Compute Admin and Service Account User roles in the _open-targets-eu-dev_ project.
 3. The user running the code must have access to use the service account.
 

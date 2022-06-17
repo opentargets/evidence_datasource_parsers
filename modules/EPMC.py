@@ -70,13 +70,15 @@ def main(cooccurrences, outputFile):
         .filter(F.col('section').isin(SECTIONS_OF_INTEREST))
         # Casting integer pmid column to string:
         .withColumn("pmid", F.trim(F.col('pmid').cast(StringType())))
+        # Dropping pmcid values that violate schema:
+        .withColumn('pmcid', F.when(F.col('pmcid').rlike(r'^PMC\d+$'), F.col('pmcid')))
         # Publication identifier is a pmid if available, otherwise pmcid
         .withColumn('publicationIdentifier', F.when(F.col('pmid').isNull(), F.col('pmcid')).otherwise(F.col('pmid')))
         # Filtering for disease/target cooccurrences:
         .filter(
             (F.col('type') == 'GP-DS')  # Filter gene/protein - disease cooccurrence
             & F.col('isMapped')  # Filtering for mapped cooccurrences
-            & F.col('publicationIdentifier').isNotNull(). # Making sure at least the pmid or the pmcid is given:
+            & F.col('publicationIdentifier').isNotNull() # Making sure at least the pmid or the pmcid is given:
             & (F.length(F.col('text')) < 600) # Exclude sentences with more than 600 characters
             & (F.col('label1').isin(EXCLUDED_TARGET_TERMS) == False)  # Excluding target labels from the exclusion list
         )
@@ -100,7 +102,7 @@ def main(cooccurrences, outputFile):
             ).alias('textMiningSentences'),
             F.sum(F.col('evidence_score')).alias('resourceScore'),
         )
-        # Nullify pmcIds if empty array
+        # Nullify pmcIds if empty array:
         .withColumn('pmcIds', F.when(F.size('pmcIds') != 0, F.col('pmcIds')))
         # Only evidence with score above 1 is considered:
         .filter(F.col('resourceScore') > 1)

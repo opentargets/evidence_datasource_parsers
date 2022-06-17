@@ -1,17 +1,16 @@
 global:
   logDir: gs://otar000-evidence_input/parser_logs
   cacheDir: cache_dir
-  # This is a directory prefix; individual schemas relative to it are specified by each rule.
   schema: https://raw.githubusercontent.com/opentargets/json_schema/2.2.7
-  EFOVersion: v3.40.0
+  EFOVersion: v3.42.0
 
 cancerBiomarkers:
   inputBucket: gs://otar000-evidence_input/CancerBiomarkers/data_files
   outputBucket: gs://otar000-evidence_input/CancerBiomarkers/json
   drugIndex: gs://open-targets-pre-data-releases/22.04/output/etl/parquet/molecule
 ChEMBL:
-  evidence: gs://otar008-chembl/cttv008-08-04-2022.json.gz
-  stopReasonCategories: gs://otar000-evidence_input/ChEMBL/data_files/chembl_predictions-2022-04-08.tsv
+  evidence: gs://otar008-chembl/cttv008-06-06-2022.json.gz
+  stopReasonCategories: gs://otar000-evidence_input/ChEMBL/data_files/chembl_predictions-2022-06-11.tsv
   outputBucket: gs://otar000-evidence_input/ChEMBL/json
 ClinGen:
   webSource: https://search.clinicalgenome.org/kb/gene-validity/download
@@ -21,12 +20,12 @@ CRISPR:
   inputBucket: gs://otar000-evidence_input/CRISPR/data_files
   outputBucket: gs://otar000-evidence_input/CRISPR/json
 EPMC:
-  inputBucket: gs://open-targets-pre-data-releases/22.04/output/literature-etl/parquet/cooccurrences
+  inputBucket: gs://open-targets-pre-data-releases/22.06.1/output/literature-etl/parquet/cooccurrences
   outputBucket: gs://otar000-evidence_input/EPMC/json
 GeneBurden:
   azPhewasBinary: gs://otar000-evidence_input/GeneBurden/data_files/azphewas-com-450k-phewas-binary
   azPhewasQuantitative: gs://otar000-evidence_input/GeneBurden/data_files/azphewas-com-450k-phewas-quantitative
-  azTraitMappings: gs://otar000-evidence_input/GeneBurden/data_files/AZ_Traits.xlsx
+  azTraitMappings: gs://otar000-evidence_input/GeneBurden/data_files/AZ_Traits.tsv
   curation: https://raw.githubusercontent.com/opentargets/curation/master/gene_burden/curated_evidence.tsv
   inputBucket: gs://otar000-evidence_input/GeneBurden/data_files
   outputBucket: gs://otar000-evidence_input/GeneBurden/json
