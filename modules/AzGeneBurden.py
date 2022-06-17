@@ -5,7 +5,6 @@ import argparse
 import logging
 import sys
 
-from pyspark import SparkFiles
 from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.functions import array, col, lit, log10, pow, round, when
@@ -28,7 +27,7 @@ METHOD_DESC = {
 }
 
 
-def main(az_binary_data: str, az_quant_data: str, az_trait_mappings: str, spark_instance: SparkSession) -> DataFrame:
+def main(az_binary_data: str, az_quant_data: str, spark_instance: SparkSession) -> DataFrame:
     """
     This module extracts and processes target/disease evidence from the raw AstraZeneca PheWAS Portal.
     """
@@ -36,9 +35,6 @@ def main(az_binary_data: str, az_quant_data: str, az_trait_mappings: str, spark_
     logging.info(f'File with the AZ PheWAS Portal quantitative traits associations: {az_quant_data}')
 
     # Load data
-    az_trait_mappings_df = read_trait_mappings(az_trait_mappings, study_name='AstraZeneca PheWAS Portal', spark_instance=spark_instance)
-    logging.info(f'{az_trait_mappings_df.count()} AZs trait mappings have been loaded.')
-
     az_phewas_df = (
         spark_instance.read.parquet(az_binary_data)
         # Renaming of some columns to match schemas of both binary and quantitative evidence
@@ -56,7 +52,11 @@ def main(az_binary_data: str, az_quant_data: str, az_trait_mappings: str, spark_
         )
         # Add mapped trait from GWAS Catalog WIP sheet
         # This is a temporary solution, as the AZ studies are not yet integrated into the GWAS Catalog
-        .join(az_trait_mappings_df.withColumnRenamed('PROPERTY_VALUE', 'Phenotype'), on='Phenotype', how='left')
+        .join(
+            read_trait_mappings(spark_instance=spark_instance).withColumnRenamed('PROPERTY_VALUE', 'Phenotype'),
+            on='Phenotype',
+            how='left',
+        )
         .withColumn('pValue', col('pValue').cast(DoubleType()))
         .filter(col('pValue') <= 1e-7)
         .distinct()
@@ -212,12 +212,6 @@ def get_parser():
         required=True,
     )
     parser.add_argument(
-        '--az_trait_mappings',
-        help='Input tsv containing the AZ traits with their EFO mappings.',
-        type=str,
-        required=True,
-    )
-    parser.add_argument(
         '--output',
         help='Output gzipped json file following the gene_burden evidence data model.',
         type=str,
@@ -253,7 +247,6 @@ if __name__ == '__main__':
     evd_df = main(
         az_binary_data=args.az_binary_data,
         az_quant_data=args.az_quant_data,
-        az_trait_mappings=args.az_trait_mappings,
         spark_instance=spark,
     )
 

@@ -189,7 +189,6 @@ rule geneBurden:
         azPhewasQuant = GS.remote(config['GeneBurden']['azPhewasQuantitative']),
         curation = HTTP.remote(config['GeneBurden']['curation']),
         genebass = GS.remote(config['GeneBurden']['genebass']),
-        traitMappings = HTTP.remote(config['GeneBurden']['traitMappings']),
     output:
         evidenceFile = "gene_burden.json.gz"
     params:
@@ -204,7 +203,6 @@ rule geneBurden:
             --az_quant_data {input.azPhewasQuant} \
             --curated_data {input.curation} \
             --genebass_data {input.genebass} \
-            --trait_mappings {input.traitMappings} \
             --output {output.evidenceFile}
         opentargets_validator --schema {params.schema} {output.evidenceFile}
         """

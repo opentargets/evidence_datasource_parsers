@@ -20,19 +20,13 @@ METHOD_DESC = {
 }
 
 
-def main(genebass_data: str, genebass_trait_mappings: str, spark_instance: SparkSession) -> DataFrame:
+def main(genebass_data: str, spark_instance: SparkSession) -> DataFrame:
     """
     This module extracts and processes target/disease evidence from the raw Genebass Portal.
     """
     logging.info(f'File with the Genebass gene burden results: {genebass_data}')
-    logging.info(f'File with the Genebass traits with their EFO mappings: {genebass_trait_mappings}')
 
     # Load data
-    genebass_trait_mappings_df = read_trait_mappings(
-        genebass_trait_mappings, study_name='Genebass', spark_instance=spark_instance
-    )
-    logging.info(f'{genebass_trait_mappings_df.count()} Genebass trait mappings have been loaded.')
-
     genebass_df = (
         spark_instance.read.parquet(genebass_data)
         .filter(col('Pvalue_Burden') <= 6.7e-7)
@@ -48,9 +42,9 @@ def main(genebass_data: str, genebass_trait_mappings: str, spark_instance: Spark
             'BETA_Burden',
             'SE_Burden',
         )
-        # Joining step with the mappings
+        # Bring trait to EFO mappings
         .join(
-            genebass_trait_mappings_df.withColumnRenamed('PROPERTY_VALUE', 'description'),
+            read_trait_mappings(spark_instance).withColumnRenamed('PROPERTY_VALUE', 'description'),
             on='description',
             how='left',
         )
@@ -190,12 +184,6 @@ def get_parser():
         required=True,
     )
     parser.add_argument(
-        '--genebass_trait_mappings',
-        help='Input TSV containing Genebass\'s traits with their EFO mappings.',
-        type=str,
-        required=True,
-    )
-    parser.add_argument(
         '--output',
         help='Output gzipped json file following the gene_burden evidence data model.',
         type=str,
@@ -230,7 +218,6 @@ if __name__ == '__main__':
 
     evd_df = main(
         genebass_data=args.genebass_data,
-        genebass_trait_mappings=args.genebass_trait_mappings,
         spark_instance=spark,
     )
 

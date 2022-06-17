@@ -1,8 +1,8 @@
 import os
 import tempfile
 
-import pandas as pd
 from psutil import virtual_memory
+from pyspark import SparkFiles
 from pyspark.conf import SparkConf
 from pyspark.sql import DataFrame, SparkSession
 
@@ -92,11 +92,14 @@ def read_path(path: str, spark_instance) -> DataFrame:
         return spark_instance.read.parquet(path)
 
 
-def read_trait_mappings(trait_mappings: str, study_name: str, spark_instance: SparkSession) -> DataFrame:
+def read_trait_mappings(spark_instance: SparkSession) -> DataFrame:
     """Load the remote trait mappings file to a Spark dataframe."""
 
-    return spark_instance.createDataFrame(
-        pd.read_csv(trait_mappings, sep='\t')
-        .query('STUDY == @study_name')
-        .filter(['STUDY', 'PROPERTY_VALUE', 'SEMANTIC_TAG'])
+    remote_trait_mappings_url = (
+        'https://raw.githubusercontent.com/opentargets/curation/master/mappings/disease/manual_string.tsv'
+    )
+    spark_instance.sparkContext.addFile(remote_trait_mappings_url)
+
+    return spark_instance.read.csv(SparkFiles.get('manual_string.tsv'), header=True, sep='\t').select(
+        'STUDY', 'PROPERTY_VALUE', 'SEMANTIC_TAG'
     )
