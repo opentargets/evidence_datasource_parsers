@@ -68,3 +68,6 @@ TargetSafety:
   safetyRisk: https://raw.githubusercontent.com/opentargets/curation/master/target_safety/safety_risks.tsv
   toxcast: gs://otar001-core/TargetSafety/data_files/toxcast/ToxCast_2021-08-17.tsv
   outputBucket: gs://otar001-core/TargetSafety/json
+ChemicalProbes:
+  PATH_TO_JAR_FILE: /Users/irene/MEGAsync/EBI/repos/evidence_datasource_parsers/postgresql-42.4.0.jar
+  DB_URL: jdbc:postgresql://localhost:5432/probes

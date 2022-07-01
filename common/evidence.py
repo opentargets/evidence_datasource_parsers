@@ -5,7 +5,8 @@ from psutil import virtual_memory
 from pyspark import SparkFiles
 from pyspark.conf import SparkConf
 from pyspark.sql import DataFrame, SparkSession
-from pyspark.sql.functions import col
+import pyspark.sql.functions as F
+import pyspark.sql.types as T
 
 
 def detect_spark_memory_limit():
@@ -106,6 +107,28 @@ def import_trait_mappings() -> DataFrame:
         SparkSession.getActiveSession()
         .read.csv(SparkFiles.get('manual_string.tsv'), header=True, sep='\t')
         .select(
-            col('PROPERTY_VALUE').alias('diseaseFromSource'), col('SEMANTIC_TAG').alias('diseaseFromSourceMappedId')
+            F.col('PROPERTY_VALUE').alias('diseaseFromSource'), F.col('SEMANTIC_TAG').alias('diseaseFromSourceMappedId')
         )
+    )
+
+
+def convert_stringified_array_to_array(df: DataFrame, column_name: str) -> DataFrame:
+    """
+    Convert a column of stringified arrays to an array column.
+    Example: "['BI-1829', 'No control']" -> ['BI-1829', 'No control']
+    """
+    return df.withColumn(
+        column_name, F.split(F.translate(column_name, '[]\'', ''), ', ').cast(T.ArrayType(T.StringType()))
+    )
+
+
+def load_sql_table_to_spark(db_url: str, db_user: str, db_password: str, table_name: str, columns_of_interest: list):
+    """
+    Load a table from a SQL database to a Spark dataframe.
+    """
+    return (
+        SparkSession.getActiveSession()
+        .read.jdbc(url=db_url, table=table_name, properties={'user': db_user, 'password': db_password})
+        .select(columns_of_interest)
+        .distinct()
     )
