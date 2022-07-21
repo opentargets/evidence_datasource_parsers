@@ -230,15 +230,12 @@ def transform_data(probe_df: DataFrame):
             F.collect_set('origin_id').alias('origin'),
             F.collect_set('isHighQuality').alias('isHighQuality'),
             F.collect_set('actiontype_id').alias('mechanismOfAction'),
-            F.collect_set('inchikey').alias('inchiKey'),
             F.collect_set('probeMinerScore').alias('probeMinerScore'),
             F.collect_set('scoreInCells').alias('scoreInCells'),
             F.collect_set('scoreInOrganisms').alias('scoreInOrganisms'),
             F.collect_set('probesDrugsScore').alias('probesDrugsScore'),
             F.collect_set('url').alias('urls'),
         )
-        # There are ~20 cases with multiple inchikeys, these are exploded
-        .withColumn('inchiKey', F.explode_outer('inchiKey'))
         # The max score is extracted in those cases that there is more than one value - principally ProbeMiner
         .withColumn('probeMinerScore', F.array_max('probeMinerScore'))
         .withColumn('scoreInCells', F.array_max('scoreInCells'))
