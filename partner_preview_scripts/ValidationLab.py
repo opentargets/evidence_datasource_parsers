@@ -325,7 +325,12 @@ def parse_experiment(spark: SparkSession, parameters: dict, cellPassportDf: Data
         .select('name', 'diseaseCellLines', expr(biomarker_unstack))
 
         # Filter out all null biomarkers:
-        .filter(col('biomarkers').isNotNull())
+        .filter(
+            (col('biomarkers').isNotNull()) &
+
+            # Following the request of the validation lab, we are removing CRIS biomarker annotation:
+            (col('biomarker_name') != 'CRIS_subtype')
+        )
 
         # Grouping data by cell lines again:
         .groupBy('name')
