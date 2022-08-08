@@ -75,14 +75,16 @@ def process_gene_burden_curation(curated_data: str, spark_instance: SparkSession
     )
 
     # Assert that curated evidence is mapped to the correct disease
-    assert (
+    if (
         manual_df.filter(
             ((col('projectId') == 'Autism Sequencing Consortium') & (col('diseaseFromSourceMappedId') != 'EFO_0003756'))
             | ((col('projectId') == 'SCHEMA consortium') & (col('diseaseFromSourceMappedId') != 'MONDO_0005090'))
             | ((col('projectId') == 'Epi25 collaborative') & (col('diseaseFromSourceMappedId') != 'MONDO_0100062'))
         ).count()
         == 0
-    ), logging.exception('Curated evidence is not mapped to the correct disease.')
+    ):
+        logging.exception('Curated evidence is not mapped to the correct disease.')
+        raise AssertionError('Curated evidence is not mapped to the correct disease.')
 
     return manual_df
 
