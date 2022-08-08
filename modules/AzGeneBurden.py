@@ -7,8 +7,8 @@ import sys
 
 from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
-from pyspark.sql.functions import array, col, lit, log10, pow, round, when
-from pyspark.sql.types import DoubleType, IntegerType
+import pyspark.sql.functions as F
+import pyspark.sql.types as T
 
 from common.evidence import initialize_sparksession, import_trait_mappings, write_evidence_strings
 
@@ -48,12 +48,12 @@ def main(az_binary_data: str, az_quant_data: str) -> DataFrame:
         .unionByName(
             SparkSession.getActiveSession()
             .read.parquet(az_quant_data)
-            .withColumn('nCases', col('nSamples'))
+            .withColumn('nCases', F.col('nSamples'))
             .withColumnRenamed('YesQV', 'nCasesQV'),
             allowMissingColumns=True,
         )
-        .withColumn('pValue', col('pValue').cast(DoubleType()))
-        .filter(col('pValue') <= 1e-7)
+        .withColumn('pValue', F.col('pValue').cast(T.DoubleType()))
+        .filter(F.col('pValue') <= 1e-7)
         .distinct()
         .repartition(20)
         .persist()
@@ -66,19 +66,19 @@ def main(az_binary_data: str, az_quant_data: str) -> DataFrame:
     # This is a bug we still have to ellucidate and it might be due to a float overflow.
     # These evidence need to be manually corrected in order not to lose them and for them to pass validation
     # As an interim solution, their p value will equal to the minimum in the evidence set.
-    logging.warning(f"There are {az_phewas_df.filter(col('pValue') == 0.0).count()} evidence with a p-value of 0.0.")
-    minimum_pvalue = az_phewas_df.filter(col('pValue') > 0.0).agg({'pValue': 'min'}).collect()[0]['min(pValue)']
+    logging.warning(f"There are {az_phewas_df.filter(F.col('pValue') == 0.0).count()} evidence with a p-value of 0.0.")
+    minimum_pvalue = az_phewas_df.filter(F.col('pValue') > 0.0).agg({'pValue': 'min'}).collect()[0]['min(pValue)']
     az_phewas_df = az_phewas_df.withColumn(
-        'pValue', when(col('pValue') == 0.0, lit(minimum_pvalue)).otherwise(col('pValue'))
+        'pValue', F.when(F.col('pValue') == 0.0, F.lit(minimum_pvalue)).otherwise(F.col('pValue'))
     )
 
     # Write output
     evd_df = parse_az_phewas_evidence(az_phewas_df)
 
-    if evd_df.filter(col('resourceScore') == 0).count() != 0:
+    if evd_df.filter(F.col('resourceScore') == 0).count() != 0:
         logging.error('There are evidence with a P value of 0.')
         raise AssertionError(
-            f"There are {evd_df.filter(col('resourceScore') == 0).count()} evidence with a P value of 0."
+            f"There are {evd_df.filter(F.col('resourceScore') == 0).count()} evidence with a P value of 0."
         )
 
     if not 17_000 < evd_df.count() < 19_000:
@@ -92,7 +92,7 @@ def main(az_binary_data: str, az_quant_data: str) -> DataFrame:
 def remove_false_positives(az_phewas_df: DataFrame) -> DataFrame:
     """Remove associations present in the synonymous negative control."""
 
-    false_positives = az_phewas_df.filter(col('CollapsingModel') == 'syn').select('Gene', 'Phenotype').distinct()
+    false_positives = az_phewas_df.filter(F.col('CollapsingModel') == 'syn').select('Gene', 'Phenotype').distinct()
     true_positives = az_phewas_df.join(false_positives, on=['Gene', 'Phenotype'], how='left_anti').distinct()
     logging.info(
         f'{az_phewas_df.count() - true_positives.count()} false positive evidence of association have been dropped.'
@@ -138,11 +138,11 @@ def parse_az_phewas_evidence(az_phewas_df: DataFrame) -> DataFrame:
     ]
 
     return (
-        az_phewas_df.withColumn('datasourceId', lit('gene_burden'))
-        .withColumn('datatypeId', lit('genetic_association'))
-        .withColumn('literature', array(lit('34375979')))
-        .withColumn('projectId', lit('AstraZeneca PheWAS Portal'))
-        .withColumn('cohortId', lit('UK Biobank 450k'))
+        az_phewas_df.withColumn('datasourceId', F.lit('gene_burden'))
+        .withColumn('datatypeId', F.lit('genetic_association'))
+        .withColumn('literature', F.array(F.lit('34375979')))
+        .withColumn('projectId', F.lit('AstraZeneca PheWAS Portal'))
+        .withColumn('cohortId', F.lit('UK Biobank 450k'))
         .withColumnRenamed('Gene', 'targetFromSourceId')
         .withColumnRenamed('Phenotype', 'diseaseFromSource')
         .join(
@@ -150,44 +150,46 @@ def parse_az_phewas_evidence(az_phewas_df: DataFrame) -> DataFrame:
             on='diseaseFromSource',
             how='left',
         )
-        .withColumn('resourceScore', col('pValue'))
-        .withColumn('pValueExponent', log10(col('pValue')).cast(IntegerType()) - lit(1))
-        .withColumn('pValueMantissa', round(col('pValue') / pow(lit(10), col('pValueExponent')), 3))
+        .withColumn('resourceScore', F.col('pValue'))
+        .withColumn('pValueExponent', F.log10(F.col('pValue')).cast(T.IntegerType()) - F.lit(1))
+        .withColumn('pValueMantissa', F.round(F.col('pValue') / F.pow(F.lit(10), F.col('pValueExponent')), 3))
         .withColumn(
             'beta',
-            when(col('Type') == 'Quantitative', col('beta')),
+            F.when(F.col('Type') == 'Quantitative', F.col('beta')),
         )
         .withColumn(
             'betaConfidenceIntervalLower',
-            when(col('Type') == 'Quantitative', col('LCI')),
+            F.when(F.col('Type') == 'Quantitative', F.col('LCI')),
         )
         .withColumn(
             'betaConfidenceIntervalUpper',
-            when(col('Type') == 'Quantitative', col('UCI')),
+            F.when(F.col('Type') == 'Quantitative', F.col('UCI')),
         )
         .withColumn(
             'oddsRatio',
-            when(col('Type') == 'Binary', col('binOddsRatio')),
+            F.when(F.col('Type') == 'Binary', F.col('binOddsRatio')),
         )
         .withColumn(
             'oddsRatioConfidenceIntervalLower',
-            when(col('Type') == 'Binary', col('LCI')),
+            F.when(F.col('Type') == 'Binary', F.col('LCI')),
         )
         .withColumn(
             'oddsRatioConfidenceIntervalUpper',
-            when(col('Type') == 'Binary', col('UCI')),
+            F.when(F.col('Type') == 'Binary', F.col('UCI')),
         )
-        .withColumn('ancestry', lit('EUR'))
-        .withColumn('ancestryId', lit('HANCESTRO_0005'))
+        .withColumn('ancestry', F.lit('EUR'))
+        .withColumn('ancestryId', F.lit('HANCESTRO_0005'))
         .withColumnRenamed('nSamples', 'studySampleSize')
         .withColumnRenamed('nCases', 'studyCases')
         .withColumnRenamed('nCasesQV', 'studyCasesWithQualifyingVariants')
         .withColumnRenamed('CollapsingModel', 'statisticalMethod')
-        .withColumn('statisticalMethodOverview', col('statisticalMethod'))
+        .withColumn('statisticalMethodOverview', F.col('statisticalMethod'))
         .replace(to_replace=METHOD_DESC, subset=['statisticalMethodOverview'])
         .withColumn(
             'allelicRequirements',
-            when(col('statisticalMethod') == 'rec', array(lit('recessive'))).otherwise(array(lit('dominant'))),
+            F.when(F.col('statisticalMethod') == 'rec', F.array(F.lit('recessive'))).otherwise(
+                F.array(F.lit('dominant'))
+            ),
         )
         .select(to_keep)
         .distinct()

@@ -9,8 +9,8 @@ import sys
 from pyspark import SparkFiles
 from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
-from pyspark.sql.functions import array, col, lit, when
-from pyspark.sql.types import DoubleType, IntegerType, StringType, StructField, StructType
+import pyspark.sql.functions as F
+import pyspark.sql.types as T
 
 from common.evidence import initialize_sparksession, write_evidence_strings
 from AzGeneBurden import main as process_az_gene_burden
@@ -53,22 +53,23 @@ def process_gene_burden_curation(curated_data: str) -> DataFrame:
         # The columns practically follow the schema, only small things need to be parsed
         # 1. Confidence intervals are detached
         .withColumn(
-            'oddsRatioConfidenceIntervalLower', when(col('oddsRatio').isNotNull(), col('ConfidenceIntervalLower'))
+            'oddsRatioConfidenceIntervalLower', F.when(F.col('oddsRatio').isNotNull(), F.col('ConfidenceIntervalLower'))
         )
         .withColumn(
-            'oddsRatioConfidenceIntervalUpper', when(col('oddsRatio').isNotNull(), col('ConfidenceIntervalUpper'))
+            'oddsRatioConfidenceIntervalUpper', F.when(F.col('oddsRatio').isNotNull(), F.col('ConfidenceIntervalUpper'))
         )
-        .withColumn('betaConfidenceIntervalLower', when(col('beta').isNotNull(), col('ConfidenceIntervalLower')))
-        .withColumn('betaConfidenceIntervalUpper', when(col('beta').isNotNull(), col('ConfidenceIntervalUpper')))
+        .withColumn('betaConfidenceIntervalLower', F.when(F.col('beta').isNotNull(), F.col('ConfidenceIntervalLower')))
+        .withColumn('betaConfidenceIntervalUpper', F.when(F.col('beta').isNotNull(), F.col('ConfidenceIntervalUpper')))
         .drop('ConfidenceIntervalLower', 'ConfidenceIntervalUpper')
         # 2. Collect PMID and allelic requirements in an array
-        .withColumn('literature', array(col('literature')))
+        .withColumn('literature', F.array(F.col('literature')))
         .withColumn(
-            'allelicRequirements', when(col('allelicRequirements').isNotNull(), array(col('allelicRequirements')))
+            'allelicRequirements',
+            F.when(F.col('allelicRequirements').isNotNull(), F.array(F.col('allelicRequirements'))),
         )
         # 3. Add hardcoded values and drop URLs (will be handled by the FE) and HGNC symbols
-        .withColumn('datasourceId', lit('gene_burden'))
-        .withColumn('datatypeId', lit('genetic_association'))
+        .withColumn('datasourceId', F.lit('gene_burden'))
+        .withColumn('datatypeId', F.lit('genetic_association'))
         .drop('url', 'targetFromSource')
         .distinct()
     )
@@ -76,9 +77,12 @@ def process_gene_burden_curation(curated_data: str) -> DataFrame:
     # Assert that curated evidence is mapped to the correct disease
     if (
         manual_df.filter(
-            ((col('projectId') == 'Autism Sequencing Consortium') & (col('diseaseFromSourceMappedId') != 'EFO_0003756'))
-            | ((col('projectId') == 'SCHEMA consortium') & (col('diseaseFromSourceMappedId') != 'MONDO_0005090'))
-            | ((col('projectId') == 'Epi25 collaborative') & (col('diseaseFromSourceMappedId') != 'MONDO_0100062'))
+            (
+                (F.col('projectId') == 'Autism Sequencing Consortium')
+                & (F.col('diseaseFromSourceMappedId') != 'EFO_0003756')
+            )
+            | ((F.col('projectId') == 'SCHEMA consortium') & (F.col('diseaseFromSourceMappedId') != 'MONDO_0005090'))
+            | ((F.col('projectId') == 'Epi25 collaborative') & (F.col('diseaseFromSourceMappedId') != 'MONDO_0100062'))
         ).count()
         != 0
     ):
@@ -91,32 +95,32 @@ def process_gene_burden_curation(curated_data: str) -> DataFrame:
 def read_gene_burden_curation(curated_data: str) -> DataFrame:
     """Read manual gene burden curation from remote to a Spark DataFrame."""
 
-    schema = StructType(
+    schema = T.StructType(
         [
-            StructField('projectId', StringType(), True),
-            StructField('targetFromSource', StringType(), True),
-            StructField('targetFromSourceId', StringType(), True),
-            StructField('diseaseFromSource', StringType(), True),
-            StructField('diseaseFromSourceMappedId', StringType(), True),
-            StructField('resourceScore', DoubleType(), True),
-            StructField('pValueMantissa', DoubleType(), True),
-            StructField('pValueExponent', IntegerType(), True),
-            StructField('oddsRatio', DoubleType(), True),
-            StructField('ConfidenceIntervalLower', DoubleType(), True),
-            StructField('ConfidenceIntervalUpper', DoubleType(), True),
-            StructField('beta', DoubleType(), True),
-            StructField('ancestry', StringType(), True),
-            StructField('ancestryId', StringType(), True),
-            StructField('cohortId', StringType(), True),
-            StructField('studyId', StringType(), True),
-            StructField('studySampleSize', IntegerType(), True),
-            StructField('studyCases', IntegerType(), True),
-            StructField('studyCasesWithQualifyingVariants', IntegerType(), True),
-            StructField('allelicRequirements', StringType(), True),
-            StructField('statisticalMethod', StringType(), True),
-            StructField('statisticalMethodOverview', StringType(), True),
-            StructField('literature', StringType(), True),
-            StructField('url', StringType(), True),
+            T.StructField('projectId', T.StringType(), True),
+            T.StructField('targetFromSource', T.StringType(), True),
+            T.StructField('targetFromSourceId', T.StringType(), True),
+            T.StructField('diseaseFromSource', T.StringType(), True),
+            T.StructField('diseaseFromSourceMappedId', T.StringType(), True),
+            T.StructField('resourceScore', T.DoubleType(), True),
+            T.StructField('pValueMantissa', T.DoubleType(), True),
+            T.StructField('pValueExponent', T.IntegerType(), True),
+            T.StructField('oddsRatio', T.DoubleType(), True),
+            T.StructField('ConfidenceIntervalLower', T.DoubleType(), True),
+            T.StructField('ConfidenceIntervalUpper', T.DoubleType(), True),
+            T.StructField('beta', T.DoubleType(), True),
+            T.StructField('ancestry', T.StringType(), True),
+            T.StructField('ancestryId', T.StringType(), True),
+            T.StructField('cohortId', T.StringType(), True),
+            T.StructField('studyId', T.StringType(), True),
+            T.StructField('studySampleSize', T.IntegerType(), True),
+            T.StructField('studyCases', T.IntegerType(), True),
+            T.StructField('studyCasesWithQualifyingVariants', T.IntegerType(), True),
+            T.StructField('allelicRequirements', T.StringType(), True),
+            T.StructField('statisticalMethod', T.StringType(), True),
+            T.StructField('statisticalMethodOverview', T.StringType(), True),
+            T.StructField('literature', T.StringType(), True),
+            T.StructField('url', T.StringType(), True),
         ]
     )
 
