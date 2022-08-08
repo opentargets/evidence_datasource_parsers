@@ -28,14 +28,11 @@ def main(
 
     burden_evidence_sets = [
         # Generate evidence from AZ data:
-        process_az_gene_burden(
-            az_binary_data, az_quant_data, spark_instance=spark_instance
-        ).persist(),
+        process_az_gene_burden(az_binary_data, az_quant_data, spark_instance=spark_instance).persist(),
         # Generate evidence from manual data:
         process_gene_burden_curation(curated_data, spark_instance=spark_instance).persist(),
         # Generate evidence from GeneBass data:
         process_genebass_gene_burden(genebass_data, spark_instance=spark_instance).persist(),
-
     ]
 
     unionByDiffSchema = partial(DataFrame.unionByName, allowMissingColumns=True)
@@ -52,7 +49,7 @@ def process_gene_burden_curation(curated_data: str, spark_instance: SparkSession
     manual_df = read_gene_burden_curation(curated_data, spark_instance)
     logging.info(f'Total number of imported manual gene_burden evidence: {manual_df.count()}')
 
-    return (
+    manual_df = (
         manual_df
         # The columns practically follow the schema, only small things need to be parsed
         # 1. Confidence intervals are detached
@@ -76,6 +73,18 @@ def process_gene_burden_curation(curated_data: str, spark_instance: SparkSession
         .drop('url', 'targetFromSource')
         .distinct()
     )
+
+    # Assert that curated evidence is mapped to the correct disease
+    assert (
+        manual_df.filter(
+            ((col('projectId') == 'Autism Sequencing Consortium') & (col('diseaseFromSourceMappedId') != 'EFO_0003756'))
+            | ((col('projectId') == 'SCHEMA consortium') & (col('diseaseFromSourceMappedId') != 'MONDO_0005090'))
+            | ((col('projectId') == 'Epi25 collaborative') & (col('diseaseFromSourceMappedId') != 'MONDO_0100062'))
+        ).count()
+        == 0
+    ), logging.exception('Curated evidence is not mapped to the correct disease.')
+
+    return manual_df
 
 
 def read_gene_burden_curation(curated_data: str, spark_instance: SparkSession) -> DataFrame:
