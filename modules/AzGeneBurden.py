@@ -27,7 +27,7 @@ METHOD_DESC = {
 }
 
 
-def main(az_binary_data: str, az_quant_data: str, spark_instance: SparkSession) -> DataFrame:
+def main(az_binary_data: str, az_quant_data: str) -> DataFrame:
     """
     This module extracts and processes target/disease evidence from the raw AstraZeneca PheWAS Portal.
     """
@@ -36,7 +36,8 @@ def main(az_binary_data: str, az_quant_data: str, spark_instance: SparkSession) 
 
     # Load data
     az_phewas_df = (
-        spark_instance.read.parquet(az_binary_data)
+        SparkSession.getActiveSession()
+        .read.parquet(az_binary_data)
         # Renaming of some columns to match schemas of both binary and quantitative evidence
         .withColumnRenamed('BinOddsRatioLCI', 'LCI')
         .withColumnRenamed('BinOddsRatioUCI', 'UCI')
@@ -45,7 +46,8 @@ def main(az_binary_data: str, az_quant_data: str, spark_instance: SparkSession) 
         .withColumnRenamed('BinNcontrols', 'nControls')
         # Combine binary and quantitative evidence into one dataframe
         .unionByName(
-            spark_instance.read.parquet(az_quant_data)
+            SparkSession.getActiveSession()
+            .read.parquet(az_quant_data)
             .withColumn('nCases', col('nSamples'))
             .withColumnRenamed('YesQV', 'nCasesQV'),
             allowMissingColumns=True,
@@ -244,7 +246,6 @@ if __name__ == '__main__':
     evd_df = main(
         az_binary_data=args.az_binary_data,
         az_quant_data=args.az_quant_data,
-        spark_instance=spark,
     )
 
     write_evidence_strings(evd_df, args.output)

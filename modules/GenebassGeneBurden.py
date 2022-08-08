@@ -20,7 +20,7 @@ METHOD_DESC = {
 }
 
 
-def main(genebass_data: str, spark_instance: SparkSession) -> DataFrame:
+def main(genebass_data: str) -> DataFrame:
     """
     This module extracts and processes target/disease evidence from the raw Genebass Portal.
     """
@@ -28,7 +28,8 @@ def main(genebass_data: str, spark_instance: SparkSession) -> DataFrame:
 
     # Load data
     genebass_df = (
-        spark_instance.read.parquet(genebass_data)
+        SparkSession.getActiveSession()
+        .read.parquet(genebass_data)
         .filter(col('Pvalue_Burden') <= 6.7e-7)
         .select(
             'gene_id',
@@ -216,7 +217,6 @@ if __name__ == '__main__':
 
     evd_df = main(
         genebass_data=args.genebass_data,
-        spark_instance=spark,
     )
 
     write_evidence_strings(evd_df, args.output)
