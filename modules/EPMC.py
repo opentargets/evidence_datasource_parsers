@@ -101,6 +101,7 @@ def main(cooccurrences, outputFile):
                 )
             ).alias('textMiningSentences'),
             F.sum(F.col('evidence_score')).alias('resourceScore'),
+            F.min('year').alias('publicationYear'),
         )
         # Nullify pmcIds if empty array:
         .withColumn('pmcIds', F.when(F.size('pmcIds') != 0, F.col('pmcIds')))
