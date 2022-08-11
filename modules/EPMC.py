@@ -90,6 +90,7 @@ def main(cooccurrences, outputFile):
         .agg(
             F.collect_set(F.col('pmcid')).alias('pmcIds'),
             F.collect_set(F.col('pmid')).alias('literature'),
+            F.min('year').alias('publicationYear'),
             F.collect_set(
                 F.struct(
                     F.col('text'),
@@ -101,7 +102,6 @@ def main(cooccurrences, outputFile):
                 )
             ).alias('textMiningSentences'),
             F.sum(F.col('evidence_score')).alias('resourceScore'),
-            F.min('year').alias('publicationYear'),
         )
         # Nullify pmcIds if empty array:
         .withColumn('pmcIds', F.when(F.size('pmcIds') != 0, F.col('pmcIds')))
@@ -125,6 +125,7 @@ def main(cooccurrences, outputFile):
                 'literature',
                 'textMiningSentences',
                 'pmcIds',
+                'publicationYear',
             ]
         )
     )
