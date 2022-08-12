@@ -90,6 +90,7 @@ def main(cooccurrences, outputFile):
         .agg(
             F.collect_set(F.col('pmcid')).alias('pmcIds'),
             F.collect_set(F.col('pmid')).alias('literature'),
+            F.min('year').alias('publicationYear'),
             F.collect_set(
                 F.struct(
                     F.col('text'),
@@ -124,6 +125,7 @@ def main(cooccurrences, outputFile):
                 'literature',
                 'textMiningSentences',
                 'pmcIds',
+                'publicationYear',
             ]
         )
     )
