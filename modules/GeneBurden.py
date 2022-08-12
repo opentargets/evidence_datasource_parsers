@@ -74,21 +74,6 @@ def process_gene_burden_curation(curated_data: str) -> DataFrame:
         .distinct()
     )
 
-    # Assert that curated evidence is mapped to the correct disease
-    if (
-        manual_df.filter(
-            (
-                (F.col('projectId') == 'Autism Sequencing Consortium')
-                & (F.col('diseaseFromSourceMappedId') != 'EFO_0003756')
-            )
-            | ((F.col('projectId') == 'SCHEMA consortium') & (F.col('diseaseFromSourceMappedId') != 'MONDO_0005090'))
-            | ((F.col('projectId') == 'Epi25 collaborative') & (F.col('diseaseFromSourceMappedId') != 'MONDO_0100062'))
-        ).count()
-        != 0
-    ):
-        logging.exception('Curated evidence is not mapped to the correct disease.')
-        raise AssertionError('Curated evidence is not mapped to the correct disease.')
-
     return manual_df
 
 

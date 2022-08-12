@@ -52,12 +52,12 @@ def main(genebass_data: str) -> DataFrame:
     evd_df = parse_genebass_evidence(genebass_df)
 
     if evd_df.filter(F.col('resourceScore') == 0).count() != 0:
-        logging.assertion('There are evidence with a P value of 0.')
+        logging.exception('There are evidence with a P value of 0.')
         raise AssertionError(
             f"There are {evd_df.filter(F.col('resourceScore') == 0).count()} evidence with a P value of 0."
         )
     if not 8_000 < evd_df.count() < 10_000:
-        logging.assertion(f'Genebass number of evidence are different from expected: {evd_df.count()}')
+        logging.exception(f'Genebass number of evidence are different from expected: {evd_df.count()}')
         raise AssertionError('Genebass number of evidence are different from expected.')
     logging.info(f'{evd_df.count()} evidence strings have been processed.')
 
