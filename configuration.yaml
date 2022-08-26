@@ -7,7 +7,7 @@ global:
 cancerBiomarkers:
   inputBucket: gs://otar000-evidence_input/CancerBiomarkers/data_files
   outputBucket: gs://otar000-evidence_input/CancerBiomarkers/json
-  drugIndex: gs://open-targets-pre-data-releases/22.04/output/etl/parquet/molecule
+  drugIndex: gs://open-targets-pre-data-releases/development/output/etl/parquet/molecule
 ChEMBL:
   evidence: gs://otar008-chembl/cttv008-06-06-2022.json.gz
   stopReasonCategories: gs://otar000-evidence_input/ChEMBL/data_files/chembl_predictions-2022-06-11.tsv
