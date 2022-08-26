@@ -7,8 +7,8 @@ import sys
 
 from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
-from pyspark.sql.functions import coalesce, col, lit, log10, pow, round, when
-from pyspark.sql.types import IntegerType
+import pyspark.sql.functions as F
+import pyspark.sql.types as T
 
 from common.evidence import initialize_sparksession, import_trait_mappings, write_evidence_strings
 
@@ -20,7 +20,7 @@ METHOD_DESC = {
 }
 
 
-def main(genebass_data: str, spark_instance: SparkSession) -> DataFrame:
+def main(genebass_data: str) -> DataFrame:
     """
     This module extracts and processes target/disease evidence from the raw Genebass Portal.
     """
@@ -28,8 +28,9 @@ def main(genebass_data: str, spark_instance: SparkSession) -> DataFrame:
 
     # Load data
     genebass_df = (
-        spark_instance.read.parquet(genebass_data)
-        .filter(col('Pvalue_Burden') <= 6.7e-7)
+        SparkSession.getActiveSession()
+        .read.parquet(genebass_data)
+        .filter(F.col('Pvalue_Burden') <= 6.7e-7)
         .select(
             'gene_id',
             'annotation',
@@ -50,13 +51,13 @@ def main(genebass_data: str, spark_instance: SparkSession) -> DataFrame:
     # Write output
     evd_df = parse_genebass_evidence(genebass_df)
 
-    if evd_df.filter(col('resourceScore') == 0).count() != 0:
-        logging.error('There are evidence with a P value of 0.')
+    if evd_df.filter(F.col('resourceScore') == 0).count() != 0:
+        logging.exception('There are evidence with a P value of 0.')
         raise AssertionError(
-            f"There are {evd_df.filter(col('resourceScore') == 0).count()} evidence with a P value of 0."
+            f"There are {evd_df.filter(F.col('resourceScore') == 0).count()} evidence with a P value of 0."
         )
     if not 8_000 < evd_df.count() < 10_000:
-        logging.error(f'Genebass number of evidence are different from expected: {evd_df.count()}')
+        logging.exception(f'Genebass number of evidence are different from expected: {evd_df.count()}')
         raise AssertionError('Genebass number of evidence are different from expected.')
     logging.info(f'{evd_df.count()} evidence strings have been processed.')
 
@@ -102,22 +103,24 @@ def parse_genebass_evidence(genebass_df: DataFrame) -> DataFrame:
     # These evidence need to be manually corrected in order not to lose them and for them to pass validation
     # As an interim solution, their p value will equal to the minimum in the evidence set.
     logging.warning(
-        f"There are {genebass_df.filter(col('Pvalue_Burden') == 0.0).count()} evidence with a p-value of 0.0."
+        f"There are {genebass_df.filter(F.col('Pvalue_Burden') == 0.0).count()} evidence with a p-value of 0.0."
     )
     minimum_pvalue = (
-        genebass_df.filter(col('Pvalue_Burden') > 0.0).agg({'Pvalue_Burden': 'min'}).collect()[0]['min(Pvalue_Burden)']
+        genebass_df.filter(F.col('Pvalue_Burden') > 0.0)
+        .agg({'Pvalue_Burden': 'min'})
+        .collect()[0]['min(Pvalue_Burden)']
     )
     genebass_df = genebass_df.withColumn(
-        'Pvalue_Burden', when(col('Pvalue_Burden') == 0.0, lit(minimum_pvalue)).otherwise(col('Pvalue_Burden'))
+        'Pvalue_Burden', F.when(F.col('Pvalue_Burden') == 0.0, F.lit(minimum_pvalue)).otherwise(F.col('Pvalue_Burden'))
     )
 
     return (
-        genebass_df.withColumn('datasourceId', lit('gene_burden'))
-        .withColumn('datatypeId', lit('genetic_association'))
-        .withColumn('projectId', lit('Genebass'))
-        .withColumn('cohortId', lit('UK Biobank 450k'))
-        .withColumn('ancestry', lit('EUR'))
-        .withColumn('ancestryId', lit('HANCESTRO_0009'))
+        genebass_df.withColumn('datasourceId', F.lit('gene_burden'))
+        .withColumn('datatypeId', F.lit('genetic_association'))
+        .withColumn('projectId', F.lit('Genebass'))
+        .withColumn('cohortId', F.lit('UK Biobank 450k'))
+        .withColumn('ancestry', F.lit('EUR'))
+        .withColumn('ancestryId', F.lit('HANCESTRO_0009'))
         .withColumnRenamed('gene_id', 'targetFromSourceId')
         .withColumnRenamed('description', 'diseaseFromSource')
         .withColumnRenamed('phenocode', 'diseaseFromSourceId')
@@ -127,44 +130,44 @@ def parse_genebass_evidence(genebass_df: DataFrame) -> DataFrame:
             how='left',
         )
         .withColumnRenamed('Pvalue_Burden', 'resourceScore')
-        .withColumn('pValueExponent', log10(col('resourceScore')).cast(IntegerType()) - lit(1))
-        .withColumn('pValueMantissa', round(col('resourceScore') / pow(lit(10), col('pValueExponent')), 3))
+        .withColumn('pValueExponent', F.log10(F.col('resourceScore')).cast(T.IntegerType()) - F.lit(1))
+        .withColumn('pValueMantissa', F.round(F.col('resourceScore') / F.pow(F.lit(10), F.col('pValueExponent')), 3))
         # Stats are split taking into consideration the type of the trait
         # Those that are not continuous or categorical were reviewed and all of them are considered as categorical
         .withColumn(
             'beta',
-            when(col('trait_type') == 'continuous', col('BETA_Burden')),
+            F.when(F.col('trait_type') == 'continuous', F.col('BETA_Burden')),
         )
         .withColumn(
             'betaConfidenceIntervalLower',
-            when(col('trait_type') == 'continuous', col('BETA_Burden') - col('SE_Burden')),
+            F.when(F.col('trait_type') == 'continuous', F.col('BETA_Burden') - F.col('SE_Burden')),
         )
         .withColumn(
             'betaConfidenceIntervalUpper',
-            when(col('trait_type') == 'continuous', col('BETA_Burden') + col('SE_Burden')),
+            F.when(F.col('trait_type') == 'continuous', F.col('BETA_Burden') + F.col('SE_Burden')),
         )
         .withColumn(
             'oddsRatio',
-            when(col('trait_type').isin(['categorical', 'icd_first_occurrence', 'icd10']), col('BETA_Burden')),
+            F.when(F.col('trait_type').isin(['categorical', 'icd_first_occurrence', 'icd10']), F.col('BETA_Burden')),
         )
         .withColumn(
             'oddsRatioConfidenceIntervalLower',
-            when(
-                col('trait_type').isin(['categorical', 'icd_first_occurrence', 'icd10']),
-                col('BETA_Burden') - col('SE_Burden'),
+            F.when(
+                F.col('trait_type').isin(['categorical', 'icd_first_occurrence', 'icd10']),
+                F.col('BETA_Burden') - F.col('SE_Burden'),
             ),
         )
         .withColumn(
             'oddsRatioConfidenceIntervalUpper',
-            when(
-                col('trait_type').isin(['categorical', 'icd_first_occurrence', 'icd10']),
-                col('BETA_Burden') + col('SE_Burden'),
+            F.when(
+                F.col('trait_type').isin(['categorical', 'icd_first_occurrence', 'icd10']),
+                F.col('BETA_Burden') + F.col('SE_Burden'),
             ),
         )
-        .withColumn('studySampleSize', (col('n_cases') + coalesce('n_controls', lit(0))))
+        .withColumn('studySampleSize', (F.col('n_cases') + F.coalesce('n_controls', F.lit(0))))
         .withColumnRenamed('n_cases', 'studyCases')
         .withColumnRenamed('annotation', 'statisticalMethod')
-        .withColumn('statisticalMethodOverview', col('statisticalMethod'))
+        .withColumn('statisticalMethodOverview', F.col('statisticalMethod'))
         .replace(to_replace=METHOD_DESC, subset=['statisticalMethodOverview'])
         .select(to_keep)
         .distinct()
@@ -216,7 +219,6 @@ if __name__ == '__main__':
 
     evd_df = main(
         genebass_data=args.genebass_data,
-        spark_instance=spark,
     )
 
     write_evidence_strings(evd_df, args.output)
