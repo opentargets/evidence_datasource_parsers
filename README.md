@@ -2,8 +2,21 @@
 
 This repository contains a collection of modules which generate evidence for several internal data sources (“internal” meaning that the code is maintained by the data team; the data itself usually comes from sources outside Open Targets).
 
-## How to generate the evidence
+## How to set up and update the environment
+The file `requirements.txt` contains the **direct** dependencies only with their exact versions pinned. Only this file should be edited directly.
 
+Additionally, the file `requirements-frozen.txt` contains all **direct and transitive** dependencies with their exact versions pinned. It is generated automatically from the former file, and is intended for reproducing the exact working environment (as mush as possible) as of any particular commit version. This file should not be directly edited.
+
+These are the steps to update an environment:
+* Add, delete or update packages as necessary in `requirements.txt`
+* Install requirements with `pip3 install -r requirements.txt`
+* Make sure everything works
+* Update the frozen file with `pip3 freeze > requirements-frozen.txt`
+* Include both files, `requirements.txt` and `requirements-frozen.txt`, with your PR
+
+Make sure to always work in a clean virtual environment to avoid any surprises.
+
+## How to generate the evidence
 This will create a Google Cloud instance, SSH into it, install the necessary dependencies, generate, validate, and upload the evidence. Tweak the commands as necessary.
 
 To run this, conditions related to the service accounts need to be satisfied:
@@ -31,23 +44,17 @@ gcloud compute ssh --zone ${INSTANCE_ZONE} ${INSTANCE_NAME}
 
 screen
 
-# Install the dependencies.
+# Install the system dependencies.
 sudo apt update
-sudo apt install -y \
-  openjdk-8-jdk-headless \
-  snakemake
+sudo apt install -y openjdk-8-jdk-headless python3-pip python3.8-venv
 
-wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh
-bash ~/miniconda.sh -b
-~/miniconda3/bin/conda init
-exec bash
-
-# Activate the environment.
+# Activate the environment and install Python dependencies.
 git clone https://github.com/opentargets/evidence_datasource_parsers
 cd evidence_datasource_parsers
-conda env remove -n evidence_datasource_parsers_lock
-conda env create --file envs/environment-lock.yml
-conda activate evidence_datasource_parsers_lock
+python3 -m venv env
+source env/bin/activate
+pip3 install --upgrade pip
+pip3 install -r requirements-freeze.txt
 export PYTHONPATH="$PYTHONPATH:$(pwd)"
 ```
 
