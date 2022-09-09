@@ -248,8 +248,8 @@ rule gene2Phenotype:          # Processes four gene panels from Gene2Phenotype
 
 rule intogen:                 # Process cohorts and driver genes data from intOGen.
     input:
-        inputGenes = GS.remote(f"{config['intOGen']['inputBucket']}/Compendium_Cancer_Genes.tsv"),
-        inputCohorts = GS.remote(f"{config['intOGen']['inputBucket']}/cohorts.tsv"),
+        inputGenes = GS.remote(config['intOGen']['inputAssociationsTable']),
+        inputCohorts = GS.remote(config['intOGen']['inputCohortsTable']),
         diseaseMapping = config['intOGen']['diseaseMapping']
     params:
         schema = f"{config['global']['schema']}/opentargets.json"
