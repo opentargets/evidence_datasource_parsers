@@ -5,7 +5,7 @@ from psutil import virtual_memory
 from pyspark import SparkFiles
 from pyspark.conf import SparkConf
 from pyspark.sql import DataFrame, SparkSession
-from pyspark.sql.functions import col
+import pyspark.sql.functions as F
 
 
 def detect_spark_memory_limit():
@@ -44,14 +44,12 @@ def initialize_sparksession() -> SparkSession:
         .set('spark.sql.execution.arrow.maxRecordsPerBatch', '500000')
         .set('spark.ui.showConsoleProgress', 'false')
     )
-    spark = (
+    return (
         SparkSession.builder.config(conf=spark_conf)
         .master('local[*]')
         .config("spark.driver.bindAddress", "127.0.0.1")
         .getOrCreate()
     )
-
-    return spark
 
 
 def read_path(path: str, spark_instance) -> DataFrame:
@@ -106,6 +104,7 @@ def import_trait_mappings() -> DataFrame:
         SparkSession.getActiveSession()
         .read.csv(SparkFiles.get('manual_string.tsv'), header=True, sep='\t')
         .select(
-            col('PROPERTY_VALUE').alias('diseaseFromSource'), col('SEMANTIC_TAG').alias('diseaseFromSourceMappedId')
+            F.col('PROPERTY_VALUE').alias('diseaseFromSource'),
+            F.element_at(F.split(F.col('SEMANTIC_TAG'), '/'), -1).alias('diseaseFromSourceMappedId'),
         )
     )

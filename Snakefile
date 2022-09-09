@@ -75,7 +75,7 @@ rule cancerBiomarkers:        # Process the Cancers Biomarkers database from Can
     input:
         biomarkers_table = GS.remote(config['cancerBiomarkers']['inputAssociationsTable']),
         source_table = GS.remote(config['cancerBiomarkers']['inputSourceTable']),
-        disease_table = GS.remote(config['cancerBiomarkers']['inputBucket']),
+        disease_table = GS.remote(config['cancerBiomarkers']['inputDiseaseTable']),
         drug_index = GS.remote(config['cancerBiomarkers']['drugIndex'])
     params:
         schema = f"{config['global']['schema']}/opentargets.json"
@@ -146,7 +146,7 @@ rule crispr:                  # Process cancer therapeutic targets using CRISPRâ
     input:
         evidenceFile = GS.remote(config['CRISPR']['inputAssociationsTable']),
         descriptionsFile = GS.remote(config['CRISPR']['inputDescriptionsTable']),
-        cellTypesFile = GS.remote(config['CRISPR']['inputCellTypesTable']")
+        cellTypesFile = GS.remote(config['CRISPR']['inputCellTypesTable'])
     params:
         schema = f"{config['global']['schema']}/opentargets.json"
     output:
