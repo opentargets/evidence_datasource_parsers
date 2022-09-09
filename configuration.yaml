@@ -55,9 +55,9 @@ IMPC:
   evidenceOutputBucket: gs://otar000-evidence_input/IMPC/json
   phenotypesOutputBucket: gs://otar001-core/MousePhenotypes
 PROGENy:
-  inputBucket: gs://otar000-evidence_input/PROGENy/data_files
-  diseaseMapping: resources/cancer2EFO_mappings.tsv
-  pathwayMapping: resources/pathway2Reactome_mappings.tsv
+  inputAssociationsTable: gs://otar000-evidence_input/PROGENy/data_files/progeny_normalVStumor_opentargets.txt
+  inputDiseaseMapping: resources/cancer2EFO_mappings.tsv
+  inputPathwayMapping: resources/pathway2Reactome_mappings.tsv
   outputBucket: gs://otar000-evidence_input/PROGENy/json
 SLAPEnrich:
   inputBucket: gs://otar000-evidence_input/SLAPEnrich/data_file

@@ -330,9 +330,9 @@ rule impc:                    # Process target-disease evidence and mouseModels 
 
 rule progeny:                 # Process gene expression data from TCGA derived from PROGENy.
     input:
-        inputFile = GS.remote(f"{config['PROGENy']['inputBucket']}/progeny_normalVStumor_opentargets.txt"),
-        diseaseMapping = config['PROGENy']['diseaseMapping'],
-        pathwayMapping = config['PROGENy']['pathwayMapping']
+        inputFile = GS.remote(config['PROGENy']['inputAssociationsTable']),
+        diseaseMapping = config['PROGENy']['inputDiseaseMapping'],
+        pathwayMapping = config['PROGENy']['inputPathwayMapping']
     params:
         schema = f"{config['global']['schema']}/opentargets.json"
     output:
