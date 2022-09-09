@@ -19,7 +19,9 @@ ClinGen:
   inputBucket: gs://otar000-evidence_input/ClinGen/data_files
   outputBucket: gs://otar000-evidence_input/ClinGen/json
 CRISPR:
-  inputBucket: gs://otar000-evidence_input/CRISPR/data_files
+  inputAssociationsTable: gs://otar000-evidence_input/CRISPR/data_files/crispr_evidence.tsv
+  inputDescriptionsTable: gs://otar000-evidence_input/CRISPR/data_files/crispr_descriptions.tsv
+  inputCellTypesTable: gs://otar000-evidence_input/CRISPR/data_files/crispr_cell_lines_enriched_2021-10-22.tsv
   outputBucket: gs://otar000-evidence_input/CRISPR/json
 EPMC:
   inputBucket: gs://open-targets-pre-data-releases/development/output/literature-etl/parquet/cooccurrences # TODO: Needs to be updated to the cooc based on EFO 3.45

@@ -144,9 +144,9 @@ rule clingen:                 # Process the Gene Validity Curations table from C
 
 rule crispr:                  # Process cancer therapeutic targets using CRISPR–Cas9 screens.
     input:
-        evidenceFile = GS.remote(f"{config['CRISPR']['inputBucket']}/crispr_evidence.tsv"),
-        descriptionsFile = GS.remote(f"{config['CRISPR']['inputBucket']}/crispr_descriptions.tsv"),
-        cellTypesFile = GS.remote(f"{config['CRISPR']['inputBucket']}/crispr_cell_lines_enriched_2021-10-22.tsv")
+        evidenceFile = GS.remote(config['CRISPR']['inputAssociationsTable']),
+        descriptionsFile = GS.remote(config['CRISPR']['inputDescriptionsTable']),
+        cellTypesFile = GS.remote(config['CRISPR']['inputCellTypesTable']")
     params:
         schema = f"{config['global']['schema']}/opentargets.json"
     output:
