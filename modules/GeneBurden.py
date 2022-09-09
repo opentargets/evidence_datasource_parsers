@@ -67,7 +67,9 @@ def process_gene_burden_curation(curated_data: str) -> DataFrame:
             'allelicRequirements',
             F.when(F.col('allelicRequirements').isNotNull(), F.array(F.col('allelicRequirements'))),
         )
-        # 3. Add hardcoded values and drop URLs (will be handled by the FE) and HGNC symbols
+        # 3. Split the sex column to form an array
+        .withColumn('sex', F.split(F.col('sex'), ', '))
+        # 4. Add hardcoded values and drop URLs (will be handled by the FE) and HGNC symbols
         .withColumn('datasourceId', F.lit('gene_burden'))
         .withColumn('datatypeId', F.lit('genetic_association'))
         .drop('url', 'targetFromSource')
@@ -94,6 +96,7 @@ def read_gene_burden_curation(curated_data: str) -> DataFrame:
             T.StructField('ConfidenceIntervalLower', T.DoubleType(), True),
             T.StructField('ConfidenceIntervalUpper', T.DoubleType(), True),
             T.StructField('beta', T.DoubleType(), True),
+            T.StructField('sex', T.StringType(), True),
             T.StructField('ancestry', T.StringType(), True),
             T.StructField('ancestryId', T.StringType(), True),
             T.StructField('cohortId', T.StringType(), True),
