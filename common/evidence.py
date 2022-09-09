@@ -97,7 +97,7 @@ def import_trait_mappings() -> DataFrame:
     """Load the remote trait mappings file to a Spark dataframe."""
 
     remote_trait_mappings_url = (
-        'https://raw.githubusercontent.com/opentargets/curation/master/mappings/disease/manual_string.tsv'
+        'https://raw.githubusercontent.com/opentargets/curation/22.09.1/mappings/disease/manual_string.tsv'
     )
 
     SparkSession.getActiveSession().sparkContext.addFile(remote_trait_mappings_url)
