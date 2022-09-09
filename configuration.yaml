@@ -9,8 +9,8 @@ cancerBiomarkers:
   outputBucket: gs://otar000-evidence_input/CancerBiomarkers/json
   drugIndex: gs://open-targets-pre-data-releases/development/output/etl/parquet/molecule
 ChEMBL:
-  evidence: gs://otar008-chembl/cttv008-06-06-2022.json.gz
-  stopReasonCategories: gs://otar000-evidence_input/ChEMBL/data_files/chembl_predictions-2022-06-11.tsv
+  evidence: gs://otar008-chembl/cttv008-25-08-2022.json.gz
+  stopReasonCategories: gs://otar000-evidence_input/ChEMBL/data_files/chembl_predictions-2022-08-25.tsv
   outputBucket: gs://otar000-evidence_input/ChEMBL/json
 ClinGen:
   webSource: https://search.clinicalgenome.org/kb/gene-validity/download
