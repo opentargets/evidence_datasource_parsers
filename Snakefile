@@ -352,8 +352,8 @@ rule progeny:                 # Process gene expression data from TCGA derived f
 
 rule slapenrich:              # Process cancer-target evidence strings derived from SLAPenrich.
     input:
-        inputFile = GS.remote(f"{config['SLAPEnrich']['inputBucket']}/slapenrich_opentargets-21-12-2017.tsv"),
-        diseaseMapping = config['SLAPEnrich']['diseaseMapping']
+        inputFile = GS.remote(config['SLAPEnrich']['inputAssociationsTable']),
+        diseaseMapping = config['SLAPEnrich']['inputDiseaseMapping']
     params:
         schema = f"{config['global']['schema']}/opentargets.json"
     output:

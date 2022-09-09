@@ -60,8 +60,8 @@ PROGENy:
   inputPathwayMapping: resources/pathway2Reactome_mappings.tsv
   outputBucket: gs://otar000-evidence_input/PROGENy/json
 SLAPEnrich:
-  inputBucket: gs://otar000-evidence_input/SLAPEnrich/data_file
-  diseaseMapping: resources/cancer2EFO_mappings.tsv
+  inputAssociationsTable: gs://otar000-evidence_input/SLAPEnrich/data_file/slapenrich_opentargets-21-12-2017.tsv
+  inputDiseaseMapping: resources/cancer2EFO_mappings.tsv
   outputBucket: gs://otar000-evidence_input/SLAPEnrich/json
 SysBio:
   inputBucket: gs://otar000-evidence_input/SysBio/data_files
