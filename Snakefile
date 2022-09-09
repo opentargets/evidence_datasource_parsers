@@ -290,7 +290,7 @@ rule orphanet:                # Process disease/target evidence from Orphanet.
 
 rule panelApp:                # Process gene panels data curated by Genomics England.
     input:
-        inputFile = GS.remote(f"{config['PanelApp']['inputBucket']}/All_genes_20200928-1959.tsv")
+        inputFile = GS.remote(config['PanelApp']['inputAssociationsTable'])
     params:
         cacheDir = config['global']['cacheDir'],
         schema = f"{config['global']['schema']}/opentargets.json"
