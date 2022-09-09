@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Parser for data submitted from the Encore team."""
+"""Parser for data submitted by the Encore team."""
 
 import argparse
 import json
@@ -78,8 +78,7 @@ class EncoreEvidenceGenerator:
         return parsed
 
     def get_lfc_data(self, lfc_file: str) -> DataFrame:
-        """Reading log fold change file and generating a dataframe.
-
+        """
         The table has results from CRISPR/Cas9 experiments: the p-value, false discovery rate (fdr)
         and the log fold-change file describes the observed survival of the cells.
 
@@ -88,13 +87,26 @@ class EncoreEvidenceGenerator:
 
         This really wide table is stacked to get only three numeric columns (p-value, fold-change and FDR),
         plus string column with cell line.
+
+        Args:
+          lfc_file (str): str
+
+        Returns:
+          A dataframe with the following columns:
+            id
+            cellLineName
+            Note1
+            Note2
+            phenotypicConsequenceLogFoldChange
+            phenotypicConsequencePValue
+            phenotypicConsequenceFDR
         """
 
         # Fixed statistical field names:
         stats_fields = ['p-value', 'fdr', 'lfc']
 
         # Reading the data into a single dataframe:
-        lfc_df = self.spark.read.csv(lfc_file, sep=' ', header=True)
+        lfc_df = self.spark.read.csv(lfc_file, sep='\t', header=True)
 
         # Collect the cell lines from the lfc file header:
         cell_lines = set(['_'.join(x.split('_')[:-1]) for x in lfc_df.columns[4:]])
@@ -131,17 +143,29 @@ class EncoreEvidenceGenerator:
         )
 
     def get_bliss_data(self, bliss_file: str) -> DataFrame:
-        """Reading the BLISS cooperative effect file and generating a dataframe.
-
-        This function is still being developed, as the format is likely subject to change.
         """
+        It reads a bliss file, extracts the cell lines from the header, generates a struct for each cell
+        line, unpivots the data, and finally extracts the bliss score and p-value
+
+        Args:
+          bliss_file (str): The path to the bliss file.
+
+        Returns:
+          A dataframe with the following columns:
+            - id
+            - cellLineName
+            - geneticInteractionScore
+            - geneticInteractionPValue
+            - statisticalMethod
+        """
+
         # Fixed statistical field names:
         stats_fields = ['zscore', 'pval']
 
         # Read data:
         bliss_df = self.spark.read.csv(bliss_file, sep='\t', header=True)
 
-        # Collect the cell lines from the lfc file header:
+        # Collect the cell lines from the file header:
         cell_lines = set(['_'.join(x.split('_')[0:2]) for x in bliss_df.columns[4:] if x.startswith('SID')])
 
         # Generating struct for each cell lines:
@@ -267,7 +291,7 @@ class EncoreEvidenceGenerator:
         dataset = parameters['dataset']
         log_fold_change_file = parameters['logFoldChangeFile']
         gemini_file = parameters['geminiFile']
-        # blissFile = parameters['blissFile'] # <= not used
+        blissFile = parameters['blissFile']
 
         # Testing if experiment needs to be skipped:
         if parameters['skipStudy'] is True:
@@ -299,8 +323,8 @@ class EncoreEvidenceGenerator:
         logging.info(f'Number cell lines in the gemini dataset: {gemini_df.select("cellLineName").distinct().count()} rows')
 
         """WARNING: Based on the communication with the encore team, the BLISS dataset is currently considered unreliable."""
-        # bliss_file = f'{self.data_folder}/{blissFile}'
-        # bliss_df = self.get_bliss_data(bliss_file)
+        bliss_file = f'{self.data_folder}/{blissFile}'
+        bliss_df = self.get_bliss_data(bliss_file)
 
         # Merging lfc + gemini:
         merged_dataset = (
