@@ -372,8 +372,8 @@ rule slapenrich:              # Process cancer-target evidence strings derived f
 
 rule sysbio:                  # Process key driver genes for specific diseases that have been curated from Systems Biology papers.
     input:
-        evidenceFile = GS.remote(f"{config['SysBio']['inputBucket']}/sysbio_evidence-31-01-2019.tsv"),
-        studyFile = GS.remote(f"{config['SysBio']['inputBucket']}/sysbio_publication_info_nov2018.tsv")
+        evidenceFile = GS.remote(config['SysBio']['inputAssociationsTable']),
+        studyFile = GS.remote(config['SysBio']['inputStudyTable'])
     params:
         schema = f"{config['global']['schema']}/opentargets.json"
     output:

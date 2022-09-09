@@ -64,7 +64,8 @@ SLAPEnrich:
   inputDiseaseMapping: resources/cancer2EFO_mappings.tsv
   outputBucket: gs://otar000-evidence_input/SLAPEnrich/json
 SysBio:
-  inputBucket: gs://otar000-evidence_input/SysBio/data_files
+  inputAssociationsTable: gs://otar000-evidence_input/SysBio/data_files/sysbio_evidence-31-01-2019.tsv
+  inputStudyTable: gs://otar000-evidence_input/SysBio/data_files//sysbio_publication_info_nov2018.tsv
   outputBucket: gs://otar000-evidence_input/SysBio/json
 TEP:
   outputBucket: gs://otar001-core/TEPs
