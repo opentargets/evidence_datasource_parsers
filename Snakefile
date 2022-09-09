@@ -146,7 +146,7 @@ rule crispr:                  # Process cancer therapeutic targets using CRISPRâ
     input:
         evidenceFile = GS.remote(config['CRISPR']['inputAssociationsTable']),
         descriptionsFile = GS.remote(config['CRISPR']['inputDescriptionsTable']),
-        cellTypesFile = GS.remote(config['CRISPR']['inputCellTypesTable']")
+        cellTypesFile = GS.remote(config['CRISPR']['inputCellTypesTable'])
     params:
         schema = f"{config['global']['schema']}/opentargets.json"
     output:
