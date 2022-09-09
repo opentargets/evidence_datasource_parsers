@@ -33,8 +33,8 @@ ALL_FILES = [
     ('intogen.json.gz', GS.remote(f"{config['intOGen']['outputBucket']}/intogen-{timeStamp}.json.gz")),
     ('orphanet.json.gz', GS.remote(f"{config['Orphanet']['outputBucket']}/orphanet-{timeStamp}.json.gz")),
     ('genomics_england.json.gz', GS.remote(f"{config['PanelApp']['outputBucket']}/genomics_england-{timeStamp}.json.gz")),
-    # ('impc.json.gz', GS.remote(f"{config['IMPC']['evidenceOutputBucket']}/impc-{timeStamp}.json.gz")),
-    # ('mouse_phenotypes.json.gz', GS.remote(f"{config['IMPC']['phenotypesOutputBucket']}/mouse_phenotypes-{timeStamp}.json.gz")),
+    ('impc.json.gz', GS.remote(f"{config['IMPC']['evidenceOutputBucket']}/impc-{timeStamp}.json.gz")),
+    ('mouse_phenotypes.json.gz', GS.remote(f"{config['IMPC']['phenotypesOutputBucket']}/mouse_phenotypes-{timeStamp}.json.gz")),
     ('progeny.json.gz', GS.remote(f"{config['PROGENy']['outputBucket']}/progeny-{timeStamp}.json.gz")),
     ('slapenrich.json.gz', GS.remote(f"{config['SLAPEnrich']['outputBucket']}/slapenrich-{timeStamp}.json.gz")),
     ('sysbio.json.gz', GS.remote(f"{config['SysBio']['outputBucket']}/sysbio-{timeStamp}.json.gz")),
@@ -73,9 +73,9 @@ rule local:                   # Generate all files, but do not upload them.
 # Data source parsers.
 rule cancerBiomarkers:        # Process the Cancers Biomarkers database from Cancer Genome Interpreter.
     input:
-        biomarkers_table = GS.remote(f"{config['cancerBiomarkers']['inputBucket']}/cancerbiomarkers-2018-05-01.tsv"),
-        source_table = GS.remote(f"{config['cancerBiomarkers']['inputBucket']}/cancer_biomarker_source.jsonl"),
-        disease_table = GS.remote(f"{config['cancerBiomarkers']['inputBucket']}/cancer_biomarker_disease.jsonl"),
+        biomarkers_table = GS.remote(config['cancerBiomarkers']['inputAssociationsTable']),
+        source_table = GS.remote(config['cancerBiomarkers']['inputSourceTable']),
+        disease_table = GS.remote(config['cancerBiomarkers']['inputDiseaseTable']),
         drug_index = GS.remote(config['cancerBiomarkers']['drugIndex'])
     params:
         schema = f"{config['global']['schema']}/opentargets.json"
@@ -144,9 +144,9 @@ rule clingen:                 # Process the Gene Validity Curations table from C
 
 rule crispr:                  # Process cancer therapeutic targets using CRISPR–Cas9 screens.
     input:
-        evidenceFile = GS.remote(f"{config['CRISPR']['inputBucket']}/crispr_evidence.tsv"),
-        descriptionsFile = GS.remote(f"{config['CRISPR']['inputBucket']}/crispr_descriptions.tsv"),
-        cellTypesFile = GS.remote(f"{config['CRISPR']['inputBucket']}/crispr_cell_lines_enriched_2021-10-22.tsv")
+        evidenceFile = GS.remote(config['CRISPR']['inputAssociationsTable']),
+        descriptionsFile = GS.remote(config['CRISPR']['inputDescriptionsTable']),
+        cellTypesFile = GS.remote(config['CRISPR']['inputCellTypesTable'])
     params:
         schema = f"{config['global']['schema']}/opentargets.json"
     output:
@@ -248,8 +248,8 @@ rule gene2Phenotype:          # Processes four gene panels from Gene2Phenotype
 
 rule intogen:                 # Process cohorts and driver genes data from intOGen.
     input:
-        inputGenes = GS.remote(f"{config['intOGen']['inputBucket']}/Compendium_Cancer_Genes.tsv"),
-        inputCohorts = GS.remote(f"{config['intOGen']['inputBucket']}/cohorts.tsv"),
+        inputGenes = GS.remote(config['intOGen']['inputAssociationsTable']),
+        inputCohorts = GS.remote(config['intOGen']['inputCohortsTable']),
         diseaseMapping = config['intOGen']['diseaseMapping']
     params:
         schema = f"{config['global']['schema']}/opentargets.json"
@@ -290,7 +290,7 @@ rule orphanet:                # Process disease/target evidence from Orphanet.
 
 rule panelApp:                # Process gene panels data curated by Genomics England.
     input:
-        inputFile = GS.remote(f"{config['PanelApp']['inputBucket']}/All_genes_20200928-1959.tsv")
+        inputFile = GS.remote(config['PanelApp']['inputAssociationsTable'])
     params:
         cacheDir = config['global']['cacheDir'],
         schema = f"{config['global']['schema']}/opentargets.json"
@@ -330,9 +330,9 @@ rule impc:                    # Process target-disease evidence and mouseModels 
 
 rule progeny:                 # Process gene expression data from TCGA derived from PROGENy.
     input:
-        inputFile = GS.remote(f"{config['PROGENy']['inputBucket']}/progeny_normalVStumor_opentargets.txt"),
-        diseaseMapping = config['PROGENy']['diseaseMapping'],
-        pathwayMapping = config['PROGENy']['pathwayMapping']
+        inputFile = GS.remote(config['PROGENy']['inputAssociationsTable']),
+        diseaseMapping = config['PROGENy']['inputDiseaseMapping'],
+        pathwayMapping = config['PROGENy']['inputPathwayMapping']
     params:
         schema = f"{config['global']['schema']}/opentargets.json"
     output:
@@ -352,8 +352,8 @@ rule progeny:                 # Process gene expression data from TCGA derived f
 
 rule slapenrich:              # Process cancer-target evidence strings derived from SLAPenrich.
     input:
-        inputFile = GS.remote(f"{config['SLAPEnrich']['inputBucket']}/slapenrich_opentargets-21-12-2017.tsv"),
-        diseaseMapping = config['SLAPEnrich']['diseaseMapping']
+        inputFile = GS.remote(config['SLAPEnrich']['inputAssociationsTable']),
+        diseaseMapping = config['SLAPEnrich']['inputDiseaseMapping']
     params:
         schema = f"{config['global']['schema']}/opentargets.json"
     output:
@@ -372,8 +372,8 @@ rule slapenrich:              # Process cancer-target evidence strings derived f
 
 rule sysbio:                  # Process key driver genes for specific diseases that have been curated from Systems Biology papers.
     input:
-        evidenceFile = GS.remote(f"{config['SysBio']['inputBucket']}/sysbio_evidence-31-01-2019.tsv"),
-        studyFile = GS.remote(f"{config['SysBio']['inputBucket']}/sysbio_publication_info_nov2018.tsv")
+        evidenceFile = GS.remote(config['SysBio']['inputAssociationsTable']),
+        studyFile = GS.remote(config['SysBio']['inputStudyTable'])
     params:
         schema = f"{config['global']['schema']}/opentargets.json"
     output:
