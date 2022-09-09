@@ -49,7 +49,7 @@ Orphanet:
   webSource: http://www.orphadata.org/data/xml/en_product6.xml
   outputBucket: gs://otar000-evidence_input/Orphanet/json
 PanelApp:
-  inputAssociationsTable: gs://otar000-evidence_input/GenomicsEngland/data_files/gs://otar000-evidence_input/GenomicsEngland/data_files/All_genes_20220804-1350_green_amber_red_public_v1plus_no_superpanels.tsv
+  inputAssociationsTable: gs://otar000-evidence_input/GenomicsEngland/data_files/All_genes_20220804-1350_green_amber_red_public_v1plus_no_superpanels.tsv
   outputBucket: gs://otar000-evidence_input/GenomicsEngland/json
 IMPC:
   evidenceOutputBucket: gs://otar000-evidence_input/IMPC/json
