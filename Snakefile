@@ -73,9 +73,9 @@ rule local:                   # Generate all files, but do not upload them.
 # Data source parsers.
 rule cancerBiomarkers:        # Process the Cancers Biomarkers database from Cancer Genome Interpreter.
     input:
-        biomarkers_table = GS.remote(f"{config['cancerBiomarkers']['inputBucket']}/cancerbiomarkers-2018-05-01.tsv"),
-        source_table = GS.remote(f"{config['cancerBiomarkers']['inputBucket']}/cancer_biomarker_source.jsonl"),
-        disease_table = GS.remote(f"{config['cancerBiomarkers']['inputBucket']}/cancer_biomarker_disease.jsonl"),
+        biomarkers_table = GS.remote(config['cancerBiomarkers']['inputAssociationsTable']),
+        source_table = GS.remote(config['cancerBiomarkers']['inputSourceTable']),
+        disease_table = GS.remote(config['cancerBiomarkers']['inputBucket']),
         drug_index = GS.remote(config['cancerBiomarkers']['drugIndex'])
     params:
         schema = f"{config['global']['schema']}/opentargets.json"

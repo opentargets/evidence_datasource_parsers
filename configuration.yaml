@@ -5,9 +5,11 @@ global:
   EFOVersion: v3.45.0
 
 cancerBiomarkers:
-  inputBucket: gs://otar000-evidence_input/CancerBiomarkers/data_files
-  outputBucket: gs://otar000-evidence_input/CancerBiomarkers/json
+  inputAssociationsTable: gs://otar000-evidence_input/CancerBiomarkers/data_files/cancerbiomarkers-2018-05-01.tsv
+  inputSourceTable: gs://otar000-evidence_input/CancerBiomarkers/data_files/cancer_biomarker_source.jsonl
+  inputDiseaseTable: gs://otar000-evidence_input/CancerBiomarkers/data_files/cancer_biomarker_disease.jsonl
   drugIndex: gs://open-targets-pre-data-releases/development/output/etl/parquet/molecule
+  outputBucket: gs://otar000-evidence_input/CancerBiomarkers/json
 ChEMBL:
   evidence: gs://otar008-chembl/cttv008-25-08-2022.json.gz
   stopReasonCategories: gs://otar000-evidence_input/ChEMBL/data_files/chembl_predictions-2022-08-25.tsv
@@ -20,7 +22,7 @@ CRISPR:
   inputBucket: gs://otar000-evidence_input/CRISPR/data_files
   outputBucket: gs://otar000-evidence_input/CRISPR/json
 EPMC:
-  inputBucket: gs://open-targets-pre-data-releases/development/output/literature-etl/parquet/cooccurrences
+  inputBucket: gs://open-targets-pre-data-releases/development/output/literature-etl/parquet/cooccurrences # TODO: Needs to be updated to the cooc based on EFO 3.45
   outputBucket: gs://otar000-evidence_input/EPMC/json
 GeneBurden:
   azPhewasBinary: gs://otar000-evidence_input/GeneBurden/data_files/azphewas-com-450k-phewas-binary
