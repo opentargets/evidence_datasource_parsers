@@ -280,7 +280,7 @@ class EncoreEvidenceGenerator:
             A pyspark dataframe of experiment data.
 
         Process:
-            - reading all files.
+            - Reading all files.
             - Joining files.
             - Applying filters.
             - Adding additional columns + finalizing evidence model
@@ -313,14 +313,15 @@ class EncoreEvidenceGenerator:
         # Reading lfc data:
         lfc_file = f'{self.data_folder}/{log_fold_change_file}'
         lfc_df = self.get_lfc_data(lfc_file)
+
         logging.info(f'Number of gene pairs in the log(fold change) dataset: {lfc_df.select("id").distinct().count()}')
         logging.info(f'Number cell lines in the log(fold change) dataset: {lfc_df.select("cellLineName").distinct().count()}')
 
         # Reading gemini data:
         gemini_file = f'{self.data_folder}/{gemini_file}'
         gemini_df = self.get_gemini_data(gemini_file)
-        logging.info(f'Number of gene pairs in the gemini dataset: {gemini_df.select("id").distinct().count()} rows')
-        logging.info(f'Number cell lines in the gemini dataset: {gemini_df.select("cellLineName").distinct().count()} rows')
+        logging.info(f'Number of gene pairs in the gemini dataset: {gemini_df.select("id").distinct().count()}')
+        logging.info(f'Number cell lines in the gemini dataset: {gemini_df.select("cellLineName").distinct().count()}')
 
         """WARNING: Based on the communication with the encore team, the BLISS dataset is currently considered unreliable."""
         # bliss_file = f'{self.data_folder}/{blissFile}'
@@ -351,8 +352,8 @@ class EncoreEvidenceGenerator:
             )
             .persist()
         )
-        logging.info(f'Number of gene pairs in the merged dataset: {merged_dataset.select("id").count()} rows')
-        logging.info(f'Number cell lines in the merged dataset: {merged_dataset.select("cellLineName").distinct().count()} rows')
+        logging.info(f'Number of gene pairs in the merged dataset: {merged_dataset.select("id").count()}')
+        logging.info(f'Number of cell lines in the merged dataset: {merged_dataset.select("cellLineName").distinct().count()}')
 
         evidence_df = (
             merged_dataset
