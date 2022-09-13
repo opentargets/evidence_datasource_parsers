@@ -24,8 +24,8 @@ class EncoreEvidenceGenerator:
 
     For each experiment the following input files are expected:
         - lfc_file: log fold change values for every gene pairs, for every experiment.
-        - bliss_file: the analysed cooperative effect for each gene paris calculated by the BLISS analysis.
-        - gemini_file: the analysed cooperative effect for each gene paris calculated by the Gemini analysis.
+        - bliss_file: the analysed cooperative effect for each gene pairs calculated by the BLISS analysis.
+        - gemini_file: the analysed cooperative effect for each gene pairs calculated by the Gemini analysis.
 
     The parser joins the lfc data with the cooperativity measurements by gene pairs and cell line.
     Apply filter on gene pairs:
@@ -206,7 +206,7 @@ class EncoreEvidenceGenerator:
         stats_fields = ['score', 'pval', 'FDR']
 
         # Reading the data into a single dataframe:
-        gemini_df = self.spark.read.csv(gemini_file, sep=' ', header=True)
+        gemini_df = self.spark.read.csv(gemini_file, sep='\t', header=True)
 
         # Collect the cell lines from the lfc file header:
         cell_lines = set(['_'.join(x.split('_')[:-1]) for x in gemini_df.columns[4:] if x.startswith('SID')])
@@ -221,7 +221,7 @@ class EncoreEvidenceGenerator:
         elif 'Gene_Pair0' in gemini_df.columns:
             gene_column = 'Gene_Pair0'
         else:
-            raise ValueError(f'No Gene_Pair column in Gemini data: {",".join(gemini_df.columns)}')
+            raise ValueError(f'No \'Gene_Pair\' column in Gemini data: {",".join(gemini_df.columns)}')
 
         # We check if all stats columns available for all cell lines (this coming from a data joing bug at encore):
         missing_columns = [f'{cell}_{stat}' for cell in cell_lines for stat in stats_fields if f'{cell}_{stat}' not in gemini_df.columns]
@@ -305,26 +305,26 @@ class EncoreEvidenceGenerator:
             logging.warning(f'No log fold change file provided for {dataset}.')
             return None
 
-        # if no gemini file is provided, we will not generate any evidence.
-        if gemini_file is None:
-            logging.warning(f'No gemini file provided for {dataset}.')
-            return None
+        # # if no gemini file is provided, we will not generate any evidence.
+        # if gemini_file is None:
+        #     logging.warning(f'No gemini file provided for {dataset}.')
+        #     return None
 
         # Reading lfc data:
         lfc_file = f'{self.data_folder}/{log_fold_change_file}'
         lfc_df = self.get_lfc_data(lfc_file)
-        logging.info(f'Number of gene paris in the log(fold change) dataset: {lfc_df.select("id").count()} rows')
-        logging.info(f'Number cell lines in the log(fold change) dataset: {lfc_df.select("cellLineName").distinct().count()} rows')
+        logging.info(f'Number of gene pairs in the log(fold change) dataset: {lfc_df.select("id").distinct().count()}')
+        logging.info(f'Number cell lines in the log(fold change) dataset: {lfc_df.select("cellLineName").distinct().count()}')
 
         # Reading gemini data:
         gemini_file = f'{self.data_folder}/{gemini_file}'
         gemini_df = self.get_gemini_data(gemini_file)
-        logging.info(f'Number of gene paris in the gemini dataset: {gemini_df.select("id").count()} rows')
+        logging.info(f'Number of gene pairs in the gemini dataset: {gemini_df.select("id").distinct().count()} rows')
         logging.info(f'Number cell lines in the gemini dataset: {gemini_df.select("cellLineName").distinct().count()} rows')
 
         """WARNING: Based on the communication with the encore team, the BLISS dataset is currently considered unreliable."""
-        bliss_file = f'{self.data_folder}/{blissFile}'
-        bliss_df = self.get_bliss_data(bliss_file)
+        # bliss_file = f'{self.data_folder}/{blissFile}'
+        # bliss_df = self.get_bliss_data(bliss_file)
 
         # Merging lfc + gemini:
         merged_dataset = (
@@ -351,7 +351,7 @@ class EncoreEvidenceGenerator:
             )
             .persist()
         )
-        logging.info(f'Number of gene paris in the merged dataset: {merged_dataset.select("id").count()} rows')
+        logging.info(f'Number of gene pairs in the merged dataset: {merged_dataset.select("id").count()} rows')
         logging.info(f'Number cell lines in the merged dataset: {merged_dataset.select("cellLineName").distinct().count()} rows')
 
         evidence_df = (
