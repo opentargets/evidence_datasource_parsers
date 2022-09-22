@@ -23,9 +23,6 @@ CRISPR:
   inputDescriptionsTable: gs://otar000-evidence_input/CRISPR/data_files/crispr_descriptions.tsv
   inputCellTypesTable: gs://otar000-evidence_input/CRISPR/data_files/crispr_cell_lines_enriched_2021-10-22.tsv
   outputBucket: gs://otar000-evidence_input/CRISPR/json
-EPMC:
-  inputBucket: gs://open-targets-pre-data-releases/development/output/literature-etl/parquet/cooccurrences # TODO: Needs to be updated to the cooc based on EFO 3.45
-  outputBucket: gs://otar000-evidence_input/EPMC/json
 GeneBurden:
   azPhewasBinary: gs://otar000-evidence_input/GeneBurden/data_files/azphewas-com-450k-phewas-binary
   azPhewasQuantitative: gs://otar000-evidence_input/GeneBurden/data_files/azphewas-com-450k-phewas-quantitative

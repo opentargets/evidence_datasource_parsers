@@ -23,7 +23,6 @@ ALL_FILES = [
     ('clingen.json.gz', GS.remote(f"{config['ClinGen']['outputBucket']}/clingen-{timeStamp}.json.gz")),
     ('clingen-Gene-Disease-Summary.csv', GS.remote(f"{config['ClinGen']['inputBucket']}/clingen-Gene-Disease-Summary-{timeStamp}.csv")),
     ('crispr.json.gz', GS.remote(f"{config['CRISPR']['outputBucket']}/crispr-{timeStamp}.json.gz")),
-    ('epmc.json.gz', GS.remote(f"{config['EPMC']['outputBucket']}/epmc-{timeStamp}.json.gz")),
     ('gene_burden.json.gz', GS.remote(f"{config['GeneBurden']['outputBucket']}/gene_burden-{timeStamp}.json.gz")),
     ('gene2phenotype.json.gz', GS.remote(f"{config['Gene2Phenotype']['outputBucket']}/gene2phenotype-{timeStamp}.json.gz")),
     ('DDG2P.csv.gz', GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/DDG2P-{timeStamp}.csv.gz")),
@@ -161,24 +160,6 @@ rule crispr:                  # Process cancer therapeutic targets using CRISPRâ
           --descriptions_file {input.descriptionsFile} \
           --cell_types_file {input.cellTypesFile} \
           --output_file {output.evidenceFile}
-        opentargets_validator --schema {params.schema} {output.evidenceFile}
-        """
-
-rule epmc:                    # Process target/disease evidence strings from ePMC cooccurrence files.
-    input:
-        inputCooccurences = GS.remote(config['EPMC']['inputBucket'])
-    params:
-        schema = f"{config['global']['schema']}/opentargets.json"
-    output:
-        evidenceFile = 'epmc.json.gz'
-    log:
-        'log/epmc.log'
-    shell:
-        """
-        exec &> {log}
-        python modules/EPMC.py \
-          --cooccurrences {input.inputCooccurences} \
-          --output {output.evidenceFile}
         opentargets_validator --schema {params.schema} {output.evidenceFile}
         """
 
