@@ -8,7 +8,7 @@ cancerBiomarkers:
   inputAssociationsTable: gs://otar000-evidence_input/CancerBiomarkers/data_files/cancerbiomarkers-2018-05-01.tsv
   inputSourceTable: gs://otar000-evidence_input/CancerBiomarkers/data_files/cancer_biomarker_source.jsonl
   inputDiseaseTable: gs://otar000-evidence_input/CancerBiomarkers/data_files/cancer_biomarker_disease.jsonl
-  drugIndex: gs://open-targets-pre-data-releases/development/output/etl/parquet/molecule
+  drugIndex: gs://open-targets-pre-data-releases/22.09/output/etl/parquet/molecule
   outputBucket: gs://otar000-evidence_input/CancerBiomarkers/json
 ChEMBL:
   evidence: gs://otar008-chembl/cttv008-25-08-2022.json.gz
@@ -23,9 +23,6 @@ CRISPR:
   inputDescriptionsTable: gs://otar000-evidence_input/CRISPR/data_files/crispr_descriptions.tsv
   inputCellTypesTable: gs://otar000-evidence_input/CRISPR/data_files/crispr_cell_lines_enriched_2021-10-22.tsv
   outputBucket: gs://otar000-evidence_input/CRISPR/json
-EPMC:
-  inputBucket: gs://open-targets-pre-data-releases/development/output/literature-etl/parquet/cooccurrences # TODO: Needs to be updated to the cooc based on EFO 3.45
-  outputBucket: gs://otar000-evidence_input/EPMC/json
 GeneBurden:
   azPhewasBinary: gs://otar000-evidence_input/GeneBurden/data_files/azphewas-com-450k-phewas-binary
   azPhewasQuantitative: gs://otar000-evidence_input/GeneBurden/data_files/azphewas-com-450k-phewas-quantitative
@@ -65,7 +62,7 @@ SLAPEnrich:
   outputBucket: gs://otar000-evidence_input/SLAPEnrich/json
 SysBio:
   inputAssociationsTable: gs://otar000-evidence_input/SysBio/data_files/sysbio_evidence-31-01-2019.tsv
-  inputStudyTable: gs://otar000-evidence_input/SysBio/data_files//sysbio_publication_info_nov2018.tsv
+  inputStudyTable: gs://otar000-evidence_input/SysBio/data_files/sysbio_publication_info_nov2018.tsv
   outputBucket: gs://otar000-evidence_input/SysBio/json
 TEP:
   outputBucket: gs://otar001-core/TEPs
