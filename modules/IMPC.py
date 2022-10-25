@@ -448,7 +448,7 @@ class IMPC:
         # In case of multiple records with the same unique fields, keep only the one record with the highest score. This
         # is done to avoid duplicates where multiple source ontology records map to the same EFO record with slightly
         # different scores.
-        w = Window.partitionBy([UNIQUE_FIELDS]).orderBy('resourceScore').desc()
+        w = Window.partitionBy([pf.col(c) for c in UNIQUE_FIELDS]).orderBy('resourceScore').desc()
         self.evidence = (
             self.evidence
             .withColumn('row', pf.row_number().over(w))
