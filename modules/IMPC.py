@@ -12,6 +12,7 @@ import urllib.request
 import pronto
 from pyspark.conf import SparkConf
 from pyspark.sql import SparkSession
+from pyspark.sql import Window
 import pyspark.sql.functions as pf
 from pyspark.sql.types import StructType, StructField, StringType
 import requests
@@ -447,7 +448,13 @@ class IMPC:
         # In case of multiple records with the same unique fields, keep only the one record with the highest score. This
         # is done to avoid duplicates where multiple source ontology records map to the same EFO record with slightly
         # different scores.
-        self.evidence = self.evidence.sort_values('resourceScore').groupby(UNIQUE_FIELDS).last()
+        w = Window.partitionBy([UNIQUE_FIELDS]).orderBy('resourceScore').desc()
+        self.evidence = (
+            self.evidence
+            .withColumn('row', pf.row_number().over(w))
+            .filter(pf.col('row') == 1)
+            .drop('row')
+        )
 
         # Ensure stable column order.
         self.evidence = self.evidence.select(
