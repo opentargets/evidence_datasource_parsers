@@ -444,6 +444,11 @@ class IMPC:
         self.evidence = add_efo_mapping(evidence_strings=self.evidence, spark_instance=self.spark,
                                         ontoma_cache_dir=self.cache_dir)
 
+        # In case of multiple records with the same unique fields, keep only the one record with the highest score. This
+        # is done to avoid duplicates where multiple source ontology records map to the same EFO record with slightly
+        # different scores.
+        self.evidence = self.evidence.sort_values('resourceScore').groupby(UNIQUE_FIELDS).last()
+
         # Ensure stable column order.
         self.evidence = self.evidence.select(
             'biologicalModelAllelicComposition', 'biologicalModelGeneticBackground', 'biologicalModelId',
