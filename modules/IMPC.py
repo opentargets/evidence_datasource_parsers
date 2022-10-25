@@ -35,6 +35,14 @@ IMPC_SOLR_TABLES = {
 }
 
 
+# List of fields on which to enforce uniqueness by only keeping the record with the highest score.
+UNIQUE_FIELDS = [
+    'diseaseFromSource',
+    'biologicalModelAllelicComposition',
+    'targetInModel',
+    'biologicalModelGeneticBackground',
+]
+
 class ImpcSolrRetriever:
     """Retrieve data from the IMPC SOLR API and save the CSV files to the specified location."""
 
