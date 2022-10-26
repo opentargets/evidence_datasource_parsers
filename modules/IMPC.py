@@ -38,6 +38,12 @@ IMPC_SOLR_TABLES = {
 
 # List of fields on which to enforce uniqueness by only keeping the record with the highest score.
 UNIQUE_FIELDS = [
+    # Global
+    'targetId',
+    'targetFromSourceId',
+    'diseaseId',
+    'datasourceId',
+    # Specific for IMPC
     'diseaseFromSource',
     'biologicalModelAllelicComposition',
     'targetInModel',
