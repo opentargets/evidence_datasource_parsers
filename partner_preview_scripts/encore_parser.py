@@ -240,11 +240,9 @@ class EncoreEvidenceGenerator:
             .withColumn("cellLineName", f.col("cellInfo").getItem(0))
             .withColumn("experimentId", f.col("cellInfo").getItem(1))
             .filter(f.col("zscore") != "NaN")
-
             # BLISS data is not aggregated for cell lines, instead we have data for each replicates.
             # To allow averaging, data needs to be grouped by gene pair and cell line:
             .groupby("id", "cellLineName")
-
             # Averaging z-scores:
             .agg(
                 f.sum(f.col("zscore")).alias("sumzscore"),
@@ -254,7 +252,6 @@ class EncoreEvidenceGenerator:
                 "geneticInteractionScore",
                 f.col("sumzscore") / f.sqrt(f.col("experiment_count")),
             )
-
             # Calculating p-value for the averaged z-score:
             .withColumn(
                 "geneticInteractionPValue",
@@ -265,7 +262,6 @@ class EncoreEvidenceGenerator:
                     t.FloatType(),
                 )(f.col("geneticInteractionScore")),
             )
-
             .select(
                 "id",
                 "cellLineName",
