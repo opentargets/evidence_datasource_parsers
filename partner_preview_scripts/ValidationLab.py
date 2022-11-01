@@ -17,26 +17,16 @@ import sys
 from functools import reduce
 
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import (
-    array,
-    col,
-    lit,
-    struct,
-    udf,
-    when,
-    collect_list,
-    expr,
-    first,
-    element_at,
-    split,
-    collect_set,
-    upper,
-    log,
-)
-from pyspark.sql.types import StringType, StructType, StructField, BooleanType
+import pyspark.sql.functions as f
+import pyspark.sql.types as t
 from pyspark.sql.dataframe import DataFrame
 
 from common.evidence import write_evidence_strings, initialize_sparksession
+
+
+# Datasource-wide constants:
+VALIDATION_LAB_DATASOURCE_ID = "ot_crispr_validation"
+VALIDATION_LAB_DATATYPE_ID = "ot_validation_lab"
 
 # This is a map that provides recipie to generate the biomarker objects
 # If a value cannot be found in the map, the value will be returned.
@@ -127,25 +117,29 @@ class ParseHypotheses:
             # Filter hypotheses where at least one was True:
             # .filter(col('expected') | col('observed'))
             # From the hypothesis column eg. CRIS_subtype-B ectract the type CRIS_subtype and the call: B
-            .withColumn("hypothesis_type", element_at(split(col("hypothesis"), "-"), 1))
-            .withColumn("hypothesis_call", element_at(split(col("hypothesis"), "-"), 2))
+            .withColumn(
+                "hypothesis_type", f.element_at(f.split(f.col("hypothesis"), "-"), 1)
+            )
+            .withColumn(
+                "hypothesis_call", f.element_at(f.split(f.col("hypothesis"), "-"), 2)
+            )
             # Using the biomarker parser generate an struct similar to the biomarker object:
             .withColumn(
                 "hypothesis",
-                get_biomarker(col("hypothesis_type"), col("hypothesis_call")),
+                get_biomarker(f.col("hypothesis_type"), f.col("hypothesis_call")),
             )
             # Besides the annotation we add the status of the hypothesis:
             .withColumn(
                 "status",
-                when(col("expected") & col("observed"), "observed and expected")
-                .when(col("expected"), "expected but not observed")
-                .when(col("observed"), "observed but not expected")
+                f.when(f.col("expected") & f.col("observed"), "observed and expected")
+                .when(f.col("expected"), "expected but not observed")
+                .when(f.col("observed"), "observed but not expected")
                 .otherwise("not expected and not observed"),
             )
-            .withColumn("hypothesis", struct("hypothesis.*", "status"))
+            .withColumn("hypothesis", f.struct("hypothesis.*", "status"))
             # Collect all hypotheses for each gene:
             .groupBy("gene")
-            .agg(collect_set("hypothesis").alias("validationHypotheses"))
+            .agg(f.collect_set("hypothesis").alias("validationHypotheses"))
             .persist()
         )
 
@@ -163,7 +157,7 @@ class ParseHypotheses:
                 "Gene", "gene"
             )
             # The gene names are manually typed, there are lower and upper case names:
-            .withColumn("gene", upper(col("gene")))
+            .withColumn("gene", f.upper(f.col("gene")))
         )
 
         # The first column is the gene name, the rest are the hypotheses:
@@ -172,17 +166,17 @@ class ParseHypotheses:
         unpivot_expression = f"""stack({len(hypothesis_columns)}, {", ".join([f"'{x}', `{x}`" for x in hypothesis_columns])} ) as (hypothesis, {call})"""
 
         return (
-            hypothesis_df.select("Gene", expr(unpivot_expression))
-            .withColumn(call, col(call).cast(BooleanType()))
+            hypothesis_df.select("Gene", f.expr(unpivot_expression))
+            .withColumn(call, f.col(call).cast(t.BooleanType()))
             .persist()
         )
 
 
-@udf(
-    StructType(
+@f.udf(
+    t.StructType(
         [
-            StructField("name", StringType(), False),
-            StructField("description", StringType(), False),
+            t.StructField("name", t.StringType(), False),
+            t.StructField("description", t.StringType(), False),
         ]
     )
 )
@@ -236,15 +230,9 @@ def get_cell_passport_data(spark: SparkSession, cell_passport_file: str) -> Data
         spark.read.option("multiline", True)
         .csv(cell_passport_file, header=True, sep=",", quote='"')
         .select(
-            col("model_name").alias("name"), col("model_id").alias("id"), col("tissue")
-        )
-        # Some model names needs to be changed to match the Validation lab dataset:
-        .withColumn(
-            "name",
-            when(col("name") == "HT-29", "HT29")
-            .when(col("name") == "HCT-116", "HCT116")
-            .when(col("name") == "LS-180", "LS180")
-            .otherwise(col("name")),
+            f.regexp_replace(f.col("model_name"), r"-", "").alias("cellName"),
+            f.col("model_id").alias("cellId"),
+            f.col("tissue"),
         )
         .persist()
     )
@@ -276,6 +264,7 @@ def parse_experiment(
     diseaseFromSourceMapId = parameters["diseaseFromSourceMappedId"]
     confidenceCutoff = parameters["confidenceCutoff"]
     cell_line_file = f"{data_folder}/{parameters['cellLineFile']}"
+    tissue_id = parameters["tissueId"]
 
     # The hypothesis is defined by two datasets:
     hypothesis_expected_file = f"{data_folder}/{parameters['hypothesisFileExpected']}"
@@ -285,22 +274,27 @@ def parse_experiment(
     validation_lab_cell_lines = (
         spark.read.csv(cell_line_file, sep="\t", header=True)
         # Renaming columns:
-        .withColumnRenamed("cell_line", "name")
-        .withColumnRenamed(
-            "tissue", "source"
-        )  # <- in subsequent releases this value will be important
+        .withColumnRenamed("cell_line", "cellName")
+        .drop("tissue")
         # Joining dataset with cell model data read downloaded from Sanger website:
-        .join(cellPassportDf, on="name", how="left")
+        .join(cellPassportDf, on="cellName", how="left")
         # Adding UBERON code to tissues (it's constant colon)
-        .withColumn("tissueID", lit("UBERON_0000059"))
+        .withColumn("tissueID", f.lit(tissue_id))
         # generating disease cell lines object:
         .withColumn(
             "diseaseCellLines",
-            array(struct(col("name"), col("id"), col("tissue"), col("tissueId"))),
+            f.array(
+                f.struct(
+                    f.col("cellName").alias("name"),
+                    f.col("cellId").alias("id"),
+                    f.col("tissue"),
+                    f.lit(tissue_id).alias("tissueId"),
+                )
+            ),
         )
-        .drop(*["id", "tissue", "tissueId", "source"])
         .persist()
     )
+
     logging.info(
         f"Validation lab cell lines has {validation_lab_cell_lines.count()} cell types."
     )
@@ -317,7 +311,10 @@ def parse_experiment(
 
     expressions = map(
         # Function to process biomarker:
-        lambda biomarker: (biomarker, get_biomarker(lit(biomarker), col(biomarker))),
+        lambda biomarker: (
+            biomarker,
+            get_biomarker(f.lit(biomarker), f.col(biomarker)),
+        ),
         # Iterator to apply the function over:
         biomarkers_in_data,
     )
@@ -333,19 +330,23 @@ def parse_experiment(
     validation_lab_cell_lines = (
         biomarkers
         # Selecting cell line name, cell line annotation and applyting the stacking expression:
-        .select("name", "diseaseCellLines", expr(biomarker_unstack))
+        .select(
+            f.col("cellName"),
+            "diseaseCellLines",
+            f.expr(biomarker_unstack),
+        )
         # Filter out all null biomarkers:
         .filter(
-            (col("biomarkers").isNotNull())
+            (f.col("biomarkers").isNotNull())
             &
             # Following the request of the validation lab, we are removing CRIS biomarker annotation:
-            (col("biomarker_name") != "CRIS_subtype")
+            (f.col("biomarker_name") != "CRIS_subtype")
         )
         # Grouping data by cell lines again:
-        .groupBy("name")
+        .groupBy("cellName")
         .agg(
-            collect_list("biomarkers").alias("biomarkers"),
-            first(col("diseaseCellLines")).alias("diseaseCellLines"),
+            f.collect_list("biomarkers").alias("biomarkers"),
+            f.first(f.col("diseaseCellLines")).alias("diseaseCellLines"),
         )
         .persist()
     )
@@ -360,48 +361,45 @@ def parse_experiment(
     evidence = (
         # Reading evidence:
         spark.read.csv(experiment_file, sep="\t", header=True)
+        .withColumnRenamed("cell_line", "cellName")
         # Genes need to be uppercase:
-        .withColumn("gene", upper(col("gene")))
+        .withColumn("gene", f.upper(f.col("gene")))
         # Joining hypothesis data:
         .join(validation_hypotheses_df, on="gene", how="left")
-        # Rename existing columns need to be updated:
-        .withColumnRenamed("gene", "targetFromSourceId")
-        .withColumnRenamed("cell_line", "name")
-        # Parsing resource score:
-        .withColumn("resourceScore", col("effect_size").cast("double"))
-        .withColumn(
-            "resourceScore",
-            when(col("resourceScore") > 0, col("resourceScore")).otherwise(lit(0)),
+        # Joining with cell line data:
+        .join(validation_lab_cell_lines, on="cellName", how="left")
+        # Selecting all columns:
+        .select(
+            f.col("gene").alias("targetFromSourceId"),
+            f.col("validationHypotheses"),
+            f.when(
+                f.col("effect_size").cast("double") > 0,
+                f.col("effect_size").cast("double"),
+            )
+            .otherwise(0)
+            .alias("resourceScore"),
+            f.when(
+                f.col("effect_size").cast("double") >= confidenceCutoff,
+                f.lit("significant"),
+            )
+            .otherwise(f.lit("not significant"))
+            .alias("confidence"),
+            f.when(f.col("expected_to_pass") == "TRUE", f.lit("significant"))
+            .otherwise(f.lit("not significant"))
+            .alias("expectedConfidence"),
+            f.lit("upper tail").alias("statisticalTestTail"),
+            f.lit(contrast).alias("contrast"),
+            f.lit(studyOverview).alias("studyOverview"),
+            f.lit(diseaseFromSourceMapId).alias("diseaseFromSourceMappedId"),
+            f.lit(diseaseFromSource).alias("diseaseFromSource"),
+            f.lit(projectId).alias("projectId"),
+            f.lit(projectDescription).alias("projectDescription"),
+            f.col("biomarkers").alias("biomarkerList"),
+            f.col("diseaseCellLines"),
+            f.lit(VALIDATION_LAB_DATATYPE_ID).alias("datatypeId"),
+            f.lit(VALIDATION_LAB_DATASOURCE_ID).alias("datasourceId"),
         )
-        # Generate the binary confidence calls:
-        .withColumn(
-            "confidence",
-            when(
-                col("resourceScore") >= confidenceCutoff, lit("significant")
-            ).otherwise(lit("not significant")),
-        )
-        .withColumn(
-            "expectedConfidence",
-            when(col("expected_to_pass") == "TRUE", lit("significant")).otherwise(
-                lit("not significant")
-            ),
-        )
-        # Adding constants:
-        .withColumn("statisticalTestTail", lit("upper tail"))
-        .withColumn("contrast", lit(contrast))
-        .withColumn("studyOverview", lit(studyOverview))
-        # This column is specific for this dataset:
-        .withColumn("diseaseFromSourceMappedId", lit(diseaseFromSourceMapId))
-        .withColumn("diseaseFromSource", lit(diseaseFromSource))
-        # This should be added to the crispr dataset as well:
-        .withColumn("projectId", lit(projectId))
-        .withColumn("projectDescription", lit(projectDescription))
-        # Joining cell line data:
-        .join(validation_lab_cell_lines, on="name", how="left")
-        # Drop unused columns:
-        .drop(*["name", "pass_fail", "expected_to_pass", "effect_size"])
-        # Temporary renaming biomarkers:
-        .withColumnRenamed("biomarkers", "biomarkerList")
+        .persist()
     )
 
     logging.info(f"Evidence count: {evidence.count()}.")
@@ -435,20 +433,8 @@ def main(
     # combine all evidence dataframes into one:
     combined_evidence_df = reduce(lambda df1, df2: df1.union(df2), evidence_dfs)
 
-    # Add annotation to the dataframe from the shared parameters:
-    shared_annotation_map = map(
-        lambda item: (item[0], lit(item[1])), parameters["sharedParemeters"].items()
-    )
-
-    # Applying map on the dataframe:
-    annotated_evidence_df = reduce(
-        lambda df, value: df.withColumn(*value),
-        shared_annotation_map,
-        combined_evidence_df,
-    )
-
     # Save the combined evidence dataframe:
-    write_evidence_strings(annotated_evidence_df, output_file)
+    write_evidence_strings(combined_evidence_df, output_file)
 
 
 if __name__ == "__main__":
