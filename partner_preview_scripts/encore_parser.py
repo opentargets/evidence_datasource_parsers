@@ -129,6 +129,7 @@ class EncoreEvidenceGenerator:
         cell_lines = set(["_".join(x.split("_")[:-1]) for x in lfc_df.columns[4:]])
 
         # Generating struct for each cell lines:
+        # SIDM are Sanger model identifiers, while CSID are replicate identifiers.
         # SIDM00049_CSID1053_p-value
         # SIDM00049_CSID1053_fdr
         # SIDM00049_CSID1053_lfc

@@ -104,9 +104,8 @@ class GenerateDiseaseCellLines:
 
         # loading cell line annotation data from Sanger:
         cell_df = (
-            self.spark.read.option(
-                "multiline", True
-            )  # <- this is crazy! Some annotation within the csv fields have newlines!
+            # The following option is required to correctly parse CSV records which contain newline characters.
+            self.spark.read.option("multiline", True)
             .csv(self.cell_passport_file, header=True, sep=",", quote='"')
             .withColumn("biomarkerList", self.parse_msi_status(f.col("msi_status")))
             .select(
@@ -123,6 +122,7 @@ class GenerateDiseaseCellLines:
         logging.info(f"Found {len(tissues)} tissues.")
 
         # Generating a unique set of cell lines in a pandas series:
+        # TODO: UBERON IDs should not be mapped via REST queries. This should be done via joining with owl data.
         mapped_tissues = tissues.assign(
             tissueId=lambda df: df.tissue.apply(self.lookup_uberon)
         )
@@ -173,7 +173,7 @@ class GenerateDiseaseCellLines:
             )
         )
     )
-    def parse_msi_status(status: str) -> dict:
+    def parse_msi_status(status: str) -> list:
         """Based on the content of the MSI status, we generate the corresponding biomarker object."""
 
         if status == "MSI":
