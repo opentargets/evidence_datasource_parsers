@@ -456,10 +456,10 @@ class EncoreEvidenceGenerator:
             )
             # Cleaning the cell line annotation:
             .withColumn("cellId", f.split(f.col("cellLineName"), "_").getItem(0))
-            # Joining with cell passport data containing diseaseCellLines and biomarkers info:
+            # Joining with cell passport data containing diseaseCellLine and biomarkers info:
             .join(
                 self.cell_passport_df.select(
-                    f.col("id").alias("cellId"), "diseaseCellLines", "biomarkerList"
+                    f.col("id").alias("cellId"), "diseaseCellLine", "biomarkerList"
                 ),
                 on="cellId",
                 how="left",
@@ -474,7 +474,7 @@ class EncoreEvidenceGenerator:
 
         evidence_df = (
             merged_dataset.withColumn(
-                "diseaseCellLines", f.array(f.col("diseaseCellLines"))
+                "diseaseCellLines", f.array(f.col("diseaseCellLine"))
             )
             # Parsing/exploding gene names and target roles:
             .withColumn("id", self.parse_targets(f.col("id"), f.col("Note1")))

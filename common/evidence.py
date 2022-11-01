@@ -9,6 +9,7 @@ from pyspark.sql import SparkSession
 import pyspark.sql.functions as f
 from pyspark.sql.types import StringType, StructField, StructType, ArrayType
 
+
 def detect_spark_memory_limit():
     """Spark does not automatically use all available memory on a machine. When working on large datasets, this may
     cause Java heap space errors, even though there is plenty of RAM available. To fix this, we detect the total amount
@@ -22,13 +23,15 @@ def write_evidence_strings(evidence, output_file):
     with tempfile.TemporaryDirectory() as tmp_dir_name:
         (
             evidence.coalesce(1)
-            .write.format('json')
-            .mode('overwrite')
-            .option('compression', 'org.apache.hadoop.io.compress.GzipCodec')
+            .write.format("json")
+            .mode("overwrite")
+            .option("compression", "org.apache.hadoop.io.compress.GzipCodec")
             .save(tmp_dir_name)
         )
-        json_chunks = [f for f in os.listdir(tmp_dir_name) if f.endswith('.json.gz')]
-        assert len(json_chunks) == 1, f'Expected one JSON file, but found {len(json_chunks)}.'
+        json_chunks = [f for f in os.listdir(tmp_dir_name) if f.endswith(".json.gz")]
+        assert (
+            len(json_chunks) == 1
+        ), f"Expected one JSON file, but found {len(json_chunks)}."
         os.rename(os.path.join(tmp_dir_name, json_chunks[0]), output_file)
 
 
@@ -38,16 +41,16 @@ def initialize_sparksession() -> SparkSession:
     spark_mem_limit = detect_spark_memory_limit()
     spark_conf = (
         SparkConf()
-        .set('spark.driver.memory', f'{spark_mem_limit}g')
-        .set('spark.executor.memory', f'{spark_mem_limit}g')
-        .set('spark.driver.maxResultSize', '0')
-        .set('spark.debug.maxToStringFields', '2000')
-        .set('spark.sql.execution.arrow.maxRecordsPerBatch', '500000')
-        .set('spark.ui.showConsoleProgress', 'false')
+        .set("spark.driver.memory", f"{spark_mem_limit}g")
+        .set("spark.executor.memory", f"{spark_mem_limit}g")
+        .set("spark.driver.maxResultSize", "0")
+        .set("spark.debug.maxToStringFields", "2000")
+        .set("spark.sql.execution.arrow.maxRecordsPerBatch", "500000")
+        .set("spark.ui.showConsoleProgress", "false")
     )
     spark = (
         SparkSession.builder.config(conf=spark_conf)
-        .master('local[*]')
+        .master("local[*]")
         .config("spark.driver.bindAddress", "127.0.0.1")
         .getOrCreate()
     )
@@ -86,7 +89,7 @@ class GenerateDiseaseCellLines:
         |    |-- element: struct (containsNull = true)
         |    |    |-- name: string (nullable = true)
         |    |    |-- description: string (nullable = true)
-        |-- diseaseCellLines: struct (nullable = false)
+        |-- diseaseCellLine: struct (nullable = false)
         |    |-- tissue: string (nullable = true)
         |    |-- name: string (nullable = true)
         |    |-- id: string (nullable = true)
@@ -101,46 +104,47 @@ class GenerateDiseaseCellLines:
 
         # loading cell line annotation data from Sanger:
         cell_df = (
-            self.spark.read
-            .option("multiline", True)  # <- this is crazy! Some annotation within the csv fields have newlines!
-            .csv(self.cell_passport_file, header=True, sep=',', quote='"')
-            .withColumn('biomarkerList', self.parse_msi_status(f.col('msi_status')))
+            self.spark.read.option(
+                "multiline", True
+            )  # <- this is crazy! Some annotation within the csv fields have newlines!
+            .csv(self.cell_passport_file, header=True, sep=",", quote='"')
+            .withColumn("biomarkerList", self.parse_msi_status(f.col("msi_status")))
             .select(
-                f.col('model_name').alias('name'),
-                f.col('model_id').alias('id'),
-                f.col('tissue'),
-                f.col('biomarkerList')
+                f.col("model_name").alias("name"),
+                f.col("model_id").alias("id"),
+                f.col("tissue"),
+                f.col("biomarkerList"),
             )
             .persist()
         )
 
         # Generating a unique set of tissues in a pandas dataframe:
-        tissues = cell_df.select('tissue').distinct().toPandas()
-        logging.info(f'Found {len(tissues)} tissues.')
+        tissues = cell_df.select("tissue").distinct().toPandas()
+        logging.info(f"Found {len(tissues)} tissues.")
 
         # Generating a unique set of cell lines in a pandas series:
-        mapped_tissues = tissues.assign(tissueId=lambda df: df.tissue.apply(self.lookup_uberon))
-        logging.info(f'Found mapping for {len(mapped_tissues.loc[mapped_tissues.tissueId.notna()])} tissues.')
+        mapped_tissues = tissues.assign(
+            tissueId=lambda df: df.tissue.apply(self.lookup_uberon)
+        )
+        logging.info(
+            f"Found mapping for {len(mapped_tissues.loc[mapped_tissues.tissueId.notna()])} tissues."
+        )
 
         # Converting to spark dataframe:
         mapped_tissues_spark = self.spark.createDataFrame(mapped_tissues)
 
         # Joining with cell lines:
         return (
-            cell_df
-            .join(mapped_tissues_spark, on='tissue', how='left')
-
+            cell_df.join(mapped_tissues_spark, on="tissue", how="left")
             # Generating the diseaseCellLines object:
             .select(
-                'name',
-                'id',
-                'biomarkerList',
-                f.struct(['tissue', 'name', 'id', 'tissueId']).alias('diseaseCellLines')
+                "name",
+                "id",
+                "biomarkerList",
+                f.struct(["tissue", "name", "id", "tissueId"]).alias("diseaseCellLine"),
             )
-
             # Cleaning up cell line name from dashes:
-            .withColumn('name', f.regexp_replace(f.col('name'), '-', ''))
-            .persist()
+            .withColumn("name", f.regexp_replace(f.col("name"), "-", "")).persist()
         )
 
     def get_mapping(self):
@@ -150,29 +154,31 @@ class GenerateDiseaseCellLines:
     def lookup_uberon(tissue_label: str) -> str:
         """Mapping tissue labels to tissue identifiers (UBERON codes) via the OLS API."""
 
-        url = f'https://www.ebi.ac.uk/ols/api/search?q={tissue_label.lower()}&queryFields=label&ontology=uberon&exact=true'
+        url = f"https://www.ebi.ac.uk/ols/api/search?q={tissue_label.lower()}&queryFields=label&ontology=uberon&exact=true"
         r = requests.get(url).json()
 
-        if r['response']['numFound'] == 0:
+        if r["response"]["numFound"] == 0:
             return None
         else:
-            return r['response']['docs'][0]['short_form']
+            return r["response"]["docs"][0]["short_form"]
 
     @staticmethod
     @f.udf(
         ArrayType(
-            StructType([
-                StructField('name', StringType(), nullable=False),
-                StructField('description', StringType(), nullable=False)
-            ])
+            StructType(
+                [
+                    StructField("name", StringType(), nullable=False),
+                    StructField("description", StringType(), nullable=False),
+                ]
+            )
         )
     )
     def parse_msi_status(status: str) -> dict:
         """Based on the content of the MSI status, we generate the corresponding biomarker object."""
 
-        if status == 'MSI':
+        if status == "MSI":
             return [{"name": "MSI", "description": "Microsatellite instable"}]
-        if status == 'MSS':
+        if status == "MSS":
             return [{"name": "MSS", "description": "Microsatellite stable"}]
         else:
             return None
