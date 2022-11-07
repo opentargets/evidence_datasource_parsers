@@ -38,11 +38,15 @@ IMPC_SOLR_TABLES = {
 
 # List of fields on which to enforce uniqueness by only keeping the record with the highest score.
 UNIQUE_FIELDS = [
-    'targetInModel',  # Mouse gene
-    'targetFromSourceId',  # Human gene
-    'biologicalModelAllelicComposition',  # Mouse model property
-    'biologicalModelGeneticBackground',  # Mouse model property
-    'diseaseFromSourceMappedId',  # The final (mapped) disease ID in EFO
+    # Specific to IMPC.
+    'diseaseFromSource',  # Original disease name.
+    'targetInModel',  # Mouse gene name.
+    'biologicalModelAllelicComposition',  # Mouse model property.
+    'biologicalModelGeneticBackground',  # Mouse model property.
+
+    # General.
+    'diseaseFromSourceMappedId',  # EFO mapped disease ID.
+    'targetFromSourceId',  # Ensembl mapped human gene ID.
 ]
 
 class ImpcSolrRetriever:
