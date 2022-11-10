@@ -8,7 +8,6 @@ import sys
 import pyspark.sql.functions as f
 
 from pyspark.sql.dataframe import DataFrame
-from pyspark.sql.types import ArrayType, StringType
 
 from common.evidence import initialize_sparksession, write_evidence_strings
 
@@ -26,7 +25,7 @@ def main(chembl_evidence: str, predictions: str, output_file: str) -> None:
     logging.info(f'ChEMBL evidence JSON file: {chembl_evidence}')
     logging.info(f'Classes of reason to stop table: {predictions}')
 
-    chembl_df = spark.read.json(chembl_evidence).drop('studyStopReasonCategories').repartition(200).persist()
+    chembl_df = spark.read.json(chembl_evidence).repartition(200).persist()
     predictions_df = (
         spark.read.json(predictions)
         .transform(prettify_subclasses)
@@ -94,7 +93,7 @@ def prettify_subclasses(predictions_df: DataFrame) -> DataFrame:
         .select('nct_id', 'subclasses', sub_mapping_col.alias('prettyStopReasonsMap'))
         # Create a MapType column to convert each element of the subclasses array
         .withColumn('studyStopReasonCategories', f.expr('transform(subclasses, x -> element_at(prettyStopReasonsMap, x))'))
-        .drop('prettyStopReasonsMap')
+        .drop('subclasses', 'prettyStopReasonsMap')
     )
 
 def get_parser():
