@@ -26,10 +26,10 @@ def main(chembl_evidence: str, predictions: str, output_file: str) -> None:
     logging.info(f'ChEMBL evidence JSON file: {chembl_evidence}')
     logging.info(f'Classes of reason to stop table: {predictions}')
 
-    chembl_df = spark.read.json(chembl_evidence).repartition(200).persist()
+    chembl_df = spark.read.json(chembl_evidence).drop('studyStopReasonCategories').repartition(200).persist()
     predictions_df = (
         spark.read.json(predictions)
-        .select('nct_id', f.col('subclasses').alias('studyStopReasonCategories'))
+        .transform(prettify_subclasses)
         .distinct()
     )
 
@@ -62,6 +62,40 @@ def main(chembl_evidence: str, predictions: str, output_file: str) -> None:
 
     logging.info(f'{total_count} evidence strings have been saved to {output_file}. Exiting.')
 
+def prettify_subclasses(predictions_df: DataFrame) -> DataFrame:
+    """
+    List of categories must be converted formatted with a nice name.
+    """
+
+    CATEGORIESMAPPINGS = {
+        'Business_Administrative': 'Business or administrative',
+        'Logistics_Resources': 'Logistics or resources',
+        'Covid19': 'COVID-19',
+        'Safety_Sideeffects': 'Safety or side effects',
+        'Endpoint_Met': 'Met endpoint',
+        'Insufficient_Enrollment': 'Insufficient enrollment',
+        'Negative': 'Negative',
+        'Study_Design': 'Study design',
+        'Invalid_Reason': 'Invalid reason',
+        'Study_Staff_Moved': 'Study staff moved',
+        'Another_Study': 'Another study',
+        'No_Context': 'No context',
+        'Regulatory': 'Regulatory',
+        'Interim_Analysis': 'Interim analysis',
+        'Success': 'Success',
+        'Ethical_Reason': 'Ethical reason',
+        'Insufficient_Data': 'Insufficient data',
+    }
+
+    sub_mapping_col = f.map_from_entries(f.array(*[f.struct(f.lit(k), f.lit(v)) for k, v in CATEGORIESMAPPINGS.items()]))
+
+    return (
+        predictions_df  
+        .select('nct_id', 'subclasses', sub_mapping_col.alias('prettyStopReasonsMap'))
+        # Create a MapType column to convert each element of the subclasses array
+        .withColumn('studyStopReasonCategories', f.expr('transform(subclasses, x -> element_at(prettyStopReasonsMap, x))'))
+        .drop('prettyStopReasonsMap')
+    )
 
 def get_parser():
     """Get parser object for script ChEMBL.py."""
