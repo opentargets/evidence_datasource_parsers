@@ -474,28 +474,36 @@ class EncoreEvidenceGenerator:
         )
 
         evidence_df = (
-            merged_dataset.withColumn(
-                "diseaseCellLines", f.array(f.col("diseaseCellLine"))
-            )
-            # Parsing/exploding gene names and target roles:
+            merged_dataset
+            # Parsing and exploding gene names and target roles:
             .withColumn("id", self.parse_targets(f.col("id"), f.col("Note1")))
             .select("*", f.explode(f.col("id")).alias("genes"))
-            .select("*", f.col("genes.*"))
-            # Adding some literals specific for this type of evidence:
-            .withColumn("datatypeId", f.lit("ot_partner"))
-            .withColumn("datasourceId", f.lit("encore"))
-            .withColumn("projectId", f.lit("OTAR2062"))
-            .withColumn("projectDescription", f.lit("Encore project"))
-            # .withColumn("geneInteractionType", f.lit("cooperative"))
-            # Adding disease information:
-            .withColumn(
-                "diseaseFromSourceMappedId", f.lit(disease_from_source_mapped_id)
+            .select(
+                # Adding target releated fields:
+                f.col("genes.*"),
+                # Adding cell line specific annotation:
+                f.array(f.col("diseaseCellLine")).alias("diseaseCellLines"),
+                "biomarkerList",
+                # Adding evidence specific stats:
+                "phenotypicConsequenceLogFoldChange",
+                "phenotypicConsequencePValue",
+                "phenotypicConsequenceFDR",
+                "statisticalMethod",
+                "geneticInteractionPValue",
+                "geneticInteractionScore",
+                "geneInteractionType",
+                # Adding disease information:
+                f.lit(disease_from_source_mapped_id).alias("diseaseFromSourceMappedId"),
+                f.lit(disease_from_source).alias("diseaseFromSource"),
+                # Adding release releated fields:
+                f.lit(self.release_version).alias("releaseVersion"),
+                f.lit(self.release_date).alias("releaseDate"),
+                # Data source specific fields:
+                f.lit("ot_partner").alias("datatypeId"),
+                f.lit("encore").alias("datasourceId"),
+                f.lit("OTAR2062").alias("projectId"),
+                f.lit("Encore project").alias("projectDescription"),
             )
-            .withColumn("diseaseFromSource", f.lit(disease_from_source))
-            .withColumn("releaseVersion", f.lit(self.release_version))
-            .withColumn("releaseDate", f.lit(self.release_date))
-            # Removing unused columns:
-            .drop(*["cellLineName", "cellId", "Note1", "Note2", "id", "genes"])
             # Dropping all evidence for anchor genes:
             .filter(f.col("targetRole") != "anchor")
             .distinct()
