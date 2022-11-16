@@ -227,19 +227,19 @@ class EncoreEvidenceGenerator:
         )
 
         return (
-            res_df
-            # Create a consistent id column:
-            .withColumn("id", f.regexp_replace(f.col("Gene_Pair"), ";", "~"))
-            # Unpivot:
-            .select("id", f.expr(unpivot_expression))
+            res_df.select(
+                # Create a consistent id column:
+                f.regexp_replace(f.col("Gene_Pair"), ";", "~").alias("id"),
+                # Unpivot:
+                f.expr(unpivot_expression),
+            )
             # Extracting and renaming bliss statistical values:
             .select(
                 "id",
-                f.split(f.col("cellLineName"), "_").alias("cellInfo"),
+                f.split(f.col("cellLineName"), "_")[0].alias("cellLineName"),
+                f.split(f.col("cellLineName"), "_")[1].alias("experimentId"),
                 f.col("cellLineData.zscore").cast(t.FloatType()).alias("zscore"),
             )
-            .withColumn("cellLineName", f.col("cellInfo").getItem(0))
-            .withColumn("experimentId", f.col("cellInfo").getItem(1))
             .filter(f.col("zscore") != "NaN")
             # BLISS data is not aggregated for cell lines, instead we have data for each replicates.
             # To allow averaging, data needs to be grouped by gene pair and cell line:
@@ -269,17 +269,13 @@ class EncoreEvidenceGenerator:
                 f.lit("bliss").alias("statisticalMethod"),
                 "geneticInteractionPValue",
                 "geneticInteractionScore",
+                # Based on the z-score we can tell the nature of the interaction:
+                # - positive z-score means synergictic
+                # - negative z-score means antagonistics interaction
+                f.when(f.col("geneticInteractionScore") > 0, "synergistic")
+                .otherwise("antagonistic")
+                .alias("geneInteractionType"),
             )
-            # Based on the z-score we can tell the nature of the interaction:
-            # - positive z-score means synergictic
-            # - negative z-score means antagonistics interaction
-            .withColumn(
-                "geneInteractionType",
-                f.when(f.col("geneticInteractionScore") > 0, "synergistic").otherwise(
-                    "antagonistic"
-                ),
-            )
-            .persist()
         )
 
     def get_gemini_data(self, gemini_file: str) -> DataFrame:
@@ -369,9 +365,8 @@ class EncoreEvidenceGenerator:
                 f.col("cellLineData.FDR")
                 .cast(t.FloatType())
                 .alias("geneticInteractionFDR"),
+                f.lit("gemini").alias("statisticalMethod"),
             )
-            .withColumn("statisticalMethod", f.lit("gemini"))
-            .persist()
         )
 
     def parse_experiment(self, parameters: dict) -> DataFrame:
@@ -400,7 +395,7 @@ class EncoreEvidenceGenerator:
         disease_from_source_mapped_id = parameters["diseaseFromSourceMappedId"]
         dataset = parameters["dataset"]
         log_fold_change_file = parameters["logFoldChangeFile"]
-        gemini_file = parameters["geminiFile"]
+        # gemini_file = parameters["geminiFile"] # <= Removed as genini method is dropped for now.
         blissFile = parameters["blissFile"]
 
         # Testing if experiment needs to be skipped:
@@ -425,7 +420,7 @@ class EncoreEvidenceGenerator:
         logging.info(
             f'Number cell lines in the log(fold change) dataset: {lfc_df.select("cellLineName").distinct().count()}'
         )
-        # A decistion was made to exclude gemini asessments.
+        # A decistion was made to exclude gemini asessments, for now.
         # # Reading gemini data:
         # gemini_file = f"{self.data_folder}/{gemini_file}"
         # gemini_df = self.get_gemini_data(gemini_file)
@@ -436,7 +431,6 @@ class EncoreEvidenceGenerator:
         #     f'Number cell lines in the gemini dataset: {gemini_df.select("cellLineName").distinct().count()}'
         # )
 
-        # """WARNING: Based on the communication with the encore team, the BLISS dataset is currently considered unreliable."""
         bliss_file = f"{self.data_folder}/{blissFile}"
         bliss_df = self.get_bliss_data(bliss_file)
 
@@ -444,7 +438,6 @@ class EncoreEvidenceGenerator:
         merged_dataset = (
             lfc_df
             # Data is joined by the gene-pair and cell line:
-            # .join(bliss_df, how='inner', on=['id', 'cellLineName'])
             .join(bliss_df, how="inner", on=["id", "cellLineName"])
             # Applying filters on logFoldChange + interaction p-value thresholds:
             .filter(
@@ -464,7 +457,7 @@ class EncoreEvidenceGenerator:
                 ),
                 on="cellId",
                 how="left",
-            ).persist()
+            )
         )
         logging.info(
             f'Number of gene pairs in the merged dataset: {merged_dataset.select("id").count()}'
@@ -507,7 +500,6 @@ class EncoreEvidenceGenerator:
             # Dropping all evidence for anchor genes:
             .filter(f.col("targetRole") != "anchor")
             .distinct()
-            .persist()
         )
 
         # If there's a warning message for the sudy, add that:
