@@ -388,6 +388,9 @@ class EncoreEvidenceGenerator:
             - Reading all files.
             - Joining files.
             - Applying filters.
+                - Apply filter on lf change
+                - Apply filter on cooperativity
+                - Apply filter on target role (keeping only library genes, controls are dropped)
             - Adding additional columns + finalizing evidence model
         """
 
@@ -497,8 +500,8 @@ class EncoreEvidenceGenerator:
                 f.lit("OTAR2062").alias("projectId"),
                 f.lit("Encore project").alias("projectDescription"),
             )
-            # Dropping all evidence for anchor genes:
-            .filter(f.col("targetRole") != "anchor")
+            # Dropping all evidence for anchor and control genes:
+            .filter(f.col("targetRole") == "library")
             .distinct()
         )
 
