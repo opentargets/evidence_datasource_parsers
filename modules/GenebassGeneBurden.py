@@ -132,38 +132,10 @@ def parse_genebass_evidence(genebass_df: DataFrame) -> DataFrame:
         .withColumnRenamed('Pvalue_Burden', 'resourceScore')
         .withColumn('pValueExponent', F.log10(F.col('resourceScore')).cast(T.IntegerType()) - F.lit(1))
         .withColumn('pValueMantissa', F.round(F.col('resourceScore') / F.pow(F.lit(10), F.col('pValueExponent')), 3))
-        # Stats are split taking into consideration the type of the trait
-        # Those that are not continuous or categorical were reviewed and all of them are considered as categorical
-        .withColumn(
-            'beta',
-            F.when(F.col('trait_type') == 'continuous', F.col('BETA_Burden')),
-        )
-        .withColumn(
-            'betaConfidenceIntervalLower',
-            F.when(F.col('trait_type') == 'continuous', F.col('BETA_Burden') - F.col('SE_Burden')),
-        )
-        .withColumn(
-            'betaConfidenceIntervalUpper',
-            F.when(F.col('trait_type') == 'continuous', F.col('BETA_Burden') + F.col('SE_Burden')),
-        )
-        .withColumn(
-            'oddsRatio',
-            F.when(F.col('trait_type').isin(['categorical', 'icd_first_occurrence', 'icd10']), F.col('BETA_Burden')),
-        )
-        .withColumn(
-            'oddsRatioConfidenceIntervalLower',
-            F.when(
-                F.col('trait_type').isin(['categorical', 'icd_first_occurrence', 'icd10']),
-                F.col('BETA_Burden') - F.col('SE_Burden'),
-            ),
-        )
-        .withColumn(
-            'oddsRatioConfidenceIntervalUpper',
-            F.when(
-                F.col('trait_type').isin(['categorical', 'icd_first_occurrence', 'icd10']),
-                F.col('BETA_Burden') + F.col('SE_Burden'),
-            ),
-        )
+        # Genebass reports effect sizes as beta, regardless of the type of measured trait, like other studies
+        .withColumnRenamed('BETA_Burden', 'beta')
+        .withColumn('betaConfidenceIntervalLower', (F.col('BETA_Burden') - F.col('SE_Burden')))
+        .withColumn('betaConfidenceIntervalUpper', (F.col('BETA_Burden') + F.col('SE_Burden')))
         .withColumn('studySampleSize', (F.col('n_cases') + F.coalesce('n_controls', F.lit(0))))
         .withColumnRenamed('n_cases', 'studyCases')
         .withColumnRenamed('annotation', 'statisticalMethod')
