@@ -2,7 +2,7 @@ global:
   logDir: gs://otar000-evidence_input/parser_logs
   cacheDir: cache_dir
   schema: https://raw.githubusercontent.com/opentargets/json_schema/2.2.8.1
-  EFOVersion: v3.45.0
+  EFOVersion: v3.47.0
 
 cancerBiomarkers:
   inputAssociationsTable: gs://otar000-evidence_input/CancerBiomarkers/data_files/cancerbiomarkers-2018-05-01.tsv
