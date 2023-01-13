@@ -58,10 +58,26 @@ def main(
     logging.info('Data has been processed. Merging...')
 
     # Combine dfs and group evidence
+    evidence_unique_cols = [
+        'id',
+        'targetFromSourceId',
+        'event',
+        'eventId',
+        'datasource',
+        'effects',
+        'literature',
+        'url'
+    ]
     safety_df = (
         # dfs are combined; unionByName is used instead of union to address for the differences in the schemas
         ae_df.unionByName(sr_df, allowMissingColumns=True)
         .unionByName(toxcast_df, allowMissingColumns=True)
+        # Collect biosample and study metadata by grouping on the unique evidence fields
+        .groupBy(evidence_unique_cols)
+        .agg(
+            F.collect_set(F.col('biosample')).alias('biosample'),
+            F.collect_set(F.col('study')).alias('study'),
+        )
     )
 
     # Write output
