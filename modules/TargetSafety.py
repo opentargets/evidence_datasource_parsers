@@ -2,6 +2,7 @@
 """This module puts together data from different sources that describe target safety liabilities."""
 
 import argparse
+from functools import reduce
 import logging
 import sys
 from typing import Optional
@@ -20,6 +21,7 @@ def main(
     output: str,
     adverse_events: str,
     safety_risk: str,
+    aopwiki: str,
     log_file: Optional[str] = None,
 ):
     """
@@ -55,6 +57,7 @@ def main(
     ae_df = process_adverse_events(SparkFiles.get(adverse_events.split('/')[-1]))
     sr_df = process_safety_risk(SparkFiles.get(safety_risk.split('/')[-1]))
     toxcast_df = process_toxcast(toxcast)
+    aopwiki_df = process_aopwiki(aopwiki)
     logging.info('Data has been processed. Merging...')
 
     # Combine dfs and group evidence
@@ -68,11 +71,12 @@ def main(
         'literature',
         'url'
     ]
+    safety_dfs = [ae_df, sr_df, toxcast_df, aopwiki_df]
     safety_df = (
-        # dfs are combined; unionByName is used instead of union to address for the differences in the schemas
-        ae_df.unionByName(sr_df, allowMissingColumns=True)
-        .unionByName(toxcast_df, allowMissingColumns=True)
+        reduce(lambda df1, df2: df1.unionByName(df2, allowMissingColumns=True), safety_dfs)
         # Collect biosample and study metadata by grouping on the unique evidence fields
+        # TODO: bug: groupby is not null safe
+        # TODO: correct biosample and study names to be plural
         .groupBy(evidence_unique_cols)
         .agg(
             F.collect_set(F.col('biosample')).alias('biosample'),
@@ -252,6 +256,33 @@ def process_toxcast(toxcast: str) -> DataFrame:
         ).alias('study'),
     )
 
+def process_aopwiki(aopwiki: str) -> DataFrame:
+    """Loads and processes the AOPWiki input table."""
+
+    return (
+        spark.read.json(aopwiki)
+
+        # mapping to EFO is still missing
+        # .withColumn("eventId", F.lit("EFO_0000000"))
+
+        # data bug: event and tissueLabel (inside the array of structs called biosample) contain apostrophes in their labels
+        .withColumn('event', F.regexp_replace(F.col('event'), r"\"", ''))
+
+        .select("*", F.explode("biosamples").alias("biosample"))
+        .withColumn(
+            "biosample",
+            F.struct(
+                F.regexp_replace(F.col("biosample.tissueLabel"), r"\"", '').alias("tissueLabel"),
+                F.col("biosample.tissueId"),
+            )
+        )
+        # TODO: add eventId when available
+        .groupBy("id", "event", "effects", "isHumanApplicable", "datasource", "url")
+        .agg(F.collect_set("biosample").alias("biosample"))
+
+        # data bug: effects can be an empty array of structs
+        .withColumn('effects', F.when(F.size(F.col('effects')) == 0, F.lit(None)).otherwise(F.col('effects')))
+    )
 
 def initialize_spark():
     """Spins up a Spark session."""
@@ -291,6 +322,9 @@ def get_parser():
         '--safety_risk', help='Input TSV containing cardiovascular safety liabilities associated with targets that have been collected from relevant publications. Fetched from https://raw.githubusercontent.com/opentargets/curation/master/target_safety/safety_risks.tsv.', type=str, required=True
     )
     parser.add_argument(
+        '--aopwiki', help='Input JSON containing targets implicated in adverse outcomes as reported by the AOPWiki. Fetched from https://raw.githubusercontent.com/opentargets/curation/master/target_safety/aopwiki-2022-01-17.json', type=str, required=True
+    )
+    parser.add_argument(
         '--output', help='Output gzipped json file following the target safety liabilities data model.', type=str, required=True
     )
     parser.add_argument(
@@ -310,5 +344,6 @@ if __name__ == '__main__':
         toxcast=args.toxcast,
         adverse_events=args.adverse_events,
         safety_risk=args.safety_risk,
+        aopwiki=args.aopwiki,
         output=args.output
     )
