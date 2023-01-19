@@ -8,12 +8,10 @@ import sys
 from typing import Optional
 
 from pyspark import SparkFiles
-from pyspark.conf import SparkConf
-from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
 import pyspark.sql.functions as F
 
-from common.evidence import detect_spark_memory_limit, write_evidence_strings
+from common.evidence import initialize_sparksession, write_evidence_strings
 
 
 def main(
@@ -48,7 +46,7 @@ def main(
 
     # Initialize spark context
     global spark
-    spark = initialize_spark()
+    spark = initialize_sparksession()
     spark.sparkContext.addFile(adverse_events)
     spark.sparkContext.addFile(safety_risk)
     logging.info('Remote files successfully added to the Spark Context.')
@@ -82,6 +80,8 @@ def main(
             F.collect_set(F.col('biosample')).alias('biosample'),
             F.collect_set(F.col('study')).alias('study'),
         )
+        .withColumn('biosample', F.when(F.size('biosample') != 0, F.col('biosample')))
+        .withColumn('study', F.when(F.size('study') != 0, F.col('study')))
     )
 
     # Write output
@@ -255,24 +255,6 @@ def process_toxcast(toxcast: str) -> DataFrame:
             F.col('assay_format_type').alias('type'),
         ).alias('study'),
     )
-
-def initialize_spark():
-    """Spins up a Spark session."""
-
-    # Initialize spark session
-    spark_mem_limit = detect_spark_memory_limit()
-    spark_conf = (
-        SparkConf()
-        .set('spark.driver.memory', f'{spark_mem_limit}g')
-        .set('spark.executor.memory', f'{spark_mem_limit}g')
-        .set('spark.driver.maxResultSize', '0')
-        .set('spark.debug.maxToStringFields', '2000')
-        .set('spark.sql.execution.arrow.maxRecordsPerBatch', '500000')
-    )
-    spark = SparkSession.builder.config(conf=spark_conf).master('local[*]').getOrCreate()
-    logging.info(f'Spark version: {spark.version}')
-
-    return spark
 
 def get_parser():
     """Get parser object for script TargetSafety.py."""
