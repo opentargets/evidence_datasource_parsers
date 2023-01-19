@@ -57,7 +57,7 @@ def main(
     ae_df = process_adverse_events(SparkFiles.get(adverse_events.split('/')[-1]))
     sr_df = process_safety_risk(SparkFiles.get(safety_risk.split('/')[-1]))
     toxcast_df = process_toxcast(toxcast)
-    aopwiki_df = process_aopwiki(aopwiki)
+    aopwiki_df = spark.read.json(aopwiki)
     logging.info('Data has been processed. Merging...')
 
     # Combine dfs and group evidence
@@ -254,34 +254,6 @@ def process_toxcast(toxcast: str) -> DataFrame:
             F.col('assay_component_desc').alias('description'),
             F.col('assay_format_type').alias('type'),
         ).alias('study'),
-    )
-
-def process_aopwiki(aopwiki: str) -> DataFrame:
-    """Loads and processes the AOPWiki input table."""
-
-    return (
-        spark.read.json(aopwiki)
-
-        # mapping to EFO is still missing
-        # .withColumn("eventId", F.lit("EFO_0000000"))
-
-        # data bug: event and tissueLabel (inside the array of structs called biosample) contain apostrophes in their labels
-        .withColumn('event', F.regexp_replace(F.col('event'), r"\"", ''))
-
-        .select("*", F.explode("biosamples").alias("biosample"))
-        .withColumn(
-            "biosample",
-            F.struct(
-                F.regexp_replace(F.col("biosample.tissueLabel"), r"\"", '').alias("tissueLabel"),
-                F.col("biosample.tissueId"),
-            )
-        )
-        # TODO: add eventId when available
-        .groupBy("id", "event", "effects", "isHumanApplicable", "datasource", "url")
-        .agg(F.collect_set("biosample").alias("biosample"))
-
-        # data bug: effects can be an empty array of structs
-        .withColumn('effects', F.when(F.size(F.col('effects')) == 0, F.lit(None)).otherwise(F.col('effects')))
     )
 
 def initialize_spark():
