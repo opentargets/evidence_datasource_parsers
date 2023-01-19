@@ -24,7 +24,6 @@ def write_evidence_strings(evidence, output_file):
             .write.format('json')
             .mode('overwrite')
             .option('compression', 'org.apache.hadoop.io.compress.GzipCodec')
-            .option('ignoreNullFields', 'false')
             .save(tmp_dir_name)
         )
         json_chunks = [f for f in os.listdir(tmp_dir_name) if f.endswith('.json.gz')]

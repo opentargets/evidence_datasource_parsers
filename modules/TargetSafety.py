@@ -73,7 +73,6 @@ def main(
     safety_df = (
         reduce(lambda df1, df2: df1.unionByName(df2, allowMissingColumns=True), safety_dfs)
         # Collect biosample and study metadata by grouping on the unique evidence fields
-        # TODO: bug: groupby is not null safe
         # TODO: correct biosample and study names to be plural
         .groupBy(evidence_unique_cols)
         .agg(
@@ -276,7 +275,7 @@ def get_parser():
         '--safety_risk', help='Input TSV containing cardiovascular safety liabilities associated with targets that have been collected from relevant publications. Fetched from https://raw.githubusercontent.com/opentargets/curation/master/target_safety/safety_risks.tsv.', type=str, required=True
     )
     parser.add_argument(
-        '--aopwiki', help='Input JSON containing targets implicated in adverse outcomes as reported by the AOPWiki. Fetched from https://raw.githubusercontent.com/opentargets/curation/master/target_safety/aopwiki-2022-01-17.json', type=str, required=True
+        '--aopwiki', help='Input JSON containing targets implicated in adverse outcomes as reported by the AOPWiki. Parsed from their source XML data.', type=str, required=True
     )
     parser.add_argument(
         '--output', help='Output gzipped json file following the target safety liabilities data model.', type=str, required=True
