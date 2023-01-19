@@ -273,6 +273,7 @@ def parse_genetics_evidence(genetics_df: DataFrame) -> DataFrame:
             f.regexp_extract(f.col("consequence_link"), r"\/(SO.+)$", 1).alias(
                 "variantFunctionalConsequenceId"
             ),
+            "variantFunctionalConsequenceFromQtlId",
         )
         .dropDuplicates(
             ["variantId", "studyId", "targetFromSourceId", "diseaseFromSourceMappedId"]
@@ -308,7 +309,7 @@ def process_study_table(study_index: str) -> DataFrame:
     "Loads and processes disease information from the study table."
 
     return (
-        spark.read.json(study_index)
+        spark.read.parquet(study_index)
         .select(
             "study_id",
             "pmid",
@@ -467,7 +468,7 @@ def main(
     coloc_table: str,
 ):
     logging.info(f"Locus2gene table: {locus2gene}")
-    logging.info(f"Coloc table: {locus2gene}")
+    logging.info(f"Coloc table: {coloc_table}")
     logging.info(f"Top locus table: {toploci}")
     logging.info(f"Study table: {study_index}")
     logging.info(f"Variant index table: {variant_index}")
@@ -510,7 +511,7 @@ def main(
         # Joining with colocalizing QTL effects:
         .join(
             coloc_df,
-            on=["study_id", "gene_id", "variant", "chrom", "pos", "ref", "alt"],
+            on=["study_id", "gene_id", "chrom", "pos", "ref", "alt"],
             how="left",
         )
     )
