@@ -95,6 +95,8 @@ def process_aop(aopwiki: str) -> DataFrame:
 
     return (
         spark.read.json(aopwiki)
+        # if isHumanApplicable is False, set it to null as the lack of applicability has not been tested - it only shows lack of data
+        .withColumn('isHumanApplicable', F.when(F.col('isHumanApplicable') != F.lit(True), F.col("isHumanApplicable")))
         # data bug: some events have the substring "NA" at the start - removal and trim the string
         .withColumn('event', F.trim(F.regexp_replace(F.col('event'), '^NA', '')))
     )
