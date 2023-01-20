@@ -66,6 +66,7 @@ def main(
         'eventId',
         'datasource',
         'effects',
+        'isHumanApplicable',
         'literature',
         'url'
     ]
