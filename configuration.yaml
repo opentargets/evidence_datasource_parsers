@@ -70,5 +70,5 @@ TargetSafety:
   adverseEvents: https://raw.githubusercontent.com/opentargets/curation/22.11.2/target_safety/adverse_effects.tsv
   safetyRisk: https://raw.githubusercontent.com/opentargets/curation/22.11.2/target_safety/safety_risks.tsv
   toxcast: gs://otar001-core/TargetSafety/data_files/toxcast/ToxCast_2021-08-17.tsv
-  aopwiki: gs://otar001-core/TargetSafety/data_files/aopwiki/aopwiki-2023-01-19.json
+  aopwiki: gs://otar001-core/TargetSafety/data_files/aopwiki/aopwiki-2023-01-20.json
   outputBucket: gs://otar001-core/TargetSafety/json
