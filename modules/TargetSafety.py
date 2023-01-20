@@ -55,7 +55,7 @@ def main(
     ae_df = process_adverse_events(SparkFiles.get(adverse_events.split('/')[-1]))
     sr_df = process_safety_risk(SparkFiles.get(safety_risk.split('/')[-1]))
     toxcast_df = process_toxcast(toxcast)
-    aopwiki_df = spark.read.json(aopwiki)
+    aopwiki_df = process_aop(aopwiki)
     logging.info('Data has been processed. Merging...')
 
     # Combine dfs and group evidence
@@ -73,14 +73,13 @@ def main(
     safety_df = (
         reduce(lambda df1, df2: df1.unionByName(df2, allowMissingColumns=True), safety_dfs)
         # Collect biosample and study metadata by grouping on the unique evidence fields
-        # TODO: correct biosample and study names to be plural
         .groupBy(evidence_unique_cols)
         .agg(
-            F.collect_set(F.col('biosample')).alias('biosample'),
-            F.collect_set(F.col('study')).alias('study'),
+            F.collect_set(F.col('biosample')).alias('biosamples'),
+            F.collect_set(F.col('study')).alias('studies'),
         )
-        .withColumn('biosample', F.when(F.size('biosample') != 0, F.col('biosample')))
-        .withColumn('study', F.when(F.size('study') != 0, F.col('study')))
+        .withColumn('biosamples', F.when(F.size('biosamples') != 0, F.col('biosamples')))
+        .withColumn('studies', F.when(F.size('studies') != 0, F.col('studies')))
     )
 
     # Write output
@@ -90,6 +89,14 @@ def main(
 
     return 0
 
+def process_aop(aopwiki: str) -> DataFrame:
+    """Loads and processes the AOPWiki input JSON."""
+
+    return (
+        spark.read.json(aopwiki)
+        # data bug: some events have the substring "NA" at the start - removal and trim the string
+        .withColumn('event', F.trim(F.regexp_replace(F.col('event'), '^NA', '')))
+    )
 
 def process_adverse_events(adverse_events: str) -> DataFrame:
     """
