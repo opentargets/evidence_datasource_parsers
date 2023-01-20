@@ -2,17 +2,16 @@
 """This module puts together data from different sources that describe target safety liabilities."""
 
 import argparse
+from functools import reduce
 import logging
 import sys
 from typing import Optional
 
 from pyspark import SparkFiles
-from pyspark.conf import SparkConf
-from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
 import pyspark.sql.functions as F
 
-from common.evidence import detect_spark_memory_limit, write_evidence_strings
+from common.evidence import initialize_sparksession, write_evidence_strings
 
 
 def main(
@@ -20,6 +19,7 @@ def main(
     output: str,
     adverse_events: str,
     safety_risk: str,
+    aopwiki: str,
     log_file: Optional[str] = None,
 ):
     """
@@ -46,7 +46,7 @@ def main(
 
     # Initialize spark context
     global spark
-    spark = initialize_spark()
+    spark = initialize_sparksession()
     spark.sparkContext.addFile(adverse_events)
     spark.sparkContext.addFile(safety_risk)
     logging.info('Remote files successfully added to the Spark Context.')
@@ -55,13 +55,32 @@ def main(
     ae_df = process_adverse_events(SparkFiles.get(adverse_events.split('/')[-1]))
     sr_df = process_safety_risk(SparkFiles.get(safety_risk.split('/')[-1]))
     toxcast_df = process_toxcast(toxcast)
+    aopwiki_df = process_aop(aopwiki)
     logging.info('Data has been processed. Merging...')
 
     # Combine dfs and group evidence
+    evidence_unique_cols = [
+        'id',
+        'targetFromSourceId',
+        'event',
+        'eventId',
+        'datasource',
+        'effects',
+        'isHumanApplicable',
+        'literature',
+        'url'
+    ]
+    safety_dfs = [ae_df, sr_df, toxcast_df, aopwiki_df]
     safety_df = (
-        # dfs are combined; unionByName is used instead of union to address for the differences in the schemas
-        ae_df.unionByName(sr_df, allowMissingColumns=True)
-        .unionByName(toxcast_df, allowMissingColumns=True)
+        reduce(lambda df1, df2: df1.unionByName(df2, allowMissingColumns=True), safety_dfs)
+        # Collect biosample and study metadata by grouping on the unique evidence fields
+        .groupBy(evidence_unique_cols)
+        .agg(
+            F.collect_set(F.col('biosample')).alias('biosamples'),
+            F.collect_set(F.col('study')).alias('studies'),
+        )
+        .withColumn('biosamples', F.when(F.size('biosamples') != 0, F.col('biosamples')))
+        .withColumn('studies', F.when(F.size('studies') != 0, F.col('studies')))
     )
 
     # Write output
@@ -71,6 +90,16 @@ def main(
 
     return 0
 
+def process_aop(aopwiki: str) -> DataFrame:
+    """Loads and processes the AOPWiki input JSON."""
+
+    return (
+        spark.read.json(aopwiki)
+        # if isHumanApplicable is False, set it to null as the lack of applicability has not been tested - it only shows lack of data
+        .withColumn('isHumanApplicable', F.when(F.col('isHumanApplicable') != F.lit(True), F.col("isHumanApplicable")))
+        # data bug: some events have the substring "NA" at the start - removal and trim the string
+        .withColumn('event', F.trim(F.regexp_replace(F.col('event'), '^NA', '')))
+    )
 
 def process_adverse_events(adverse_events: str) -> DataFrame:
     """
@@ -236,25 +265,6 @@ def process_toxcast(toxcast: str) -> DataFrame:
         ).alias('study'),
     )
 
-
-def initialize_spark():
-    """Spins up a Spark session."""
-
-    # Initialize spark session
-    spark_mem_limit = detect_spark_memory_limit()
-    spark_conf = (
-        SparkConf()
-        .set('spark.driver.memory', f'{spark_mem_limit}g')
-        .set('spark.executor.memory', f'{spark_mem_limit}g')
-        .set('spark.driver.maxResultSize', '0')
-        .set('spark.debug.maxToStringFields', '2000')
-        .set('spark.sql.execution.arrow.maxRecordsPerBatch', '500000')
-    )
-    spark = SparkSession.builder.config(conf=spark_conf).master('local[*]').getOrCreate()
-    logging.info(f'Spark version: {spark.version}')
-
-    return spark
-
 def get_parser():
     """Get parser object for script TargetSafety.py."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -273,6 +283,9 @@ def get_parser():
     )
     parser.add_argument(
         '--safety_risk', help='Input TSV containing cardiovascular safety liabilities associated with targets that have been collected from relevant publications. Fetched from https://raw.githubusercontent.com/opentargets/curation/master/target_safety/safety_risks.tsv.', type=str, required=True
+    )
+    parser.add_argument(
+        '--aopwiki', help='Input JSON containing targets implicated in adverse outcomes as reported by the AOPWiki. Parsed from their source XML data.', type=str, required=True
     )
     parser.add_argument(
         '--output', help='Output gzipped json file following the target safety liabilities data model.', type=str, required=True
@@ -294,5 +307,6 @@ if __name__ == '__main__':
         toxcast=args.toxcast,
         adverse_events=args.adverse_events,
         safety_risk=args.safety_risk,
+        aopwiki=args.aopwiki,
         output=args.output
     )

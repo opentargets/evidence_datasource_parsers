@@ -389,7 +389,8 @@ rule targetEnablingPackages:  # Fetching Target Enabling Packages (TEP) data fro
 
 rule targetSafety:            # Process data from different sources that describe target safety liabilities.
     input:
-        toxcast = GS.remote(config['TargetSafety']['toxcast'])
+        toxcast = GS.remote(config['TargetSafety']['toxcast']),
+        aopwiki = GS.remote(config['TargetSafety']['aopwiki'])
     params:
         ae = config['TargetSafety']['adverseEvents'],
         sr = config['TargetSafety']['safetyRisk'],
@@ -405,6 +406,7 @@ rule targetSafety:            # Process data from different sources that describ
             --adverse_events {params.ae} \
             --safety_risk {params.sr} \
             --toxcast {input.toxcast} \
+            --aopwiki {input.aopwiki} \
             --output {output}
         opentargets_validator --schema {params.schema} {output}
         """
