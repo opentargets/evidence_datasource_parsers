@@ -84,9 +84,6 @@ def parse_genebass_evidence(genebass_df: DataFrame) -> DataFrame:
         'beta',
         'betaConfidenceIntervalLower',
         'betaConfidenceIntervalUpper',
-        'oddsRatio',
-        'oddsRatioConfidenceIntervalLower',
-        'oddsRatioConfidenceIntervalUpper',
         'resourceScore',
         'ancestry',
         'ancestryId',
@@ -134,8 +131,8 @@ def parse_genebass_evidence(genebass_df: DataFrame) -> DataFrame:
         .withColumn('pValueMantissa', F.round(F.col('resourceScore') / F.pow(F.lit(10), F.col('pValueExponent')), 3))
         # Genebass reports effect sizes as beta, regardless of the type of measured trait, like other studies
         .withColumnRenamed('BETA_Burden', 'beta')
-        .withColumn('betaConfidenceIntervalLower', (F.col('BETA_Burden') - F.col('SE_Burden')))
-        .withColumn('betaConfidenceIntervalUpper', (F.col('BETA_Burden') + F.col('SE_Burden')))
+        .withColumn('betaConfidenceIntervalLower', (F.col('beta') - F.col('SE_Burden')))
+        .withColumn('betaConfidenceIntervalUpper', (F.col('beta') + F.col('SE_Burden')))
         .withColumn('studySampleSize', (F.col('n_cases') + F.coalesce('n_controls', F.lit(0))))
         .withColumnRenamed('n_cases', 'studyCases')
         .withColumnRenamed('annotation', 'statisticalMethod')
