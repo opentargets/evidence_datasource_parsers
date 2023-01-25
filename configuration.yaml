@@ -1,7 +1,7 @@
 global:
   logDir: gs://otar000-evidence_input/parser_logs
   cacheDir: cache_dir
-  schema: https://rawi.githubusercontent.com/opentargets/json_schema/2.2.10
+  schema: https://raw.githubusercontent.com/opentargets/json_schema/2.2.10
   EFOVersion: v3.50.0
 
 cancerBiomarkers:
