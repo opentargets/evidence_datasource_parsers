@@ -309,7 +309,7 @@ class PanelAppEvidenceGenerator:
 
             # The source data and the online data might not be in-sync, due to requesting retired panels.
             # We still keep these entries, but won't try to fetch gene data:
-            if "gene" not in panel_data:
+            if "genes" not in panel_data:
                 logging.warn(f"Panel info could not retrieved for panel id: {panel_id}")
                 continue
 
@@ -327,7 +327,7 @@ class PanelAppEvidenceGenerator:
                 publications, schema=("Panel ID", "Symbol", "literature")
             )
             .groupby(["Panel ID", "Symbol"])
-            .agg(collect_set("literature").alias("literature"))
+            .agg(f.collect_set("literature").alias("literature"))
         )
 
     def extract_pubmed_ids(self, publication_string):
