@@ -6,8 +6,7 @@ import logging
 import re
 
 import requests
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import f
+from pyspark.sql import functions as f, SparkSession
 
 from common.ontology import add_efo_mapping
 from common.evidence import write_evidence_strings
