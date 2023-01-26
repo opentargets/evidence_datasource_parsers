@@ -7,20 +7,7 @@ import re
 
 import requests
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import (
-    array,
-    array_distinct,
-    col,
-    collect_set,
-    concat,
-    explode,
-    lit,
-    regexp_extract,
-    regexp_replace,
-    split,
-    trim,
-    when,
-)
+from pyspark.sql.functions import f
 
 from common.ontology import add_efo_mapping
 from common.evidence import write_evidence_strings
@@ -122,9 +109,9 @@ class PanelAppEvidenceGenerator:
         )
         panelapp_df = (
             panelapp_df.filter(
-                ((col("List") == "green") | (col("List") == "amber"))
-                & (col("Panel Version") >= 1.0)
-                & (col("Panel Status") == "PUBLIC")
+                ((f.col("List") == "green") | (f.col("List") == "amber"))
+                & (f.col("Panel Version") >= 1.0)
+                & (f.col("Panel Status") == "PUBLIC")
             ).select(
                 "Symbol",
                 "Panel Id",
@@ -140,26 +127,27 @@ class PanelAppEvidenceGenerator:
         logging.info(
             "Fix typos and formatting errors which would interfere with phenotype splitting."
         )
-        panelapp_df = panelapp_df.withColumn("cleanedUpPhenotypes", col("Phenotypes"))
+        panelapp_df = panelapp_df.withColumn("cleanedUpPhenotypes", f.col("Phenotypes"))
         for regexp, replacement in self.PHENOTYPE_BEFORE_SPLIT_RE.items():
             panelapp_df = panelapp_df.withColumn(
                 "cleanedUpPhenotypes",
-                regexp_replace(col("cleanedUpPhenotypes"), regexp, replacement),
+                f.regexp_replace(f.col("cleanedUpPhenotypes"), regexp, replacement),
             )
 
         logging.info("Split and explode the phenotypes.")
         panelapp_df = panelapp_df.withColumn(
-            "cohortPhenotypes", array_distinct(split(col("cleanedUpPhenotypes"), ";"))
-        ).withColumn("phenotype", explode(col("cohortPhenotypes")))
+            "cohortPhenotypes",
+            f.array_distinct(f.split(f.col("cleanedUpPhenotypes"), ";")),
+        ).withColumn("phenotype", f.explode(f.col("cohortPhenotypes")))
 
         logging.info(
             "Remove specific patterns and phrases which will interfere with ontology extraction and mapping."
         )
-        panelapp_df = panelapp_df.withColumn("diseaseFromSource", col("phenotype"))
+        panelapp_df = panelapp_df.withColumn("diseaseFromSource", f.col("phenotype"))
         for regexp in self.PHENOTYPE_AFTER_SPLIT_RE:
             panelapp_df = panelapp_df.withColumn(
                 "diseaseFromSource",
-                regexp_replace(col("diseaseFromSource"), f"({regexp})", ""),
+                f.regexp_replace(f.col("diseaseFromSource"), f"({regexp})", ""),
             )
 
         logging.info(
@@ -170,59 +158,68 @@ class PanelAppEvidenceGenerator:
             # Extract Orphanet/MONDO/HP ontology identifiers and remove them from the phenotype string.
             .withColumn(
                 "ontology_namespace",
-                regexp_extract(col("diseaseFromSource"), self.OTHER_RE, 1),
+                f.regexp_extract(f.col("diseaseFromSource"), self.OTHER_RE, 1),
             )
             .withColumn(
                 "ontology_namespace",
-                regexp_replace(col("ontology_namespace"), "OrphaNet: ORPHA", "ORPHA"),
+                f.regexp_replace(
+                    f.col("ontology_namespace"), "OrphaNet: ORPHA", "ORPHA"
+                ),
             )
             .withColumn(
                 "ontology_id",
-                regexp_extract(col("diseaseFromSource"), self.OTHER_RE, 2),
+                f.regexp_extract(f.col("diseaseFromSource"), self.OTHER_RE, 2),
             )
             .withColumn(
                 "ontology",
-                when(
-                    (col("ontology_namespace") != "") & (col("ontology_id") != ""),
-                    concat(col("ontology_namespace"), lit(":"), col("ontology_id")),
+                f.when(
+                    (f.col("ontology_namespace") != "") & (f.col("ontology_id") != ""),
+                    f.concat(
+                        f.col("ontology_namespace"), f.lit(":"), f.col("ontology_id")
+                    ),
                 ),
             )
             .withColumn(
                 "diseaseFromSource",
-                regexp_replace(col("diseaseFromSource"), f"({self.OTHER_RE})", ""),
+                f.regexp_replace(f.col("diseaseFromSource"), f"({self.OTHER_RE})", ""),
             )
             # Extract OMIM identifiers and remove them from the phenotype string.
             .withColumn(
-                "omim_id", regexp_extract(col("diseaseFromSource"), self.OMIM_RE, 2)
+                "omim_id", f.regexp_extract(f.col("diseaseFromSource"), self.OMIM_RE, 2)
             )
             .withColumn(
-                "omim", when(col("omim_id") != "", concat(lit("OMIM:"), col("omim_id")))
+                "omim",
+                f.when(
+                    f.col("omim_id") != "", f.concat(f.lit("OMIM:"), f.col("omim_id"))
+                ),
             )
             .withColumn(
                 "diseaseFromSource",
-                regexp_replace(col("diseaseFromSource"), f"({self.OMIM_RE})", ""),
+                f.regexp_replace(f.col("diseaseFromSource"), f"({self.OMIM_RE})", ""),
             )
             # Choose one of the ontology identifiers, keeping OMIM as a priority.
             .withColumn(
                 "diseaseFromSourceId",
-                when(col("omim").isNotNull(), col("omim")).otherwise(col("ontology")),
+                f.when(f.col("omim").isNotNull(), f.col("omim")).otherwise(
+                    f.col("ontology")
+                ),
             )
             .drop("ontology_namespace", "ontology_id", "ontology", "omim_id", "omim")
             # Clean up the final split phenotypes.
             .withColumn(
                 "diseaseFromSource",
-                regexp_replace(col("diseaseFromSource"), r"\(\)", ""),
+                f.regexp_replace(f.col("diseaseFromSource"), r"\(\)", ""),
             )
-            .withColumn("diseaseFromSource", trim(col("diseaseFromSource")))
+            .withColumn("diseaseFromSource", f.trim(f.col("diseaseFromSource")))
             .withColumn(
                 "diseaseFromSource",
-                when(col("diseaseFromSource") != "", col("diseaseFromSource")),
+                f.when(f.col("diseaseFromSource") != "", f.col("diseaseFromSource")),
             )
             # Remove low quality records, where the name of the phenotype string starts with a question mark.
             .filter(
                 ~(
-                    (col("diseaseFromSource").isNotNull())
-                    & (col("diseaseFromSource").startswith("?"))
+                    (f.col("diseaseFromSource").isNotNull())
+                    & (f.col("diseaseFromSource").startswith("?"))
                 )
             )
             # Remove duplication caused by cases where multiple phenotypes within the same record fail to generate any
@@ -232,11 +229,11 @@ class PanelAppEvidenceGenerator:
             # substitute the panel name instead.
             .withColumn(
                 "diseaseFromSource",
-                when(
-                    (col("diseaseFromSource").isNull())
-                    & (col("diseaseFromSourceId").isNull()),
-                    col("Panel Name"),
-                ).otherwise(col("diseaseFromSource")),
+                f.when(
+                    (f.col("diseaseFromSource").isNull())
+                    & (f.col("diseaseFromSourceId").isNull()),
+                    f.col("Panel Name"),
+                ).otherwise(f.col("diseaseFromSource")),
             )
             .persist()
         )
@@ -271,15 +268,15 @@ class PanelAppEvidenceGenerator:
             # allelicRequirements requires a list, but we always only have one value from PanelApp.
             .withColumn(
                 "allelicRequirements",
-                when(
-                    col("Mode of inheritance").isNotNull(),
-                    array(col("Mode of inheritance")),
+                f.when(
+                    f.col("Mode of inheritance").isNotNull(),
+                    f.array(f.col("Mode of inheritance")),
                 ),
             )
             .drop("Mode of inheritance")
             .withColumnRenamed("List", "confidence")
-            .withColumn("datasourceId", lit("genomics_england"))
-            .withColumn("datatypeId", lit("genetic_literature"))
+            .withColumn("datasourceId", f.lit("genomics_england"))
+            .withColumn("datatypeId", f.lit("genetic_literature"))
             # diseaseFromSourceId populated above
             # literature populated above
             .withColumnRenamed("Panel Id", "studyId")
