@@ -1,14 +1,14 @@
 global:
   logDir: gs://otar000-evidence_input/parser_logs
   cacheDir: cache_dir
-  schema: https://raw.githubusercontent.com/opentargets/json_schema/2.2.9
-  EFOVersion: v3.47.0
+  schema: https://raw.githubusercontent.com/opentargets/json_schema/2.2.10
+  EFOVersion: v3.50.0
 
 cancerBiomarkers:
   inputAssociationsTable: gs://otar000-evidence_input/CancerBiomarkers/data_files/cancerbiomarkers-2018-05-01.tsv
   inputSourceTable: gs://otar000-evidence_input/CancerBiomarkers/data_files/cancer_biomarker_source.jsonl
   inputDiseaseTable: gs://otar000-evidence_input/CancerBiomarkers/data_files/cancer_biomarker_disease.jsonl
-  drugIndex: gs://open-targets-pre-data-releases/22.09/output/etl/parquet/molecule
+  drugIndex: gs://open-targets-data-releases/22.11/output/etl/parquet/molecule
   outputBucket: gs://otar000-evidence_input/CancerBiomarkers/json
 ChEMBL:
   evidence: gs://otar008-chembl/cttv008-25-08-2022.json.gz
@@ -26,7 +26,7 @@ CRISPR:
 GeneBurden:
   azPhewasBinary: gs://otar000-evidence_input/GeneBurden/data_files/azphewas-com-450k-phewas-binary
   azPhewasQuantitative: gs://otar000-evidence_input/GeneBurden/data_files/azphewas-com-450k-phewas-quantitative
-  curation: https://raw.githubusercontent.com/opentargets/curation/22.11.2/gene_burden/curated_evidence.tsv
+  curation: https://raw.githubusercontent.com/opentargets/curation/23.02/gene_burden/curated_evidence.tsv
   genebass: gs://otar000-evidence_input/GeneBurden/data_files/genebass_entries
   outputBucket: gs://otar000-evidence_input/GeneBurden/json
 Gene2Phenotype:
@@ -67,7 +67,8 @@ SysBio:
 TEP:
   outputBucket: gs://otar001-core/TEPs
 TargetSafety:
-  adverseEvents: https://raw.githubusercontent.com/opentargets/curation/22.11.2/target_safety/adverse_effects.tsv
-  safetyRisk: https://raw.githubusercontent.com/opentargets/curation/22.11.2/target_safety/safety_risks.tsv
+  adverseEvents: https://raw.githubusercontent.com/opentargets/curation/23.02/target_safety/adverse_effects.tsv
+  safetyRisk: https://raw.githubusercontent.com/opentargets/curation/23.02/target_safety/safety_risks.tsv
   toxcast: gs://otar001-core/TargetSafety/data_files/toxcast/ToxCast_2021-08-17.tsv
+  aopwiki: gs://otar001-core/TargetSafety/data_files/aopwiki/aopwiki-2023-01-20.json
   outputBucket: gs://otar001-core/TargetSafety/json
