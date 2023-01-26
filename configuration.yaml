@@ -12,7 +12,7 @@ cancerBiomarkers:
   outputBucket: gs://otar000-evidence_input/CancerBiomarkers/json
 ChEMBL:
   evidence: gs://otar008-chembl/cttv008-25-08-2022.json.gz
-  stopReasonCategories: gs://otar000-evidence_input/ChEMBL/data_files/chembl_predictions-2022-08-25.tsv
+  stopReasonCategories: gs://otar000-evidence_input/ChEMBL/data_files/chembl_predictions-2022-10-25.json
   outputBucket: gs://otar000-evidence_input/ChEMBL/json
 ClinGen:
   webSource: https://search.clinicalgenome.org/kb/gene-validity/download
