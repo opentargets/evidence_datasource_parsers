@@ -101,12 +101,12 @@ def process_aop(aopwiki: str) -> DataFrame:
         .withColumn('event', F.trim(F.regexp_replace(F.col('event'), '^NA', '')))
         # data bug: effects.direction need to be in lowercase, this field is an enum
         .withColumn(
-            'effect',
+            'effects',
             F.transform(
                 F.col('effects'),
                 lambda x: F.struct(
                     F.lower(x.direction).alias('direction'),
-                    x.dosing.alias('dosing')).alias('effects')
+                    x.dosing.alias('dosing'))
             )
         )
         # I need to convert the biosamples array into a struct so that data is parsed the same way as the rest of the sources
