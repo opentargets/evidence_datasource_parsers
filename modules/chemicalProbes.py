@@ -80,12 +80,13 @@ def extract_hq_flag():
         f.lit(True),
     ).otherwise(f.lit(False))
 
+
 def convert_stringified_array_to_array(col_name: str) -> DataFrame:
     """Converts a column of stringified arrays to an array column.
 
     Args:
         col_name: Name of the column that contains the stringified array
-    
+
     Examples:
         >>> df = spark.createDataFrame([("['BI-1829', 'No control']")], t.StringType())
         >>> df.select(convert_stringified_array_to_array("value").alias("res")).show(truncate=False)
@@ -97,16 +98,15 @@ def convert_stringified_array_to_array(col_name: str) -> DataFrame:
         <BLANKLINE>
 
     """
-    return (
-        f.split(
-            f.translate(col_name, "[]\'", ""), ", "
-        )
-        .cast(t.ArrayType(t.StringType()))
+    return f.split(f.translate(col_name, "[]'", ""), ", ").cast(
+        t.ArrayType(t.StringType())
     )
+
 
 def replace_dash(col_name):
     """Converts to null those values that only contain `-`."""
     return f.when(f.col(col_name).cast(t.StringType()) != "-", f.col(col_name))
+
 
 def process_probes_data(probes_excel: str) -> List[DataFrame]:
     """Metadata about the compound and the scores given by the different sources."""
@@ -135,7 +135,8 @@ def process_probes_data(probes_excel: str) -> List[DataFrame]:
             extract_hq_flag().alias("isHighQuality"),
             f.explode(
                 f.array_except(
-                    f.col("datasourceIds"), f.array(f.lit("High-quality chemical probes"))
+                    f.col("datasourceIds"),
+                    f.array(f.lit("High-quality chemical probes")),
                 )
             ).alias("datasourceId"),
         )
@@ -165,10 +166,18 @@ def process_probes_targets_data(probes_excel: str) -> DataFrame:
             f.col("target").alias("targetFromSource"),
             f.col("inchikey").alias("inchiKey"),
             "mechanismOfAction",
-            replace_dash("`P&D probe-likeness score`").alias("probesDrugsScore").cast(t.StringType()),
-            replace_dash("`Probe Miner Score`").alias("probeMinerScore"),
-            replace_dash("`Cells score (Chemical Probes.org)`").alias("scoreInCells"),
-            replace_dash("`Organisms score (Chemical Probes.org)`").alias("scoreInOrganisms"),
+            replace_dash("`P&D probe-likeness score`")
+            .alias("probesDrugsScore")
+            .cast(t.IntegerType()),
+            replace_dash("`Probe Miner Score`")
+            .alias("probeMinerScore")
+            .cast(t.IntegerType()),
+            replace_dash("`Cells score (Chemical Probes.org)`")
+            .alias("scoreInCells")
+            .cast(t.IntegerType()),
+            replace_dash("`Organisms score (Chemical Probes.org)`")
+            .alias("scoreInOrganisms")
+            .cast(t.IntegerType()),
         )
     )
 
@@ -199,9 +208,10 @@ def process_targets_data(probes_excel: str) -> DataFrame:
         ).reset_index()
     ).selectExpr("target as targetFromSource", "uniprot as targetFromSourceId")
 
+
 def process_controls_data(controls_lut: str) -> DataFrame:
     """Look-up table between the probes and their control compounds.
-    
+
     Note: We have asked P&Ds to include this info in the main probes
     Excel so that we don't have to process their SQL dump.
     """
@@ -210,31 +220,30 @@ def process_controls_data(controls_lut: str) -> DataFrame:
         spark.read.csv(controls_lut, header=True)
         .select(
             f.col("probeid").alias("pdid"),
-            convert_stringified_array_to_array("control").alias("control")
+            convert_stringified_array_to_array("control").alias("control"),
         )
         # Many cases have "1" in the control array
         # This indicates the probe's efficacy has been tested with a control
         # But we don't know which one
-        .withColumn("control", f.when(f.array_contains("control", f.lit("1")), f.col("control")))
-        .withColumn("control", f.explode_outer("control"))
+        .withColumn(
+            "control",
+            f.when(~f.array_contains("control", f.lit("1")), f.col("control")),
         )
+        .withColumn("control", f.explode_outer("control"))
+    )
 
-def main(
-    probes_excel: str,
-    drug_index: str,
-    probes_controls:str
-) -> DataFrame:
+
+def main(probes_excel: str, drug_index: str, probes_controls: str) -> DataFrame:
     """Main logic of the script."""
 
     probes_df = process_probes_data(probes_excel)
     probes_targets_df = process_probes_targets_data(probes_excel)
     probes_sets_df = process_probes_sets_data(probes_excel)
-    probes_controls_df = process_controls_data(controls_lut)
+    probes_controls_df = process_controls_data(probes_controls)
     targets_df = process_targets_data(probes_excel)
     drug_idx = process_drug_index(drug_index)
 
     grouping_cols = [
-        "targetFromSource",
         "targetFromSourceId",
         "id",
         "drugId",
@@ -245,7 +254,7 @@ def main(
         "probesDrugsScore",
         "probeMinerScore",
         "scoreInCells",
-        "scoreInOrganisms"
+        "scoreInOrganisms",
     ]
 
     return (
@@ -258,8 +267,7 @@ def main(
         .agg(
             f.collect_set(
                 f.struct(
-                    f.col("datasourceId").alias("niceName"),
-                    f.col("url").alias("url")
+                    f.col("datasourceId").alias("niceName"), f.col("url").alias("url")
                 )
             ).alias("urls")
         )
@@ -319,7 +327,7 @@ if __name__ == "__main__":
 
     out = main(
         probes_excel=args.probes_excel_path,
-        probes_controls=arg.probes_controls,
+        probes_controls=args.probes_controls,
         drug_index=args.drug_index,
     )
     write_evidence_strings(out, args.output)
