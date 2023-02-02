@@ -84,6 +84,7 @@ def prettify_subclasses(predictions_df: DataFrame) -> DataFrame:
         'Success': 'Success',
         'Ethical_Reason': 'Ethical reason',
         'Insufficient_Data': 'Insufficient data',
+        'Uncategorised': 'Uncategorised'
     }
 
     sub_mapping_col = f.map_from_entries(f.array(*[f.struct(f.lit(k), f.lit(v)) for k, v in CATEGORIESMAPPINGS.items()]))
