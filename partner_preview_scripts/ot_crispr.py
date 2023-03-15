@@ -70,6 +70,7 @@ class OTAR_CRISPR_study_parser(object):
             "projectDescription",
         ]
 
+        # hits is a pd.Series with pd.DataFrames as values.
         hits = (
             self.study_df[study_columns]
             .explode("dataFiles")
@@ -86,7 +87,8 @@ class OTAR_CRISPR_study_parser(object):
                     axis=1,
                 )
             )
-            # TODO: parsing the data files should be file type dependent:
+            # TODO: parsing the data files should be file type dependent!
+            # The following apply returns pd.DataFrames:
             .apply(self.parse_MAGeCK_file, axis=1)
         )
 
