@@ -1,35 +1,33 @@
 global:
   logDir: gs://otar000-evidence_input/parser_logs
   cacheDir: cache_dir
-  # This is a directory prefix; individual schemas relative to it are specified by each rule.
-  schema: https://raw.githubusercontent.com/opentargets/json_schema/2.2.4
-  EFOVersion: v3.40.0
+  schema: https://raw.githubusercontent.com/opentargets/json_schema/2.2.10
+  EFOVersion: v3.50.0
 
 cancerBiomarkers:
-  inputBucket: gs://otar000-evidence_input/CancerBiomarkers/data_files
+  inputAssociationsTable: gs://otar000-evidence_input/CancerBiomarkers/data_files/cancerbiomarkers-2018-05-01.tsv
+  inputSourceTable: gs://otar000-evidence_input/CancerBiomarkers/data_files/cancer_biomarker_source.jsonl
+  inputDiseaseTable: gs://otar000-evidence_input/CancerBiomarkers/data_files/cancer_biomarker_disease.jsonl
+  drugIndex: gs://open-targets-data-releases/22.11/output/etl/parquet/molecule
   outputBucket: gs://otar000-evidence_input/CancerBiomarkers/json
-  drugIndex: gs://open-targets-pre-data-releases/22.04/output/etl/parquet/molecule
 ChEMBL:
-  evidence: gs://otar008-chembl/cttv008-08-04-2022.json.gz
-  stopReasonCategories: gs://otar000-evidence_input/ChEMBL/data_files/chembl_predictions-2022-04-08.tsv
+  evidence: gs://otar008-chembl/cttv008-20-01-2023.json.gz
+  stopReasonCategories: gs://otar000-evidence_input/ChEMBL/data_files/chembl_predictions-2023-01-31.json
   outputBucket: gs://otar000-evidence_input/ChEMBL/json
 ClinGen:
   webSource: https://search.clinicalgenome.org/kb/gene-validity/download
   inputBucket: gs://otar000-evidence_input/ClinGen/data_files
   outputBucket: gs://otar000-evidence_input/ClinGen/json
 CRISPR:
-  inputBucket: gs://otar000-evidence_input/CRISPR/data_files
+  inputAssociationsTable: gs://otar000-evidence_input/CRISPR/data_files/crispr_evidence.tsv
+  inputDescriptionsTable: gs://otar000-evidence_input/CRISPR/data_files/crispr_descriptions.tsv
+  inputCellTypesTable: gs://otar000-evidence_input/CRISPR/data_files/crispr_cell_lines_enriched_2021-10-22.tsv
   outputBucket: gs://otar000-evidence_input/CRISPR/json
-EPMC:
-  inputBucket: gs://open-targets-pre-data-releases/22.04/output/literature-etl/parquet/cooccurrences
-  outputBucket: gs://otar000-evidence_input/EPMC/json
 GeneBurden:
   azPhewasBinary: gs://otar000-evidence_input/GeneBurden/data_files/azphewas-com-450k-phewas-binary
   azPhewasQuantitative: gs://otar000-evidence_input/GeneBurden/data_files/azphewas-com-450k-phewas-quantitative
-  azTraitMappings: gs://otar000-evidence_input/GeneBurden/data_files/AZ_Traits.xlsx
-  regeneronExwas: gs://otar000-evidence_input/GeneBurden/data_files/41586_2021_4103_MOESM5_ESM.xlsx
-  gwasStudies: https://www.ebi.ac.uk/gwas/api/search/downloads/studies_alternative
-  inputBucket: gs://otar000-evidence_input/GeneBurden/data_files
+  curation: https://raw.githubusercontent.com/opentargets/curation/23.02/gene_burden/curated_evidence.tsv
+  genebass: gs://otar000-evidence_input/GeneBurden/data_files/genebass_entries
   outputBucket: gs://otar000-evidence_input/GeneBurden/json
 Gene2Phenotype:
   webSource_dd_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/DDG2P.csv.gz
@@ -40,34 +38,37 @@ Gene2Phenotype:
   inputBucket: gs://otar000-evidence_input/Gene2Phenotype/data_files
   outputBucket: gs://otar000-evidence_input/Gene2Phenotype/json
 intOGen:
-  inputBucket: gs://otar000-evidence_input/IntOgen/data_files
-  outputBucket: gs://otar000-evidence_input/IntOgen/json
+  inputAssociationsTable: gs://otar000-evidence_input/IntOgen/data_files/Compendium_Cancer_Genes.tsv
+  inputCohortsTable: gs://otar000-evidence_input/IntOgen/data_files/cohorts.tsv
   diseaseMapping: resources/cancer2EFO_mappings.tsv
+  outputBucket: gs://otar000-evidence_input/IntOgen/json
 Orphanet:
   webSource: http://www.orphadata.org/data/xml/en_product6.xml
   outputBucket: gs://otar000-evidence_input/Orphanet/json
 PanelApp:
-  inputBucket: gs://otar000-evidence_input/GenomicsEngland/data_files
+  inputAssociationsTable: gs://otar000-evidence_input/GenomicsEngland/data_files/All_genes_20220804-1350_green_amber_red_public_v1plus_no_superpanels.tsv
   outputBucket: gs://otar000-evidence_input/GenomicsEngland/json
 IMPC:
   evidenceOutputBucket: gs://otar000-evidence_input/IMPC/json
   phenotypesOutputBucket: gs://otar001-core/MousePhenotypes
 PROGENy:
-  inputBucket: gs://otar000-evidence_input/PROGENy/data_files
-  diseaseMapping: resources/cancer2EFO_mappings.tsv
-  pathwayMapping: resources/pathway2Reactome_mappings.tsv
+  inputAssociationsTable: gs://otar000-evidence_input/PROGENy/data_files/progeny_normalVStumor_opentargets.txt
+  inputDiseaseMapping: resources/cancer2EFO_mappings.tsv
+  inputPathwayMapping: resources/pathway2Reactome_mappings.tsv
   outputBucket: gs://otar000-evidence_input/PROGENy/json
 SLAPEnrich:
-  inputBucket: gs://otar000-evidence_input/SLAPEnrich/data_file
-  diseaseMapping: resources/cancer2EFO_mappings.tsv
+  inputAssociationsTable: gs://otar000-evidence_input/SLAPEnrich/data_file/slapenrich_opentargets-21-12-2017.tsv
+  inputDiseaseMapping: resources/cancer2EFO_mappings.tsv
   outputBucket: gs://otar000-evidence_input/SLAPEnrich/json
 SysBio:
-  inputBucket: gs://otar000-evidence_input/SysBio/data_files
+  inputAssociationsTable: gs://otar000-evidence_input/SysBio/data_files/sysbio_evidence-31-01-2019.tsv
+  inputStudyTable: gs://otar000-evidence_input/SysBio/data_files/sysbio_publication_info_nov2018.tsv
   outputBucket: gs://otar000-evidence_input/SysBio/json
 TEP:
   outputBucket: gs://otar001-core/TEPs
 TargetSafety:
-  adverseEvents: https://raw.githubusercontent.com/opentargets/curation/master/target_safety/adverse_effects.tsv
-  safetyRisk: https://raw.githubusercontent.com/opentargets/curation/master/target_safety/safety_risks.tsv
+  adverseEvents: https://raw.githubusercontent.com/opentargets/curation/23.02/target_safety/adverse_effects.tsv
+  safetyRisk: https://raw.githubusercontent.com/opentargets/curation/23.02/target_safety/safety_risks.tsv
   toxcast: gs://otar001-core/TargetSafety/data_files/toxcast/ToxCast_2021-08-17.tsv
+  aopwiki: gs://otar001-core/TargetSafety/data_files/aopwiki/aopwiki-2023-01-20.json
   outputBucket: gs://otar001-core/TargetSafety/json

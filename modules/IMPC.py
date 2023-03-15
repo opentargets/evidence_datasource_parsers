@@ -12,6 +12,7 @@ import urllib.request
 import pronto
 from pyspark.conf import SparkConf
 from pyspark.sql import SparkSession
+from pyspark.sql import Window
 import pyspark.sql.functions as pf
 from pyspark.sql.types import StructType, StructField, StringType
 import requests
@@ -34,6 +35,19 @@ IMPC_SOLR_TABLES = {
     'ontology': ('ontology', 'phenotype_id', 'phenotype_term'),
 }
 
+
+# List of fields on which to enforce uniqueness by only keeping the record with the highest score.
+UNIQUE_FIELDS = [
+    # Specific to IMPC.
+    'diseaseFromSource',  # Original disease name.
+    'targetInModel',  # Mouse gene name.
+    'biologicalModelAllelicComposition',  # Mouse model property.
+    'biologicalModelGeneticBackground',  # Mouse model property.
+
+    # General.
+    'diseaseFromSourceMappedId',  # EFO mapped disease ID.
+    'targetFromSourceId',  # Ensembl mapped human gene ID.
+]
 
 class ImpcSolrRetriever:
     """Retrieve data from the IMPC SOLR API and save the CSV files to the specified location."""
@@ -435,6 +449,17 @@ class IMPC:
         # Add EFO mapping information.
         self.evidence = add_efo_mapping(evidence_strings=self.evidence, spark_instance=self.spark,
                                         ontoma_cache_dir=self.cache_dir)
+
+        # In case of multiple records with the same unique fields, keep only the one record with the highest score. This
+        # is done to avoid duplicates where multiple source ontology records map to the same EFO record with slightly
+        # different scores.
+        w = Window.partitionBy([pf.col(c) for c in UNIQUE_FIELDS]).orderBy(pf.col('resourceScore').desc())
+        self.evidence = (
+            self.evidence
+            .withColumn('row', pf.row_number().over(w))
+            .filter(pf.col('row') == 1)
+            .drop('row')
+        )
 
         # Ensure stable column order.
         self.evidence = self.evidence.select(

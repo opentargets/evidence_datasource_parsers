@@ -5,9 +5,11 @@ import requests
 import tempfile
 
 from pyspark.conf import SparkConf
-from pyspark.sql import SparkSession
+from pyspark.sql import SparkSession, DataFrame
 import pyspark.sql.functions as f
 from pyspark.sql.types import StringType, StructField, StructType, ArrayType
+from pyspark import SparkFiles
+from psutil import virtual_memory
 
 
 def detect_spark_memory_limit():
@@ -48,14 +50,12 @@ def initialize_sparksession() -> SparkSession:
         .set("spark.sql.execution.arrow.maxRecordsPerBatch", "500000")
         .set("spark.ui.showConsoleProgress", "false")
     )
-    spark = (
+    return (
         SparkSession.builder.config(conf=spark_conf)
         .master("local[*]")
         .config("spark.driver.bindAddress", "127.0.0.1")
         .getOrCreate()
     )
-
-    return spark
 
 
 class GenerateDiseaseCellLines:
@@ -150,6 +150,7 @@ class GenerateDiseaseCellLines:
     def get_mapping(self):
         return self.cell_map
 
+
     @staticmethod
     def lookup_uberon(tissue_label: str) -> str:
         """Mapping tissue labels to tissue identifiers (UBERON codes) via the OLS API."""
@@ -182,3 +183,27 @@ class GenerateDiseaseCellLines:
             return [{"name": "MSS", "description": "Microsatellite stable"}]
         else:
             return None
+
+    # A directory with Parquet files.
+    if parquet_files:
+        return spark_instance.read.parquet(path)
+
+
+def import_trait_mappings() -> DataFrame:
+    """Load the remote trait mappings file to a Spark dataframe."""
+
+    remote_trait_mappings_url = (
+        'https://raw.githubusercontent.com/opentargets/curation/22.09.1/mappings/disease/manual_string.tsv'
+    )
+
+    SparkSession.getActiveSession().sparkContext.addFile(remote_trait_mappings_url)
+
+    return (
+        SparkSession.getActiveSession()
+        .read.csv(SparkFiles.get('manual_string.tsv'), header=True, sep='\t')
+        .select(
+            F.col('PROPERTY_VALUE').alias('diseaseFromSource'),
+            F.element_at(F.split(F.col('SEMANTIC_TAG'), '/'), -1).alias('diseaseFromSourceMappedId'),
+        )
+    )
+

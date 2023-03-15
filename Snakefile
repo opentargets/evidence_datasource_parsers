@@ -8,12 +8,12 @@ GS = GSRemoteProvider()
 HTTP = HTTPRemoteProvider()
 
 # Settings.
-timeStamp = datetime.now().strftime("%Y-%m-%d")  # YYYY-MM-DD.
+timeStamp = datetime.now().strftime('%Y-%m-%d')  # YYYY-MM-DD.
 configfile: 'configuration.yaml'
 
 # Extracting EFO version from the configuration and export to the environment:
 EFO_version = config['global']['EFOVersion']
-os.environ["EFO_VERSION"] = EFO_version
+os.environ['EFO_VERSION'] = EFO_version
 
 # The master list of all files with their local and remote filenames to avoid code duplication. Only the files specified
 # in this list will be generated and uploaded by the "all" and "local" rules.
@@ -23,7 +23,6 @@ ALL_FILES = [
     ('clingen.json.gz', GS.remote(f"{config['ClinGen']['outputBucket']}/clingen-{timeStamp}.json.gz")),
     ('clingen-Gene-Disease-Summary.csv', GS.remote(f"{config['ClinGen']['inputBucket']}/clingen-Gene-Disease-Summary-{timeStamp}.csv")),
     ('crispr.json.gz', GS.remote(f"{config['CRISPR']['outputBucket']}/crispr-{timeStamp}.json.gz")),
-    ('epmc.json.gz', GS.remote(f"{config['EPMC']['outputBucket']}/epmc-{timeStamp}.json.gz")),
     ('gene_burden.json.gz', GS.remote(f"{config['GeneBurden']['outputBucket']}/gene_burden-{timeStamp}.json.gz")),
     ('gene2phenotype.json.gz', GS.remote(f"{config['Gene2Phenotype']['outputBucket']}/gene2phenotype-{timeStamp}.json.gz")),
     ('DDG2P.csv.gz', GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/DDG2P-{timeStamp}.csv.gz")),
@@ -73,20 +72,20 @@ rule local:                   # Generate all files, but do not upload them.
 # Data source parsers.
 rule cancerBiomarkers:        # Process the Cancers Biomarkers database from Cancer Genome Interpreter.
     input:
-        biomarkers_table = GS.remote(f"{config['cancerBiomarkers']['inputBucket']}/cancerbiomarkers-2018-05-01.tsv"),
-        source_table = GS.remote(f"{config['cancerBiomarkers']['inputBucket']}/cancer_biomarker_source.jsonl"),
-        disease_table = GS.remote(f"{config['cancerBiomarkers']['inputBucket']}/cancer_biomarker_disease.jsonl"),
-        drug_index = directory(GS.remote(config['cancerBiomarkers']['drugIndex']))
+        biomarkers_table = GS.remote(config['cancerBiomarkers']['inputAssociationsTable']),
+        source_table = GS.remote(config['cancerBiomarkers']['inputSourceTable']),
+        disease_table = GS.remote(config['cancerBiomarkers']['inputDiseaseTable']),
+        drug_index = GS.remote(config['cancerBiomarkers']['drugIndex'])
     params:
         schema = f"{config['global']['schema']}/opentargets.json"
     output:
         'cancer_biomarkers.json.gz'
     log:
-        'log/cancerBiomarkers.log'
+        'log/cancer_biomarkers.log'
     shell:
         """
         # In this and the following rules, the exec call redirects the output of all subsequent commands (both STDOUT
-        # and STDERR) to the specified log file. 
+        # and STDERR) to the specified log file.
         exec &> {log}
         python modules/cancerBiomarkers.py \
           --biomarkers_table {input.biomarkers_table} \
@@ -144,9 +143,9 @@ rule clingen:                 # Process the Gene Validity Curations table from C
 
 rule crispr:                  # Process cancer therapeutic targets using CRISPRâ€“Cas9 screens.
     input:
-        evidenceFile = GS.remote(f"{config['CRISPR']['inputBucket']}/crispr_evidence.tsv"),
-        descriptionsFile = GS.remote(f"{config['CRISPR']['inputBucket']}/crispr_descriptions.tsv"),
-        cellTypesFile = GS.remote(f"{config['CRISPR']['inputBucket']}/crispr_cell_lines_enriched_2021-10-22.tsv")
+        evidenceFile = GS.remote(config['CRISPR']['inputAssociationsTable']),
+        descriptionsFile = GS.remote(config['CRISPR']['inputDescriptionsTable']),
+        cellTypesFile = GS.remote(config['CRISPR']['inputCellTypesTable'])
     params:
         schema = f"{config['global']['schema']}/opentargets.json"
     output:
@@ -164,56 +163,31 @@ rule crispr:                  # Process cancer therapeutic targets using CRISPRâ
         opentargets_validator --schema {params.schema} {output.evidenceFile}
         """
 
-rule epmc:                    # Process target/disease evidence strings from ePMC cooccurrence files.
-    input:
-        inputCooccurences = directory(GS.remote(config['EPMC']['inputBucket']))
-    params:
-        schema = f"{config['global']['schema']}/opentargets.json"
-    output:
-        evidenceFile = 'epmc.json.gz'
-    log:
-        'log/epmc.log'
-    shell:
-        """
-        exec &> {log}
-        python modules/EPMC.py \
-          --cooccurrences {input.inputCooccurences} \
-          --output {output.evidenceFile}
-        opentargets_validator --schema {params.schema} {output.evidenceFile}
-        """
-
-## geneBurden               : processes gene burden data from AZ PheWAS Portal and REGENERON Burden Analyses
-rule geneBurden:
+rule geneBurden:              # Processes gene burden data from various burden analyses
     input:
         azPhewasBinary = GS.remote(config['GeneBurden']['azPhewasBinary']),
         azPhewasQuant = GS.remote(config['GeneBurden']['azPhewasQuantitative']),
-        azTraitMappings = GS.remote(config['GeneBurden']['azTraitMappings']),
-        regeneronExwas = GS.remote(config['GeneBurden']['regeneronExwas']),
-        gwasStudies = HTTPRemoteProvider().remote(config['GeneBurden']['gwasStudies'])
+        curation = HTTP.remote(config['GeneBurden']['curation']),
+        genebass = GS.remote(config['GeneBurden']['genebass']),
+    output:
+        evidenceFile = "gene_burden.json.gz"
     params:
         schema = f"{config['global']['schema']}/opentargets.json"
-    output:
-        gwasStudies = GS.remote(f"{config['GeneBurden']['inputBucket']}/gwas_studies-{timeStamp}.tsv"),
-        evidenceFile = "gene_burden.json.gz"
     log:
-        'log/geneBurden.log'
+        'log/gene_burden.log'
     shell:
         """
         exec &> {log}
         python modules/GeneBurden.py \
             --az_binary_data {input.azPhewasBinary} \
             --az_quant_data {input.azPhewasQuant} \
-            --az_trait_mappings {input.azTraitMappings} \
-            --regeneron_data {input.regeneronExwas} \
-            --gwas_studies {input.gwasStudies} \
+            --curated_data {input.curation} \
+            --genebass_data {input.genebass} \
             --output {output.evidenceFile}
         opentargets_validator --schema {params.schema} {output.evidenceFile}
-        # Retain the inputs and save to GCS.
-        cp {input.gwasStudies} {output.gwasStudies}
         """
 
-## gene2Phenotype           : processes four gene panels from Gene2Phenotype
-rule gene2Phenotype:
+rule gene2Phenotype:          # Processes four gene panels from Gene2Phenotype
     input:
         ddPanel = HTTP.remote(config['Gene2Phenotype']['webSource_dd_panel']),
         eyePanel = HTTP.remote(config['Gene2Phenotype']['webSource_eye_panel']),
@@ -255,8 +229,8 @@ rule gene2Phenotype:
 
 rule intogen:                 # Process cohorts and driver genes data from intOGen.
     input:
-        inputGenes = GS.remote(f"{config['intOGen']['inputBucket']}/Compendium_Cancer_Genes.tsv"),
-        inputCohorts = GS.remote(f"{config['intOGen']['inputBucket']}/cohorts.tsv"),
+        inputGenes = GS.remote(config['intOGen']['inputAssociationsTable']),
+        inputCohorts = GS.remote(config['intOGen']['inputCohortsTable']),
         diseaseMapping = config['intOGen']['diseaseMapping']
     params:
         schema = f"{config['global']['schema']}/opentargets.json"
@@ -291,21 +265,20 @@ rule orphanet:                # Process disease/target evidence from Orphanet.
         python modules/Orphanet.py \
           --input_file {input} \
           --output_file {output} \
-          --cache_dir {params.cacheDir} \
-          --local
+          --cache_dir {params.cacheDir}
         opentargets_validator --schema {params.schema} {output}
         """
 
 rule panelApp:                # Process gene panels data curated by Genomics England.
     input:
-        inputFile = GS.remote(f"{config['PanelApp']['inputBucket']}/All_genes_20200928-1959.tsv")
+        inputFile = GS.remote(config['PanelApp']['inputAssociationsTable'])
     params:
         cacheDir = config['global']['cacheDir'],
         schema = f"{config['global']['schema']}/opentargets.json"
     output:
         evidenceFile = 'genomics_england.json.gz'
     log:
-        'log/panelApp.log'
+        'log/genomics_england.log'
     shell:
         """
         exec &> {log}
@@ -338,9 +311,9 @@ rule impc:                    # Process target-disease evidence and mouseModels 
 
 rule progeny:                 # Process gene expression data from TCGA derived from PROGENy.
     input:
-        inputFile = GS.remote(f"{config['PROGENy']['inputBucket']}/progeny_normalVStumor_opentargets.txt"),
-        diseaseMapping = config['PROGENy']['diseaseMapping'],
-        pathwayMapping = config['PROGENy']['pathwayMapping']
+        inputFile = GS.remote(config['PROGENy']['inputAssociationsTable']),
+        diseaseMapping = config['PROGENy']['inputDiseaseMapping'],
+        pathwayMapping = config['PROGENy']['inputPathwayMapping']
     params:
         schema = f"{config['global']['schema']}/opentargets.json"
     output:
@@ -360,8 +333,8 @@ rule progeny:                 # Process gene expression data from TCGA derived f
 
 rule slapenrich:              # Process cancer-target evidence strings derived from SLAPenrich.
     input:
-        inputFile = GS.remote(f"{config['SLAPEnrich']['inputBucket']}/slapenrich_opentargets-21-12-2017.tsv"),
-        diseaseMapping = config['SLAPEnrich']['diseaseMapping']
+        inputFile = GS.remote(config['SLAPEnrich']['inputAssociationsTable']),
+        diseaseMapping = config['SLAPEnrich']['inputDiseaseMapping']
     params:
         schema = f"{config['global']['schema']}/opentargets.json"
     output:
@@ -380,8 +353,8 @@ rule slapenrich:              # Process cancer-target evidence strings derived f
 
 rule sysbio:                  # Process key driver genes for specific diseases that have been curated from Systems Biology papers.
     input:
-        evidenceFile = GS.remote(f"{config['SysBio']['inputBucket']}/sysbio_evidence-31-01-2019.tsv"),
-        studyFile = GS.remote(f"{config['SysBio']['inputBucket']}/sysbio_publication_info_nov2018.tsv")
+        evidenceFile = GS.remote(config['SysBio']['inputAssociationsTable']),
+        studyFile = GS.remote(config['SysBio']['inputStudyTable'])
     params:
         schema = f"{config['global']['schema']}/opentargets.json"
     output:
@@ -399,13 +372,13 @@ rule sysbio:                  # Process key driver genes for specific diseases t
         """
 
 # --- Target annotation data sources parsers --- #
-rule TargetEnablingPackages:  # Fetching Target Enabling Packages (TEP) data from Structural Genomics Consortium
+rule targetEnablingPackages:  # Fetching Target Enabling Packages (TEP) data from Structural Genomics Consortium
     params:
         schema = f"{config['global']['schema']}/opentargets_tep.json"
     output:
         'tep.json.gz'
     log:
-        'log/TargetEnablingPackages.log'
+        'log/tep.log'
     shell:
         """
         exec &> {log}
@@ -414,9 +387,10 @@ rule TargetEnablingPackages:  # Fetching Target Enabling Packages (TEP) data fro
         opentargets_validator --schema {params.schema} {output}
         """
 
-rule TargetSafety:            # Process data from different sources that describe target safety liabilities.
+rule targetSafety:            # Process data from different sources that describe target safety liabilities.
     input:
-        toxcast = GS.remote(config['TargetSafety']['toxcast'])
+        toxcast = GS.remote(config['TargetSafety']['toxcast']),
+        aopwiki = GS.remote(config['TargetSafety']['aopwiki'])
     params:
         ae = config['TargetSafety']['adverseEvents'],
         sr = config['TargetSafety']['safetyRisk'],
@@ -424,7 +398,7 @@ rule TargetSafety:            # Process data from different sources that describ
     output:
         'safetyLiabilities.json.gz'
     log:
-        'log/TargetEnablingPackages.log'
+        'log/safetyLiabilities.log'
     shell:
         """
         exec &> {log}
@@ -432,6 +406,7 @@ rule TargetSafety:            # Process data from different sources that describ
             --adverse_events {params.ae} \
             --safety_risk {params.sr} \
             --toxcast {input.toxcast} \
+            --aopwiki {input.aopwiki} \
             --output {output}
         opentargets_validator --schema {params.schema} {output}
         """
