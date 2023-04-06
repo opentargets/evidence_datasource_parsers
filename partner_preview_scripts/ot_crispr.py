@@ -135,7 +135,7 @@ class OTAR_CRISPR_study_parser(object):
     @staticmethod
     def cleaning_gene_id(gene_id: str) -> str:
         """Expandable set of string processing steps to clean gene identifiers.
-        
+
         Examples:
             >>> cleaning_gene_id("ENSG00000187123_LYPD6")
             >>> "ENSG00000187123"
@@ -155,7 +155,6 @@ class OTAR_CRISPR_study_parser(object):
         threshold = float(row["threshold"])
         studyId = row["studyId"]
         controlDataFile = row["ControlDataset"]
-
         # Read data, filter and rename columns:
         mageck_df = (
             pd.read_csv(datafile, sep="\t")

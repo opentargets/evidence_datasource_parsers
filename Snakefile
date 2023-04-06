@@ -410,3 +410,23 @@ rule targetSafety:            # Process data from different sources that describ
             --output {output}
         opentargets_validator --schema {params.schema} {output}
         """
+# --- Evidence generation for PPP --- #
+rule ot_crispr:               # Generating evidence for OTAR CRISPR screens
+    params:
+        data_folder = config['OT_CRISPR']['data_directory'],
+        study_table = config['OT_CRISPR']['config'],
+        schema = f"{config['global']['schema']}/opentargets.json"
+    output:
+        'ot_crispr.json.gz'
+    log:
+        'log/ot_crispr.log'
+    shell:
+        """
+        exec &> {log}
+        python partner_preview_scripts/ot_crispr.py \
+            --study_table {params.study_table} \
+            --data_folder {params.data_folder} \
+            --output {output}
+        opentargets_validator --schema {params.schema} {output}
+        """
+

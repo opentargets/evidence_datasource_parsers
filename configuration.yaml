@@ -72,3 +72,6 @@ TargetSafety:
   toxcast: gs://otar001-core/TargetSafety/data_files/toxcast/ToxCast_2021-08-17.tsv
   aopwiki: gs://otar001-core/TargetSafety/data_files/aopwiki/aopwiki-2023-01-20.json
   outputBucket: gs://otar001-core/TargetSafety/json
+OT_CRISPR:
+  data_directory: gs://otar013-ppp/ot_crispr/input_data/
+  config: /Users/dsuveges/repositories/PPP-evidencie-configuration/ot_crispr_config.json
