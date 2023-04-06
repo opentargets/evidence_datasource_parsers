@@ -43,6 +43,13 @@ ALL_FILES = [
 LOCAL_FILENAMES = [f[0] for f in ALL_FILES]
 REMOTE_FILENAMES = [f[1] for f in ALL_FILES]
 
+# At this point parsing the PPP datasources are not yet as integrated as to add these files to the complete set of output:
+PPP_sources = [
+    ('ot_crispr.json.gz', GS.remote(f"{config['OT_CRISPR']['outputBucket']}/ot_crispr-{timeStamp}.json.gz")),
+    ('validation_lab.json.gz', GS.remote(f"{config['ValidationLab']['outputBucket']}/validation_lab-{timeStamp}.json.gz")),
+    ('encore.json.gz', GS.remote(f"{config['Encore']['outputBucket']}/encore-{timeStamp}.json.gz"))
+]
+
 # Auxiliary rules.
 rule help:                    # Print help comments for Snakefile.
     input: "Snakefile"
@@ -427,7 +434,29 @@ rule ot_crispr:               # Generating evidence for OTAR CRISPR screens
             --study_table {params.study_table} \
             --data_folder {params.data_folder} \
             --output {output}
-        opentargets_validator --schema {params.schema} {output}
+        # opentargets_validator --schema {params.schema} {output}
+        """
+# --- Evidence generation for PPP --- #
+rule encore:               # Generating evidence for OTAR CRISPR screens
+    params:
+        data_folder = config['Encore']['data_directory'],
+        config = config['Encore']['config'],
+        schema = f"{config['global']['schema']}/opentargets.json"
+    output:
+        'encore.json.gz'
+    input:
+        cell_passport_table = HTTP.remote(config['global']['cell_passport_file'], keep_local=True),
+    log:
+        'log/encore.log'
+    shell:
+        """
+        exec &> {log}
+        python partner_preview_scripts/encore_parser.py \
+            --output_file {output} \
+            --parameter_file {params.config} \
+            --data_folder {params.data_folder} \
+            --cell_passport_file {input.cell_passport_table}
+        # opentargets_validator --schema {params.schema} {output}
         """
 
 rule validation_lab:               # Generating evidence for OTAR CRISPR screens
@@ -436,7 +465,7 @@ rule validation_lab:               # Generating evidence for OTAR CRISPR screens
         config = config['ValidationLab']['config'],
         schema = f"{config['global']['schema']}/opentargets.json"
     input:
-        cell_passport_table = HTTP.remote(config['ValidationLab']['cell_passport_file'], keep_local=True),
+        cell_passport_table = HTTP.remote(config['global']['cell_passport_file'], keep_local=True),
     output:
         'validation_lab.json.gz'
     log:
@@ -451,4 +480,13 @@ rule validation_lab:               # Generating evidence for OTAR CRISPR screens
             --output_file {output}
         opentargets_validator --schema {params.schema} {output}
         """
+# --- Moving local PPP files to remote --- #
+rule PPP:                          # Moving PPP evidence to destination bucket.
+    input:
+        [source[0] for source in PPP_sources]
+    output:
+        [source[1] for source in PPP_sources]
+    run:
+        for source in PPP_sources:
+            os.rename(source[0], source[1])
 
