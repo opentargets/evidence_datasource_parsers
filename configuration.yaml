@@ -75,3 +75,7 @@ TargetSafety:
 OT_CRISPR:
   data_directory: gs://otar013-ppp/ot_crispr/input_data/
   config: /Users/dsuveges/repositories/PPP-evidencie-configuration/ot_crispr_config.json
+ValidationLab:
+  data_directory: /Users/dsuveges/project_data/validation_lab/2022.05/PPP_OTVL_May2022
+  config: /Users/dsuveges/repositories/PPP-evidencie-configuration/ValidationLab_config.json
+  cell_passport_file: https://cog.sanger.ac.uk/cmp/download/model_list_latest.csv.gz

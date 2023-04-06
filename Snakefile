@@ -430,3 +430,25 @@ rule ot_crispr:               # Generating evidence for OTAR CRISPR screens
         opentargets_validator --schema {params.schema} {output}
         """
 
+rule validation_lab:               # Generating evidence for OTAR CRISPR screens
+    params:
+        data_folder = config['ValidationLab']['data_directory'],
+        config = config['ValidationLab']['config'],
+        schema = f"{config['global']['schema']}/opentargets.json"
+    input:
+        cell_passport_table = HTTP.remote(config['ValidationLab']['cell_passport_file'], keep_local=True),
+    output:
+        'validation_lab.json.gz'
+    log:
+        'log/validation_lab.log'
+    shell:
+        """
+        exec &> {log}
+        python partner_preview_scripts/ValidationLab.py \
+            --parameter_file {params.config} \
+            --data_folder {params.data_folder} \
+            --cell_passport_file {input.cell_passport_table} \
+            --output_file {output}
+        opentargets_validator --schema {params.schema} {output}
+        """
+
