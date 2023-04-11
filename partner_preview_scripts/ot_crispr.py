@@ -14,8 +14,9 @@ import gzip
 import json
 import logging
 import sys
-
 import pandas as pd
+
+from common.evidence import read_ppp_config
 
 # The statisticalTestTail is inferred by the column name which is being filtered on:
 FILTER_COLUMN_MAP = {
@@ -155,6 +156,7 @@ class OTAR_CRISPR_study_parser(object):
         threshold = float(row["threshold"])
         studyId = row["studyId"]
         controlDataFile = row["ControlDataset"]
+        print(f"Data file: {datafile}")
         # Read data, filter and rename columns:
         mageck_df = (
             pd.read_csv(datafile, sep="\t")

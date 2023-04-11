@@ -73,14 +73,14 @@ TargetSafety:
   aopwiki: gs://otar001-core/TargetSafety/data_files/aopwiki/aopwiki-2023-01-20.json
   outputBucket: gs://otar001-core/TargetSafety/json
 OT_CRISPR:
-  data_directory: gs://otar013-ppp/ot_crispr/input_data/
-  config: /Users/dsuveges/repositories/PPP-evidencie-configuration/ot_crispr_config.json
-  outputBucket: gs://otar013-ppp/ot_crispr/
+  data_directory: gs://otar013-ppp/ot_crispr/input_data
+  config: gs://otar013-ppp/PPP-evidencie-configuration/ot_crispr_config.json
+  outputBucket: gs://otar013-ppp/ot_crispr
 ValidationLab:
   data_directory: /Users/dsuveges/project_data/validation_lab/2022.05/PPP_OTVL_May2022
-  config: /Users/dsuveges/repositories/PPP-evidencie-configuration/ValidationLab_config.json
+  config: gs://otar013-ppp/PPP-evidencie-configuration/ValidationLab_config.json
   outputBucket: gs://otar013-ppp/validation_lab
 Encore:
   data_directory: /Users/dsuveges/project_data/encore/2022.07/PPP_RELEASE
-  config: /Users/dsuveges/repositories/PPP-evidencie-configuration/encore_config.json
+  config: gs://otar013-ppp/PPP-evidencie-configuration/encore_config.json
   outputBucket: gs://otar013-ppp/encore
