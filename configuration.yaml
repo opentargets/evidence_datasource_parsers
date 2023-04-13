@@ -1,7 +1,7 @@
 global:
   logDir: gs://otar000-evidence_input/parser_logs
   cacheDir: cache_dir
-  schema: https://raw.githubusercontent.com/opentargets/json_schema/2.2.10
+  schema: https://raw.githubusercontent.com/opentargets/json_schema/2.3.1
   EFOVersion: v3.50.0
   cell_passport_file: https://cog.sanger.ac.uk/cmp/download/model_list_latest.csv.gz
 cancerBiomarkers:
@@ -77,10 +77,10 @@ OT_CRISPR:
   config: gs://otar013-ppp/PPP-evidencie-configuration/ot_crispr_config.json
   outputBucket: gs://otar013-ppp/ot_crispr
 ValidationLab:
-  data_directory: /Users/dsuveges/project_data/validation_lab/2022.05/PPP_OTVL_May2022
+  data_directory: gs://otar013-ppp/validation_lab/input_data/2022.05
   config: gs://otar013-ppp/PPP-evidencie-configuration/ValidationLab_config.json
   outputBucket: gs://otar013-ppp/validation_lab
 Encore:
-  data_directory: /Users/dsuveges/project_data/encore/2022.07/PPP_RELEASE
+  data_directory: gs://otar013-ppp/encore/input
   config: gs://otar013-ppp/PPP-evidencie-configuration/encore_config.json
   outputBucket: gs://otar013-ppp/encore
