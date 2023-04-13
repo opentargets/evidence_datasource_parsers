@@ -417,8 +417,8 @@ rule targetSafety:            # Process data from different sources that describ
             --output {output}
         opentargets_validator --schema {params.schema} {output}
         """
-# --- Evidence generation for PPP --- #
-rule ot_crispr:               # Generating evidence for OTAR CRISPR screens
+
+rule ot_crispr:               # Generating PPP evidence for OTAR CRISPR screens
     params:
         data_folder = config['OT_CRISPR']['data_directory'],
         study_table = config['OT_CRISPR']['config'],
@@ -436,8 +436,8 @@ rule ot_crispr:               # Generating evidence for OTAR CRISPR screens
             --output {output}
         # opentargets_validator --schema {params.schema} {output}
         """
-# --- Evidence generation for PPP --- #
-rule encore:               # Generating evidence for OTAR CRISPR screens
+
+rule encore:               # Generating PPP evidence for ENCORE
     params:
         data_folder = config['Encore']['data_directory'],
         config = config['Encore']['config'],
@@ -459,7 +459,7 @@ rule encore:               # Generating evidence for OTAR CRISPR screens
         # opentargets_validator --schema {params.schema} {output}
         """
 
-rule validation_lab:               # Generating evidence for OTAR CRISPR screens
+rule validation_lab:               # Generating PPP evidence for Validation Lab
     params:
         data_folder = config['ValidationLab']['data_directory'],
         config = config['ValidationLab']['config'],
@@ -480,8 +480,8 @@ rule validation_lab:               # Generating evidence for OTAR CRISPR screens
             --output_file {output}
         opentargets_validator --schema {params.schema} {output}
         """
-# --- Moving local PPP files to remote --- #
-rule PPP:                          # Moving PPP evidence to destination bucket.
+
+rule PPP:                          # Moving local PPP evidence to the destination bucket.
     input:
         [source[0] for source in PPP_sources]
     output:
