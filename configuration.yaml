@@ -74,13 +74,13 @@ TargetSafety:
   outputBucket: gs://otar001-core/TargetSafety/json
 OT_CRISPR:
   data_directory: gs://otar013-ppp/ot_crispr/input_data
-  config: gs://otar013-ppp/PPP-evidencie-configuration/ot_crispr_config.json
+  config: gs://otar013-ppp/PPP-evidence-configuration/ot_crispr_config.json
   outputBucket: gs://otar013-ppp/ot_crispr
 ValidationLab:
   data_directory: gs://otar013-ppp/validation_lab/input_data/2022.05
-  config: gs://otar013-ppp/PPP-evidencie-configuration/ValidationLab_config.json
+  config: gs://otar013-ppp/PPP-evidence-configuration/ValidationLab_config.json
   outputBucket: gs://otar013-ppp/validation_lab
 Encore:
   data_directory: gs://otar013-ppp/encore/input
-  config: gs://otar013-ppp/PPP-evidencie-configuration/encore_config.json
+  config: gs://otar013-ppp/PPP-evidence-configuration/encore_config.json
   outputBucket: gs://otar013-ppp/encore
