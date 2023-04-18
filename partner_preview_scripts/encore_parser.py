@@ -2,7 +2,6 @@
 """Parser for data submitted by the Encore team."""
 
 import argparse
-import json
 import logging
 import os
 import sys
@@ -20,6 +19,7 @@ from common.evidence import (
     initialize_sparksession,
     write_evidence_strings,
     GenerateDiseaseCellLines,
+    read_ppp_config,
 )
 
 
@@ -600,11 +600,7 @@ if __name__ == "__main__":
         raise ValueError(f"Data folder {args.data_folder} does not exist.")
 
     # Reading parameter json:
-    try:
-        with open(args.parameter_file, "r") as parameter_file:
-            parameters = json.load(parameter_file)
-    except Exception as e:
-        raise e(f"Could not read parameter file. {args.parameter_file}")
+    parameters = read_ppp_config(args.parameter_file)
 
     # Updating parameters:
     parameters["sharedMetadata"]["data_folder"] = args.data_folder

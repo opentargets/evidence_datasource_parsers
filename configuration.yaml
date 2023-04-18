@@ -1,9 +1,9 @@
 global:
   logDir: gs://otar000-evidence_input/parser_logs
   cacheDir: cache_dir
-  schema: https://raw.githubusercontent.com/opentargets/json_schema/2.2.10
+  schema: https://raw.githubusercontent.com/opentargets/json_schema/2.3.1
   EFOVersion: v3.50.0
-
+  cell_passport_file: https://cog.sanger.ac.uk/cmp/download/model_list_latest.csv.gz
 cancerBiomarkers:
   inputAssociationsTable: gs://otar000-evidence_input/CancerBiomarkers/data_files/cancerbiomarkers-2018-05-01.tsv
   inputSourceTable: gs://otar000-evidence_input/CancerBiomarkers/data_files/cancer_biomarker_source.jsonl
@@ -72,3 +72,15 @@ TargetSafety:
   toxcast: gs://otar001-core/TargetSafety/data_files/toxcast/ToxCast_2021-08-17.tsv
   aopwiki: gs://otar001-core/TargetSafety/data_files/aopwiki/aopwiki-2023-01-20.json
   outputBucket: gs://otar001-core/TargetSafety/json
+OT_CRISPR:
+  data_directory: gs://otar013-ppp/ot_crispr/input_data
+  config: gs://otar013-ppp/PPP-evidence-configuration/ot_crispr_config.json
+  outputBucket: gs://otar013-ppp/ot_crispr
+ValidationLab:
+  data_directory: gs://otar013-ppp/validation_lab/input_data/2022.05
+  config: gs://otar013-ppp/PPP-evidence-configuration/ValidationLab_config.json
+  outputBucket: gs://otar013-ppp/validation_lab
+Encore:
+  data_directory: gs://otar013-ppp/encore/input
+  config: gs://otar013-ppp/PPP-evidence-configuration/encore_config.json
+  outputBucket: gs://otar013-ppp/encore

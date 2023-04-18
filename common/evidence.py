@@ -3,6 +3,8 @@ import os
 from psutil import virtual_memory
 import requests
 import tempfile
+import json
+import gcsfs
 
 from pyspark.conf import SparkConf
 from pyspark.sql import SparkSession, DataFrame
@@ -148,7 +150,6 @@ class GenerateDiseaseCellLines:
     def get_mapping(self):
         return self.cell_map
 
-
     @staticmethod
     def lookup_uberon(tissue_label: str) -> str:
         """Mapping tissue labels to tissue identifiers (UBERON codes) via the OLS API."""
@@ -190,32 +191,48 @@ def read_path(path: str, spark_instance) -> DataFrame:
         return None
 
     # The provided path must exist and must be either a file or a directory.
-    assert os.path.exists(path), f'The provided path {path} does not exist.'
-    assert os.path.isdir(path) or os.path.isfile(path), f'The provided path {path} is neither a file or a directory.'
+    assert os.path.exists(path), f"The provided path {path} does not exist."
+    assert os.path.isdir(path) or os.path.isfile(
+        path
+    ), f"The provided path {path} is neither a file or a directory."
 
     # Case 1: We are provided with a single file.
     if os.path.isfile(path):
-        if path.endswith('.csv'):
+        if path.endswith(".csv"):
             return spark_instance.read.csv(path, header=True, inferSchema=True)
-        if path.endswith('.tsv'):
-            return spark_instance.read.csv(path, sep='\t', header=True)
-        elif path.endswith(('.json', '.json.gz', '.jsonl', '.jsonl.gz')):
+        if path.endswith(".tsv"):
+            return spark_instance.read.csv(path, sep="\t", header=True)
+        elif path.endswith((".json", ".json.gz", ".jsonl", ".jsonl.gz")):
             return spark_instance.read.json(path)
         else:
-            raise AssertionError(f'The format of the provided file {path} is not supported.')
+            raise AssertionError(
+                f"The format of the provided file {path} is not supported."
+            )
 
     # Case 2: We are provided with a directory. Let's peek inside to see what it contains.
-    all_files = [os.path.join(dp, filename) for dp, dn, filenames in os.walk(path) for filename in filenames]
+    all_files = [
+        os.path.join(dp, filename)
+        for dp, dn, filenames in os.walk(path)
+        for filename in filenames
+    ]
 
     # It must be either exclusively JSON, or exclusively Parquet.
-    json_files = [fn for fn in all_files if fn.endswith(('.json', '.json.gz', '.jsonl', '.jsonl.gz'))]
-    parquet_files = [fn for fn in all_files if fn.endswith('.parquet')]
-    assert not (json_files and parquet_files), f'The provided directory {path} contains a mix of JSON and Parquet.'
-    assert json_files or parquet_files, f'The provided directory {path} contains neither JSON nor Parquet.'
+    json_files = [
+        fn
+        for fn in all_files
+        if fn.endswith((".json", ".json.gz", ".jsonl", ".jsonl.gz"))
+    ]
+    parquet_files = [fn for fn in all_files if fn.endswith(".parquet")]
+    assert not (
+        json_files and parquet_files
+    ), f"The provided directory {path} contains a mix of JSON and Parquet."
+    assert (
+        json_files or parquet_files
+    ), f"The provided directory {path} contains neither JSON nor Parquet."
 
     # A directory with JSON files.
     if json_files:
-        return spark_instance.read.option('recursiveFileLookup', 'true').json(path)
+        return spark_instance.read.option("recursiveFileLookup", "true").json(path)
 
     # A directory with Parquet files.
     if parquet_files:
@@ -225,18 +242,46 @@ def read_path(path: str, spark_instance) -> DataFrame:
 def import_trait_mappings() -> DataFrame:
     """Load the remote trait mappings file to a Spark dataframe."""
 
-    remote_trait_mappings_url = (
-        'https://raw.githubusercontent.com/opentargets/curation/22.09.1/mappings/disease/manual_string.tsv'
-    )
+    remote_trait_mappings_url = "https://raw.githubusercontent.com/opentargets/curation/22.09.1/mappings/disease/manual_string.tsv"
 
     SparkSession.getActiveSession().sparkContext.addFile(remote_trait_mappings_url)
 
     return (
         SparkSession.getActiveSession()
-        .read.csv(SparkFiles.get('manual_string.tsv'), header=True, sep='\t')
+        .read.csv(SparkFiles.get("manual_string.tsv"), header=True, sep="\t")
         .select(
-            f.col('PROPERTY_VALUE').alias('diseaseFromSource'),
-            f.element_at(f.split(f.col('SEMANTIC_TAG'), '/'), -1).alias('diseaseFromSourceMappedId'),
+            f.col("PROPERTY_VALUE").alias("diseaseFromSource"),
+            f.element_at(f.split(f.col("SEMANTIC_TAG"), "/"), -1).alias(
+                "diseaseFromSourceMappedId"
+            ),
         )
     )
 
+
+def read_ppp_config(config_path: str) -> dict:
+    """Read json file stored on GCP location into a dictionary.
+
+    Args:
+        config_path (str): Path to configuration file.
+
+    Returns:
+        dict: parsed configuration
+    """
+    # Configuration is provided in a gs:// location:
+    if config_path.startswith("gs://"):
+        fs = gcsfs.GCSFileSystem()
+        try:
+            with fs.open(config_path, "r") as parameter_file:
+                parameters = json.load(parameter_file)
+        except Exception as e:
+            raise e(f"Could not read parameter file. {config_path}")
+
+    # If not a GCP location, assuming a local file:
+    else:
+        try:
+            with open(config_path, "r") as parameter_file:
+                parameters = json.load(parameter_file)
+        except Exception as e:
+            raise e(f"Could not read parameter file. {config_path}")
+
+    return parameters
