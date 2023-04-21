@@ -11,7 +11,6 @@
 """
 
 import argparse
-import json
 import logging
 import sys
 from functools import reduce
@@ -21,7 +20,11 @@ import pyspark.sql.functions as f
 import pyspark.sql.types as t
 from pyspark.sql.dataframe import DataFrame
 
-from common.evidence import write_evidence_strings, initialize_sparksession
+from common.evidence import (
+    write_evidence_strings,
+    initialize_sparksession,
+    read_ppp_config,
+)
 
 
 # Datasource-wide constants:
@@ -207,20 +210,6 @@ def get_biomarker(column_name, biomarker):
     else:
         logging.warning(f"Could not find direct mapping for {column_name}: {biomarker}")
         return None
-
-
-def parse_experimental_parameters(parmeterFile: str) -> dict:
-    """
-    Parse experimental parameters from a file.
-
-    Args:
-        parmeter_file: Path to a file containing experimental parameters.
-
-    Returns:
-        A dictionary of experimental parameters.
-    """
-    with open(parmeterFile, "r") as f:
-        return json.load(f)
 
 
 def get_cell_passport_data(spark: SparkSession, cell_passport_file: str) -> DataFrame:
@@ -414,7 +403,7 @@ def main(
     spark = initialize_sparksession()
 
     # Parse experimental parameters:
-    parameters = parse_experimental_parameters(config_file)
+    parameters = read_ppp_config(config_file)
 
     # Opening and parsing the cell passport data from Sanger:
     cell_passport_df = get_cell_passport_data(spark, cell_passport_file)

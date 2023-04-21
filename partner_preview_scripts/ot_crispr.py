@@ -14,7 +14,6 @@ import gzip
 import json
 import logging
 import sys
-
 import pandas as pd
 
 # The statisticalTestTail is inferred by the column name which is being filtered on:
@@ -135,7 +134,7 @@ class OTAR_CRISPR_study_parser(object):
     @staticmethod
     def cleaning_gene_id(gene_id: str) -> str:
         """Expandable set of string processing steps to clean gene identifiers.
-        
+
         Examples:
             >>> cleaning_gene_id("ENSG00000187123_LYPD6")
             >>> "ENSG00000187123"
@@ -155,7 +154,7 @@ class OTAR_CRISPR_study_parser(object):
         threshold = float(row["threshold"])
         studyId = row["studyId"]
         controlDataFile = row["ControlDataset"]
-
+        print(f"Data file: {datafile}")
         # Read data, filter and rename columns:
         mageck_df = (
             pd.read_csv(datafile, sep="\t")
