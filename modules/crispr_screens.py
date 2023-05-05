@@ -58,6 +58,7 @@ def get_parser():
         nargs="?",
         default=None,
     )
+    return parser
 
 
 if __name__ == "__main__":

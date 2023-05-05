@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 """This module generates crispr evidence based on Brain Crispr resource."""
+from __future__ import annotations
+from typing import TYPE_CHECKING
 
 from urllib.parse import quote
 from requests import post
@@ -9,12 +11,15 @@ import re
 from functools import reduce
 from typing import List
 
-from pyspark.sql import types as t, functions as f, DataFrame, SparkSession
+from pyspark.sql import types as t, functions as f
 from pyspark import SparkFiles
+
+if TYPE_CHECKING:
+    from pyspark.sql import DataFrame, SparkSession
 
 
 class CRISPRBrain:
-    # CRISPR Brain API details:
+    # CRISPR Brain API details. API key is required and also allows for checking for new release.
     API_SERVER_URL = "https://crisprbrain.org"
     API_CLIENT_ID = "92f263647c43525d3e4f181aa7e348f26e32129c0f827321d9261cc9765c56c0"
     API_VERSION = 1
@@ -30,15 +35,25 @@ class CRISPRBrain:
     ]
 
     def __init__(
-        self,
+        self: CRISPRBrain,
         spark: SparkSession,
         disease_mapping: str,
     ) -> None:
+        """Initialize CRISPR Brain parser
+
+        Args:
+            spark (SparkSession):
+            disease_mapping (str): file containing the study to disease mapping
+        """
         self.spark = spark
         self.disease_mapping = disease_mapping
 
-    def __get_study_table(self) -> DataFrame:
-        """Extract scree data from Crispr brain API."""
+    def __get_study_table(self: CRISPRBrain) -> DataFrame:
+        """Extract scree data from Crispr brain API.
+
+        Returns:
+            spark dataframe with the parsed CRISPR Brain screens.
+        """
 
         # Establish connection to get study level metadata:
         response = post(
@@ -63,13 +78,11 @@ class CRISPRBrain:
         ]
 
         # The parsed study data is converted into a spark dataframe:
-        return (
-            self.spark.createDataFrame(screen_data)
-            .withColumn("studySummary", self.__parsing_experiment(f.col("Description")))
-            .persist()
+        return self.spark.createDataFrame(screen_data).withColumn(
+            "studySummary", self.__parsing_experiment(f.col("Description"))
         )
 
-    def __get_disease_mapping(self) -> DataFrame:
+    def __get_disease_mapping(self: CRISPRBrain) -> DataFrame:
         """Read screen to disease and contrast mappings."""
         return (
             self.spark.read.csv(self.disease_mapping, sep="\t", header=True)
@@ -77,10 +90,10 @@ class CRISPRBrain:
             .withColumn(
                 "diseaseFromSourceMappedId",
                 f.split(f.col("diseaseFromSourceMappedId"), ", "),
-            ).persist()
+            )
         )
 
-    def __get_literature_mapping(self) -> DataFrame:
+    def __get_literature_mapping(self: CRISPRBrain) -> DataFrame:
         """Read screen publication to pmid mappings."""
         return self.spark.createDataFrame(
             self.LITERATURE_MAPPING, ["Reference Link", "literature"]
@@ -97,7 +110,7 @@ class CRISPRBrain:
         )
     )
     def __parsing_experiment(description: str) -> dict:
-        """Parse experiment description text into structured data.
+        """Parse free-text experiment description into structured data.
 
         Args:
             description (str): Free text screen description provided by the API.
@@ -125,7 +138,7 @@ class CRISPRBrain:
         description_lines = re.split(r"\n+", description.strip())
         # Title should be always available:
         title = (
-            re.sub("#+\s+", "", description_lines[0])
+            re.sub(r"#+\s+", "", description_lines[0])
             if "#" in description_lines[0]
             else description_lines[0]
         )
@@ -145,7 +158,7 @@ class CRISPRBrain:
 
         return {"title": title, "experiment": experiment, "analysis": analysis}
 
-    def __parse_gene_list(self, study_id: str) -> DataFrame:
+    def __parse_gene_list(self: CRISPRBrain, study_id: str) -> DataFrame:
         """
         This function parses a gene list for a single screen and returns a dataframe with hit genes.
 
@@ -191,7 +204,7 @@ class CRISPRBrain:
             map(self.__parse_gene_list, study_identifiers),
         )
 
-    def create_crispr_brain_evidence(self) -> None:
+    def create_crispr_brain_evidence(self: CRISPRBrain) -> None:
         """"""
         # Reading
         crispr_studies = (
@@ -212,9 +225,13 @@ class CRISPRBrain:
                 f.when(f.col("Genotype") != "WT", f.col("Genotype"))
                 .otherwise(None)
                 .alias("geneticBackground"),
+                "Phenotype",
             )
             # Joining resolved literature:
             .join(self.__get_disease_mapping(), on="studyId", how="inner")
+            # Keep contrast if provided with the curation, otherwise keep the phenotype annotation:
+            .withColumn("contrast", f.coalesce("contrast", "Phenotype"))
+            .drop("Phenotype")
             .persist()
         )
 
@@ -236,13 +253,13 @@ class CRISPRBrain:
             .persist()
         )
 
-    def get_dataframe(self) -> DataFrame:
+    def get_dataframe(self: CRISPRBrain) -> DataFrame:
         try:
             return self.evidence
         except AttributeError as e:
             raise Exception("Evidence not yet generated!") from e
 
-    def save_evidence(self, filename: str) -> None:
+    def save_evidence(self: CRISPRBrain, filename: str) -> None:
         format = filename.split(".")[-1]
 
         if format == filename:
