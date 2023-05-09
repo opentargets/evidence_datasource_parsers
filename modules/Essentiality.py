@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 import argparse
 import logging
+import logging.config
 import sys
 from functools import reduce
 from pyspark.sql import SparkSession, functions as f, types as t, DataFrame, Column
@@ -76,7 +77,8 @@ class DepMapEssentiality:
             # Narrowing down the gene effect table to genes that are in the essential gene list:
             .join(essential_genes_df, on="targetSymbol", how="left")
             # Joining with model information:
-            .join(models_df, on="depmapId", how="left")
+            # .join(models_df, on="depmapId", how="left")
+            .join(models_df, on="depmapId", how="inner")
             # Joining expression data:
             .join(expression_df, on=["targetSymbol", "depmapId"], how="left")
             # Joining damaging mutation data:
@@ -135,8 +137,18 @@ class DepMapEssentiality:
         print(f"Number of unique diseases: {disease_count}")
 
     def _get_tissue_mapping(self, tissue_mapping_url: str) -> DataFrame:
-        # TODO: pandas needs to be phased out:
-        return self.spark.createDataFrame(pd.read_csv(tissue_mapping_url))
+        """Fetch tissue mapping stored as a tsv in github URL.
+
+        Args:
+            tissue_mapping_url (str): URL to the tissue mapping file.
+
+        Returns:
+            DataFrame: columns:
+        """
+        self.spark.sparkContext.addFile(tissue_mapping_url)
+        return self.spark.read.csv(
+            SparkFiles.get(tissue_mapping_url.split("/")[-1]), sep=",", header=True
+        )
 
     def _read_and_melt(self, filename: str, value_name: str) -> DataFrame:
         # Reading csv into dataframe:
@@ -172,7 +184,8 @@ class DepMapEssentiality:
 
     def _prepare_essential_genes(self, essential_gene_file: str) -> DataFrame:
         return self.spark.read.csv(essential_gene_file, sep=",", header=True).select(
-            self._extract_gene_symbol(f.col("Essentials"))
+            self._extract_gene_symbol(f.col("Essentials")),
+            f.lit(True).alias("isEssential"),
         )
 
 
@@ -214,6 +227,12 @@ def main(
         output_file (str): path for the output file (gzipped json)
         keep_essentials_only (bool): flag indicating if only essential genes are needed.
     """
+
+    logging.info(f"DepMap input folder: {depmap_input_folder}")
+    logging.info(f"Tissue mapping URL: {tissue_mapping_url}")
+    logging.info(f"Output file: {output_file}")
+    logging.info(f"Keep only essential genes: {keep_essentials_only}")
+
     # Initializing spark session:
     spark = initialize_sparksession()
 
@@ -221,9 +240,7 @@ def main(
         # Generate gene essentiality tables from depmap data:
         get_depmap_essentials(
             spark, depmap_input_folder, tissue_mapping_url, keep_essentials_only
-        )
-        .withColumn("isEssential", f.lit(True))
-        .persist(),
+        ).persist(),
         # Potential further sources will come here:
     ]
 
@@ -255,7 +272,7 @@ def parse_command_line_parameters():
         required=True,
     )
     parser.add_argument(
-        "--output",
+        "--output_file",
         help="Gene essentiality annotation in compressed json.",
         type=str,
         required=True,
@@ -290,7 +307,10 @@ if __name__ == "__main__":
         datefmt="%Y-%m-%d %H:%M:%S",
     )
     if args.log_file:
-        logging.config.fileConfig(filename=args.log_file)
+        logging.Handler().setFormatter(
+            fmt="%(asctime)s %(levelname)s %(module)s - %(funcName)s: %(message)s"
+        )
+        logging.config.fileConfig(args.log_file, disable_existing_loggers=False)
     else:
         logging.StreamHandler(sys.stderr)
 
@@ -299,5 +319,5 @@ if __name__ == "__main__":
         args.depmap_input_folder,
         args.depmap_tissue_mapping,
         args.output_file,
-        args.keep_essentials_only,
+        args.essential_only,
     )
