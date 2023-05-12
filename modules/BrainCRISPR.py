@@ -37,16 +37,19 @@ class CRISPRBrain:
     def __init__(
         self: CRISPRBrain,
         spark: SparkSession,
-        disease_mapping: str,
+        disease_mapping_url: str,
     ) -> None:
         """Initialize CRISPR Brain parser
 
         Args:
             spark (SparkSession):
-            disease_mapping (str): file containing the study to disease mapping
+            disease_mapping_url (str): file containing the study to disease mapping
         """
         self.spark = spark
-        self.disease_mapping = disease_mapping
+
+        # Adding disease mapping file to spark context:
+        self.spark.sparkContext.addFile(disease_mapping_url)
+        self.disease_mapping_file = disease_mapping_url.split("/")[-1]
 
     def __get_study_table(self: CRISPRBrain) -> DataFrame:
         """Extract scree data from Crispr brain API.
@@ -84,8 +87,11 @@ class CRISPRBrain:
 
     def __get_disease_mapping(self: CRISPRBrain) -> DataFrame:
         """Read screen to disease and contrast mappings."""
+
         return (
-            self.spark.read.csv(self.disease_mapping, sep="\t", header=True)
+            self.spark.read.csv(
+                SparkFiles.get(self.disease_mapping_file), sep="\t", header=True
+            )
             # Splitting list of efos to list object:
             .withColumn(
                 "diseaseFromSourceMappedId",
@@ -168,7 +174,7 @@ class CRISPRBrain:
 
         Returns:
           a DataFrame with hit genes from a single screen. The DataFrame contains columns
-            - targetFromSource,
+            - targetFromSourceId,
             - pValue,
             - statisticalTestTail,
             - resourceScore, and
@@ -185,12 +191,12 @@ class CRISPRBrain:
             )
             .filter(f.col("Hit Class") != "Non-Hit")
             .select(
-                f.col("Gene").alias("targetFromSource"),
-                f.col("P Value").alias("pValue"),
+                f.col("Gene").alias("targetFromSourceId"),
+                f.col("P Value").alias("resourceScore"),
                 f.when(f.col("Hit Class") == "Positive Hit", f.lit("upper tail"))
                 .when(f.col("Hit Class") == "Negative Hit", f.lit("lower tail"))
                 .alias("statisticalTestTail"),
-                f.col("Phenotype").alias("resourceScore"),
+                f.col("Phenotype").alias("log2FoldChangeValue"),
                 f.lit(study_id).alias("studyId"),
             )
         )
@@ -219,13 +225,16 @@ class CRISPRBrain:
                 f.lit("crispr_brain").alias("projectId"),
                 # Renaming fields:
                 f.col("Screen Name").alias("studyId"),
+                f.col("Libraries Screened").alias("crisprScreenLibrary"),
                 f.col("studySummary.title").alias("studyOverview"),
-                f.col("studySummary.experiment").alias("experiment"),
+                # Dropping experiment column for now:
+                # f.col("studySummary.experiment").alias("experiment"),
                 f.col("Cell Type").alias("cellType"),
                 f.when(f.col("Genotype") != "WT", f.col("Genotype"))
                 .otherwise(None)
                 .alias("geneticBackground"),
                 "Phenotype",
+                "literature",
             )
             # Joining resolved literature:
             .join(self.__get_disease_mapping(), on="studyId", how="inner")
