@@ -220,7 +220,7 @@ class CRISPRBrain:
             .join(self.__get_literature_mapping(), on="Reference Link", how="left")
             .select(
                 # Adding constants:
-                f.lit("sysbio").alias("datatypeId"),
+                f.lit("affected_pathway").alias("datatypeId"),
                 f.lit("crispr_screen").alias("datasourceId"),
                 f.lit("crispr_brain").alias("projectId"),
                 # Renaming fields:

@@ -4,6 +4,7 @@ global:
   schema: https://raw.githubusercontent.com/opentargets/json_schema/2.3.1
   EFOVersion: v3.50.0
   cell_passport_file: https://cog.sanger.ac.uk/cmp/download/model_list_latest.csv.gz
+  curation_repo: https://raw.githubusercontent.com/opentargets/curation/23.02
 cancerBiomarkers:
   inputAssociationsTable: gs://otar000-evidence_input/CancerBiomarkers/data_files/cancerbiomarkers-2018-05-01.tsv
   inputSourceTable: gs://otar000-evidence_input/CancerBiomarkers/data_files/cancer_biomarker_source.jsonl
@@ -26,7 +27,7 @@ CRISPR:
 GeneBurden:
   azPhewasBinary: gs://otar000-evidence_input/GeneBurden/data_files/azphewas-com-450k-phewas-binary
   azPhewasQuantitative: gs://otar000-evidence_input/GeneBurden/data_files/azphewas-com-450k-phewas-quantitative
-  curation: https://raw.githubusercontent.com/opentargets/curation/23.02/gene_burden/curated_evidence.tsv
+  curation: gene_burden/curated_evidence.tsv
   genebass: gs://otar000-evidence_input/GeneBurden/data_files/genebass_entries
   outputBucket: gs://otar000-evidence_input/GeneBurden/json
 Gene2Phenotype:
@@ -67,8 +68,8 @@ SysBio:
 TEP:
   outputBucket: gs://otar001-core/TEPs
 TargetSafety:
-  adverseEvents: https://raw.githubusercontent.com/opentargets/curation/23.02/target_safety/adverse_effects.tsv
-  safetyRisk: https://raw.githubusercontent.com/opentargets/curation/23.02/target_safety/safety_risks.tsv
+  adverseEvents: target_safety/adverse_effects.tsv
+  safetyRisk: target_safety/safety_risks.tsv
   toxcast: gs://otar001-core/TargetSafety/data_files/toxcast/ToxCast_2021-08-17.tsv
   aopwiki: gs://otar001-core/TargetSafety/data_files/aopwiki/aopwiki-2023-01-20.json
   outputBucket: gs://otar001-core/TargetSafety/json
@@ -84,3 +85,7 @@ Encore:
   data_directory: gs://otar013-ppp/encore/input
   config: gs://otar013-ppp/PPP-evidence-configuration/encore_config.json
   outputBucket: gs://otar013-ppp/encore
+CrisprScreens:
+  outputBucket: gs://otar000-evidence_input/Crispr_screens/json
+  # This line needs to be updated once the mapping is merged into the curation repo:
+  crispr_brain_mapping: https://gist.githubusercontent.com/DSuveges/218e1a5747b287423654ec16a0b37124/raw/2becccda79c9b7a42a139212e4ac3c247cf6611a/brain_crispr_studies.tsv
