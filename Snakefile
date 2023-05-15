@@ -39,6 +39,7 @@ ALL_FILES = [
     ('sysbio.json.gz', GS.remote(f"{config['SysBio']['outputBucket']}/sysbio-{timeStamp}.json.gz")),
     ('tep.json.gz', GS.remote(f"{config['TEP']['outputBucket']}/tep-{timeStamp}.json.gz")),
     ('safetyLiabilities.json.gz', GS.remote(f"{config['TargetSafety']['outputBucket']}/safetyLiabilities-{timeStamp}.json.gz")),
+    ('crispr_screens.json.gz', GS.remote(f"{config['CrisprScreens']['outputBucket']}/crispr_screens-{timeStamp}.json.gz")),
 ]
 LOCAL_FILENAMES = [f[0] for f in ALL_FILES]
 REMOTE_FILENAMES = [f[1] for f in ALL_FILES]
@@ -174,7 +175,7 @@ rule geneBurden:              # Processes gene burden data from various burden a
     input:
         azPhewasBinary = GS.remote(config['GeneBurden']['azPhewasBinary']),
         azPhewasQuant = GS.remote(config['GeneBurden']['azPhewasQuantitative']),
-        curation = HTTP.remote(config['GeneBurden']['curation']),
+        curation = HTTP.remote(f"{config['GeneBurden']['curation_repo']}/{config['GeneBurden']['curation']}"),
         genebass = GS.remote(config['GeneBurden']['genebass']),
     output:
         evidenceFile = "gene_burden.json.gz"
@@ -394,13 +395,31 @@ rule targetEnablingPackages:  # Fetching Target Enabling Packages (TEP) data fro
         opentargets_validator --schema {params.schema} {output}
         """
 
+rule crisprScreens:            # Generating disease/target evidence based on various sources of CRISPR screens.
+    params:
+        schema = f"{config['global']['schema']}/schemas/disease_target_evidence.json",
+        crispr_brain_mapping = config['CrisprScreens']['crispr_brain_mapping']
+    output:
+        'crispr_screens.json.gz'
+    log:
+        'log/crispr_screens.log'
+    shell:
+        """
+        exec &> {log}
+        python modules/crispr_screens.py  \
+            --crispr_brain_mapping {params.crispr_brain_mapping} \
+            --output {output}
+        opentargets_validator --schema {params.schema} {output}
+        """
+
+
 rule targetSafety:            # Process data from different sources that describe target safety liabilities.
     input:
         toxcast = GS.remote(config['TargetSafety']['toxcast']),
         aopwiki = GS.remote(config['TargetSafety']['aopwiki'])
     params:
-        ae = config['TargetSafety']['adverseEvents'],
-        sr = config['TargetSafety']['safetyRisk'],
+        ae = f"{config['global']['curation_repo']}/{config['TargetSafety']['adverseEvents']}",
+        sr = f"{config['global']['curation_repo']}/{config['TargetSafety']['safetyRisk']}",
         schema = f"{config['global']['schema']}/schemas/opentargets_target_safety.json"
     output:
         'safetyLiabilities.json.gz'
