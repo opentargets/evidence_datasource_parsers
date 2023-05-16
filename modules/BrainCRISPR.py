@@ -2,6 +2,7 @@
 """This module generates crispr evidence based on Brain Crispr resource."""
 from __future__ import annotations
 from typing import TYPE_CHECKING
+import logging
 
 from urllib.parse import quote
 from requests import post
@@ -16,6 +17,10 @@ from pyspark import SparkFiles
 
 if TYPE_CHECKING:
     from pyspark.sql import DataFrame, SparkSession
+
+
+# create and configure main logger
+logger = logging.getLogger(__name__)
 
 
 class CRISPRBrain:
@@ -164,6 +169,33 @@ class CRISPRBrain:
 
         return {"title": title, "experiment": experiment, "analysis": analysis}
 
+    @staticmethod
+    def __QC_studies(df: DataFrame) -> DataFrame:
+        """Report missing literature and disease annotation on the study table. Apply disease filter.
+
+        Args:
+            df (DataFrame): Study table
+
+        Returns:
+            DataFrame: Same schema, filtered for available disease mapping.
+        """
+        # Get the number of studies with no literature mapping:
+        studies_wo_lit = df.filter(f.col("literature").isNull()).count()
+        logger.info(f"Number of studies without literature mapping: {studies_wo_lit}")
+
+        # Get the number of studies with no disease mapping:
+        studies_wo_disease = df.filter(
+            f.col("diseaseFromSourceMappedId").isNull()
+        ).count()
+        logger.info(f"Number of studies without disease mapping: {studies_wo_disease}")
+
+        # Get the number of studies with disease mapping:
+        filtered_df = df.filter(f.col("diseaseFromSourceMappedId").isNotNull())
+        logger.info(f"Number of studies with disease mapping: {filtered_df.count()}")
+
+        # Return filtered dataframe:
+        return filtered_df
+
     def __parse_gene_list(self: CRISPRBrain, study_id: str) -> DataFrame:
         """
         This function parses a gene list for a single screen and returns a dataframe with hit genes.
@@ -231,15 +263,17 @@ class CRISPRBrain:
                 # f.col("studySummary.experiment").alias("experiment"),
                 f.col("Cell Type").alias("cellType"),
                 f.when(f.col("Genotype") != "WT", f.col("Genotype"))
-                    .otherwise(None)
-                    .alias("geneticBackground"),
+                .otherwise(None)
+                .alias("geneticBackground"),
                 "Phenotype",
                 "literature",
             )
             # Joining resolved literature:
-            .join(self.__get_disease_mapping(), on="studyId", how="inner")
+            .join(self.__get_disease_mapping(), on="studyId", how="left")
             # Keep contrast if provided with the curation, otherwise keep the phenotype annotation:
             .withColumn("contrast", f.coalesce("contrast", "Phenotype"))
+            # Do a QC and filter on the study table at this point:
+            .transform(self.__QC_studies)
             .drop("Phenotype")
             .persist()
         )
