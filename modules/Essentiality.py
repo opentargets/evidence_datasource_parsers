@@ -19,7 +19,6 @@ if TYPE_CHECKING:
 
 
 class DepMapEssentiality:
-
     # List of files to be used:
     MODELS = "Model.csv"
     ESSENTIAL_GENE_LIST = "CRISPRInferredCommonEssentials.csv"
@@ -35,7 +34,6 @@ class DepMapEssentiality:
         tissue_mapping_url: str,
         keep_only_essentials: bool = True,
     ) -> None:
-
         self.spark = spark
 
         # Reading model data:
@@ -111,7 +109,8 @@ class DepMapEssentiality:
                 f.when(f.col("isEssential") == True, True)
                 .otherwise(False)
                 .alias("isEssential"),
-            ).persist()
+            )
+            .persist()
         )
 
         # If only essential genes are needed, drop all other:
@@ -124,7 +123,64 @@ class DepMapEssentiality:
         assert isinstance(self.essentials, DataFrame)
 
     def get_essential_genes_dataframe(self) -> DataFrame:
-        return self.essentials
+        """Returning aggregated view on essentiality.
+
+        Returns:
+            DataFrame: data grouped by gene then by tissue.
+
+        Schema:
+            root
+            |-- targetSymbol: string (nullable = true)
+            |-- isEssential: boolean (nullable = true)
+            |-- depMapEssentiality: array (nullable = false)
+            |    |-- element: struct (containsNull = false)
+            |    |    |-- tissueId: string (nullable = true)
+            |    |    |-- tissueName: string (nullable = true)
+            |    |    |-- screens: array (nullable = false)
+            |    |    |    |-- element: struct (containsNull = false)
+            |    |    |    |    |-- depmapId: string (nullable = true)
+            |    |    |    |    |-- cellLineName: string (nullable = true)
+            |    |    |    |    |-- diseaseFromSource: string (nullable = true)
+            |    |    |    |    |-- diseaseCellLineId: string (nullable = true)
+            |    |    |    |    |-- mutation: string (nullable = true)
+            |    |    |    |    |-- geneEffect: float (nullable = true)
+            |    |    |    |    |-- expression: float (nullable = true)
+        """
+        # Return grouped essentiality data:
+        return (
+            # Aggregating data by gene:
+            self.essentials.groupBy(
+                "targetSymbol",
+                "isEssential",
+                "tissueId",
+                "tissueName",
+            )
+            # Aggregating data further by tissue:
+            .agg(
+                f.collect_set(
+                    f.struct(
+                        f.col("depmapId").alias("depmapId"),
+                        f.col("cellLineName").alias("cellLineName"),
+                        f.col("diseaseFromSource").alias("diseaseFromSource"),
+                        f.col("diseaseCellLineId").alias("diseaseCellLineId"),
+                        f.col("mutation").alias("mutation"),
+                        f.col("geneEffect").alias("geneEffect"),
+                        f.col("expression").alias("expression"),
+                    )
+                ).alias("screens")
+            )
+            .groupBy("targetSymbol", "isEssential")
+            .agg(
+                f.collect_set(
+                    f.struct(
+                        f.col("tissueId").alias("tissueId"),
+                        f.col("tissueName").alias("tissueName"),
+                        f.col("screens").alias("screens"),
+                    )
+                ).alias("depMapEssentiality")
+            )
+            .persist()
+        )
 
     def get_stats_on_essentials(self) -> None:
         entry_count = self.essentials.count()
@@ -134,6 +190,10 @@ class DepMapEssentiality:
         print(f"Number of entries: {entry_count}")
         print(f"Number of essential genes: {gene_count}")
         print(f"Number of unique diseases: {disease_count}")
+
+    def get_evidence_dataframe(self) -> DataFrame:
+        """Write disease/target evidence."""
+        raise NotImplementedError
 
     def _get_tissue_mapping(self, tissue_mapping_url: str) -> DataFrame:
         """Fetch tissue mapping stored as a tsv in github URL.
@@ -146,13 +206,19 @@ class DepMapEssentiality:
         """
         self.spark.sparkContext.addFile(tissue_mapping_url)
         return self.spark.read.csv(
-            "file://" + SparkFiles.get(tissue_mapping_url.split("/")[-1]), sep=",", header=True
+            "file://" + SparkFiles.get(tissue_mapping_url.split("/")[-1]),
+            sep=",",
+            header=True,
         )
 
     def _read_and_melt(self, filename: str, value_name: str) -> DataFrame:
         # Reading csv into dataframe:
-        df = self.spark.read.csv(filename, sep=",", header=True).withColumnRenamed(
-            "_c0", "depmapId"
+        df = (
+            self.spark.read.csv(filename, sep=",", header=True)
+            # Some files don't have label for the first column:
+            .withColumnRenamed("_c0", "depmapId")
+            # Some files have the wrong label:
+            .withColumnRenamed("ModelID", "depmapId")
         )
 
         # Extracting cell lines:
@@ -162,11 +228,15 @@ class DepMapEssentiality:
         unpivot_expression = f"""stack({len(genes)}, {', '.join([f"'{c}', `{c}`" for c in genes])}) as (gene_label, {value_name})"""
 
         # Transform dataset:
-        return df.select("depmapId", f.expr(unpivot_expression)).select(
-            "depmapId",
-            self._extract_gene_symbol(f.col("gene_label")),
-            f.col(value_name).cast(t.FloatType()),
-        ).repartition("depmapId")
+        return (
+            df.select("depmapId", f.expr(unpivot_expression))
+            .select(
+                "depmapId",
+                self._extract_gene_symbol(f.col("gene_label")),
+                f.col(value_name).cast(t.FloatType()),
+            )
+            .repartition("depmapId")
+        )
 
     @staticmethod
     def _extract_gene_symbol(gene_col: Column) -> Column:
@@ -175,7 +245,14 @@ class DepMapEssentiality:
     def _prepare_models(self, model_file: str) -> DataFrame:
         return self.spark.read.csv(model_file, sep=",", header=True).select(
             f.col("ModelID").alias("depmapId"),
-            f.col("CellLineName").alias("cellLineName"),
+            # If cell line name is provided, it's picked:
+            f.when(f.col("CellLineName").isNotNull(), f.col("CellLineName"))
+            # When not cell line name, but Cancer Cell Line Enciclopedia name is provided, that's picked:
+            .when(f.col("CCLEName").isNotNull(), f.col("CCLEName"))
+            # If none of these sources are available, the cell line name is generated from the disease name:
+            .otherwise(
+                f.concat(f.col("OncotreePrimaryDisease"), f.lit(" cells"))
+            ).alias("cellLineName"),
             f.col("SangerModelID").alias("modelId"),
             f.col("OncotreeLineage").alias("oncotreeLineage"),
             f.col("OncotreePrimaryDisease").alias("diseaseFromSource"),
@@ -186,29 +263,6 @@ class DepMapEssentiality:
             self._extract_gene_symbol(f.col("Essentials")),
             f.lit(True).alias("isEssential"),
         )
-
-
-def get_depmap_essentials(
-    spark: SparkSession,
-    input_folder: str,
-    tissue_mapping_url: str,
-    keep_essentials_only: bool = False,
-) -> DataFrame:
-    """Wrapper function around the DepMap gene essentiality parser.
-
-    Args:
-        spark (SparkSession):
-        input_folder (str): input folder
-        tissue_mapping_url (str): path to tissue mapping
-        keep_essentials_only (bool): flag indicating if only essential genes are needed.
-
-    Returns:
-        DataFrame: Parsed essentiality data in spark dataframe.
-    """
-    depmap_essentials = DepMapEssentiality(
-        spark, input_folder, tissue_mapping_url, keep_essentials_only
-    )
-    return depmap_essentials.get_essential_genes_dataframe()
 
 
 def main(
@@ -234,23 +288,15 @@ def main(
     # Initializing spark session:
     spark = initialize_sparksession()
 
-    gene_essentiality = [
-        # Generate gene essentiality tables from depmap data:
-        get_depmap_essentials(
-            spark, depmap_input_folder, tissue_mapping_url, keep_essentials_only
-        ).persist(),
-        # Potential further sources will come here:
-    ]
-
-    # merging all dataset into a single table:
-    gene_essentiality_df = reduce(
-        lambda df1, df2: df1.unionByName(df2, allowMissingColumns=True),
-        gene_essentiality,
+    # Process essentiality from depmap:
+    depmap_essentials = DepMapEssentiality(
+        spark, depmap_input_folder, tissue_mapping_url, keep_essentials_only
     )
 
-    # Write output:
-    # write_evidence_strings(gene_essentiality_df, output_file)
-    gene_essentiality_df.write.mode('overwrite').parquet(output_file)
+    # Write essentiality output:
+    write_evidence_strings(
+        depmap_essentials.get_essential_genes_dataframe(), output_file
+    )
 
 
 def parse_command_line_parameters():
@@ -283,13 +329,17 @@ def parse_command_line_parameters():
         default=None,
         required=False,
     )
-    parser.add_argument('--essential_only', action='store_true', default=False, help="Only essential genes are kept in the output.",)
+    parser.add_argument(
+        "--essential_only",
+        action="store_true",
+        default=False,
+        help="Only essential genes are kept in the output.",
+    )
 
     return parser
 
 
 if __name__ == "__main__":
-
     # Reading output file name from the command line:
     args = parse_command_line_parameters().parse_args()
 
