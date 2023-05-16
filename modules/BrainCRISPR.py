@@ -52,7 +52,7 @@ class CRISPRBrain:
         self.disease_mapping_file = disease_mapping_url.split("/")[-1]
 
     def __get_study_table(self: CRISPRBrain) -> DataFrame:
-        """Extract scree data from Crispr brain API.
+        """Extract screen data from Crispr brain API.
 
         Returns:
             spark dataframe with the parsed CRISPR Brain screens.
@@ -231,8 +231,8 @@ class CRISPRBrain:
                 # f.col("studySummary.experiment").alias("experiment"),
                 f.col("Cell Type").alias("cellType"),
                 f.when(f.col("Genotype") != "WT", f.col("Genotype"))
-                .otherwise(None)
-                .alias("geneticBackground"),
+                    .otherwise(None)
+                    .alias("geneticBackground"),
                 "Phenotype",
                 "literature",
             )
