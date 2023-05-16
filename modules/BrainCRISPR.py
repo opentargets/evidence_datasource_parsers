@@ -93,7 +93,7 @@ class CRISPRBrain:
     def __get_disease_mapping(self: CRISPRBrain) -> DataFrame:
         """Read screen to disease and contrast mappings."""
 
-        return (
+        disease_mappings_df = (
             self.spark.read.csv(
                 SparkFiles.get(self.disease_mapping_file), sep="\t", header=True
             )
@@ -103,6 +103,11 @@ class CRISPRBrain:
                 f.split(f.col("diseaseFromSourceMappedId"), ", "),
             )
         )
+
+        logger.info(
+            f"Number of studies with disease mapping: {disease_mappings_df.count()}"
+        )
+        return disease_mappings_df
 
     def __get_literature_mapping(self: CRISPRBrain) -> DataFrame:
         """Read screen publication to pmid mappings."""
