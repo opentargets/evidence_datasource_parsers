@@ -1,10 +1,10 @@
 global:
   logDir: gs://otar000-evidence_input/parser_logs
   cacheDir: cache_dir
-  schema: https://raw.githubusercontent.com/opentargets/json_schema/2.3.1
-  EFOVersion: v3.50.0
+  schema: https://raw.githubusercontent.com/opentargets/json_schema/2.3.2
+  EFOVersion: v3.54.0
   cell_passport_file: https://cog.sanger.ac.uk/cmp/download/model_list_latest.csv.gz
-  curation_repo: https://raw.githubusercontent.com/opentargets/curation/23.02
+  curation_repo: https://raw.githubusercontent.com/opentargets/curation/23.06
 cancerBiomarkers:
   inputAssociationsTable: gs://otar000-evidence_input/CancerBiomarkers/data_files/cancerbiomarkers-2018-05-01.tsv
   inputSourceTable: gs://otar000-evidence_input/CancerBiomarkers/data_files/cancer_biomarker_source.jsonl
