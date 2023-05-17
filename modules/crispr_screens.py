@@ -31,7 +31,7 @@ def main(spark: SparkSession, crispr_brain_mapping: str) -> DataFrame:
         crispr_screen_evidence_sets,
     )
 
-    logging.info(f"Total number of gene_burden evidence: {combined_evidence.count()}")
+    logging.info(f"Total number of CRISPR screen evidence: {combined_evidence.count()}")
     return combined_evidence
 
 
