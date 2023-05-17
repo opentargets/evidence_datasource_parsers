@@ -39,9 +39,17 @@ ALL_FILES = [
     ('sysbio.json.gz', GS.remote(f"{config['SysBio']['outputBucket']}/sysbio-{timeStamp}.json.gz")),
     ('tep.json.gz', GS.remote(f"{config['TEP']['outputBucket']}/tep-{timeStamp}.json.gz")),
     ('safetyLiabilities.json.gz', GS.remote(f"{config['TargetSafety']['outputBucket']}/safetyLiabilities-{timeStamp}.json.gz")),
+    ('crispr_screens.json.gz', GS.remote(f"{config['CrisprScreens']['outputBucket']}/crispr_screens-{timeStamp}.json.gz")),
 ]
 LOCAL_FILENAMES = [f[0] for f in ALL_FILES]
 REMOTE_FILENAMES = [f[1] for f in ALL_FILES]
+
+# At this point parsing the PPP datasources are not yet as integrated as to add these files to the complete set of output:
+PPP_sources = [
+    ('ot_crispr.json.gz', GS.remote(f"{config['OT_CRISPR']['outputBucket']}/ot_crispr-{timeStamp}.json.gz")),
+    ('validation_lab.json.gz', GS.remote(f"{config['ValidationLab']['outputBucket']}/validation_lab-{timeStamp}.json.gz")),
+    ('encore.json.gz', GS.remote(f"{config['Encore']['outputBucket']}/encore-{timeStamp}.json.gz"))
+]
 
 # Auxiliary rules.
 rule help:                    # Print help comments for Snakefile.
@@ -77,7 +85,7 @@ rule cancerBiomarkers:        # Process the Cancers Biomarkers database from Can
         disease_table = GS.remote(config['cancerBiomarkers']['inputDiseaseTable']),
         drug_index = GS.remote(config['cancerBiomarkers']['drugIndex'])
     params:
-        schema = f"{config['global']['schema']}/opentargets.json"
+        schema = f"{config['global']['schema']}/schemas/disease_target_evidence.json"
     output:
         'cancer_biomarkers.json.gz'
     log:
@@ -101,7 +109,7 @@ rule chembl:                  # Add the category of why a clinical trial has sto
         evidenceFile = GS.remote(config['ChEMBL']['evidence']),
         stopReasonCategories = GS.remote(config['ChEMBL']['stopReasonCategories'])
     params:
-        schema = f"{config['global']['schema']}/opentargets.json"
+        schema = f"{config['global']['schema']}/schemas/disease_target_evidence.json"
     output:
         evidenceFile = 'chembl.json.gz'
     log:
@@ -120,7 +128,7 @@ rule clingen:                 # Process the Gene Validity Curations table from C
     params:
         summaryTableWeb = config['ClinGen']['webSource'],
         cacheDir = config['global']['cacheDir'],
-        schema = f"{config['global']['schema']}/opentargets.json"
+        schema = f"{config['global']['schema']}/schemas/disease_target_evidence.json"
     output:
         evidenceFile = 'clingen.json.gz',
         summaryTable = 'clingen-Gene-Disease-Summary.csv'
@@ -147,7 +155,7 @@ rule crispr:                  # Process cancer therapeutic targets using CRISPRâ
         descriptionsFile = GS.remote(config['CRISPR']['inputDescriptionsTable']),
         cellTypesFile = GS.remote(config['CRISPR']['inputCellTypesTable'])
     params:
-        schema = f"{config['global']['schema']}/opentargets.json"
+        schema = f"{config['global']['schema']}/schemas/disease_target_evidence.json"
     output:
         evidenceFile = 'crispr.json.gz'
     log:
@@ -167,12 +175,12 @@ rule geneBurden:              # Processes gene burden data from various burden a
     input:
         azPhewasBinary = GS.remote(config['GeneBurden']['azPhewasBinary']),
         azPhewasQuant = GS.remote(config['GeneBurden']['azPhewasQuantitative']),
-        curation = HTTP.remote(config['GeneBurden']['curation']),
+        curation = HTTP.remote(f"{config['GeneBurden']['curation_repo']}/{config['GeneBurden']['curation']}"),
         genebass = GS.remote(config['GeneBurden']['genebass']),
     output:
         evidenceFile = "gene_burden.json.gz"
     params:
-        schema = f"{config['global']['schema']}/opentargets.json"
+        schema = f"{config['global']['schema']}/schemas/disease_target_evidence.json"
     log:
         'log/gene_burden.log'
     shell:
@@ -196,7 +204,7 @@ rule gene2Phenotype:          # Processes four gene panels from Gene2Phenotype
         cardiacPanel = HTTP.remote(config['Gene2Phenotype']['webSource_cardiac_panel'])
     params:
         cacheDir = config['global']['cacheDir'],
-        schema = f"{config['global']['schema']}/opentargets.json"
+        schema = f"{config['global']['schema']}/schemas/disease_target_evidence.json"
     output:
         ddBucket = 'DDG2P.csv.gz',
         eyeBucket = 'EyeG2P.csv.gz',
@@ -233,7 +241,7 @@ rule intogen:                 # Process cohorts and driver genes data from intOG
         inputCohorts = GS.remote(config['intOGen']['inputCohortsTable']),
         diseaseMapping = config['intOGen']['diseaseMapping']
     params:
-        schema = f"{config['global']['schema']}/opentargets.json"
+        schema = f"{config['global']['schema']}/schemas/disease_target_evidence.json"
     output:
         evidenceFile = 'intogen.json.gz'
     log:
@@ -254,7 +262,7 @@ rule orphanet:                # Process disease/target evidence from Orphanet.
         HTTP.remote(config['Orphanet']['webSource'])
     params:
         cacheDir = config['global']['cacheDir'],
-        schema = f"{config['global']['schema']}/opentargets.json"
+        schema = f"{config['global']['schema']}/schemas/disease_target_evidence.json"
     output:
         'orphanet.json.gz'
     log:
@@ -274,7 +282,7 @@ rule panelApp:                # Process gene panels data curated by Genomics Eng
         inputFile = GS.remote(config['PanelApp']['inputAssociationsTable'])
     params:
         cacheDir = config['global']['cacheDir'],
-        schema = f"{config['global']['schema']}/opentargets.json"
+        schema = f"{config['global']['schema']}/schemas/disease_target_evidence.json"
     output:
         evidenceFile = 'genomics_england.json.gz'
     log:
@@ -292,7 +300,7 @@ rule panelApp:                # Process gene panels data curated by Genomics Eng
 rule impc:                    # Process target-disease evidence and mouseModels dataset by querying the IMPC SOLR API.
     params:
         cacheDir = config['global']['cacheDir'],
-        schema = f"{config['global']['schema']}/opentargets.json"
+        schema = f"{config['global']['schema']}/schemas/disease_target_evidence.json"
     output:
         evidenceFile='impc.json.gz',
         mousePhenotypes='mouse_phenotypes.json.gz'
@@ -315,7 +323,7 @@ rule progeny:                 # Process gene expression data from TCGA derived f
         diseaseMapping = config['PROGENy']['inputDiseaseMapping'],
         pathwayMapping = config['PROGENy']['inputPathwayMapping']
     params:
-        schema = f"{config['global']['schema']}/opentargets.json"
+        schema = f"{config['global']['schema']}/schemas/disease_target_evidence.json"
     output:
         evidenceFile = 'progeny.json.gz'
     log:
@@ -336,7 +344,7 @@ rule slapenrich:              # Process cancer-target evidence strings derived f
         inputFile = GS.remote(config['SLAPEnrich']['inputAssociationsTable']),
         diseaseMapping = config['SLAPEnrich']['inputDiseaseMapping']
     params:
-        schema = f"{config['global']['schema']}/opentargets.json"
+        schema = f"{config['global']['schema']}/schemas/disease_target_evidence.json"
     output:
         evidenceFile = 'slapenrich.json.gz'
     log:
@@ -356,7 +364,7 @@ rule sysbio:                  # Process key driver genes for specific diseases t
         evidenceFile = GS.remote(config['SysBio']['inputAssociationsTable']),
         studyFile = GS.remote(config['SysBio']['inputStudyTable'])
     params:
-        schema = f"{config['global']['schema']}/opentargets.json"
+        schema = f"{config['global']['schema']}/schemas/disease_target_evidence.json"
     output:
         evidenceFile = 'sysbio.json.gz'
     log:
@@ -374,7 +382,7 @@ rule sysbio:                  # Process key driver genes for specific diseases t
 # --- Target annotation data sources parsers --- #
 rule targetEnablingPackages:  # Fetching Target Enabling Packages (TEP) data from Structural Genomics Consortium
     params:
-        schema = f"{config['global']['schema']}/opentargets_tep.json"
+        schema = f"{config['global']['schema']}/schemas/TEP.json"
     output:
         'tep.json.gz'
     log:
@@ -387,14 +395,32 @@ rule targetEnablingPackages:  # Fetching Target Enabling Packages (TEP) data fro
         opentargets_validator --schema {params.schema} {output}
         """
 
+rule crisprScreens:            # Generating disease/target evidence based on various sources of CRISPR screens.
+    params:
+        schema = f"{config['global']['schema']}/schemas/disease_target_evidence.json",
+        crispr_brain_mapping = f"{config['global']['curation_repo']}/{config['CrisprScreens']['crispr_brain_mapping']}"
+    output:
+        'crispr_screens.json.gz'
+    log:
+        'log/crispr_screens.log'
+    shell:
+        """
+        exec &> {log}
+        python modules/crispr_screens.py  \
+            --crispr_brain_mapping {params.crispr_brain_mapping} \
+            --output {output}
+        opentargets_validator --schema {params.schema} {output}
+        """
+
+
 rule targetSafety:            # Process data from different sources that describe target safety liabilities.
     input:
         toxcast = GS.remote(config['TargetSafety']['toxcast']),
         aopwiki = GS.remote(config['TargetSafety']['aopwiki'])
     params:
-        ae = config['TargetSafety']['adverseEvents'],
-        sr = config['TargetSafety']['safetyRisk'],
-        schema = f"{config['global']['schema']}/opentargets_target_safety.json"
+        ae = f"{config['global']['curation_repo']}/{config['TargetSafety']['adverseEvents']}",
+        sr = f"{config['global']['curation_repo']}/{config['TargetSafety']['safetyRisk']}",
+        schema = f"{config['global']['schema']}/schemas/opentargets_target_safety.json"
     output:
         'safetyLiabilities.json.gz'
     log:
@@ -410,3 +436,76 @@ rule targetSafety:            # Process data from different sources that describ
             --output {output}
         opentargets_validator --schema {params.schema} {output}
         """
+
+rule ot_crispr:               # Generating PPP evidence for OTAR CRISPR screens
+    params:
+        data_folder = config['OT_CRISPR']['data_directory'],
+        study_table = config['OT_CRISPR']['config'],
+        schema = f"{config['global']['schema']}/schemas/disease_target_evidence.json"
+    output:
+        'ot_crispr.json.gz'
+    log:
+        'log/ot_crispr.log'
+    shell:
+        """
+        exec &> {log}
+        python partner_preview_scripts/ot_crispr.py \
+            --study_table {params.study_table} \
+            --data_folder {params.data_folder} \
+            --output {output}
+        opentargets_validator --schema {params.schema} {output}
+        """
+
+rule encore:               # Generating PPP evidence for ENCORE
+    params:
+        data_folder = config['Encore']['data_directory'],
+        config = config['Encore']['config'],
+        schema = f"{config['global']['schema']}/schemas/disease_target_evidence.json"
+    output:
+        'encore.json.gz'
+    input:
+        cell_passport_table = HTTP.remote(config['global']['cell_passport_file'], keep_local=True),
+    log:
+        'log/encore.log'
+    shell:
+        """
+        exec &> {log}
+        python partner_preview_scripts/encore_parser.py \
+            --output_file {output} \
+            --parameter_file {params.config} \
+            --data_folder {params.data_folder} \
+            --cell_passport_file {input.cell_passport_table}
+        opentargets_validator --schema {params.schema} {output}
+        """
+
+rule validation_lab:               # Generating PPP evidence for Validation Lab
+    params:
+        data_folder = config['ValidationLab']['data_directory'],
+        config = config['ValidationLab']['config'],
+        schema = f"{config['global']['schema']}/schemas/disease_target_evidence.json"
+    input:
+        cell_passport_table = HTTP.remote(config['global']['cell_passport_file'], keep_local=True),
+    output:
+        'validation_lab.json.gz'
+    log:
+        'log/validation_lab.log'
+    shell:
+        """
+        exec &> {log}
+        python partner_preview_scripts/ValidationLab.py \
+            --parameter_file {params.config} \
+            --data_folder {params.data_folder} \
+            --cell_passport_file {input.cell_passport_table} \
+            --output_file {output}
+        opentargets_validator --schema {params.schema} {output}
+        """
+
+rule PPP:                          # Moving local PPP evidence to the destination bucket.
+    input:
+        [source[0] for source in PPP_sources]
+    output:
+        [source[1] for source in PPP_sources]
+    run:
+        for source in PPP_sources:
+            os.rename(source[0], source[1])
+
