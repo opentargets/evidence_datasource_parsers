@@ -398,7 +398,7 @@ rule targetEnablingPackages:  # Fetching Target Enabling Packages (TEP) data fro
 rule crisprScreens:            # Generating disease/target evidence based on various sources of CRISPR screens.
     params:
         schema = f"{config['global']['schema']}/schemas/disease_target_evidence.json",
-        crispr_brain_mapping = config['CrisprScreens']['crispr_brain_mapping']
+        crispr_brain_mapping = f"{config['global']['curation_repo']}/{config['CrisprScreens']['crispr_brain_mapping']}"
     output:
         'crispr_screens.json.gz'
     log:

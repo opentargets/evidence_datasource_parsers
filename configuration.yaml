@@ -87,5 +87,4 @@ Encore:
   outputBucket: gs://otar013-ppp/encore
 CrisprScreens:
   outputBucket: gs://otar000-evidence_input/Crispr_screens/json
-  # This line needs to be updated once the mapping is merged into the curation repo:
-  crispr_brain_mapping: https://gist.githubusercontent.com/DSuveges/218e1a5747b287423654ec16a0b37124/raw/2becccda79c9b7a42a139212e4ac3c247cf6611a/brain_crispr_studies.tsv
+  crispr_brain_mapping: mappings/disease/brain_crispr_studies.tsv
