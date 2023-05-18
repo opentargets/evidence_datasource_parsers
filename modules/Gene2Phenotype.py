@@ -117,8 +117,6 @@ def process_gene2phenotype(gene2phenotype_df: DataFrame) -> DataFrame:
         f.split(f.col("pmids"), ";").alias("literature"),
         # Split phenotypes:
         f.split(f.col("phenotypes"), ";").alias("phenotypes"),
-        # Split organ specificity:
-        f.split(f.col("organ specificity list"), ";").alias("organ_specificities"),
         # Renaming a few columns:
         f.col("gene symbol").alias("targetFromSourceId"),
         f.col("disease name").alias("diseaseFromSource"),
