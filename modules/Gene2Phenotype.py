@@ -129,7 +129,6 @@ def process_gene2phenotype(gene2phenotype_df: DataFrame) -> DataFrame:
         f.split(f.col("phenotypes"), ";").alias("phenotypes"),
         # Renaming a few columns:
         f.col("gene symbol").alias("targetFromSourceId"),
-        f.col("disease name").alias("diseaseFromSource"),
         f.col("panel").alias("studyId"),
         f.col("confidence category").alias("confidence"),
         # Parsing allelic requirements:
