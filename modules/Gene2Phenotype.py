@@ -93,7 +93,7 @@ def read_input_files(
         .add("disease ontology", t.StringType())
     )
 
-    datasets = (
+    return (
         spark.read.option("multiLine", True)
         .option("encoding", "UTF-8")
         .csv(
@@ -104,17 +104,11 @@ def read_input_files(
             sep=",",
             quote='"',
         )
-    )
-
-    print(f"All data: {datasets.count()}")
-
-    filtered_datasets = (
-        datasets
-        # Some of the
+        # Dropping one incomplete evidence due to parsing problem:
+        # All data: 4094
+        # Filtered data: 4093
         .filter(f.col("gene symbol").isNotNull() & f.col("panel").isNotNull())
     )
-    print(f"Filtered data: {filtered_datasets.count()}")
-    return filtered_datasets
 
 
 def process_gene2phenotype(gene2phenotype_df: DataFrame) -> DataFrame:
