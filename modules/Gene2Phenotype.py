@@ -111,11 +111,7 @@ def read_input_files(
     filtered_datasets = (
         datasets
         # Some of the
-        .filter(
-            f.col("gene symbol").isNotNull()
-            & f.col("pmids").isNotNull()
-            & f.col("panel").isNotNull()
-        )
+        .filter(f.col("gene symbol").isNotNull() & f.col("panel").isNotNull())
     )
     print(f"Filtered data: {filtered_datasets.count()}")
     return filtered_datasets
@@ -151,7 +147,7 @@ def process_gene2phenotype(gene2phenotype_df: DataFrame) -> DataFrame:
         .otherwise(f.lit(None))
         .alias("diseaseFromSourceId"),
         # Cleaning disease names:
-        f.regexp_replace(f.col("diseaseFromSource"), r".+-related ", "").alias(
+        f.regexp_replace(f.col("disease name"), r".+-related ", "").alias(
             "diseaseFromSource"
         ),
         # Map functional consequences:
