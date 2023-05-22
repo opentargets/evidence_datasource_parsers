@@ -36,7 +36,7 @@ def main(
     spark = initialize_sparksession()
 
     # Read and process G2P's tables into evidence strings
-    gene2phenotype_df = read_input_file(
+    gene2phenotype_df = read_input_files(
         spark, dd_file, eye_file, skin_file, cancer_file, cardiac_file
     )
     logging.info(
@@ -57,7 +57,7 @@ def main(
     )
 
 
-def read_input_file(
+def read_input_files(
     spark: SparkSession,
     dd_file: str,
     eye_file: str,
@@ -93,7 +93,7 @@ def read_input_file(
         .add("disease ontology", t.StringType())
     )
 
-    return (
+    datasets = (
         spark.read.option("multiLine", True)
         .option("encoding", "UTF-8")
         .csv(
@@ -105,6 +105,20 @@ def read_input_file(
             quote='"',
         )
     )
+
+    print(f"All data: {datasets.count()}")
+
+    filtered_datasets = (
+        datasets
+        # Some of the
+        .filter(
+            f.col("gene symbol").isNotNull()
+            & f.col("pmids").isNotNull()
+            & f.col("panel").isNotNull()
+        )
+    )
+    print(f"Filtered data: {filtered_datasets.count()}")
+    return filtered_datasets
 
 
 def process_gene2phenotype(gene2phenotype_df: DataFrame) -> DataFrame:
