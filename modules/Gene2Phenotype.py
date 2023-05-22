@@ -119,8 +119,8 @@ def process_gene2phenotype(gene2phenotype_df: DataFrame) -> DataFrame:
     return gene2phenotype_df.select(
         # Split pubmed IDs to list:
         f.split(f.col("pmids"), ";").alias("literature"),
-        # Split phenotypes:
-        f.split(f.col("phenotypes"), ";").alias("phenotypes"),
+        # Phenotypes are excluded from the schema:
+        # f.split(f.col("phenotypes"), ";").alias("phenotypes"),
         # Renaming a few columns:
         f.col("gene symbol").alias("targetFromSourceId"),
         f.col("panel").alias("studyId"),
