@@ -11,7 +11,6 @@ from pyspark.sql import SparkSession, DataFrame
 import pyspark.sql.functions as f
 from pyspark.sql.types import StringType, StructField, StructType, ArrayType
 from pyspark import SparkFiles
-from psutil import virtual_memory
 
 
 def detect_spark_memory_limit():
@@ -186,7 +185,8 @@ class GenerateDiseaseCellLines:
 
 def read_path(path: str, spark_instance) -> DataFrame:
     """Automatically detect the format of the input data and read it into the Spark dataframe. The supported formats
-    are: a single TSV file; a single JSON file; a directory with JSON files; a directory with Parquet files."""
+    are: a single TSV file; a single JSON file; a directory with JSON files; a directory with Parquet files.
+    """
     if path is None:
         return None
 

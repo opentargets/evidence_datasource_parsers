@@ -175,7 +175,7 @@ rule geneBurden:              # Processes gene burden data from various burden a
     input:
         azPhewasBinary = GS.remote(config['GeneBurden']['azPhewasBinary']),
         azPhewasQuant = GS.remote(config['GeneBurden']['azPhewasQuantitative']),
-        curation = HTTP.remote(f"{config['GeneBurden']['curation_repo']}/{config['GeneBurden']['curation']}"),
+        curation = HTTP.remote(f"{config['global']['curation_repo']}/{config['GeneBurden']['curation']}"),
         genebass = GS.remote(config['GeneBurden']['genebass']),
     output:
         evidenceFile = "gene_burden.json.gz"
@@ -395,7 +395,7 @@ rule targetEnablingPackages:  # Fetching Target Enabling Packages (TEP) data fro
         opentargets_validator --schema {params.schema} {output}
         """
 
-rule crisprScreens:            # Generating disease/target evidence based on various sources of CRISPR screens.
+rule crisprScreens:           # Generating disease/target evidence based on various sources of CRISPR screens.
     params:
         schema = f"{config['global']['schema']}/schemas/disease_target_evidence.json",
         crispr_brain_mapping = f"{config['global']['curation_repo']}/{config['CrisprScreens']['crispr_brain_mapping']}"
@@ -456,7 +456,7 @@ rule ot_crispr:               # Generating PPP evidence for OTAR CRISPR screens
         opentargets_validator --schema {params.schema} {output}
         """
 
-rule encore:               # Generating PPP evidence for ENCORE
+rule encore:                  # Generating PPP evidence for ENCORE
     params:
         data_folder = config['Encore']['data_directory'],
         config = config['Encore']['config'],
@@ -478,7 +478,7 @@ rule encore:               # Generating PPP evidence for ENCORE
         opentargets_validator --schema {params.schema} {output}
         """
 
-rule validation_lab:               # Generating PPP evidence for Validation Lab
+rule validation_lab:          # Generating PPP evidence for Validation Lab
     params:
         data_folder = config['ValidationLab']['data_directory'],
         config = config['ValidationLab']['config'],
@@ -500,7 +500,7 @@ rule validation_lab:               # Generating PPP evidence for Validation Lab
         opentargets_validator --schema {params.schema} {output}
         """
 
-rule PPP:                          # Moving local PPP evidence to the destination bucket.
+rule PPP:                     # Moving local PPP evidence to the destination bucket.
     input:
         [source[0] for source in PPP_sources]
     output:
