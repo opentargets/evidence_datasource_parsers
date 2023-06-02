@@ -109,7 +109,7 @@ NHL	Non-Hodgkin Lymphoma	EFO_0005952	non-hodgkins lymphoma	Dataset from intOGen
 ES	Ewing Sarcoma	EFO_0000174	ewing sarcoma	Dataset from intOGen
 ANSC	Anal Squamous Cell Carcinoma	EFO_1000081	anal squamous cell carcinoma	Dataset from intOGen
 LIHB	Hepatoblastoma	EFO_1000292	hepatoblastoma	Dataset from intOGen
-GINET	Gastrointestinal Neuroendocrine Tumors	EFO_1001901	neuroendocrine neoplasm	Dataset from intOGen
+GINET	Gastrointestinal Neuroendocrine Tumors	MONDO_0024503	digestive system neuroendocrine neoplasm	Dataset from intOGen
 SACA	Salivary Carcinoma	MONDO_0000521	salivary gland carcinoma	Dataset from intOGen
 CLLSLL	Chronic Lymphocytic Leukemia/Small Lymphocytic Lymphoma	EFO_0000095	chronic lymphocytic leukemia	Dataset from intOGen
 SBC	Small Bowel Cancer	MONDO_0000956	small intestine cancer	Dataset from intOGen

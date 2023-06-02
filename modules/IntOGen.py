@@ -89,7 +89,7 @@ class intogenEvidenceGenerator:
             )
 
         # Dropping cancer type acronym:
-        # self.evidence = self.evidence.drop("Cancer_type_acronym")
+        self.evidence = self.evidence.drop("Cancer_type_acronym")
 
     def write_evidence(self: intogenEvidenceGenerator, evidence_file: str) -> None:
         write_evidence_strings(self.evidence, evidence_file)
