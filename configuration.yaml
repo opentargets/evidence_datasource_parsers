@@ -39,8 +39,8 @@ Gene2Phenotype:
   inputBucket: gs://otar000-evidence_input/Gene2Phenotype/data_files
   outputBucket: gs://otar000-evidence_input/Gene2Phenotype/json
 intOGen:
-  inputAssociationsTable: gs://otar000-evidence_input/IntOgen/data_files/Compendium_Cancer_Genes.tsv
-  inputCohortsTable: gs://otar000-evidence_input/IntOgen/data_files/cohorts.tsv
+  inputAssociationsTable: gs://otar000-evidence_input/IntOgen/data_files/2023.05/Compendium_Cancer_Genes.tsv
+  inputCohortsTable: gs://otar000-evidence_input/IntOgen/data_files/2023.05/cohorts.tsv
   diseaseMapping: resources/cancer2EFO_mappings.tsv
   outputBucket: gs://otar000-evidence_input/IntOgen/json
 Orphanet:
