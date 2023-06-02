@@ -29,36 +29,36 @@ PAAD	Pancreas adenocarcinoma	EFO_1000044	pancreatic adenocarcinoma	Dataset from 
 SCLC	Small-cell lung cancer	EFO_0000702	small cell lung carcinoma	Dataset from intOGen
 SKCM	cutaneous melanoma	EFO_0000389	cutaneous melanoma	TCGA study abbreviations
 ACC	Adrenocortical carcinoma	EFO_1000796	adrenal cortex carcinoma	Dataset from intOGen
-ACY	Adenoid cystic carcinoma	EFO_0000231 	adenoid cystic carcinoma	Dataset from intOGen
+ACY	Adenoid cystic carcinoma	EFO_0000231	adenoid cystic carcinoma	Dataset from intOGen
 AML	Acute Myeloid Leukemia	EFO_0000222	acute myeloid leukemia	Dataset from intOGen
 AN	Anus cancer	MONDO_0001879	anus cancer	Dataset from intOGen
 ANGS	Angiosarcoma	EFO_0003968	angiosarcoma	Dataset from intOGen
 ATRT	Atypical teratoid/rhabdoid tumor	EFO_1002008	atypical teratoid rhabdoid tumor	Dataset from intOGen
 BC	Bowel cancer	EFO_0007330	intestinal cancer	Dataset from intOGen
-BCNET	Small intestine cancer neuroendocrine	EFO_1001928 	small intestine neuroendocrine tumor	Dataset from intOGen
+BCNET	Small intestine cancer neuroendocrine	EFO_1001928	small intestine neuroendocrine tumor	Dataset from intOGen
 BLY	Burkitt lymphoma	EFO_0000309	Burkitts lymphoma	Dataset from intOGen
-CESC	Cervix squamous cancer	EFO_1000172 	cervical squamous cell carcinoma	Dataset from intOGen
-CH	Cholangiocarcinoma	EFO_0005221 	cholangiocarcinoma	Dataset from intOGen
+CESC	Cervix squamous cancer	EFO_1000172	cervical squamous cell carcinoma	Dataset from intOGen
+CH	Cholangiocarcinoma	EFO_0005221	cholangiocarcinoma	Dataset from intOGen
 CM	Cutaneous melanoma of the skin	EFO_0000389	cutaneous melanoma	Dataset from intOGen
 SSCC	Skin squamous cell carcinoma	MONDO_0002529	skin squamous cell carcinoma	Dataset from intOGen
-EPD	Ependymoma	EFO_1000028 	ependymoma	Dataset from intOGen
+EPD	Ependymoma	EFO_1000028	ependymoma	Dataset from intOGen
 EWS	Ewing's sarcoma	EFO_0000174	Ewing sarcoma	Dataset from intOGen
-HBC	Hepatic blastoma	EFO_1000292 	Hepatoblastoma	Dataset from intOGen
-HC	Hepatic cancer	MONDO_0002691 	liver cancer 	Dataset from intOGen
+HBC	Hepatic blastoma	EFO_1000292	Hepatoblastoma	Dataset from intOGen
+HC	Hepatic cancer	MONDO_0002691	liver cancer	Dataset from intOGen
 HGG	High-grade Glioma	MONDO_0015917	malignant glioma	Dataset from intOGen
 LEIS	Leiomyosarcoma	EFO_0000564	leiomyosarcoma	Dataset from intOGen
 LNET	Lung neuroendocrine cancer	EFO_0005220	pulmonary neuroendocrine tumor	Dataset from intOGen
-LY	Lymphoma	EFO_0000574 	lymphoma	Dataset from intOGen
-MBL	Medulloblastoma	EFO_0002939 	medulloblastoma	Dataset from intOGen
+LY	Lymphoma	EFO_0000574	lymphoma	Dataset from intOGen
+MBL	Medulloblastoma	EFO_0002939	medulloblastoma	Dataset from intOGen
 MDPS	Myelodysplastic syndrome neoplasm	EFO_0000198	myelodysplastic syndrome	Dataset from intOGen
 MESO	Mesothelioma	EFO_0000588	mesothelioma	Dataset from intOGen
 MGCT	Male germ cell tumor	EFO_1000566	Testicular Germ Cell Tumor	Dataset from intOGen
-NHLY	Non-hodking lymphoma	EFO_0005952 	non-Hodgkins lymphoma	Dataset from intOGen
-NSCLC	Non small cell lung cancer	EFO_0003060 	non-small cell lung cancer	Dataset from intOGen
+NHLY	Non-hodking lymphoma	EFO_0005952	non-Hodgkins lymphoma	Dataset from intOGen
+NSCLC	Non small cell lung cancer	EFO_0003060	non-small cell lung cancer	Dataset from intOGen
 NSPH	Nasopharyngeal cancer	EFO_0004252	nasopharyngeal neoplasm	Dataset from intOGen
 OS	Osteosarcoma	EFO_0000637	osteosarcoma	Dataset from intOGen
 PAIS	Pancreatic neuroendocrine cancer	EFO_0007416	pancreatic endocrine carcinoma	Dataset from intOGen
-PCPG	Pheochromocytoma and Paraganglioma	EFO_0020005 	Pheochromocytoma-paraganglioma	Dataset from intOGen
+PCPG	Pheochromocytoma and Paraganglioma	EFO_0020005	Pheochromocytoma-paraganglioma	Dataset from intOGen
 PIA	Pilocityc astrocytoma	EFO_0000272	astrocytoma	Dataset from intOGen
 RB	Retinoblastoma	Orphanet_790	Retinoblastoma	Dataset from intOGen
 RCCC	Renal clear cell carcinoma	EFO_0000349	clear cell renal carcinoma	Dataset from intOGen
@@ -68,9 +68,53 @@ RPC	Renal papillary cell carcinoma	EFO_0000640	papillary renal cell carcinoma	Da
 S	Sarcoma	EFO_0000691	sarcoma	Dataset from intOGen
 SBCC	Skin basal cell carcinoma	EFO_0004193	basal cell carcinoma	Dataset from intOGen
 SG	Salivary glands cancer	MONDO_0004669	salivary gland cancer	Dataset from intOGen
-ST	Stomach adenocarcinoma	EFO_0000503 	gastric adenocarcinoma	Dataset from intOGen
-THYM	Thymic carcinoma	EFO_1000576 	Thymic Carcinoma	Dataset from intOGen
+ST	Stomach adenocarcinoma	EFO_0000503	gastric adenocarcinoma	Dataset from intOGen
+THYM	Thymic carcinoma	EFO_1000576	Thymic Carcinoma	Dataset from intOGen
 UCS	Uterine carcinosarcoma	EFO_1000613	Uterine Carcinosarcoma	Dataset from intOGen
 UVM	Uveal melanoma	EFO_1000616	Uveal Melanoma	Dataset from intOGen
 VV	Vulva Cancer	MONDO_0001528	vulva cancer	Dataset from intOGen
-WT	Wilms tumor	Orphanet_654 	Neprhoblastoma	Dataset from intOGen
+WT	Wilms tumor	Orphanet_654	Neprhoblastoma	Dataset from intOGen
+UM	Uveal Melanoma	EFO_1000616	uveal melanoma	Dataset from intOGen
+RMS	Rhabdomyosarcoma	EFO_0002918	rhabdomyosarcoma	Dataset from intOGen
+RCC	Renal Cell Carcinoma	EFO_0000681	renal cell carcinoma	Dataset from intOGen
+LMS	Leiomyosarcoma	EFO_0000564	leiomyosarcoma	Dataset from intOGen
+CHOL	Cholangiocarcinoma	EFO_0005221	cholangiocarcinoma	Dataset from intOGen
+MEL	Melanoma	EFO_0000756	melanoma	Dataset from intOGen
+BCC	Basal Cell Carcinoma	EFO_0004193	basal cell carcinoma	Dataset from intOGen
+PLMESO	Pleural Mesothelioma	EFO_1000485	pleural mesothelioma	Dataset from intOGen
+PANET	Pancreatic Neuroendocrine Tumor	EFO_1000045	pancreatic neuroendocrine tumor	Dataset from intOGen
+LNM	Lymphoid Neoplasm	EFO_0001642	lymphoid neoplasm	Dataset from intOGen
+PAST	Pilocytic Astrocytoma	MONDO_0016691	pilocytic astrocytoma	Dataset from intOGen
+BL	Burkitt Lymphoma	EFO_0000309	burkitts lymphoma	Dataset from intOGen
+ACYC	Adenoid Cystic Carcinoma	EFO_0000231	adenoid cystic carcinoma	Dataset from intOGen
+WDTC	Well-Differentiated Thyroid Cancer	EFO_1002017	differentiated thyroid carcinoma	Dataset from intOGen
+COAD	Colon Adenocarcinoma	EFO_1001949	colon adenocarcinoma	Dataset from intOGen
+EPM	Ependymoma	EFO_1000028	ependymoma	Dataset from intOGen
+CSCC	Cutaneous Squamous Cell Carcinoma	EFO_1001927	cutaneous squamous cell carcinoma	Dataset from intOGen
+MLYM	Malignant Lymphoma	EFO_0000574	lymphoma	Dataset from intOGen
+MDS	Myelodysplastic Syndromes	EFO_0000198	myelodysplastic syndrome	Dataset from intOGen
+PGNG	Paraganglioma	EFO_1000453	paraganglioma	Dataset from intOGen
+CCRCC	Renal Clear Cell Carcinoma	EFO_0000349	clear cell renal carcinoma	Dataset from intOGen
+HCC	Hepatocellular Carcinoma	EFO_0000182	hepatocellular carcinoma	Dataset from intOGen
+OVT	Ovarian Epithelial Tumor	MONDO_0002229	ovarian epithelial tumor	Dataset from intOGen
+PRCC	Papillary Renal Cell Carcinoma	EFO_0000640	papillary renal cell carcinoma	Dataset from intOGen
+COADREAD	Colorectal Adenocarcinoma	EFO_0000365	colorectal adenocarcinoma	Dataset from intOGen
+RBL	Retinoblastoma	MONDO_0008380	retinoblastoma	Dataset from intOGen
+CHRCC	Chromophobe Renal Cell Carcinoma	EFO_0000335	chromophobe renal cell carcinoma	Dataset from intOGen
+NBL	Neuroblastoma	EFO_0000621	neuroblastoma	Dataset from intOGen
+NPC	Nasopharyngeal Carcinoma	EFO_0004252	nasopharyngeal neoplasm	Dataset from intOGen
+PCM	Plasma Cell Myeloma	EFO_0001378	multiple myeloma	Dataset from intOGen
+PSCC	Penile Squamous Cell Carcinoma	MONDO_0018352	squamous cell carcinoma of penis	Dataset from intOGen
+NHL	Non-Hodgkin Lymphoma	EFO_0005952	non-hodgkins lymphoma	Dataset from intOGen
+ES	Ewing Sarcoma	EFO_0000174	ewing sarcoma	Dataset from intOGen
+ANSC	Anal Squamous Cell Carcinoma	EFO_1000081	anal squamous cell carcinoma	Dataset from intOGen
+LIHB	Hepatoblastoma	EFO_1000292	hepatoblastoma	Dataset from intOGen
+GINET	Gastrointestinal Neuroendocrine Tumors	EFO_1001901	neuroendocrine neoplasm	Dataset from intOGen
+SACA	Salivary Carcinoma	MONDO_0000521	salivary gland carcinoma	Dataset from intOGen
+CLLSLL	Chronic Lymphocytic Leukemia/Small Lymphocytic Lymphoma	EFO_0000095	chronic lymphocytic leukemia	Dataset from intOGen
+SBC	Small Bowel Cancer	MONDO_0000956	small intestine cancer	Dataset from intOGen
+VULVA	Vulva/Vagina	MONDO_0001402	vaginal cancer	Dataset from intOGen
+LGGNOS	Low-Grade Glioma, NOS	MONDO_0021637	low grade glioma	Dataset from intOGen
+HGGNOS	High-Grade Glioma, NOS	MONDO_0100342	malignant glioma	Dataset from intOGen
+PANCREAS	Pancreas	EFO_1000359	malignant pancreatic neoplasm	Dataset from intOGen
+DLBCLNOS	Diffuse Large B-Cell Lymphoma, NOS	EFO_0000403	diffuse large b-cell lymphoma	Dataset from intOGen

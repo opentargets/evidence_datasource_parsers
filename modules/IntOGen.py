@@ -71,8 +71,25 @@ class intogenEvidenceGenerator:
             logging.info(f"Applyting disease mapping from {diseaseMapping}.")
             self.evidence = self.cancer2EFO(diseaseMapping)
 
+            # Extracting stats about mapping:
+            unmapped_evidence_count = self.evidence.filter(
+                f.col("diseaseFromSourceMappedId").isNull()
+            ).count()
+            unmapped_disease_count = (
+                self.evidence.filter(f.col("diseaseFromSourceMappedId").isNull())
+                .select("diseaseFromSource")
+                .distinct()
+                .count()
+            )
+            logging.info(
+                f"Number of evidence without EFO mapping: {unmapped_evidence_count}"
+            )
+            logging.info(
+                f"Number of diseases without EFO mapping: {unmapped_disease_count}"
+            )
+
         # Dropping cancer type acronym:
-        self.evidence = self.evidence.drop("Cancer_type_acronym")
+        # self.evidence = self.evidence.drop("Cancer_type_acronym")
 
     def write_evidence(self: intogenEvidenceGenerator, evidence_file: str) -> None:
         write_evidence_strings(self.evidence, evidence_file)
