@@ -68,7 +68,7 @@ class intogenEvidenceGenerator:
 
         # Mapping step executed if mapping file is provided:
         if diseaseMapping is not None:
-            logging.info(f"Applyting disease mapping from {diseaseMapping}.")
+            logging.info(f"Applying disease mapping from {diseaseMapping}.")
             self.evidence = self.cancer2EFO(diseaseMapping)
 
             # Extracting stats about mapping:
