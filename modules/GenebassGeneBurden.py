@@ -44,7 +44,7 @@ def main(genebass_data: str) -> DataFrame:
             'SE_Burden',
         )
         .distinct()
-        .repartition(20)
+        .repartition(200)
         .persist()
     )
 
@@ -93,6 +93,7 @@ def parse_genebass_evidence(genebass_df: DataFrame) -> DataFrame:
         'studyCases',
         'statisticalMethod',
         'statisticalMethodOverview',
+        'literature',
     ]
 
     # WARNING: There are some associations with a p-value of 0.0 in Genebass.
@@ -138,6 +139,7 @@ def parse_genebass_evidence(genebass_df: DataFrame) -> DataFrame:
         .withColumnRenamed('annotation', 'statisticalMethod')
         .withColumn('statisticalMethodOverview', F.col('statisticalMethod'))
         .replace(to_replace=METHOD_DESC, subset=['statisticalMethodOverview'])
+        .withColumn("literature", F.array(F.lit("36778668")))
         .select(to_keep)
         .distinct()
     )
