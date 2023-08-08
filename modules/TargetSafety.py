@@ -110,7 +110,7 @@ def process_aop(aopwiki: str) -> DataFrame:
             )
         )
         # I need to convert the biosamples array into a struct so that data is parsed the same way as the rest of the sources
-        .withColumn('biosample', F.explode('biosamples'))
+        .withColumn('biosample', F.explode_outer('biosamples'))
     )
 
 def process_adverse_events(adverse_events: str) -> DataFrame:
