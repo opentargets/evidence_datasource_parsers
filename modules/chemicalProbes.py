@@ -119,7 +119,8 @@ def process_probes_data(probes_excel: str) -> List[DataFrame]:
                 index_col=0,
             )
             # Probes that do not have an associated target are marked as nulls
-            .query("target.notnull()").reset_index()
+            .query("target.notnull()")
+            .reset_index()
             .drop("control_smiles", axis=1)
         )
         # Collect list of datasources for each probe
@@ -145,7 +146,7 @@ def process_probes_data(probes_excel: str) -> List[DataFrame]:
                     f.array(f.lit("High-quality chemical probes")),
                 )
             ).alias("datasourceId"),
-            replace_dash("control_name").alias("control")
+            replace_dash("control_name").alias("control"),
         )
     )
 
@@ -158,7 +159,8 @@ def process_probes_targets_data(probes_excel: str) -> DataFrame:
                 probes_excel, sheet_name="PROBES TARGETS", header=0, index_col=0
             )
             # Probes that do not have an associated target are marked with "-"
-            .query("gene_name != '-'").reset_index()
+            .query("gene_name != '-'")
+            .reset_index()
             .drop("control_smiles", axis=1)
         )
         .filter(f.col("organism") == "Homo sapiens")
@@ -189,6 +191,7 @@ def process_probes_targets_data(probes_excel: str) -> DataFrame:
         )
     )
 
+
 def process_probes_sets_data(probes_excel: str) -> DataFrame:
     """Metadata about the different sources of probes."""
     return (
@@ -210,9 +213,15 @@ def process_targets_xrefs(probes_excel: str) -> DataFrame:
         ).reset_index()
     ).selectExpr("target as targetFromSource", "uniprot as targetFromSourceId")
 
+
 def process_drugs_xrefs(drugs_xrefs: str) -> DataFrame:
     """Look-up table between the probes IDs in P&Ds and ChEMBL."""
-    return spark.read.csv(drugs_xrefs, header=True).selectExpr("pdid", "ChEMBL as drugId").filter(f.col("drugId").isNotNull())
+    return (
+        spark.read.csv(drugs_xrefs, header=True)
+        .selectExpr("pdid", "ChEMBL as drugId")
+        .filter(f.col("drugId").isNotNull())
+    )
+
 
 def main(probes_excel: str, drugs_xrefs: str) -> DataFrame:
     """Main logic of the script."""
@@ -291,6 +300,8 @@ if __name__ == "__main__":
     global spark
     spark = initialize_sparksession()
 
-    out = main(probes_excel=args.probes_excel_path, drugs_xrefs=args.probes_mappings_path)
+    out = main(
+        probes_excel=args.probes_excel_path, drugs_xrefs=args.probes_mappings_path
+    )
     write_evidence_strings(out, args.output)
     logging.info(f"Probes dataset has been saved to {args.output}. Exiting.")
