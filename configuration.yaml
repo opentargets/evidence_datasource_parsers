@@ -72,3 +72,7 @@ TargetSafety:
   toxcast: gs://otar001-core/TargetSafety/data_files/toxcast/ToxCast_2021-08-17.tsv
   aopwiki: gs://otar001-core/TargetSafety/data_files/aopwiki/aopwiki-2023-01-20.json
   outputBucket: gs://otar001-core/TargetSafety/json
+ChemicalProbes:
+  probes_excel_dump: https://www.probes-drugs.org/media/download/probes/pd_export_01_2023_probes_standardized.xlsx
+  inputBucket: gs://otar001-core/ChemicalProbes/data_files
+  outputBucket: gs://otar001-core/ChemicalProbes/annotation
