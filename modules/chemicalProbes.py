@@ -159,6 +159,7 @@ def process_probes_targets_data(probes_excel: str) -> DataFrame:
             )
             # Probes that do not have an associated target are marked with "-"
             .query("gene_name != '-'").reset_index()
+            .drop("control_smiles", axis=1)
         )
         .filter(f.col("organism") == "Homo sapiens")
         .withColumn(
@@ -201,7 +202,7 @@ def process_probes_sets_data(probes_excel: str) -> DataFrame:
     )
 
 
-def process_targets_data(probes_excel: str) -> DataFrame:
+def process_targets_xrefs(probes_excel: str) -> DataFrame:
     """Look-up table between the gene symbols and the UniProt IDs."""
     return spark.createDataFrame(
         pd.read_excel(
@@ -209,13 +210,18 @@ def process_targets_data(probes_excel: str) -> DataFrame:
         ).reset_index()
     ).selectExpr("target as targetFromSource", "uniprot as targetFromSourceId")
 
-def main(probes_excel: str) -> DataFrame:
+def process_drugs_xrefs(drugs_xrefs: str) -> DataFrame:
+    """Look-up table between the probes IDs in P&Ds and ChEMBL."""
+    return spark.read.csv(drugs_xrefs, header=True).selectExpr("pdid", "ChEMBL as drugId").filter(f.col("drugId").isNotNull())
+
+def main(probes_excel: str, drugs_xrefs: str) -> DataFrame:
     """Main logic of the script."""
 
     probes_df = process_probes_data(probes_excel)
     probes_targets_df = process_probes_targets_data(probes_excel)
     probes_sets_df = process_probes_sets_data(probes_excel)
-    targets_df = process_targets_data(probes_excel)
+    targets_xref_df = process_targets_xrefs(probes_excel)
+    drugs_xref_df = process_drugs_xrefs(drugs_xrefs)
 
     grouping_cols = [
         "targetFromSourceId",
@@ -233,8 +239,9 @@ def main(probes_excel: str) -> DataFrame:
 
     return (
         probes_targets_df.join(probes_df, on="pdid", how="left")
-        .join(targets_df, on="targetFromSource", how="left")
+        .join(targets_xref_df, on="targetFromSource", how="left")
         .join(probes_sets_df, on="datasourceId", how="left")
+        .join(drugs_xref_df, on="pdid", how="left")
         .groupBy(grouping_cols)
         .agg(
             f.collect_set(
@@ -253,6 +260,12 @@ def get_parser():
     parser.add_argument(
         "--probes_excel_path",
         help="Path to the Probes&Drugs Probes XLSX that contains the main tables.",
+        type=str,
+        required=True,
+    )
+    parser.add_argument(
+        "--probes_mappings_path",
+        help="Path to the Probes&Drugs Compounds ID mapping standardised CSV that contains mappings between probes and ChEMBLIDs.",
         type=str,
         required=True,
     )
@@ -278,6 +291,6 @@ if __name__ == "__main__":
     global spark
     spark = initialize_sparksession()
 
-    out = main(probes_excel=args.probes_excel_path)
+    out = main(probes_excel=args.probes_excel_path, drugs_xrefs=args.probes_mappings_path)
     write_evidence_strings(out, args.output)
     logging.info(f"Probes dataset has been saved to {args.output}. Exiting.")
