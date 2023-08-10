@@ -178,16 +178,16 @@ def process_probes_targets_data(probes_excel: str) -> DataFrame:
             "mechanismOfAction",
             replace_dash("`P&D probe-likeness score`")
             .alias("probesDrugsScore")
-            .cast(t.DoubleType()),
+            .cast(t.IntegerType()),
             replace_dash("`Probe Miner Score`")
             .alias("probeMinerScore")
-            .cast(t.DoubleType()),
+            .cast(t.IntegerType()),
             replace_dash("`Cells score (Chemical Probes.org)`")
             .alias("scoreInCells")
-            .cast(t.DoubleType()),
+            .cast(t.IntegerType()),
             replace_dash("`Organisms score (Chemical Probes.org)`")
             .alias("scoreInOrganisms")
-            .cast(t.DoubleType()),
+            .cast(t.IntegerType()),
         )
     )
 
