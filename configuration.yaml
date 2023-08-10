@@ -1,9 +1,10 @@
 global:
   logDir: gs://otar000-evidence_input/parser_logs
   cacheDir: cache_dir
-  schema: https://raw.githubusercontent.com/opentargets/json_schema/2.2.10
-  EFOVersion: v3.50.0
-
+  schema: https://raw.githubusercontent.com/opentargets/json_schema/2.3.2
+  EFOVersion: v3.54.0
+  cell_passport_file: https://cog.sanger.ac.uk/cmp/download/model_list_latest.csv.gz
+  curation_repo: https://raw.githubusercontent.com/opentargets/curation/23.06
 cancerBiomarkers:
   inputAssociationsTable: gs://otar000-evidence_input/CancerBiomarkers/data_files/cancerbiomarkers-2018-05-01.tsv
   inputSourceTable: gs://otar000-evidence_input/CancerBiomarkers/data_files/cancer_biomarker_source.jsonl
@@ -11,8 +12,8 @@ cancerBiomarkers:
   drugIndex: gs://open-targets-data-releases/22.11/output/etl/parquet/molecule
   outputBucket: gs://otar000-evidence_input/CancerBiomarkers/json
 ChEMBL:
-  evidence: gs://otar008-chembl/cttv008-25-08-2022.json.gz
-  stopReasonCategories: gs://otar000-evidence_input/ChEMBL/data_files/chembl_predictions-2022-08-25.tsv
+  evidence: gs://otar008-chembl/cttv008_18-05-2023.json.gz
+  stopReasonCategories: gs://otar000-evidence_input/ChEMBL/data_files/chembl_predictions-2023-05-23.json
   outputBucket: gs://otar000-evidence_input/ChEMBL/json
 ClinGen:
   webSource: https://search.clinicalgenome.org/kb/gene-validity/download
@@ -26,7 +27,7 @@ CRISPR:
 GeneBurden:
   azPhewasBinary: gs://otar000-evidence_input/GeneBurden/data_files/azphewas-com-450k-phewas-binary
   azPhewasQuantitative: gs://otar000-evidence_input/GeneBurden/data_files/azphewas-com-450k-phewas-quantitative
-  curation: https://raw.githubusercontent.com/opentargets/curation/23.02/gene_burden/curated_evidence.tsv
+  curation: gene_burden/curated_evidence.tsv
   genebass: gs://otar000-evidence_input/GeneBurden/data_files/genebass_entries
   outputBucket: gs://otar000-evidence_input/GeneBurden/json
 Gene2Phenotype:
@@ -38,8 +39,8 @@ Gene2Phenotype:
   inputBucket: gs://otar000-evidence_input/Gene2Phenotype/data_files
   outputBucket: gs://otar000-evidence_input/Gene2Phenotype/json
 intOGen:
-  inputAssociationsTable: gs://otar000-evidence_input/IntOgen/data_files/Compendium_Cancer_Genes.tsv
-  inputCohortsTable: gs://otar000-evidence_input/IntOgen/data_files/cohorts.tsv
+  inputAssociationsTable: gs://otar000-evidence_input/IntOgen/data_files/2023.05/Compendium_Cancer_Genes.tsv
+  inputCohortsTable: gs://otar000-evidence_input/IntOgen/data_files/2023.05/cohorts.tsv
   diseaseMapping: resources/cancer2EFO_mappings.tsv
   outputBucket: gs://otar000-evidence_input/IntOgen/json
 Orphanet:
@@ -67,8 +68,8 @@ SysBio:
 TEP:
   outputBucket: gs://otar001-core/TEPs
 TargetSafety:
-  adverseEvents: https://raw.githubusercontent.com/opentargets/curation/23.02/target_safety/adverse_effects.tsv
-  safetyRisk: https://raw.githubusercontent.com/opentargets/curation/23.02/target_safety/safety_risks.tsv
+  adverseEvents: target_safety/adverse_effects.tsv
+  safetyRisk: target_safety/safety_risks.tsv
   toxcast: gs://otar001-core/TargetSafety/data_files/toxcast/ToxCast_2021-08-17.tsv
   aopwiki: gs://otar001-core/TargetSafety/data_files/aopwiki/aopwiki-2023-01-20.json
   outputBucket: gs://otar001-core/TargetSafety/json
@@ -77,3 +78,18 @@ ChemicalProbes:
   probesMappingsTable: https://www.probes-drugs.org/media/download/id_mapping/pd_export_01_2023_links_standardized.csv
   inputBucket: gs://otar001-core/ChemicalProbes/data_files
   outputBucket: gs://otar001-core/ChemicalProbes/annotation
+OT_CRISPR:
+  data_directory: gs://otar013-ppp/ot_crispr/input_data
+  config: gs://otar013-ppp/PPP-evidence-configuration/ot_crispr_config.json
+  outputBucket: gs://otar013-ppp/ot_crispr
+ValidationLab:
+  data_directory: gs://otar013-ppp/validation_lab/input_data/2022.05
+  config: gs://otar013-ppp/PPP-evidence-configuration/ValidationLab_config.json
+  outputBucket: gs://otar013-ppp/validation_lab
+Encore:
+  data_directory: gs://otar013-ppp/encore/input
+  config: gs://otar013-ppp/PPP-evidence-configuration/encore_config.json
+  outputBucket: gs://otar013-ppp/encore
+CrisprScreens:
+  outputBucket: gs://otar000-evidence_input/Crispr_screens/json
+  crispr_brain_mapping: mappings/disease/brain_crispr_studies.tsv

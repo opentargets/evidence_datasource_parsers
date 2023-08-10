@@ -38,7 +38,7 @@ def main(chembl_evidence: str, predictions: str, output_file: str) -> None:
         chembl_df.filter(f.col('studyStopReason').isNotNull())
         .select(
             "*", f.explode(f.col("urls.url")).alias("nct_id")
-        ).withColumn("nct_id", f.element_at(f.split(f.col("nct_id"), "%22"), -2))
+        ).withColumn("nct_id", f.element_at(f.split(f.col("nct_id"), "/"), -1))
         .join(predictions_df, on='nct_id', how='left').drop('nct_id')
         .distinct()
     )
@@ -84,6 +84,7 @@ def prettify_subclasses(predictions_df: DataFrame) -> DataFrame:
         'Success': 'Success',
         'Ethical_Reason': 'Ethical reason',
         'Insufficient_Data': 'Insufficient data',
+        'Uncategorised': 'Uncategorised'
     }
 
     sub_mapping_col = f.map_from_entries(f.array(*[f.struct(f.lit(k), f.lit(v)) for k, v in CATEGORIESMAPPINGS.items()]))
