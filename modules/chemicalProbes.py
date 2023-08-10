@@ -107,19 +107,15 @@ def replace_dash(col_name):
     """Converts to null those values that only contain `-`."""
     return f.when(f.col(col_name).cast(t.StringType()) != "-", f.col(col_name))
 
+
 def process_scores(col_name):
     """Helper function to refactor the score processing logic."""
     return (
-        f.when(
-            f.col(col_name).contains("-"),
-            replace_dash(col_name)
-        )
-        .when(
-            f.col(col_name) == 0,
-            f.lit(None)
-        )
+        f.when(f.col(col_name).contains("-"), replace_dash(col_name))
+        .when(f.col(col_name) == 0, f.lit(None))
         .otherwise(f.col(col_name))
     ).cast(t.IntegerType())
+
 
 def process_probes_data(probes_excel: str) -> List[DataFrame]:
     """Metadata about the compound and the scores given by the different sources."""
@@ -191,7 +187,9 @@ def process_probes_targets_data(probes_excel: str) -> DataFrame:
             process_scores("`P&D probe-likeness score`").alias("probesDrugsScore"),
             process_scores("`Probe Miner Score`").alias("probeMinerScore"),
             process_scores("`Cells score (Chemical Probes.org)`").alias("scoreInCells"),
-            process_scores("`Organisms score (Chemical Probes.org)`").alias("scoreInOrganisms"),
+            process_scores("`Organisms score (Chemical Probes.org)`").alias(
+                "scoreInOrganisms"
+            ),
         )
     )
 
