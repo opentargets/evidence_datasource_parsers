@@ -117,7 +117,16 @@ def process_aop(aopwiki: str) -> DataFrame:
             F.transform(
                 F.col("effects"),
                 lambda x: F.struct(
-                    F.lower(x.direction).alias("direction"), x.dosing.alias("dosing")
+                    F.when(
+                        x.direction == "Activation",
+                        F.lit("Activation/Increase/Upregulation"),
+                    )
+                    .when(
+                        x.direction == "Inhibition",
+                        F.lit("Inhibition/Decrease/Downregulation"),
+                    )
+                    .alias("direction"),
+                    x.dosing.alias("dosing"),
                 ),
             ),
         )
