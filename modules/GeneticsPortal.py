@@ -233,7 +233,9 @@ def parse_genetics_evidence(genetics_df: DataFrame) -> DataFrame:
             f.when(
                 f.col("pmid") != "",
                 f.array(f.regexp_extract(f.col("pmid"), r"PMID:(\d+)$", 1)),
-            ).when(f.col("study_id").contains("SAIGE"), f.array(f.lit("30104761"))),
+            )
+            .when(f.col("study_id").contains("SAIGE"), f.array(f.lit("30104761")))
+            .when(f.col("study_id").contains("FINNGEN"), f.array(f.lit("36653562"))),
         )
         .withColumn(
             "cohortId",
