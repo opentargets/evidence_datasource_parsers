@@ -29,6 +29,8 @@ ALL_FILES = [
     ('EyeG2P.csv.gz', GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/EyeG2P-{timeStamp}.csv.gz")),
     ('SkinG2P.csv.gz', GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/SkinG2P-{timeStamp}.csv.gz")),
     ('CancerG2P.csv.gz', GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/CancerG2P-{timeStamp}.csv.gz")),
+    ('pd_export_01_2023_probes_standardized.xlsx', GS.remote(f"{config['ChemicalProbes']['inputBucket']}/pd_export_01_2023_probes_standardized-{timeStamp}.xlsx")),
+    ('pd_export_01_2023_links_standardized.csv', GS.remote(f"{config['ChemicalProbes']['inputBucket']}/pd_export_01_2023_links_standardized-{timeStamp}.csv")),
     ('intogen.json.gz', GS.remote(f"{config['intOGen']['outputBucket']}/intogen-{timeStamp}.json.gz")),
     ('orphanet.json.gz', GS.remote(f"{config['Orphanet']['outputBucket']}/orphanet-{timeStamp}.json.gz")),
     ('genomics_england.json.gz', GS.remote(f"{config['PanelApp']['outputBucket']}/genomics_england-{timeStamp}.json.gz")),
@@ -39,6 +41,7 @@ ALL_FILES = [
     ('sysbio.json.gz', GS.remote(f"{config['SysBio']['outputBucket']}/sysbio-{timeStamp}.json.gz")),
     ('tep.json.gz', GS.remote(f"{config['TEP']['outputBucket']}/tep-{timeStamp}.json.gz")),
     ('safetyLiabilities.json.gz', GS.remote(f"{config['TargetSafety']['outputBucket']}/safetyLiabilities-{timeStamp}.json.gz")),
+    ('chemicalProbes.json.gz', GS.remote(f"{config['ChemicalProbes']['outputBucket']}/chemicalProbes-{timeStamp}.json.gz")),
     ('crispr_screens.json.gz', GS.remote(f"{config['CrisprScreens']['outputBucket']}/crispr_screens-{timeStamp}.json.gz")),
 ]
 LOCAL_FILENAMES = [f[0] for f in ALL_FILES]
@@ -437,6 +440,31 @@ rule targetSafety:            # Process data from different sources that describ
         opentargets_validator --schema {params.schema} {output}
         """
 
+rule chemicalProbes:          # Process data from the Probes&Drugs portal.
+    input:
+        rawProbesExcel = HTTP.remote(config['ChemicalProbes']['probesExcelDump']),
+        probesXrefsTable = HTTP.remote(config['ChemicalProbes']['probesMappingsTable'])
+    params:
+        schema = f"{config['global']['schema']}/chemical_probes.json"
+    output:
+        rawProbesExcel = 'pd_export_01_2023_probes_standardized.xlsx',
+        probesXrefsTable = 'pd_export_01_2023_links_standardized.csv',
+        evidenceFile = 'chemicalProbes.json.gz'
+    log:
+        'log/chemicalProbes.log'
+    shell:
+        """
+        exec &> {log}
+        # Retain the inputs. They will be later uploaded to GCS.
+        cp {input.rawProbesExcel} {output.rawProbesExcel}
+        cp {input.probesXrefsTable} {output.probesXrefsTable}
+        python modules/ChemicalProbes.py \
+            --probes_excel_path {input.rawProbesExcel} \
+            --probes_mappings_path {input.probesXrefsTable} \
+            --output {output.evidenceFile}
+        opentargets_validator --schema {params.schema} {output.evidenceFile}
+        """
+        
 rule ot_crispr:               # Generating PPP evidence for OTAR CRISPR screens
     params:
         data_folder = config['OT_CRISPR']['data_directory'],

@@ -3,6 +3,7 @@ google-cloud-storage==2.7.0
 google-crc32c==1.5.0
 numpy==1.24.1
 ontoma==1.1.0
+openpyxl==3.1.2
 opentargets-validator==0.8.0
 pandarallel==1.6.4
 pandas==1.5.3
