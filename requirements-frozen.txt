@@ -15,6 +15,7 @@ decorator==5.1.1
 dill==0.3.7
 docutils==0.20.1
 dpath==2.1.6
+et-xmlfile==1.1.0
 fastjsonschema==2.18.0
 fastobo==0.12.2
 frozenlist==1.4.0
@@ -46,6 +47,7 @@ networkx==2.8.8
 numpy==1.24.1
 oauthlib==3.2.2
 ontoma==1.1.0
+openpyxl==3.1.2
 opentargets-urlzsource==1.0.0
 opentargets-validator==0.8.0
 pandarallel==1.6.4
