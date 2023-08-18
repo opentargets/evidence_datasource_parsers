@@ -423,7 +423,7 @@ rule targetSafety:            # Process data from different sources that describ
     params:
         ae = f"{config['global']['curation_repo']}/{config['TargetSafety']['adverseEvents']}",
         sr = f"{config['global']['curation_repo']}/{config['TargetSafety']['safetyRisk']}",
-        schema = f"{config['global']['schema']}/schemas/opentargets_target_safety.json"
+        schema = f"{config['global']['schema']}/schemas/target_safety.json"
     output:
         'safetyLiabilities.json.gz'
     log:
@@ -445,7 +445,7 @@ rule chemicalProbes:          # Process data from the Probes&Drugs portal.
         rawProbesExcel = HTTP.remote(config['ChemicalProbes']['probesExcelDump']),
         probesXrefsTable = HTTP.remote(config['ChemicalProbes']['probesMappingsTable'])
     params:
-        schema = f"{config['global']['schema']}/chemical_probes.json"
+        schema = f"{config['global']['schema']}/schemas/chemical_probes.json"
     output:
         rawProbesExcel = 'pd_export_01_2023_probes_standardized.xlsx',
         probesXrefsTable = 'pd_export_01_2023_links_standardized.csv',
