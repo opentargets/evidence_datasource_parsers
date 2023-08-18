@@ -159,7 +159,7 @@ def process_adverse_events(adverse_events: str) -> DataFrame:
         literature | 23197038
         url        | null
         biosample  | {gastrointestinal, UBERON_0005409, null, null, null}
-        effects    | [{activation, general}]
+        effects    | [{Activation/Increase/Upregulation, general}]
     """
 
     ae_df = (
@@ -184,11 +184,11 @@ def process_adverse_events(adverse_events: str) -> DataFrame:
             "effects",
             F.struct(
                 F.when(
-                    F.col("effects")[1].contains("activation"),
+                    F.col("effects")[0].contains("activation"),
                     F.lit("Activation/Increase/Upregulation"),
                 )
                 .when(
-                    F.col("effects")[1].contains("inhibition"),
+                    F.col("effects")[0].contains("inhibition"),
                     F.lit("Inhibition/Decrease/Downregulation"),
                 )
                 .alias("direction"),
