@@ -59,6 +59,10 @@ source env/bin/activate
 pip3 install --upgrade pip setuptools
 pip3 install -r requirements-frozen.txt
 export PYTHONPATH="$PYTHONPATH:$(pwd)"
+
+# Workaround for a potential OnToma race condition: pre-initialise cache directory.
+# This prevents an issue where several OnToma instances are trying to do this at once and fail.
+echo 'asthma' | ontoma --cache-dir cache_dir
 ```
 
 At this point, we are ready to run the Snakemake pipeline. The following options are available:
