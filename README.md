@@ -51,18 +51,6 @@ screen
 sudo apt update
 sudo apt install -y openjdk-8-jdk-headless python3-pip python3.8-venv
 
-# Creating key for GCP service accout:
-export FILENAME=~/gcp-account.json
-export ACCOUNT_NAME=426265110888-compute@developer.gserviceaccount.com
-export PROJECT=open-targets-eu-dev
-
-gcloud iam service-accounts keys create ${FILENAME} \
-    --iam-account=${ACCOUNT_NAME} \
-    --project ${PROJECT}
-
-# Strore credentials in the default variable:
-export GOOGLE_APPLICATION_CREDENTIALS=${FILENAME}
-
 # Activate the environment and install Python dependencies.
 git clone https://github.com/opentargets/evidence_datasource_parsers
 cd evidence_datasource_parsers
