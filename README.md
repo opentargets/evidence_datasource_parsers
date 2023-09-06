@@ -28,7 +28,7 @@ To run this, conditions related to the service accounts need to be satisfied:
 2. The service account must have a Compute Admin and Service Account User roles in the _open-targets-eu-dev_ project.
 3. The user running the code must have access to use the service account.
 
-By default, the generated evidence will be validated using the latest master snapshot of the JSON schema. This can be tweaked in [`configuration.yaml`](configuration.yaml) → global → schema.
+The schema version which the evidence is validated against can be tweaked in [`configuration.yaml`](configuration.yaml) → global → schema.
 
 ```bash
 # Set parameters.
