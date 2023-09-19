@@ -28,7 +28,7 @@ To run this, conditions related to the service accounts need to be satisfied:
 2. The service account must have a Compute Admin and Service Account User roles in the _open-targets-eu-dev_ project.
 3. The user running the code must have access to use the service account.
 
-By default, the generated evidence will be validated using the latest master snapshot of the JSON schema. This can be tweaked in [`configuration.yaml`](configuration.yaml) → global → schema.
+The schema version which the evidence is validated against can be tweaked in [`configuration.yaml`](configuration.yaml) → global → schema.
 
 ```bash
 # Set parameters.
@@ -51,18 +51,6 @@ screen
 sudo apt update
 sudo apt install -y openjdk-8-jdk-headless python3-pip python3.8-venv
 
-# Creating key for GCP service accout:
-export FILENAME=~/gcp-account.json
-export ACCOUNT_NAME=426265110888-compute@developer.gserviceaccount.com
-export PROJECT=open-targets-eu-dev
-
-gcloud iam service-accounts keys create ${FILENAME} \
-    --iam-account=${ACCOUNT_NAME} \
-    --project ${PROJECT}
-
-# Strore credentials in the default variable:
-export GOOGLE_APPLICATION_CREDENTIALS=${FILENAME}
-
 # Activate the environment and install Python dependencies.
 git clone https://github.com/opentargets/evidence_datasource_parsers
 cd evidence_datasource_parsers
@@ -71,6 +59,10 @@ source env/bin/activate
 pip3 install --upgrade pip setuptools
 pip3 install -r requirements-frozen.txt
 export PYTHONPATH="$PYTHONPATH:$(pwd)"
+
+# Workaround for a potential OnToma race condition: pre-initialise cache directory.
+# This prevents an issue where several OnToma instances are trying to do this at once and fail.
+echo 'asthma' | ontoma --cache-dir cache_dir
 ```
 
 At this point, we are ready to run the Snakemake pipeline. The following options are available:
