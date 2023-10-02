@@ -62,7 +62,7 @@ class BaselineExpression:
             functools.partial(metrics.hpa_distribution, low_expression_threshold=self.low_expression_threshold), axis=1
         )
         self.specificity["adatissScores"] = self.df.apply(
-            functools.partial(metrics.adatiss, name_to_uberon_mapping=self.name_to_uberon_lut), axis=1
+            functools.partial(metrics.adatiss, df=self.df, name_to_uberon_mapping=self.name_to_uberon_lut), axis=1
         )
 
     def pack_data_for_output(self):

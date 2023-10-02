@@ -97,10 +97,12 @@ def adatiss(df, name_to_uberon_mapping):
     )
 
     # Read the results.
-    adatiss = pd.read_table("/tmp/adatiss_output.tsv")
-    adatiss.rename(columns=reverse_column_map, inplace=True)
+    adatiss_output = pd.read_table("/tmp/adatiss_output.tsv")
+    adatiss_output.rename(columns=reverse_column_map, inplace=True)
 
-    return adatiss.apply(
-        functools.partial(_pack_adatiss_row, columns=adatiss.columns, name_to_uberon_mapping=name_to_uberon_mapping),
+    return adatiss_output.apply(
+        functools.partial(
+            _pack_adatiss_row, columns=adatiss_output.columns, name_to_uberon_mapping=name_to_uberon_mapping
+        ),
         axis=1,
     )
