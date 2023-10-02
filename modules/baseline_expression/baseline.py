@@ -7,7 +7,7 @@ import json
 
 import pandas as pd
 
-from . import metrics
+import metrics
 
 
 class BaselineExpression:
@@ -70,7 +70,7 @@ class BaselineExpression:
 
         def _remove_adatiss_if_none(d):
             # The below code is using the fact that NaN != NaN.
-            if d["adatissScores"] != d["adatissScores"]:  
+            if d["adatissScores"] != d["adatissScores"]:
                 return {k: v for k, v in d.items() if k != "adatissScores"}
             else:
                 return d
