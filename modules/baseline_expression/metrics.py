@@ -90,7 +90,7 @@ def adatiss(df, name_to_uberon_mapping):
     subprocess.call(
         [
             "Rscript",
-            os.path.join(os.path.dirname(__file__), "process.R"),
+            os.path.join(os.path.dirname(__file__), "process_adatiss.R"),
             os.path.join(os.path.dirname(__file__), "AdaTiSS_fn.R"),
             "/tmp/adatiss_input.csv",
             "/tmp/adatiss_sample_phenotype.csv",
