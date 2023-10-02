@@ -49,7 +49,7 @@ screen
 
 # Install the system dependencies.
 sudo apt update
-sudo apt install -y openjdk-8-jdk-headless python3-pip python3.8-venv
+sudo apt install -y openjdk-8-jdk-headless python3-pip python3.8-venv r-base-core
 
 # Activate the environment and install Python dependencies.
 git clone https://github.com/opentargets/evidence_datasource_parsers
