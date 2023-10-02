@@ -1,4 +1,4 @@
-"""Collection of expression specificity calculation metrics."""
+"""Collection of functions to calculate various expression specificity metrics."""
 
 import functools
 import subprocess
@@ -27,6 +27,7 @@ def gini_coefficient(row):
 
 
 def hpa_specificity(row, low_expression_threshold):
+    """HPA specificity metric. See: https://www.proteinatlas.org/about/assays+annotation#classification_rna."""
     expr = sorted(row)
     if expr[-1] < low_expression_threshold:
         return "Not detected"
@@ -42,6 +43,7 @@ def hpa_specificity(row, low_expression_threshold):
 
 
 def hpa_distribution(row, low_expression_threshold):
+    """HPA distribution metric. See: https://www.proteinatlas.org/about/assays+annotation#classification_rna."""
     expr = sorted(row)
     if expr[-1] < low_expression_threshold:
         return "Not detected"
@@ -59,27 +61,20 @@ def hpa_distribution(row, low_expression_threshold):
 
 
 def adatiss(df, name_to_uberon_mapping):
-    def _pack_adatiss_row(row, name_to_uberon_mapping):
-        """Given a row with Adatiss results for a given gene, pack them into the list of (tissue, z-score) values ready for output."""
-        # Extract the column names and values from the row
-        cols = adatiss.columns
-        vals = row.values.tolist()
+    def _pack_adatiss_row(row, columns, name_to_uberon_mapping):
+        """Given a row with Adatiss results for a given gene, pack them into the dictionary ready for output."""
+        return [
+            {
+                "bodyPartLevel": "tissue",
+                "bodyPartName": col,
+                "bodyPartId": name_to_uberon_mapping[col],
+                "adatissScore": round(val, 3),
+            }
+            for col, val in zip(columns, row.values.tolist())
+        ]
 
-        # Pack the values into a list of dictionaries
-        dicts = []
-        for col, val in zip(cols, vals):
-            dicts.append(
-                {
-                    "bodyPartLevel": "tissue",
-                    "bodyPartName": col,
-                    "bodyPartId": name_to_uberon_mapping[col],
-                    "adatissScore": round(val, 3),
-                }
-            )
-
-        return dicts
-
-    # Prepare Adatiss input file. Original column names cannot be ingested by Adatiss because they contain special characters. Hence temporary identifiers are used for Adatiss.
+    # Prepare Adatiss input file. Original column names cannot be ingested by Adatiss because they contain special
+    # characters. Hence temporary identifiers are used for Adatiss.
     column_map = {original_name: f"tissue_{i}" for i, original_name in enumerate(df.columns)}
     reverse_column_map = {v: k for k, v in column_map.items()}
     df.rename(columns=column_map).to_csv("/tmp/adatiss_input.csv", index=True)
@@ -105,4 +100,7 @@ def adatiss(df, name_to_uberon_mapping):
     adatiss = pd.read_table("/tmp/adatiss_output.tsv")
     adatiss.rename(columns=reverse_column_map, inplace=True)
 
-    return adatiss.apply(functools.partial(_pack_adatiss_row, name_to_uberon_mapping=name_to_uberon_mapping), axis=1)
+    return adatiss.apply(
+        functools.partial(_pack_adatiss_row, columns=adatiss.columns, name_to_uberon_mapping=name_to_uberon_mapping),
+        axis=1,
+    )
