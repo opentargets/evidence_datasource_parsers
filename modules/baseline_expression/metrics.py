@@ -1,6 +1,7 @@
 """Collection of functions to calculate various expression specificity metrics."""
 
 import functools
+import os
 import subprocess
 
 import numpy as np
@@ -89,7 +90,8 @@ def adatiss(df, name_to_uberon_mapping):
     subprocess.call(
         [
             "Rscript",
-            "./process.R",
+            os.path.join(os.path.dirname(__file__), "process.R"),
+            os.path.join(os.path.dirname(__file__), "AdaTiSS_fn.R"),
             "/tmp/adatiss_input.csv",
             "/tmp/adatiss_sample_phenotype.csv",
             "/tmp/adatiss_output.tsv",
