@@ -85,7 +85,7 @@ rule local:                   # Generate all files, but do not upload them.
 rule baselineExpression:      # Calculate baseline expression data from GTEx V8.
     params:
         gtex_source_data_path = config["baselineExpression"]["gtexSourceDataPath"],
-        tissue_name_to_uberon_mapping_path = config["baselineExpression"]["tissueNameToUberonMappingpath"],
+        tissue_name_to_uberon_mapping_path = f"{config['global']['curation_repo']}/config['baselineExpression']['tissueNameToUberonMappingpath']",
         schema = f"{config['global']['schema']}/schemas/baseline_expression.json"
     output:
         "baseline_expression.json.gz"

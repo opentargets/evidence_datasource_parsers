@@ -7,7 +7,7 @@ global:
   curation_repo: https://raw.githubusercontent.com/opentargets/curation/23.09
 baselineExpression:
   gtexSourceDataPath: https://storage.googleapis.com/gtex_analysis_v8/rna_seq_data/GTEx_Analysis_2017-06-05_v8_RNASeQCv1.1.9_gene_median_tpm.gct.gz
-  tissueNameToUberonMappingpath: https://raw.githubusercontent.com/opentargets/curation/master/mappings/biosystem/gtex_v8_tissues.tsv
+  tissueNameToUberonMappingpath: mappings/biosystem/gtex_v8_tissues.tsv
   outputBucket: gs://otar000-evidence_input/BaselineExpression/json
 cancerBiomarkers:
   inputAssociationsTable: gs://otar000-evidence_input/CancerBiomarkers/data_files/cancerbiomarkers-2018-05-01.tsv
