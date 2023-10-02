@@ -4,10 +4,10 @@ import argparse
 import functools
 import gzip
 import json
-import subprocess
 
-import numpy as np
 import pandas as pd
+
+from . import metrics
 
 
 def read_gtex_data(gtex_source_data, low_expression_threshold):
@@ -32,69 +32,15 @@ def filter_out_low_expression_genes(df, threshold):
     return df[expr_level_mask]
 
 
-def calculate_gini_coefficient(row):
-    """Calculate the Gini coefficient of a Pandas row. Adapted from https://github.com/oliviaguest/gini/blob/master/gini.py"""
-    assert min(row) >= 0
-    if max(row) == 0:
-        return np.nan
-    # Values must be sorted.
-    array = np.sort(row)
-    # Index per array element.
-    index = np.arange(1, array.shape[0] + 1)
-    # Number of array elements.
-    n = array.shape[0]
-    # Gini coefficient.
-    return (np.sum((2 * index - n - 1) * array)) / (n * np.sum(array))
-
-
-def calculate_hpa_specificity(row, low_expression_threshold):
-    expr = sorted(row)
-    if expr[-1] < low_expression_threshold:
-        return "Not detected"
-    if expr[-2] == 0 or expr[-1] / expr[-2] >= 4.0:
-        return "Tissue enriched"
-    for i in range(2, 6):
-        if expr[-i - 1] == 0 or expr[-i] / expr[-i - 1] >= 4.0:
-            return "Group enriched"
-    mean = sum(expr) / len(row)
-    if 1 <= sum([e / mean >= 4.0 for e in expr]) <= 5:
-        return "Tissue enhanced"
-    return "Low tissue specificity"
-
-
-def calculate_hpa_distribution(row, low_expression_threshold):
-    expr = sorted(row)
-    if expr[-1] < low_expression_threshold:
-        return "Not detected"
-    num_detected = sum([e > low_expression_threshold for e in expr])
-    if num_detected == 1:
-        return "Detected in single"
-    if num_detected < len(row) / 3:
-        return "Detected in some"
-    if num_detected < len(row):
-        return "Detected in many"
-    return "Detected in all"
-
-
-def calculate_adatiss_scores(df):
-    # Prepare Adatiss input file. Original column names cannot be ingested by Adatiss because they contain special characters. Hence temporary identifiers are used for Adatiss.
-    column_map = {original_name: f"tissue_{i}" for i, original_name in enumerate(df.columns)}
-    reverse_column_map = {v: k for k, v in column_map.items()}
-    df.rename(columns=column_map).to_csv("adatiss_input.csv", index=True)
-
-    # Adatiss also requires a sample to tissue name map file.
-    with open("adatiss_sample_phenotype.csv", "w") as outfile:
-        outfile.write("sample_ID,tissue\n")
-        for original_name, adatiss_name in column_map.items():
-            outfile.write(f"{adatiss_name},{original_name}\n")
-
-    # Calculate Adatiss specificity scores.
-    subprocess.call(["Rscript", "./process.R"])
-
-    # Read the results.
-    adatiss = pd.read_table("adatiss_output.tsv")
-    adatiss.rename(columns=reverse_column_map, inplace=True)
-    return adatiss
+def calculate_specificity_metrics(df, threshold):
+    a = df.iloc[:, :0].copy()
+    a["gini"] = df.apply(metrics.gini_coefficient, axis=1)
+    a["hpaSpecificity"] = df.apply(
+        functools.partial(metrics.hpa_specificity, low_expression_threshold=threshold), axis=1
+    )
+    a["hpaDistribution"] = df.apply(
+        functools.partial(metrics.hpa_distribution, low_expression_threshold=threshold), axis=1
+    )
 
 
 def pack_adatiss_row(row):
@@ -127,19 +73,11 @@ def remove_adatiss_if_none(d):
 
 
 def main(gtex_source_data, low_expression_threshold):
-    # Read and prepare the dataframe.
     df = read_gtex_data(gtex_source_data)
-    df = filter_out_low_expression_genes(df)
+    df = filter_out_low_expression_genes(df, low_expression_threshold)
+    a = calculate_specificity_metrics(df, low_expression_threshold)
 
     # Calculate expression specificity scores.
-    a = df.iloc[:, :0].copy()
-    a["gini"] = df.apply(calculate_gini_coefficient, axis=1)
-    a["hpa_specificity"] = df.apply(
-        functools.partial(calculate_hpa_specificity, low_expression_threshold=low_expression_threshold), axis=1
-    )
-    a["hpa_distribution"] = df.apply(
-        functools.partial(calculate_hpa_distribution, low_expression_threshold=low_expression_threshold), axis=1
-    )
 
     # Pack the data for output.
     df_name_mapping = pd.read_table(
@@ -155,7 +93,11 @@ def main(gtex_source_data, low_expression_threshold):
             raise AssertionError(f"GTEx tissue {tissue} is not present in the provided mappings file")
 
     # Map annotation names.
-    annotation_column_map = {"gini": "gini", "hpa_specificity": "hpaSpecificity", "hpa_distribution": "hpaDistribution"}
+    annotation_column_map = {
+        "gini": "gini",
+        "hpa_specificity": "hpaSpecificity",
+        "hpa_distribution": "hpaDistribution",
+    }
     columns_to_filter = list(annotation_column_map.keys())
     a_out = a[columns_to_filter].rename(columns=annotation_column_map)
     a_out["gini"] = a_out["gini"].round(3)
@@ -191,7 +133,7 @@ def main(gtex_source_data, low_expression_threshold):
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--gtex-source-data", required=True, help="GTEx by-gene median TPM counts, in GCT format")
+parser.add_argument("--gtex-source-data", required=True, type=str, help="GTEx by-gene median TPM counts, in GCT format")
 parser.add_argument(
     "--low-expression-threshold",
     required=True,
