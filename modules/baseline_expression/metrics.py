@@ -1,9 +1,13 @@
 """Collection of expression specificity calculation metrics."""
 
+import functools
 import subprocess
 
 import numpy as np
 import pandas as pd
+
+
+# General expression metrics.
 
 
 def gini_coefficient(row):
@@ -51,22 +55,54 @@ def hpa_distribution(row, low_expression_threshold):
     return "Detected in all"
 
 
-def adatiss(df):
+# Adatiss specificity scores.
+
+
+def adatiss(df, name_to_uberon_mapping):
+    def _pack_adatiss_row(row, name_to_uberon_mapping):
+        """Given a row with Adatiss results for a given gene, pack them into the list of (tissue, z-score) values ready for output."""
+        # Extract the column names and values from the row
+        cols = adatiss.columns
+        vals = row.values.tolist()
+
+        # Pack the values into a list of dictionaries
+        dicts = []
+        for col, val in zip(cols, vals):
+            dicts.append(
+                {
+                    "bodyPartLevel": "tissue",
+                    "bodyPartName": col,
+                    "bodyPartId": name_to_uberon_mapping[col],
+                    "adatissScore": round(val, 3),
+                }
+            )
+
+        return dicts
+
     # Prepare Adatiss input file. Original column names cannot be ingested by Adatiss because they contain special characters. Hence temporary identifiers are used for Adatiss.
     column_map = {original_name: f"tissue_{i}" for i, original_name in enumerate(df.columns)}
     reverse_column_map = {v: k for k, v in column_map.items()}
-    df.rename(columns=column_map).to_csv("adatiss_input.csv", index=True)
+    df.rename(columns=column_map).to_csv("/tmp/adatiss_input.csv", index=True)
 
     # Adatiss also requires a sample to tissue name map file.
-    with open("adatiss_sample_phenotype.csv", "w") as outfile:
+    with open("/tmp/adatiss_sample_phenotype.csv", "w") as outfile:
         outfile.write("sample_ID,tissue\n")
         for original_name, adatiss_name in column_map.items():
             outfile.write(f"{adatiss_name},{original_name}\n")
 
     # Calculate Adatiss specificity scores.
-    subprocess.call(["Rscript", "./process.R"])
+    subprocess.call(
+        [
+            "Rscript",
+            "./process.R",
+            "/tmp/adatiss_input.csv",
+            "/tmp/adatiss_sample_phenotype.csv",
+            "/tmp/adatiss_output.tsv",
+        ]
+    )
 
     # Read the results.
-    adatiss = pd.read_table("adatiss_output.tsv")
+    adatiss = pd.read_table("/tmp/adatiss_output.tsv")
     adatiss.rename(columns=reverse_column_map, inplace=True)
-    return adatiss
+
+    return adatiss.apply(functools.partial(_pack_adatiss_row, name_to_uberon_mapping=name_to_uberon_mapping), axis=1)
