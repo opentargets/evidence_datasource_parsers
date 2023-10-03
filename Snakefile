@@ -86,12 +86,12 @@ rule baselineExpression:      # Calculate baseline expression data from GTEx V8.
     params:
         gtex_source_data_path = config["baselineExpression"]["gtexSourceDataPath"],
         tissue_name_to_uberon_mapping_path = os.path.join(
-            {config['global']['curation_repo']},
-            {config['baselineExpression']['tissueNameToUberonMappingPath']}
+            config['global']['curation_repo'],
+            config['baselineExpression']['tissueNameToUberonMappingPath']
         ),
         schema = os.path.join(
-            {config['global']['schema']},
-            {config['baselineExpression']['schema']}
+            config['global']['schema'],
+            config['baselineExpression']['schema']
         )
     output:
         "baseline_expression.json.gz"
