@@ -114,7 +114,7 @@ class BaselineExpression:
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    "--gtex-source-data-path", required=True, type=str, help="GTEx by-gene median TPM counts, in GCT format"
+    "--gtex-source-data-path", required=True, type=str, help="GTEx by-gene median TPM counts, in gzipped GCT format."
 )
 parser.add_argument(
     "--tissue-name-to-uberon-mapping-path",

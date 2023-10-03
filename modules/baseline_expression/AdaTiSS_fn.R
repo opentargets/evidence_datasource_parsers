@@ -1,3 +1,6 @@
+# This is a fork of Adatiss containing a fix of a arithmetic bug preventing the processing of GTEx data.
+# For details and changes compared to the base version, see: https://github.com/mwgrassgreen/AdaTiSS/issues/2.
+
 #' @title AdaTiSS
 #' @description To obtain tissue specificity scores.
 #' @author Meng Wang
