@@ -86,7 +86,7 @@ throttler==1.2.2
 toposort==1.10
 traitlets==5.10.0
 uritemplate==4.1.1
-urllib3==1.26.16
+urllib3==1.26.17
 wrapt==1.15.0
 yarl==1.9.2
 yte==1.5.1
