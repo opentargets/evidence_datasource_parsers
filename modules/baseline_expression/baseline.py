@@ -95,7 +95,6 @@ class BaselineExpression:
                     "expressionSpecificity": _remove_adatiss_if_none(self.specificity.loc[idx].to_dict()),
                 }
                 f.write(json.dumps(row_dict) + "\n")
-                f.write("\n")
 
     def main(self):
         self.read_gtex_data()
