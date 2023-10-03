@@ -100,6 +100,10 @@ def adatiss(df, name_to_uberon_mapping):
 
     # Read the results.
     adatiss_output = pd.read_table("/tmp/adatiss_output.tsv")
+    assert set(adatiss_output.columns) == (
+        reverse_column_map.keys(),
+        "The list of columns in Adatiss output does not match the list of columns supplied in its input file!",
+    )
     adatiss_output.rename(columns=reverse_column_map, inplace=True)
 
     return adatiss_output.apply(
