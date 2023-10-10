@@ -18,6 +18,7 @@ os.environ['EFO_VERSION'] = EFO_version
 # The master list of all files with their local and remote filenames to avoid code duplication. Only the files specified
 # in this list will be generated and uploaded by the "all" and "local" rules.
 ALL_FILES = [
+    ('baseline_expression.json.gz', GS.remote(f"{config['baselineExpression']['outputBucket']}/baseline_expression-{timeStamp}.json.gz")),
     ('cancer_biomarkers.json.gz', GS.remote(f"{config['cancerBiomarkers']['outputBucket']}/cancer_biomarkers-{timeStamp}.json.gz")),
     ('chembl.json.gz', GS.remote(f"{config['ChEMBL']['outputBucket']}/chembl-{timeStamp}.json.gz")),
     ('clingen.json.gz', GS.remote(f"{config['ClinGen']['outputBucket']}/clingen-{timeStamp}.json.gz")),
@@ -81,6 +82,33 @@ rule local:                   # Generate all files, but do not upload them.
         LOCAL_FILENAMES
 
 # Data source parsers.
+rule baselineExpression:      # Calculate baseline expression data from GTEx V8.
+    params:
+        gtex_source_data_path = config["baselineExpression"]["gtexSourceDataPath"],
+        tissue_name_to_uberon_mapping_path = os.path.join(
+            config['global']['curation_repo'],
+            config['baselineExpression']['tissueNameToUberonMappingPath']
+        ),
+        schema = os.path.join(
+            config['global']['schema'],
+            config['baselineExpression']['schema']
+        )
+    output:
+        "baseline_expression.json.gz"
+    log:
+        "log/baseline_expression.log"
+    shell:
+        """
+        # In this and the following rules, the exec call redirects the output of all subsequent commands (both STDOUT
+        # and STDERR) to the specified log file.
+        exec &> {log}
+        python modules/baseline_expression/baseline.py \
+            --gtex-source-data-path {params.gtex_source_data_path} \
+            --tissue-name-to-uberon-mapping-path {params.tissue_name_to_uberon_mapping_path} \
+            --output-file-path {output}
+        opentargets_validator --schema {params.schema} {output}
+        """
+
 rule cancerBiomarkers:        # Process the Cancers Biomarkers database from Cancer Genome Interpreter.
     input:
         biomarkers_table = GS.remote(config['cancerBiomarkers']['inputAssociationsTable']),
@@ -95,8 +123,6 @@ rule cancerBiomarkers:        # Process the Cancers Biomarkers database from Can
         'log/cancer_biomarkers.log'
     shell:
         """
-        # In this and the following rules, the exec call redirects the output of all subsequent commands (both STDOUT
-        # and STDERR) to the specified log file.
         exec &> {log}
         python modules/cancerBiomarkers.py \
           --biomarkers_table {input.biomarkers_table} \

@@ -1,0 +1,8 @@
+args <- commandArgs(trailingOnly = TRUE)
+source(args[1])
+dat.rna <- read.csv(file = args[2], row.names = 1)
+X <- preproc.filter.fn(dat.rna, dat.type = "TPM or RPKM", proc.zero = "ceiled to 1", filter.col.prp = 1, exp.thres = 1)
+p.dat <- read.csv(args[3])
+tiss.abd <- tiss.abd.fn(X, p.dat)
+result <- AdaTiSS(X, tiss.abd = tiss.abd, adjust = TRUE, adjust.opt = 0)
+write.table(result$ada.s, file = args[4], sep = "\t", quote = FALSE, row.names = TRUE)
