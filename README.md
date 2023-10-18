@@ -33,17 +33,18 @@ The schema version which the evidence is validated against can be tweaked in [`c
 ```bash
 # Set parameters.
 export INSTANCE_NAME=evidence-generation
+export INSTANCE_PROJECT=open-targets-eu-dev
 export INSTANCE_ZONE=europe-west1-d
 # Create the instance and SSH.
 gcloud compute instances create \
   ${INSTANCE_NAME} \
-  --project=open-targets-eu-dev \
+  --project=${INSTANCE_PROJECT} \
   --zone=${INSTANCE_ZONE} \
   --machine-type=n1-highmem-32 \
   --service-account=426265110888-compute@developer.gserviceaccount.com \
   --scopes=https://www.googleapis.com/auth/cloud-platform \
   --create-disk=auto-delete=yes,boot=yes,device-name=${INSTANCE_NAME},image=projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-v20210927,mode=rw,size=2000,type=projects/open-targets-eu-dev/zones/europe-west1-d/diskTypes/pd-balanced
-gcloud compute ssh --zone ${INSTANCE_ZONE} ${INSTANCE_NAME}
+gcloud compute ssh --project ${INSTANCE_PROJECT} --zone ${INSTANCE_ZONE} ${INSTANCE_NAME}
 
 screen
 
