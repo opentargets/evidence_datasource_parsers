@@ -1,10 +1,10 @@
 global:
   logDir: gs://otar000-evidence_input/parser_logs
   cacheDir: cache_dir
-  schema: https://raw.githubusercontent.com/opentargets/json_schema/master
-  EFOVersion: v3.57.0
+  schema: https://raw.githubusercontent.com/opentargets/json_schema/2.5.0
+  EFOVersion: v3.58.0
   cell_passport_file: https://cog.sanger.ac.uk/cmp/download/model_list_latest.csv.gz
-  curation_repo: https://raw.githubusercontent.com/opentargets/curation/master
+  curation_repo: https://raw.githubusercontent.com/opentargets/curation/23.12
 baselineExpression:
   gtexSourceDataPath: https://storage.googleapis.com/gtex_analysis_v8/rna_seq_data/GTEx_Analysis_2017-06-05_v8_RNASeQCv1.1.9_gene_median_tpm.gct.gz
   tissueNameToUberonMappingPath: mappings/biosystem/gtex_v8_tissues.tsv
