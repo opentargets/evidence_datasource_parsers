@@ -27,7 +27,7 @@ METHOD_DESC = {
 }
 
 
-def main(az_binary_data: str, az_quant_data: str) -> DataFrame:
+def main(spark: SparkSession, az_binary_data: str, az_quant_data: str) -> DataFrame:
     """
     This module extracts and processes target/disease evidence from the raw AstraZeneca PheWAS Portal.
     """
@@ -36,7 +36,7 @@ def main(az_binary_data: str, az_quant_data: str) -> DataFrame:
 
     # Load data
     az_phewas_df = (
-        SparkSession.getActiveSession()
+        spark
         .read.parquet(az_binary_data)
         # Renaming of some columns to match schemas of both binary and quantitative evidence
         .withColumnRenamed('BinOddsRatioLCI', 'LCI')
@@ -46,7 +46,7 @@ def main(az_binary_data: str, az_quant_data: str) -> DataFrame:
         .withColumnRenamed('BinNcontrols', 'nControls')
         # Combine binary and quantitative evidence into one dataframe
         .unionByName(
-            SparkSession.getActiveSession()
+            spark
             .read.parquet(az_quant_data)
             .withColumn('nCases', F.col('nSamples'))
             .withColumnRenamed('YesQV', 'nCasesQV'),
@@ -73,7 +73,7 @@ def main(az_binary_data: str, az_quant_data: str) -> DataFrame:
     )
 
     # Write output
-    evd_df = parse_az_phewas_evidence(az_phewas_df)
+    evd_df = parse_az_phewas_evidence(spark, az_phewas_df)
 
     if evd_df.filter(F.col('resourceScore') == 0).count() != 0:
         logging.error('There are evidence with a P value of 0.')
@@ -101,7 +101,7 @@ def remove_false_positives(az_phewas_df: DataFrame) -> DataFrame:
     return true_positives
 
 
-def parse_az_phewas_evidence(az_phewas_df: DataFrame) -> DataFrame:
+def parse_az_phewas_evidence(spark: SparkSession, az_phewas_df: DataFrame) -> DataFrame:
     """
     Parse Astra Zeneca's PheWAS Portal evidence.
     Args:
@@ -146,7 +146,7 @@ def parse_az_phewas_evidence(az_phewas_df: DataFrame) -> DataFrame:
         .withColumnRenamed('Gene', 'targetFromSourceId')
         .withColumnRenamed('Phenotype', 'diseaseFromSource')
         .join(
-            import_trait_mappings(),
+            import_trait_mappings(spark),
             on='diseaseFromSource',
             how='left',
         )
@@ -246,6 +246,7 @@ if __name__ == '__main__':
     spark = initialize_sparksession()
 
     evd_df = main(
+        spark=spark,
         az_binary_data=args.az_binary_data,
         az_quant_data=args.az_quant_data,
     )
