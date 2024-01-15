@@ -1,10 +1,13 @@
 import logging
 import os
 from psutil import virtual_memory
-import requests
-import tempfile
 import json
+import yaml
+import tempfile
+from typing import Dict
+
 import gcsfs
+import requests
 
 from pyspark.conf import SparkConf
 from pyspark.sql import SparkSession, DataFrame
@@ -238,17 +241,30 @@ def read_path(path: str, spark_instance) -> DataFrame:
     if parquet_files:
         return spark_instance.read.parquet(path)
 
+def read_project_config() -> Dict[str, str]:
+    """Load the configuration file into a dictionary."""
+    base_dir = os.getcwd()
+    if 'common' in base_dir:
+        config_path = os.path.join(os.path.dirname(base_dir), "configuration.yaml")
+    else:
+        config_path = os.path.join(base_dir, "configuration.yaml")
+    if not os.path.exists(config_path):
+        raise FileNotFoundError(f"Configuration file ({config_path}) does not exist.")
+    return yaml.safe_load(open(config_path))
 
-def import_trait_mappings() -> DataFrame:
-    """Load the remote trait mappings file to a Spark dataframe."""
+def import_trait_mappings(spark: SparkSession) -> DataFrame:
+    """Load the remote trait mappings file to a Spark dataframe. The file is downloaded from the curated data repository.
+    
+    Args:
+        spark (SparkSession): Spark session.
 
-    remote_trait_mappings_url = "https://raw.githubusercontent.com/opentargets/curation/22.09.1/mappings/disease/manual_string.tsv"
-
-    SparkSession.getActiveSession().sparkContext.addFile(remote_trait_mappings_url)
-
+    Returns:
+        DataFrame: Spark dataframe containing `diseaseFromSource` and `diseaseFromSourceMappedId` columns.
+    """
+    remote_trait_mappings_url = f"{read_project_config()['global']['curation_repo']}/mappings/disease/manual_string.tsv"
+    spark.sparkContext.addFile(remote_trait_mappings_url)
     return (
-        SparkSession.getActiveSession()
-        .read.csv(SparkFiles.get("manual_string.tsv"), header=True, sep="\t")
+        spark.read.csv(SparkFiles.get("manual_string.tsv"), header=True, sep="\t")
         .select(
             f.col("PROPERTY_VALUE").alias("diseaseFromSource"),
             f.element_at(f.split(f.col("SEMANTIC_TAG"), "/"), -1).alias(
