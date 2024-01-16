@@ -18,6 +18,7 @@ from GenebassGeneBurden import main as process_genebass_gene_burden
 
 
 def main(
+    spark: SparkSession,
     az_binary_data: str,
     az_quant_data: str,
     curated_data: str,
@@ -27,11 +28,11 @@ def main(
 
     burden_evidence_sets = [
         # Generate evidence from AZ data:
-        process_az_gene_burden(az_binary_data, az_quant_data).persist(),
+        process_az_gene_burden(spark, az_binary_data, az_quant_data).persist(),
         # Generate evidence from manual data:
-        process_gene_burden_curation(curated_data).persist(),
+        process_gene_burden_curation(spark, curated_data).persist(),
         # Generate evidence from GeneBass data:
-        process_genebass_gene_burden(genebass_data).persist(),
+        process_genebass_gene_burden(spark, genebass_data).persist(),
     ]
 
     unionByDiffSchema = partial(DataFrame.unionByName, allowMissingColumns=True)
@@ -41,11 +42,11 @@ def main(
     return evd_df
 
 
-def process_gene_burden_curation(curated_data: str) -> DataFrame:
+def process_gene_burden_curation(spark: SparkSession, curated_data: str) -> DataFrame:
     """Process manual gene burden evidence."""
 
     logging.info(f'File with the curated burden associations: {curated_data}')
-    manual_df = read_gene_burden_curation(curated_data)
+    manual_df = read_gene_burden_curation(spark, curated_data)
     logging.info(f'Total number of imported manual gene_burden evidence: {manual_df.count()}')
 
     manual_df = (
@@ -79,7 +80,7 @@ def process_gene_burden_curation(curated_data: str) -> DataFrame:
     return manual_df
 
 
-def read_gene_burden_curation(curated_data: str) -> DataFrame:
+def read_gene_burden_curation(spark: SparkSession, curated_data: str) -> DataFrame:
     """Read manual gene burden curation from remote to a Spark DataFrame."""
 
     schema = T.StructType(
@@ -111,10 +112,8 @@ def read_gene_burden_curation(curated_data: str) -> DataFrame:
             T.StructField('url', T.StringType(), True),
         ]
     )
-
     spark.sparkContext.addFile(curated_data)
-
-    return SparkSession.getActiveSession().read.csv(
+    return spark.read.csv(
         SparkFiles.get(curated_data.split('/')[-1]), sep='\t', header=True, schema=schema
     )
 
@@ -181,6 +180,7 @@ if __name__ == "__main__":
     spark = initialize_sparksession()
 
     evd_df = main(
+        spark=spark,
         az_binary_data=args.az_binary_data,
         az_quant_data=args.az_quant_data,
         curated_data=args.curated_data,
