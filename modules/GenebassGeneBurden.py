@@ -24,7 +24,7 @@ METHOD_DESC = {
 }
 
 
-def main(genebass_data: str) -> DataFrame:
+def main(spark: SparkSession, genebass_data: str) -> DataFrame:
     """
     This module extracts and processes target/disease evidence from the raw Genebass Portal.
     """
@@ -53,7 +53,7 @@ def main(genebass_data: str) -> DataFrame:
     )
 
     # Write output
-    evd_df = parse_genebass_evidence(genebass_df)
+    evd_df = parse_genebass_evidence(spark, genebass_df)
 
     if evd_df.filter(F.col("resourceScore") == 0).count() != 0:
         logging.exception("There are evidence with a P value of 0.")
@@ -70,7 +70,7 @@ def main(genebass_data: str) -> DataFrame:
     return evd_df
 
 
-def parse_genebass_evidence(genebass_df: DataFrame) -> DataFrame:
+def parse_genebass_evidence(spark: SparkSession, genebass_df: DataFrame) -> DataFrame:
     """
     Parse Genebass's disease/target evidence.
     Args:
@@ -132,7 +132,7 @@ def parse_genebass_evidence(genebass_df: DataFrame) -> DataFrame:
         .withColumnRenamed("description", "diseaseFromSource")
         .withColumnRenamed("phenocode", "diseaseFromSourceId")
         .join(
-            import_trait_mappings(),
+            import_trait_mappings(spark),
             on="diseaseFromSource",
             how="left",
         )
@@ -208,6 +208,7 @@ if __name__ == "__main__":
     spark = initialize_sparksession()
 
     evd_df = main(
+        spark=spark,
         genebass_data=args.genebass_data,
     )
 
