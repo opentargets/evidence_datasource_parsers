@@ -23,6 +23,7 @@ ALL_FILES = [
     ('clingen.json.gz', GS.remote(f"{config['ClinGen']['outputBucket']}/clingen-{timeStamp}.json.gz")),
     ('clingen-Gene-Disease-Summary.csv', GS.remote(f"{config['ClinGen']['inputBucket']}/clingen-Gene-Disease-Summary-{timeStamp}.csv")),
     ('crispr.json.gz', GS.remote(f"{config['CRISPR']['outputBucket']}/crispr-{timeStamp}.json.gz")),
+    ('essentiality.json.gz.json.gz', GS.remote(f"{config['essentiality']['outputBucket']}/essentiality-{timeStamp}.json.gz")),
     ('gene_burden.json.gz', GS.remote(f"{config['GeneBurden']['outputBucket']}/gene_burden-{timeStamp}.json.gz")),
     ('gene2phenotype.json.gz', GS.remote(f"{config['Gene2Phenotype']['outputBucket']}/gene2phenotype-{timeStamp}.json.gz")),
     ('DDG2P.csv.gz', GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/DDG2P-{timeStamp}.csv.gz")),
@@ -77,6 +78,27 @@ rule local:                   # Generate all files, but do not upload them.
         LOCAL_FILENAMES
 
 # Data source parsers.
+rule essentiality:            # Process essentiality data from DepMap.
+    params:
+        inputFile = GS.remote(config['essentiality']['inputAssociationsTable']),
+        tissue_mapping = GS.remote(config['essentiality']['inputCellLineTable'])
+        schema = f"{config['global']['schema']}/schemas/gene-essentiality.json"
+    output:
+        'essentiality.json.gz.json.gz'
+    log:
+        'log/essentiality.json.log'
+    shell:
+        """
+        exec &> {log}
+        # copy files from bucket:
+        gsutil cp "{params.inputBucket}" ~/
+        python modules/Essentiality.py \
+            --depmap_input_folder ~/ \
+            --depmap_tissue_mapping {params.tissue_mapping} \
+            --output_file {output}
+        opentargets_validator --schema {params.schema} {output}
+        """
+
 rule cancerBiomarkers:        # Process the Cancers Biomarkers database from Cancer Genome Interpreter.
     input:
         biomarkers_table = GS.remote(config['cancerBiomarkers']['inputAssociationsTable']),
