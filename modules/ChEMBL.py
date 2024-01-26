@@ -38,7 +38,7 @@ def main(chembl_evidence: str, predictions: str, output_file: str) -> None:
         chembl_df.filter(f.col('studyStopReason').isNotNull())
         .select(
             "*", f.explode(f.col("urls.url")).alias("nct_id")
-        ).withColumn("nct_id", f.element_at(f.split(f.col("nct_id"), "%22"), -2))
+        ).withColumn("nct_id", f.element_at(f.split(f.col("nct_id"), "/"), -1))
         .join(predictions_df, on='nct_id', how='left').drop('nct_id')
         .distinct()
     )

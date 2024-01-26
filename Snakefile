@@ -18,6 +18,7 @@ os.environ['EFO_VERSION'] = EFO_version
 # The master list of all files with their local and remote filenames to avoid code duplication. Only the files specified
 # in this list will be generated and uploaded by the "all" and "local" rules.
 ALL_FILES = [
+    ('baseline_expression.json.gz', GS.remote(f"{config['baselineExpression']['outputBucket']}/baseline_expression-{timeStamp}.json.gz")),
     ('cancer_biomarkers.json.gz', GS.remote(f"{config['cancerBiomarkers']['outputBucket']}/cancer_biomarkers-{timeStamp}.json.gz")),
     ('chembl.json.gz', GS.remote(f"{config['ChEMBL']['outputBucket']}/chembl-{timeStamp}.json.gz")),
     ('clingen.json.gz', GS.remote(f"{config['ClinGen']['outputBucket']}/clingen-{timeStamp}.json.gz")),
@@ -30,6 +31,8 @@ ALL_FILES = [
     ('EyeG2P.csv.gz', GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/EyeG2P-{timeStamp}.csv.gz")),
     ('SkinG2P.csv.gz', GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/SkinG2P-{timeStamp}.csv.gz")),
     ('CancerG2P.csv.gz', GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/CancerG2P-{timeStamp}.csv.gz")),
+    ('pd_export_01_2023_probes_standardized.xlsx', GS.remote(f"{config['ChemicalProbes']['inputBucket']}/pd_export_01_2023_probes_standardized-{timeStamp}.xlsx")),
+    ('pd_export_01_2023_links_standardized.csv', GS.remote(f"{config['ChemicalProbes']['inputBucket']}/pd_export_01_2023_links_standardized-{timeStamp}.csv")),
     ('intogen.json.gz', GS.remote(f"{config['intOGen']['outputBucket']}/intogen-{timeStamp}.json.gz")),
     ('orphanet.json.gz', GS.remote(f"{config['Orphanet']['outputBucket']}/orphanet-{timeStamp}.json.gz")),
     ('genomics_england.json.gz', GS.remote(f"{config['PanelApp']['outputBucket']}/genomics_england-{timeStamp}.json.gz")),
@@ -40,6 +43,8 @@ ALL_FILES = [
     ('sysbio.json.gz', GS.remote(f"{config['SysBio']['outputBucket']}/sysbio-{timeStamp}.json.gz")),
     ('tep.json.gz', GS.remote(f"{config['TEP']['outputBucket']}/tep-{timeStamp}.json.gz")),
     ('safetyLiabilities.json.gz', GS.remote(f"{config['TargetSafety']['outputBucket']}/safetyLiabilities-{timeStamp}.json.gz")),
+    ('chemicalProbes.json.gz', GS.remote(f"{config['ChemicalProbes']['outputBucket']}/chemicalProbes-{timeStamp}.json.gz")),
+    ('crispr_screens.json.gz', GS.remote(f"{config['CrisprScreens']['outputBucket']}/crispr_screens-{timeStamp}.json.gz")),
 ]
 LOCAL_FILENAMES = [f[0] for f in ALL_FILES]
 REMOTE_FILENAMES = [f[1] for f in ALL_FILES]
@@ -78,6 +83,33 @@ rule local:                   # Generate all files, but do not upload them.
         LOCAL_FILENAMES
 
 # Data source parsers.
+rule baselineExpression:      # Calculate baseline expression data from GTEx V8.
+    params:
+        gtex_source_data_path = config["baselineExpression"]["gtexSourceDataPath"],
+        tissue_name_to_uberon_mapping_path = os.path.join(
+            config['global']['curation_repo'],
+            config['baselineExpression']['tissueNameToUberonMappingPath']
+        ),
+        schema = os.path.join(
+            config['global']['schema'],
+            config['baselineExpression']['schema']
+        )
+    output:
+        "baseline_expression.json.gz"
+    log:
+        "log/baseline_expression.log"
+    shell:
+        """
+        # In this and the following rules, the exec call redirects the output of all subsequent commands (both STDOUT
+        # and STDERR) to the specified log file.
+        exec &> {log}
+        python modules/baseline_expression/baseline.py \
+            --gtex-source-data-path {params.gtex_source_data_path} \
+            --tissue-name-to-uberon-mapping-path {params.tissue_name_to_uberon_mapping_path} \
+            --output-file-path {output}
+        opentargets_validator --schema {params.schema} {output}
+        """
+
 rule essentiality:            # Process essentiality data from DepMap.
     params:
         inputFile = GS.remote(config['essentiality']['inputAssociationsTable']),
@@ -113,8 +145,6 @@ rule cancerBiomarkers:        # Process the Cancers Biomarkers database from Can
         'log/cancer_biomarkers.log'
     shell:
         """
-        # In this and the following rules, the exec call redirects the output of all subsequent commands (both STDOUT
-        # and STDERR) to the specified log file.
         exec &> {log}
         python modules/cancerBiomarkers.py \
           --biomarkers_table {input.biomarkers_table} \
@@ -196,7 +226,7 @@ rule geneBurden:              # Processes gene burden data from various burden a
     input:
         azPhewasBinary = GS.remote(config['GeneBurden']['azPhewasBinary']),
         azPhewasQuant = GS.remote(config['GeneBurden']['azPhewasQuantitative']),
-        curation = HTTP.remote(config['GeneBurden']['curation']),
+        curation = HTTP.remote(f"{config['global']['curation_repo']}/{config['GeneBurden']['curation']}"),
         genebass = GS.remote(config['GeneBurden']['genebass']),
     output:
         evidenceFile = "gene_burden.json.gz"
@@ -416,14 +446,32 @@ rule targetEnablingPackages:  # Fetching Target Enabling Packages (TEP) data fro
         opentargets_validator --schema {params.schema} {output}
         """
 
+rule crisprScreens:           # Generating disease/target evidence based on various sources of CRISPR screens.
+    params:
+        schema = f"{config['global']['schema']}/schemas/disease_target_evidence.json",
+        crispr_brain_mapping = f"{config['global']['curation_repo']}/{config['CrisprScreens']['crispr_brain_mapping']}"
+    output:
+        'crispr_screens.json.gz'
+    log:
+        'log/crispr_screens.log'
+    shell:
+        """
+        exec &> {log}
+        python modules/crispr_screens.py  \
+            --crispr_brain_mapping {params.crispr_brain_mapping} \
+            --output {output}
+        opentargets_validator --schema {params.schema} {output}
+        """
+
+
 rule targetSafety:            # Process data from different sources that describe target safety liabilities.
     input:
         toxcast = GS.remote(config['TargetSafety']['toxcast']),
         aopwiki = GS.remote(config['TargetSafety']['aopwiki'])
     params:
-        ae = config['TargetSafety']['adverseEvents'],
-        sr = config['TargetSafety']['safetyRisk'],
-        schema = f"{config['global']['schema']}/schemas/opentargets_target_safety.json"
+        ae = f"{config['global']['curation_repo']}/{config['TargetSafety']['adverseEvents']}",
+        sr = f"{config['global']['curation_repo']}/{config['TargetSafety']['safetyRisk']}",
+        schema = f"{config['global']['schema']}/schemas/target_safety.json"
     output:
         'safetyLiabilities.json.gz'
     log:
@@ -438,6 +486,31 @@ rule targetSafety:            # Process data from different sources that describ
             --aopwiki {input.aopwiki} \
             --output {output}
         opentargets_validator --schema {params.schema} {output}
+        """
+
+rule chemicalProbes:          # Process data from the Probes&Drugs portal.
+    input:
+        rawProbesExcel = HTTP.remote(config['ChemicalProbes']['probesExcelDump']),
+        probesXrefsTable = HTTP.remote(config['ChemicalProbes']['probesMappingsTable'])
+    params:
+        schema = f"{config['global']['schema']}/schemas/chemical_probes.json"
+    output:
+        rawProbesExcel = 'pd_export_01_2023_probes_standardized.xlsx',
+        probesXrefsTable = 'pd_export_01_2023_links_standardized.csv',
+        evidenceFile = 'chemicalProbes.json.gz'
+    log:
+        'log/chemicalProbes.log'
+    shell:
+        """
+        exec &> {log}
+        # Retain the inputs. They will be later uploaded to GCS.
+        cp {input.rawProbesExcel} {output.rawProbesExcel}
+        cp {input.probesXrefsTable} {output.probesXrefsTable}
+        python modules/chemicalProbes.py \
+            --probes_excel_path {input.rawProbesExcel} \
+            --probes_mappings_path {input.probesXrefsTable} \
+            --output {output.evidenceFile}
+        opentargets_validator --schema {params.schema} {output.evidenceFile}
         """
 
 rule ot_crispr:               # Generating PPP evidence for OTAR CRISPR screens
@@ -459,7 +532,7 @@ rule ot_crispr:               # Generating PPP evidence for OTAR CRISPR screens
         opentargets_validator --schema {params.schema} {output}
         """
 
-rule encore:               # Generating PPP evidence for ENCORE
+rule encore:                  # Generating PPP evidence for ENCORE
     params:
         data_folder = config['Encore']['data_directory'],
         config = config['Encore']['config'],
@@ -481,7 +554,7 @@ rule encore:               # Generating PPP evidence for ENCORE
         opentargets_validator --schema {params.schema} {output}
         """
 
-rule validation_lab:               # Generating PPP evidence for Validation Lab
+rule validation_lab:          # Generating PPP evidence for Validation Lab
     params:
         data_folder = config['ValidationLab']['data_directory'],
         config = config['ValidationLab']['config'],
@@ -503,7 +576,7 @@ rule validation_lab:               # Generating PPP evidence for Validation Lab
         opentargets_validator --schema {params.schema} {output}
         """
 
-rule PPP:                          # Moving local PPP evidence to the destination bucket.
+rule PPP:                     # Moving local PPP evidence to the destination bucket.
     input:
         [source[0] for source in PPP_sources]
     output:

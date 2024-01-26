@@ -27,33 +27,41 @@ FILTER_COLUMN_MAP = {
 
 class OTAR_CRISPR_study_parser(object):
     def __init__(self, study_url: str) -> None:
-
         self.study_file = study_url
 
         # Store the study dataframe after dropping problematic studies:
-        self.study_df = (
+        study_df = (
             pd.read_json(study_url)
             # drop rows with no study id or data file:
             .loc[lambda df: df.studyId.notna() & df.dataFiles.notna()]
         )
 
         # Test and warn if multiple studies have the same study id:
-        duplicated_study_ids = self.study_df.loc[
+        duplicated_study_ids = study_df.loc[
             lambda df: df.studyId.duplicated()
         ].studyId.tolist()
+
         assert (
             len(duplicated_study_ids) == 0
         ), f'Multiple studies have the same study id: {", ".join(duplicated_study_ids)}'
 
-        logging.info(
-            f"Number of studies processed: {len(self.study_df.studyId.unique())}"
+        # Splitting studies if
+        study_df = (
+            study_df
+            # Exploding filter columns:
+            .assign(filterColumn=lambda df: df.filterColumn.str.split(",")).explode(
+                "filterColumn"
+            )
         )
 
-        projects = self.study_df.projectId.unique()
+        logging.info(f"Number of studies processed: {len(study_df.studyId.unique())}")
+
+        projects = study_df.projectId.unique()
         logging.info(f'Number of projects: {len(projects)} ({", ".join(projects)})')
 
-    def generate_evidence(self, data_folder: str) -> None:
+        self.study_df = study_df
 
+    def generate_evidence(self, data_folder: str) -> None:
         # Looping through the studies and generating evidence:
         # Reading all data files and filter for significant hits:
         study_columns = [
@@ -125,7 +133,7 @@ class OTAR_CRISPR_study_parser(object):
             self.study_df.assign(
                 statisticalTestTail=lambda df: df.filterColumn.map(FILTER_COLUMN_MAP)
             )
-            .merge(hits_df, on="studyId", how="inner")
+            .merge(hits_df, on=["studyId", "filterColumn"], how="inner")
             .explode("diseaseFromSourceMappedId")
             .filter(items=evidence_fields)
             .assign(datasourceId="ot_crispr", datatypeId="ot_partner")
@@ -154,7 +162,10 @@ class OTAR_CRISPR_study_parser(object):
         threshold = float(row["threshold"])
         studyId = row["studyId"]
         controlDataFile = row["ControlDataset"]
-        print(f"Data file: {datafile}")
+
+        # Which end of the distribution are we looking? - "neg" or "pos"?
+        side = filterColumn.split("|")[0]
+
         # Read data, filter and rename columns:
         mageck_df = (
             pd.read_csv(datafile, sep="\t")
@@ -162,13 +173,14 @@ class OTAR_CRISPR_study_parser(object):
                 columns={
                     filterColumn: "resourceScore",
                     "id": "targetFromSourceId",
-                    "neg|lfc": "log2FoldChangeValue",
+                    # Extracting log fold change for the relevant direction:
+                    f"{side}|lfc": "log2FoldChangeValue",
                 }
             )
             .loc[lambda df: df.resourceScore <= threshold][
                 ["targetFromSourceId", "resourceScore", "log2FoldChangeValue"]
             ]
-            .assign(studyId=studyId)
+            .assign(studyId=studyId, filterColumn=filterColumn)
         )
 
         # Applying control if present:
@@ -214,7 +226,6 @@ def main(study_table, output_file, data_folder) -> None:
 
 
 if __name__ == "__main__":
-
     # Parsing arguments:
     parser = argparse.ArgumentParser(
         description="Script to parse internally generated datasets for OTAR projects."
