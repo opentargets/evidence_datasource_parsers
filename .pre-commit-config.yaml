@@ -6,7 +6,6 @@ repos:
         args:
           - --fix
       - id: ruff-format
-        files: ^((gentropy|utils|tests)/.+)?[^/]+\.py$
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0
@@ -20,12 +19,9 @@ repos:
         exclude: (.vscode|.devcontainer)
       - id: no-commit-to-branch
         args:
-          - --branch=dev
-          - --branch=main
+          - --branch=master
       - id: check-toml
       - id: check-yaml
-      - id: check-ast
-      - id: debug-statements
       - id: check-docstring-first
   - repo: https://github.com/adrienverge/yamllint.git
     rev: v1.33.0

@@ -298,7 +298,7 @@ def parse_experiment(
         if biomarker in validation_lab_cell_lines.columns
     ]
 
-    expressions = map(
+    expressions = (
         # Function to process biomarker:
         lambda biomarker: (
             biomarker,

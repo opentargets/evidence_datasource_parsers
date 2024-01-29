@@ -1,16 +1,15 @@
-#!/usr/bin/env python3
 """Parser for Target Enabling Packages (TEP) downloaded from the Structural Genomics Consortium website."""
 
 import argparse
 import logging
 import sys
 
-from pyspark.sql import functions as f
 from pyspark import SparkFiles
+from pyspark.sql import functions as f
 
 from common.evidence import (
-    write_evidence_strings,
     initialize_sparksession,
+    write_evidence_strings,
 )
 
 # The TEP dataset is made available by the SGC as a tab-separated file:
