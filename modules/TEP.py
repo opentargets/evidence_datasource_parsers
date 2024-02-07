@@ -2,22 +2,24 @@
 
 import argparse
 import logging
+import logging.config
 import sys
 
 from pyspark import SparkFiles
 from pyspark.sql import functions as f
 
-from common.evidence import (
-    initialize_sparksession,
-    write_evidence_strings,
-)
+from common.evidence import initialize_sparksession, write_evidence_strings
 
 # The TEP dataset is made available by the SGC as a tab-separated file:
 TEPURL = "https://www.thesgc.org/sites/default/files/fileuploads/available-teps.tsv"
 
 
 def main(outputFile: str) -> None:
+    """Main function to fetch and process the TEP dataset from the Structural Genomics Consortium.
 
+    Args:
+        outputFile (str): Output file name.
+    """
     # Initialize spark session
     spark = initialize_sparksession()
     spark.sparkContext.addFile(TEPURL)
@@ -44,18 +46,18 @@ def main(outputFile: str) -> None:
     )
 
     logging.info("TEP dataset has been downloaded and formatted.")
-    logging.info(f"Number of TEPs: {TEP_df.count()}")
+    logging.info("Number of TEPs: %s", TEP_df.count())
     logging.info(
-        f'Number of unique genes: {TEP_df.select("targetFromSourceId").distinct().count()}'
+        "Number of unique genes: %s",
+        TEP_df.select("targetFromSourceId").distinct().count(),
     )
 
     # Saving data:
     write_evidence_strings(TEP_df, outputFile)
-    logging.info(f"TEP dataset is written to {outputFile}.")
+    logging.info("TEP dataset is written to %s", outputFile)
 
 
 if __name__ == "__main__":
-
     # Reading output file name from the command line:
     parser = argparse.ArgumentParser(
         description="This script fetches TEP data from Structural Genomics Consortium."
@@ -78,7 +80,7 @@ if __name__ == "__main__":
         datefmt="%Y-%m-%d %H:%M:%S",
     )
     if args.log_file:
-        logging.config.fileConfig(filename=args.log_file)
+        logging.config.fileConfig(fname=args.log_file)
     else:
         logging.StreamHandler(sys.stderr)
 
