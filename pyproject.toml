@@ -23,10 +23,12 @@ pronto = "^2.5.5"
 requests = "^2.31.0"
 retry2 = "^0.9.5"
 snakemake = "^8.3.2"
+types-requests = "^2.31.0.20240125"
 
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "^3.6.0"
+mypy = "^1.8.0"
 
 [build-system]
 requires = ["poetry-core"]
@@ -43,6 +45,9 @@ warn_redundant_casts = true
 warn_unused_ignores = true
 disallow_untyped_defs = true
 
+[[tool.mypy.overrides]]
+module = ["requests"]
+ignore_missing_imports = true
 
 [tool.ruff]
 select = [
