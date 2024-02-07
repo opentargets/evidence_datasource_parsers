@@ -90,3 +90,11 @@ repos:
     rev: 0.3.8
     hooks:
       - id: pydoclint
+
+  - repo: https://github.com/lorenzwalthert/precommit
+    rev: v0.4.0
+    hooks:
+      - id: lintr
+        args: [--warn_only]
+        verbose: true
+      - id: parsable-R
