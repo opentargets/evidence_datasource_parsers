@@ -310,7 +310,7 @@ def parse_experiment(
 
     # Applying the full map on the dataframe one-by-one:
     biomarkers = reduce(
-        lambda DF, value: DF.withColumn(*value), expressions, validation_lab_cell_lines
+        lambda temp_df, value: temp_df.withColumn(*value), expressions, validation_lab_cell_lines
     )
 
     # The biomarker columns are unstacked into one single 'biomarkers' column:
@@ -391,7 +391,7 @@ def parse_experiment(
         .persist()
     )
 
-    logging.info(f"Evidence count: {evidence.count()}.")
+    logging.info("Evidence count: %s.", evidence.count())
     return evidence
 
 
@@ -408,7 +408,7 @@ def main(
     # Opening and parsing the cell passport data from Sanger:
     cell_passport_df = get_cell_passport_data(spark, cell_passport_file)
 
-    logging.info(f"Cell passport dataframe has {cell_passport_df.count()} rows.")
+    logging.info("Cell passport dataframe has %s rows.", cell_passport_df.count())
 
     logging.info("Parsing experiment data...")
 
