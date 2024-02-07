@@ -1,31 +1,47 @@
+"""Shared functions for generating evidence strings."""
+import json
 import logging
 import os
-from psutil import virtual_memory
-import json
-import yaml
 import tempfile
-from typing import Dict
+from typing import TYPE_CHECKING, Dict
 
 import gcsfs
-import requests
-
-from pyspark.conf import SparkConf
-from pyspark.sql import SparkSession, DataFrame
 import pyspark.sql.functions as f
-from pyspark.sql.types import StringType, StructField, StructType, ArrayType
+import requests
+import yaml
+from psutil import virtual_memory
 from pyspark import SparkFiles
+from pyspark.conf import SparkConf
+from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql.types import ArrayType, StringType, StructField, StructType
+
+if TYPE_CHECKING:
+    from typing import Dict, List, Mapping
+
+    from pyspark.sql import DataFrame, SparkSession
 
 
-def detect_spark_memory_limit():
-    """Spark does not automatically use all available memory on a machine. When working on large datasets, this may
+def detect_spark_memory_limit() -> int:
+    """Get maximum memory for Spark.
+
+    Spark does not automatically use all available memory on a machine. When working on large datasets, this may
     cause Java heap space errors, even though there is plenty of RAM available. To fix this, we detect the total amount
-    of physical memory and allow Spark to use (almost) all of it."""
+    of physical memory and allow Spark to use (almost) all of it.
+
+    Returns:
+        int: Maximum memory for Spark in GB.
+    """
     mem_gib = virtual_memory().total >> 30
     return int(mem_gib * 0.9)
 
 
-def write_evidence_strings(evidence, output_file):
-    """Exports the table to a compressed JSON file containing the evidence strings."""
+def write_evidence_strings(evidence: DataFrame, output_file: str) -> None:
+    """Exports the table to a compressed JSON file containing the evidence strings.
+
+    Args:
+        evidence (DataFrame): The evidence dataframe.
+        output_file (str): The output file name.
+    """
     with tempfile.TemporaryDirectory() as tmp_dir_name:
         (
             evidence.coalesce(1)
@@ -42,8 +58,11 @@ def write_evidence_strings(evidence, output_file):
 
 
 def initialize_sparksession() -> SparkSession:
-    """Initialize spark session."""
+    """Initialize spark session.
 
+    Returns:
+        SparkSession: Spark session.
+    """
     spark_mem_limit = detect_spark_memory_limit()
     spark_conf = (
         SparkConf()
@@ -63,26 +82,28 @@ def initialize_sparksession() -> SparkSession:
 
 
 class GenerateDiseaseCellLines:
-    """
-    Generate "diseaseCellLines" object from a cell passport file.
+    """Generate "diseaseCellLines" object from a cell passport file.
 
     !!!
     There's one important bit here: I have noticed that we frequenty get cell line names
     with missing dashes. Therefore the cell line names are cleaned up by removing dashes.
     It has to be done when joining with other datasets.
     !!!
-
-    Args:
-        cell_passport_file: Path to the cell passport file.
     """
 
-    def __init__(self, cell_passport_file: str, spark) -> None:
+    def __init__(self, cell_passport_file: str, spark: SparkSession) -> None:
+        """Initialize the class.
+
+        Args:
+            cell_passport_file (str): Path to the cell passport file.
+            spark (SparkSession): Spark session.
+        """
         self.cell_passport_file = cell_passport_file
         self.spark = spark
-        self.cell_map = self.generate_map()
+        self.cell_map = self._generate_map()
 
-    def generate_map(self) -> None:
-        """Reading and procesing cell line data from the cell passport file.
+    def _generate_map(self) -> DataFrame:
+        """Read and process cell line data from the cell passport file.
 
         The schema of the returned dataframe is:
 
@@ -104,8 +125,10 @@ class GenerateDiseaseCellLines:
             * The cell line name has the dashes removed.
             * Id is the cell line identifier from Sanger
             * Tissue id is the UBERON identifier for the tissue, fetched from OLS
-        """
 
+        Returns:
+            DataFrame: Spark dataframe containing the diseaseCellLines object.
+        """
         # loading cell line annotation data from Sanger:
         cell_df = (
             # The following option is required to correctly parse CSV records which contain newline characters.
@@ -123,7 +146,7 @@ class GenerateDiseaseCellLines:
 
         # Generating a unique set of tissues in a pandas dataframe:
         tissues = cell_df.select("tissue").distinct().toPandas()
-        logging.info(f"Found {len(tissues)} tissues.")
+        logging.info("Found %s tissues.", len(tissues))
 
         # Generating a unique set of cell lines in a pandas series:
         # TODO: UBERON IDs should not be mapped via REST queries. This should be done via joining with owl data.
@@ -131,7 +154,8 @@ class GenerateDiseaseCellLines:
             tissueId=lambda df: df.tissue.apply(self.lookup_uberon)
         )
         logging.info(
-            f"Found mapping for {len(mapped_tissues.loc[mapped_tissues.tissueId.notna()])} tissues."
+            "Found mapping for %s tissues.",
+            len(mapped_tissues.loc[mapped_tissues.tissueId.notna()]),
         )
 
         # Converting to spark dataframe:
@@ -149,13 +173,24 @@ class GenerateDiseaseCellLines:
             )
         )
 
-    def get_mapping(self):
+    def get_mapping(self) -> DataFrame:
+        """Return the diseaseCellLines object.
+
+        Returns:
+            DataFrame: Spark dataframe containing the diseaseCellLines object.
+        """
         return self.cell_map
 
     @staticmethod
-    def lookup_uberon(tissue_label: str) -> str:
-        """Mapping tissue labels to tissue identifiers (UBERON codes) via the OLS API."""
+    def lookup_uberon(tissue_label: str) -> str | None:
+        """Mapping tissue labels to tissue identifiers (UBERON codes) via the OLS API.
 
+        Args:
+            tissue_label (str): Tissue label.
+
+        Returns:
+            str | None: UBERON code if available, None otherwise.
+        """
         url = f"https://www.ebi.ac.uk/ols/api/search?q={tissue_label.lower()}&queryFields=label&ontology=uberon&exact=true"
         r = requests.get(url).json()
 
@@ -175,9 +210,15 @@ class GenerateDiseaseCellLines:
             )
         )
     )
-    def parse_msi_status(status: str) -> list:
-        """Based on the content of the MSI status, we generate the corresponding biomarker object."""
+    def parse_msi_status(status: str) -> List[Dict[str, str]] | None:
+        """Based on the content of the MSI status, generate the corresponding biomarker object.
 
+        Args:
+            status (str): MSI status.
+
+        Returns:
+            List[Dict[str, str]] | None: Biomarker object.
+        """
         if status == "MSI":
             return [{"name": "MSI", "description": "Microsatellite instable"}]
         if status == "MSS":
@@ -186,9 +227,25 @@ class GenerateDiseaseCellLines:
             return None
 
 
-def read_path(path: str, spark_instance) -> DataFrame:
-    """Automatically detect the format of the input data and read it into the Spark dataframe. The supported formats
-    are: a single TSV file; a single JSON file; a directory with JSON files; a directory with Parquet files.
+def read_path(path: str, spark: SparkSession) -> DataFrame | None:
+    """Detect the format of the input data and read it into the Spark dataframe.
+
+    The supported formats are:
+        - Single TSV file;
+        - Single JSON file;
+        - Directory with JSON files;
+        - Directory with Parquet files.
+
+    Args:
+        path (str): Path to the input data.
+        spark (SparkSession): Spark session.
+
+    Returns:
+        DataFrame | None: Spark dataframe containing the input data.
+
+    Raises:
+        AssertionError: If the provided path does not exist, or is neither a file nor a directory.
+        AssertionError: If the format of the provided file is not supported.
     """
     if path is None:
         return None
@@ -202,11 +259,11 @@ def read_path(path: str, spark_instance) -> DataFrame:
     # Case 1: We are provided with a single file.
     if os.path.isfile(path):
         if path.endswith(".csv"):
-            return spark_instance.read.csv(path, header=True, inferSchema=True)
+            return spark.read.csv(path, header=True, inferSchema=True)
         if path.endswith(".tsv"):
-            return spark_instance.read.csv(path, sep="\t", header=True)
+            return spark.read.csv(path, sep="\t", header=True)
         elif path.endswith((".json", ".json.gz", ".jsonl", ".jsonl.gz")):
-            return spark_instance.read.json(path)
+            return spark.read.json(path)
         else:
             raise AssertionError(
                 f"The format of the provided file {path} is not supported."
@@ -235,16 +292,26 @@ def read_path(path: str, spark_instance) -> DataFrame:
 
     # A directory with JSON files.
     if json_files:
-        return spark_instance.read.option("recursiveFileLookup", "true").json(path)
+        return spark.read.option("recursiveFileLookup", "true").json(path)
 
     # A directory with Parquet files.
     if parquet_files:
-        return spark_instance.read.parquet(path)
+        return spark.read.parquet(path)
 
-def read_project_config() -> Dict[str, str]:
-    """Load the configuration file into a dictionary."""
+    return None
+
+
+def read_project_config() -> Mapping[str, Mapping[str, int]]:
+    """Load the configuration file into a dictionary.
+
+    Returns:
+        Mapping[str, Mapping[str, int]]: Configuration dictionary.
+
+    Raises:
+        FileNotFoundError: If the configuration file does not exist.
+    """
     base_dir = os.getcwd()
-    if 'common' in base_dir:
+    if "common" in base_dir:
         config_path = os.path.join(os.path.dirname(base_dir), "configuration.yaml")
     else:
         config_path = os.path.join(base_dir, "configuration.yaml")
@@ -252,36 +319,40 @@ def read_project_config() -> Dict[str, str]:
         raise FileNotFoundError(f"Configuration file ({config_path}) does not exist.")
     return yaml.safe_load(open(config_path))
 
+
 def import_trait_mappings(spark: SparkSession) -> DataFrame:
     """Load the remote trait mappings file to a Spark dataframe. The file is downloaded from the curated data repository.
-    
+
     Args:
         spark (SparkSession): Spark session.
 
     Returns:
         DataFrame: Spark dataframe containing `diseaseFromSource` and `diseaseFromSourceMappedId` columns.
     """
-    remote_trait_mappings_url = f"{read_project_config()['global']['curation_repo']}/mappings/disease/manual_string.tsv"
+    curation_repo = read_project_config()["global"]["curation_repo"]
+    remote_trait_mappings_url = f"{curation_repo}/mappings/disease/manual_string.tsv"
     spark.sparkContext.addFile(remote_trait_mappings_url)
-    return (
-        spark.read.csv(SparkFiles.get("manual_string.tsv"), header=True, sep="\t")
-        .select(
-            f.col("PROPERTY_VALUE").alias("diseaseFromSource"),
-            f.element_at(f.split(f.col("SEMANTIC_TAG"), "/"), -1).alias(
-                "diseaseFromSourceMappedId"
-            ),
-        )
+    return spark.read.csv(
+        SparkFiles.get("manual_string.tsv"), header=True, sep="\t"
+    ).select(
+        f.col("PROPERTY_VALUE").alias("diseaseFromSource"),
+        f.element_at(f.split(f.col("SEMANTIC_TAG"), "/"), -1).alias(
+            "diseaseFromSourceMappedId"
+        ),
     )
 
 
-def read_ppp_config(config_path: str) -> dict:
+def read_ppp_config(config_path: str) -> Dict[str, str]:
     """Read json file stored on GCP location into a dictionary.
 
     Args:
         config_path (str): Path to configuration file.
 
     Returns:
-        dict: parsed configuration
+        Dict[str, str]: parsed configuration
+
+    Raises:
+        Exception: If the configuration file cannot be read.
     """
     # Configuration is provided in a gs:// location:
     if config_path.startswith("gs://"):
@@ -290,14 +361,14 @@ def read_ppp_config(config_path: str) -> dict:
             with fs.open(config_path, "r") as parameter_file:
                 parameters = json.load(parameter_file)
         except Exception as e:
-            raise e(f"Could not read parameter file. {config_path}")
+            raise Exception(f"Could not read parameter file. {config_path}") from e
 
     # If not a GCP location, assuming a local file:
     else:
         try:
-            with open(config_path, "r") as parameter_file:
+            with open(config_path) as parameter_file:
                 parameters = json.load(parameter_file)
         except Exception as e:
-            raise e(f"Could not read parameter file. {config_path}")
+            raise Exception(f"Could not read parameter file. {config_path}") from e
 
     return parameters

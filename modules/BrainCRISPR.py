@@ -1,19 +1,19 @@
 #!/usr/bin/env python
 """This module generates crispr evidence based on Brain Crispr resource."""
 from __future__ import annotations
-from typing import TYPE_CHECKING
-import logging
 
-from urllib.parse import quote
-from requests import post
 import gzip
 import json
+import logging
 import re
 from functools import reduce
-from typing import List
+from typing import TYPE_CHECKING, List
+from urllib.parse import quote
 
-from pyspark.sql import types as t, functions as f
 from pyspark import SparkFiles
+from pyspark.sql import functions as f
+from pyspark.sql import types as t
+from requests import post
 
 if TYPE_CHECKING:
     from pyspark.sql import DataFrame, SparkSession
@@ -24,6 +24,8 @@ logger = logging.getLogger(__name__)
 
 
 class CRISPRBrain:
+    """Parser for CRISPR Brain resource."""
+
     # CRISPR Brain API details. API key is required and also allows for checking for new release.
     API_SERVER_URL = "https://crisprbrain.org"
     API_CLIENT_ID = "92f263647c43525d3e4f181aa7e348f26e32129c0f827321d9261cc9765c56c0"
@@ -44,10 +46,10 @@ class CRISPRBrain:
         spark: SparkSession,
         disease_mapping_url: str,
     ) -> None:
-        """Initialize CRISPR Brain parser
+        """Initialize CRISPR Brain parser.
 
         Args:
-            spark (SparkSession):
+            spark (SparkSession): Spark session object.
             disease_mapping_url (str): file containing the study to disease mapping
         """
         self.spark = spark
@@ -60,9 +62,11 @@ class CRISPRBrain:
         """Extract screen data from Crispr brain API.
 
         Returns:
-            spark dataframe with the parsed CRISPR Brain screens.
-        """
+            DataFrame: with the parsed CRISPR Brain screens.
 
+        Raises:
+            ValueError: API versions don't match with the parser.
+        """
         # Establish connection to get study level metadata:
         response = post(
             f"{self.API_SERVER_URL}/api/screens", data={"client_id": self.API_CLIENT_ID}
@@ -91,8 +95,11 @@ class CRISPRBrain:
         )
 
     def __get_disease_mapping(self: CRISPRBrain) -> DataFrame:
-        """Read screen to disease and contrast mappings."""
+        """Read screen to disease and contrast mappings.
 
+        Returns:
+            DataFrame: with the parsed disease mappings.
+        """
         disease_mappings_df = (
             self.spark.read.csv(
                 SparkFiles.get(self.disease_mapping_file), sep="\t", header=True
@@ -105,12 +112,16 @@ class CRISPRBrain:
         )
 
         logger.info(
-            f"Number of studies with disease mapping: {disease_mappings_df.count()}"
+            "Number of studies with disease mapping: %s", disease_mappings_df.count()
         )
         return disease_mappings_df
 
     def __get_literature_mapping(self: CRISPRBrain) -> DataFrame:
-        """Read screen publication to pmid mappings."""
+        """Read screen publication to pmid mappings.
+
+        Returns:
+            DataFrame: with the parsed literature mappings.
+        """
         return self.spark.createDataFrame(
             self.LITERATURE_MAPPING, ["Reference Link", "literature"]
         )
@@ -125,19 +136,15 @@ class CRISPRBrain:
             ]
         )
     )
-    def __parsing_experiment(description: str) -> dict:
+    def __parsing_experiment(description: str) -> dict[str, str | None]:
         """Parse free-text experiment description into structured data.
 
         Args:
             description (str): Free text screen description provided by the API.
 
         Returns:
-            dict: dictionary with 3 optional fields:
-            - title
-            - experiment
-            - analysis
+            dict[str, str | None]: dictionary with 3 optional fields: "title", "experiment", and "analysis".
         """
-
         # Cleaning text:
         repl_patterns = [(r"\*+", ""), (r"\r", ""), (r"\t", ""), (r"\n+", "\n")]
 
@@ -148,7 +155,8 @@ class CRISPRBrain:
                 description,
             )
             # Dropping some nasty utf8 characters:
-            .encode("ascii", "ignore").decode("ascii")
+            .encode("ascii", "ignore")
+            .decode("ascii")
         )
         # Split
         description_lines = re.split(r"\n+", description.strip())
@@ -164,9 +172,9 @@ class CRISPRBrain:
 
         try:
             for i in range(len(description_lines)):
-                if "## Experiment" == description_lines[i]:
+                if description_lines[i] == "## Experiment":
                     experiment = description_lines[i + 1]
-                if "## Analysis" == description_lines[i]:
+                if description_lines[i] == "## Analysis":
                     analysis = description_lines[i + 1]
         except TypeError:
             experiment = None
@@ -186,38 +194,32 @@ class CRISPRBrain:
         """
         # Get the number of studies with no literature mapping:
         studies_wo_lit = df.filter(f.col("literature").isNull()).count()
-        logger.info(f"Number of studies without literature mapping: {studies_wo_lit}")
+        logger.info("Number of studies without literature mapping: %", studies_wo_lit)
 
         # Get the number of studies with no disease mapping:
         studies_wo_disease = df.filter(
             f.col("diseaseFromSourceMappedId").isNull()
         ).count()
-        logger.info(f"Number of studies without disease mapping: {studies_wo_disease}")
+        logger.info("Number of studies without disease mapping: %s", studies_wo_disease)
 
         # Get the number of studies with disease mapping:
         filtered_df = df.filter(f.col("diseaseFromSourceMappedId").isNotNull())
-        logger.info(f"Number of studies with disease mapping: {filtered_df.count()}")
+        logger.info("Number of studies with disease mapping: %s", filtered_df.count())
 
         # Return filtered dataframe:
         return filtered_df
 
     def __parse_gene_list(self: CRISPRBrain, study_id: str) -> DataFrame:
-        """
-        This function parses a gene list for a single screen and returns a dataframe with hit genes.
+        """Parse gene list for a single screen and returns a dataframe with hit genes.
+
+        The function filters out non-hit genes and renames some columns using the PySpark functions col and lit.
 
         Args:
-          study_id (str): The study_id parameter is a string that represents the unique identifier for a
+            study_id (str): The study_id parameter is a string that represents the unique identifier for a
         single screen.
 
         Returns:
-          a DataFrame with hit genes from a single screen. The DataFrame contains columns
-            - targetFromSourceId,
-            - pValue,
-            - statisticalTestTail,
-            - resourceScore, and
-            - studyId.
-
-        The function filters out non-hit genes and renames some columns using the PySpark functions col and lit.
+            DataFrame: hit genes from a single screen.
         """
         screen_url = f"https://storage.googleapis.com/crisprbrain.appspot.com/api-data/{quote(study_id)}.csv.gz"
         self.spark.sparkContext.addFile(screen_url)
@@ -239,8 +241,14 @@ class CRISPRBrain:
         )
 
     def __get_all_hit_genes(self, study_identifiers: List[str]) -> DataFrame:
-        """Retrieving hit genes from all screens."""
+        """Retrieve hit genes from all screens.
 
+        Args:
+            study_identifiers (List[str]): List of study identifiers.
+
+        Returns:
+            DataFrame: with hit genes from all screens.
+        """
         # Parsing all gene lists for all screens and combine them into a single dataframe:
         return reduce(
             lambda df1, df2: df1.unionByName(df2),
@@ -248,7 +256,7 @@ class CRISPRBrain:
         )
 
     def create_crispr_brain_evidence(self: CRISPRBrain) -> None:
-        """"""
+        """Create evidence from CRISPR Brain resource."""
         # Reading
         crispr_studies = (
             # Reading studies:
@@ -302,16 +310,36 @@ class CRISPRBrain:
         )
 
     def get_dataframe(self: CRISPRBrain) -> DataFrame:
+        """Get the evidence dataframe.
+
+        Raises:
+            Exception: AttributeError: Evidence not yet generated!
+
+        Returns:
+            DataFrame: Evidence dataframe.
+        """
         try:
             return self.evidence
         except AttributeError as e:
             raise Exception("Evidence not yet generated!") from e
 
     def save_evidence(self: CRISPRBrain, filename: str) -> None:
+        """Save evidence dataframe to file.
+
+        Args:
+            filename (str): File to save the evidence to.
+
+        Raises:
+            Exception: AttributeError: Evidence not yet generated!
+        """
         format = filename.split(".")[-1]
 
+        # If the filename doesn't contain a format, we default to parquet:
         if format == filename:
             format = "parquet"
 
         # Save data:
-        self.evidence.write.mode("overwrite").format(format).save(filename)
+        try:
+            self.evidence.write.mode("overwrite").format(format).save(filename)
+        except AttributeError as e:
+            raise Exception("Evidence not yet generated!") from e
