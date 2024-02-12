@@ -1,12 +1,12 @@
 global:
   logDir: gs://otar000-evidence_input/parser_logs
   cacheDir: cache_dir
-  schema: https://raw.githubusercontent.com/opentargets/json_schema/2.5.0
-  EFOVersion: v3.58.0
+  schema: https://raw.githubusercontent.com/opentargets/json_schema/2.6.1
+  EFOVersion: v3.62.0
   cell_passport_file: https://cog.sanger.ac.uk/cmp/download/model_list_latest.csv.gz
   curation_repo: https://raw.githubusercontent.com/opentargets/curation/23.12
 baselineExpression:
-  gtexSourceDataPath: https://storage.googleapis.com/gtex_analysis_v8/rna_seq_data/GTEx_Analysis_2017-06-05_v8_RNASeQCv1.1.9_gene_median_tpm.gct.gz
+  gtexSourceDataPath: https://storage.googleapis.com/adult-gtex/bulk-gex/v8/rna-seq/GTEx_Analysis_2017-06-05_v8_RNASeQCv1.1.9_gene_median_tpm.gct.gz
   tissueNameToUberonMappingPath: mappings/biosystem/gtex_v8_tissues.tsv
   schema: schemas/baseline_expression.json
   outputBucket: gs://otar000-evidence_input/BaselineExpression/json
@@ -79,8 +79,8 @@ TargetSafety:
   aopwiki: gs://otar001-core/TargetSafety/data_files/aopwiki/aopwiki-2023-01-20.json
   outputBucket: gs://otar001-core/TargetSafety/json
 ChemicalProbes:
-  probesExcelDump: https://www.probes-drugs.org/media/download/probes/pd_export_01_2023_probes_standardized.xlsx
-  probesMappingsTable: https://www.probes-drugs.org/media/download/id_mapping/pd_export_01_2023_links_standardized.csv
+  probesExcelDump: https://www.probes-drugs.org/media/download/probes/pd_export_02_2023_probes_standardized.xlsx
+  probesMappingsTable: https://www.probes-drugs.org/media/download/id_mapping/pd_export_02_2023_links_standardized.csv
   inputBucket: gs://otar001-core/ChemicalProbes/data_files
   outputBucket: gs://otar001-core/ChemicalProbes/annotation
 OT_CRISPR:
