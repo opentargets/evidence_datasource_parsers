@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
 """Parser for fetch and format gene-essentiality dataset."""
 from __future__ import annotations
-from typing import TYPE_CHECKING
 
 import argparse
 import logging
 import logging.config
 import sys
 from functools import reduce
+from typing import TYPE_CHECKING
 
-from common.evidence import write_evidence_strings, initialize_sparksession
-
-from pyspark.sql import SparkSession, functions as f, types as t, DataFrame
 from pyspark import SparkFiles
+from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql import functions as f
+from pyspark.sql import types as t
+
+from common.evidence import initialize_sparksession, write_evidence_strings
 
 if TYPE_CHECKING:
     from pyspark.sql import Column
@@ -83,7 +85,7 @@ class DepMapEssentiality:
             # Joining hotspot mutation data:
             .join(hotspots, on=["targetSymbol", "depmapId"], how="left")
             # Joining tissue mapping:
-            .join(tissue_mapping, on="oncotreeLineage", how="left")
+            .join(tissue_mapping, on="tissueFromSource", how="left")
             # Format data:
             .select(
                 "targetSymbol",
@@ -106,7 +108,7 @@ class DepMapEssentiality:
                 "geneEffect",
                 "expression",
                 # Essentiality flag:
-                f.when(f.col("isEssential") == True, True)
+                f.when(f.col("isEssential"), True)
                 .otherwise(False)
                 .alias("isEssential"),
             )
@@ -254,7 +256,7 @@ class DepMapEssentiality:
                 f.concat(f.col("OncotreePrimaryDisease"), f.lit(" cells"))
             ).alias("cellLineName"),
             f.col("SangerModelID").alias("modelId"),
-            f.col("OncotreeLineage").alias("oncotreeLineage"),
+            f.lower(f.col("OncotreeLineage")).alias("tissueFromSource"),
             f.col("OncotreePrimaryDisease").alias("diseaseFromSource"),
         )
 
@@ -362,5 +364,7 @@ if __name__ == "__main__":
         args.depmap_input_folder,
         args.depmap_tissue_mapping,
         args.output_file,
+        args.essential_only,
+    )
         args.essential_only,
     )
