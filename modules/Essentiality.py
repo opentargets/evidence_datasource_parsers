@@ -109,6 +109,8 @@ class DepMapEssentiality:
                 # Essentiality flag:
                 f.coalesce(f.col("isEssential"), f.lit(False)).alias("isEssential"),
             )
+            # Dropping rows with missing gene effect. This can happen when there's just no data for a gene in a given cell line:
+            .filter(f.col("geneEffect").isNotNull())
             .persist()
         )
 
