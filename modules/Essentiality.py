@@ -6,7 +6,6 @@ import argparse
 import logging
 import logging.config
 import sys
-from functools import reduce
 from typing import TYPE_CHECKING
 
 from pyspark import SparkFiles
@@ -21,6 +20,8 @@ if TYPE_CHECKING:
 
 
 class DepMapEssentiality:
+    """Parser for DepMap gene essentiality dataset."""
+
     # List of files to be used:
     MODELS = "Model.csv"
     ESSENTIAL_GENE_LIST = "CRISPRInferredCommonEssentials.csv"
@@ -97,9 +98,7 @@ class DepMapEssentiality:
                 "diseaseFromSource",
                 # Tissue fields:
                 "tissueId",
-                f.when(f.col("tissueName").isNull(), "other")
-                .otherwise(f.col("tissueName"))
-                .alias("tissueName"),
+                f.coalesce(f.col("tissueName"), f.lit("other")).alias("tissueName"),
                 # Parsing mutation:
                 f.when(f.col("damagingMutation").isNotNull(), "damaging")
                 .when(f.col("hotspotMutation").isNotNull(), "hotspot")
@@ -108,18 +107,14 @@ class DepMapEssentiality:
                 "geneEffect",
                 "expression",
                 # Essentiality flag:
-                f.when(f.col("isEssential"), True)
-                .otherwise(False)
-                .alias("isEssential"),
+                (f.col("isEssential") == True).alias("isEssential"),
             )
             .persist()
         )
 
         # If only essential genes are needed, drop all other:
         if keep_only_essentials:
-            self.essentials = self.essentials.filter(
-                f.col("isEssential") == True
-            ).persist()
+            self.essentials = self.essentials.filter(f.col("isEssential")).persist()
 
         # We have to assert the data is properly generated before returning:
         assert isinstance(self.essentials, DataFrame)
@@ -185,6 +180,7 @@ class DepMapEssentiality:
         )
 
     def get_stats_on_essentials(self) -> None:
+        """Print statistics on the essentiality dataset."""
         entry_count = self.essentials.count()
         gene_count = self.essentials.select("targetSymbol").distinct().count()
         disease_count = self.essentials.select("diseaseFromSource").distinct().count()
@@ -192,10 +188,6 @@ class DepMapEssentiality:
         print(f"Number of entries: {entry_count}")
         print(f"Number of essential genes: {gene_count}")
         print(f"Number of unique diseases: {disease_count}")
-
-    def get_evidence_dataframe(self) -> DataFrame:
-        """Write disease/target evidence."""
-        raise NotImplementedError
 
     def _get_tissue_mapping(self, tissue_mapping_url: str) -> DataFrame:
         """Fetch tissue mapping stored as a tsv in github URL.
@@ -214,6 +206,18 @@ class DepMapEssentiality:
         )
 
     def _read_and_melt(self, filename: str, value_name: str) -> DataFrame:
+        """Read and melt the wide table into a long format.
+
+        Damaging mutation and hotspot mutation tables are provided in a wide format, where each column represents a gene and each row is a cell line.
+        The values indicate the number of mutations in the gene for the cell line.
+
+        Args:
+            filename (str): Path to the file.
+            value_name (str): Name of the value column.
+
+        Returns:
+            DataFrame: Melted dataframe. Columns: depmapId, targetSymbol, value_name (e.g. geneEffect, expression, hotspotMutation, damagingMutation)
+        """
         # Reading csv into dataframe:
         df = (
             self.spark.read.csv(filename, sep=",", header=True)
@@ -242,9 +246,30 @@ class DepMapEssentiality:
 
     @staticmethod
     def _extract_gene_symbol(gene_col: Column) -> Column:
+        """Extract gene symbol from a string, where space separates gene symbol with other components.
+
+        Data example:
+            Essentials
+            AAMP (14)
+            AARS1 (16)
+
+        Args:
+            gene_col (Column): Column containing gene symbols.
+
+        Returns:
+            Column: gene symbol.
+        """
         return f.split(gene_col, " ").getItem(0).alias("targetSymbol")
 
     def _prepare_models(self, model_file: str) -> DataFrame:
+        """Prepare model data.
+
+        Args:
+            model_file (str): Path to the model file.
+
+        Returns:
+            DataFrame: columns: depmapId, cellLineName, modelId, tissueFromSource, diseaseFromSource
+        """
         return self.spark.read.csv(model_file, sep=",", header=True).select(
             f.col("ModelID").alias("depmapId"),
             # If cell line name is provided, it's picked:
@@ -252,15 +277,29 @@ class DepMapEssentiality:
             # When not cell line name, but Cancer Cell Line Enciclopedia name is provided, that's picked:
             .when(f.col("CCLEName").isNotNull(), f.col("CCLEName"))
             # If none of these sources are available, the cell line name is generated from the disease name:
-            .otherwise(
-                f.concat(f.col("OncotreePrimaryDisease"), f.lit(" cells"))
-            ).alias("cellLineName"),
+            .otherwise(f.concat(f.col("OncotreePrimaryDisease"), f.lit(" cells")))
+            .alias("cellLineName"),
             f.col("SangerModelID").alias("modelId"),
             f.lower(f.col("OncotreeLineage")).alias("tissueFromSource"),
             f.col("OncotreePrimaryDisease").alias("diseaseFromSource"),
         )
 
     def _prepare_essential_genes(self, essential_gene_file: str) -> DataFrame:
+        """Prepare essential gene list.
+
+        This method reads the essential gene list table and returns a dataframe with gene symbols and essentiality flag:
+
+        Daata example:
+            Essentials
+            AAMP (14)
+            AARS1 (16)
+
+        Args:
+            essential_gene_file (str): Path to the essential gene list file.
+
+        Returns:
+            DataFrame: columns: targetSymbol, isEssential
+        """
         return self.spark.read.csv(essential_gene_file, sep=",", header=True).select(
             self._extract_gene_symbol(f.col("Essentials")),
             f.lit(True).alias("isEssential"),
@@ -366,5 +405,4 @@ if __name__ == "__main__":
         args.output_file,
         args.essential_only,
     )
-        args.essential_only,
-    )
+    logging.info(f"Gene essentiality dataset is written to {args.output_file}.")

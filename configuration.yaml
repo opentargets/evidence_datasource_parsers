@@ -31,7 +31,7 @@ CRISPR:
   outputBucket: gs://otar000-evidence_input/CRISPR/json
 Essentiality:
   inputBucket: gs://otar000-evidence_input/Essentiality/DepMap/2023Q4
-  depmap_tissue_mapping: https://raw.githubusercontent.com/opentargets/curation/master/mappings/biosystem/depmap_uberon_mapping.csv
+  depmap_tissue_mapping: /mappings/biosystem/depmap_uberon_mapping.csv
   outputBucket: gs://otar000-evidence_input/Essentiality/json
 GeneBurden:
   azPhewasBinary: gs://otar000-evidence_input/GeneBurden/data_files/azphewas-com-450k-phewas-binary
