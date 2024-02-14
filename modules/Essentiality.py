@@ -107,7 +107,7 @@ class DepMapEssentiality:
                 "geneEffect",
                 "expression",
                 # Essentiality flag:
-                (f.col("isEssential") == True).alias("isEssential"),
+                f.coalesce(f.col("isEssential"), f.lit(False)).alias("isEssential"),
             )
             .persist()
         )
