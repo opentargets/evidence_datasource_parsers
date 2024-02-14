@@ -112,7 +112,7 @@ rule baselineExpression:      # Calculate baseline expression data from GTEx V8.
 
 rule essentiality:            # Process essentiality data from DepMap.
     params:
-        tissue_mapping = GS.remote(
+        tissue_mapping = HTTP.remote(
             config['global']['curation_repo'] +
             config['Essentiality']['depmap_tissue_mapping']
         ),
@@ -125,7 +125,7 @@ rule essentiality:            # Process essentiality data from DepMap.
     shell:
         """
         exec &> {log}
-        # copy files from bucket:
+        # copy files from bucket to the home folder:
         gsutil -m cp -r "{params.input_folder}/*" ~/
         python modules/Essentiality.py \
             --depmap_input_folder  ~/ \
