@@ -554,12 +554,25 @@ rule validation_lab:          # Generating PPP evidence for Validation Lab
         opentargets_validator --schema {params.schema} {output}
         """
 
-rule PPP:                     # Moving local PPP evidence to the destination bucket.
+rule Pharmacogenetics:                     # Generating pharmacogenetics evidence
     input:
-        [source[0] for source in PPP_sources]
+        evidenceFile = GS.remote(config['Pharmacogenetics']['evidence']),
+    params:
+        schema = f"{config['global']['schema']}/{config['Pharmacogenetics]['schema']}"
+        phenotypes = f"{config['global']['curation_repo]}/{config['Pharmacogenetics']['phenotypes']}"
+        cache_dir = config['global']['cacheDir']
     output:
-        [source[1] for source in PPP_sources]
-    run:
-        for source in PPP_sources:
-            os.rename(source[0], source[1])
+        f"{config['Pharmacogenetics']['outputBucket']}/pharmacogenetics.json.gz"
+    log:
+        'log/pharmacogenetics.log'
+    shell:
+        """
+        exec &> {log}
+        python modules/pharmgkb.py \
+            --pharmgkb_evidence_path {input.evidenceFile} \
+            --extracted_phenotypes_path {params.phenotypes} \
+            --output_file_path {output} \
+            --cache_dir {params.cache_dir}
+        opentargets_validator --schema {params.schema} {output}
+        """
 
