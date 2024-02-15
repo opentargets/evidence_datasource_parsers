@@ -8,6 +8,7 @@ import sys
 import pyspark.sql.functions as f
 from common.evidence import initialize_sparksession, write_evidence_strings
 from common.ontology import add_efo_mapping
+from pyspark import SparkFiles
 from pyspark.sql import SparkSession
 
 
@@ -27,12 +28,12 @@ def main(spark: SparkSession, pharmgkb_evidence_path: str, extracted_phenotypes_
     logging.info(f"Table of genotype descriptions to extracted phenotypes: {extracted_phenotypes_path}")
     spark.sparkContext.addFile(extracted_phenotypes_path)
     pharmgkb_df = spark.read.json(pharmgkb_evidence_path)
-    pgx_phenotypes_df = spark.read.json(extracted_phenotypes_path.split("/")[-1])
+    pgx_phenotypes_df = spark.read.json(SparkFiles.get(extracted_phenotypes_path.split("/")[-1]))
 
 
     # Transform
     enriched_pharmgkb_df = (
-        pharmgkb_df.drop("phenotypeText").join(pgx_phenotypes_df, on="genotypeAnnotationText", how="left")
+        pharmgkb_df.drop("phenotypeText", "phenotypeFromSourceId").join(pgx_phenotypes_df, on="genotypeAnnotationText", how="left")
         .withColumn("phenotypeText", f.explode("phenotypeText"))
         .persist()
     )
@@ -40,7 +41,7 @@ def main(spark: SparkSession, pharmgkb_evidence_path: str, extracted_phenotypes_
         enriched_pharmgkb_df.select("*", f.col("phenotypeText").alias("diseaseFromSource"), f.lit(None).alias("diseaseFromSourceId")),
         spark,
         cache_dir
-    )
+    ).withColumnRenamed("diseaseFromSourceMappedId", "phenotypeFromSourceId").drop("diseaseFromSource")
     logging.info("Disease mappings have been added.")
 
     # Load

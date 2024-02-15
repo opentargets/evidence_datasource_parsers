@@ -44,6 +44,7 @@ ALL_FILES = [
     ('safetyLiabilities.json.gz', GS.remote(f"{config['TargetSafety']['outputBucket']}/safetyLiabilities-{timeStamp}.json.gz")),
     ('chemicalProbes.json.gz', GS.remote(f"{config['ChemicalProbes']['outputBucket']}/chemicalProbes-{timeStamp}.json.gz")),
     ('crispr_screens.json.gz', GS.remote(f"{config['CrisprScreens']['outputBucket']}/crispr_screens-{timeStamp}.json.gz")),
+    ('pharmacogenetics.json.gz', GS.remote(f"{config['Pharmacogenetics']['outputBucket']}/cttv012-{timeStamp}_pgkb.json.gz")),
 ]
 LOCAL_FILENAMES = [f[0] for f in ALL_FILES]
 REMOTE_FILENAMES = [f[1] for f in ALL_FILES]
@@ -445,10 +446,12 @@ rule crisprScreens:           # Generating disease/target evidence based on vari
 rule targetSafety:            # Process data from different sources that describe target safety liabilities.
     input:
         toxcast = GS.remote(config['TargetSafety']['toxcast']),
-        aopwiki = GS.remote(config['TargetSafety']['aopwiki'])
+        aopwiki = GS.remote(config['TargetSafety']['aopwiki']),
+        pharmacogenetics = GS.remote(f"{config['Pharmacogenetics']['outputBucket']}/cttv012-{timeStamp}_pgkb.json.gz")
     params:
         ae = f"{config['global']['curation_repo']}/{config['TargetSafety']['adverseEvents']}",
         sr = f"{config['global']['curation_repo']}/{config['TargetSafety']['safetyRisk']}",
+        cache_dir = config['global']['cacheDir'],
         schema = f"{config['global']['schema']}/schemas/target_safety.json"
     output:
         'safetyLiabilities.json.gz'
@@ -462,6 +465,8 @@ rule targetSafety:            # Process data from different sources that describ
             --safety_risk {params.sr} \
             --toxcast {input.toxcast} \
             --aopwiki {input.aopwiki} \
+            --pharmacogenetics {input.pharmacogenetics} \
+            --cache_dir {params.cache_dir} \
             --output {output}
         opentargets_validator --schema {params.schema} {output}
         """
@@ -558,17 +563,17 @@ rule Pharmacogenetics:                     # Generating pharmacogenetics evidenc
     input:
         evidenceFile = GS.remote(config['Pharmacogenetics']['evidence']),
     params:
-        schema = f"{config['global']['schema']}/{config['Pharmacogenetics]['schema']}"
-        phenotypes = f"{config['global']['curation_repo]}/{config['Pharmacogenetics']['phenotypes']}"
+        schema = f"{config['global']['schema']}/{config['Pharmacogenetics']['schema']}",
+        phenotypes = f"{config['global']['curation_repo']}/{config['Pharmacogenetics']['phenotypes']}",
         cache_dir = config['global']['cacheDir']
     output:
-        f"{config['Pharmacogenetics']['outputBucket']}/pharmacogenetics.json.gz"
+        "pharmacogenetics.json.gz"
     log:
         'log/pharmacogenetics.log'
     shell:
         """
         exec &> {log}
-        python modules/pharmgkb.py \
+        python modules/Pharmacogenetics.py \
             --pharmgkb_evidence_path {input.evidenceFile} \
             --extracted_phenotypes_path {params.phenotypes} \
             --output_file_path {output} \
