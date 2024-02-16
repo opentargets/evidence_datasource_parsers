@@ -102,7 +102,7 @@ def generate_evidence(
     """
     enriched_pharmgkb_df = (
         pharmgkb_df.drop("phenotypeText", "phenotypeFromSourceId").join(pgx_phenotypes_df, on="genotypeAnnotationText", how="left")
-        .withColumn("phenotypeText", f.explode("phenotypeText"))
+        .withColumn("phenotypeText", f.explode_outer("phenotypeText"))
         .persist()
     )
     enriched_pharmgkb_df = add_efo_mapping(
