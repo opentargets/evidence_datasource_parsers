@@ -374,7 +374,7 @@ def clean_phenotype_to_describe_safety_event(phenotype_col_name: Column) -> Colu
         "risk": "drug toxicity"
     }
 
-    cleaned_col = F.regexp_replace(col, words_to_remove, "")
+    cleaned_col = F.regexp_replace(phenotype_col_name, words_to_remove, "")
     cleaned_col = F.regexp_extract(cleaned_col, pattern, 1)
     cleaned_col = F.trim(F.regexp_replace(cleaned_col, "\\s+", " "))
   

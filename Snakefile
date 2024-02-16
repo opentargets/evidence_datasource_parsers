@@ -30,8 +30,6 @@ ALL_FILES = [
     ('EyeG2P.csv.gz', GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/EyeG2P-{timeStamp}.csv.gz")),
     ('SkinG2P.csv.gz', GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/SkinG2P-{timeStamp}.csv.gz")),
     ('CancerG2P.csv.gz', GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/CancerG2P-{timeStamp}.csv.gz")),
-    ('pd_export_01_2023_probes_standardized.xlsx', GS.remote(f"{config['ChemicalProbes']['inputBucket']}/pd_export_01_2023_probes_standardized-{timeStamp}.xlsx")),
-    ('pd_export_01_2023_links_standardized.csv', GS.remote(f"{config['ChemicalProbes']['inputBucket']}/pd_export_01_2023_links_standardized-{timeStamp}.csv")),
     ('intogen.json.gz', GS.remote(f"{config['intOGen']['outputBucket']}/intogen-{timeStamp}.json.gz")),
     ('orphanet.json.gz', GS.remote(f"{config['Orphanet']['outputBucket']}/orphanet-{timeStamp}.json.gz")),
     ('genomics_england.json.gz', GS.remote(f"{config['PanelApp']['outputBucket']}/genomics_england-{timeStamp}.json.gz")),
@@ -447,7 +445,7 @@ rule targetSafety:            # Process data from different sources that describ
     input:
         toxcast = GS.remote(config['TargetSafety']['toxcast']),
         aopwiki = GS.remote(config['TargetSafety']['aopwiki']),
-        pharmacogenetics = GS.remote(f"{config['Pharmacogenetics']['outputBucket']}/cttv012-{timeStamp}_pgkb.json.gz")
+        pharmacogenetics = GS.remote(config['TargetSafety']['pharmacogenetics'])
     params:
         ae = f"{config['global']['curation_repo']}/{config['TargetSafety']['adverseEvents']}",
         sr = f"{config['global']['curation_repo']}/{config['TargetSafety']['safetyRisk']}",
@@ -478,8 +476,6 @@ rule chemicalProbes:          # Process data from the Probes&Drugs portal.
     params:
         schema = f"{config['global']['schema']}/schemas/chemical_probes.json"
     output:
-        rawProbesExcel = 'pd_export_01_2023_probes_standardized.xlsx',
-        probesXrefsTable = 'pd_export_01_2023_links_standardized.csv',
         evidenceFile = 'chemicalProbes.json.gz'
     log:
         'log/chemicalProbes.log'

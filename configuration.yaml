@@ -1,7 +1,7 @@
 global:
   logDir: gs://otar000-evidence_input/parser_logs
   cacheDir: cache_dir
-  schema: https://raw.githubusercontent.com/opentargets/json_schema/2.6.1
+  schema: https://raw.githubusercontent.com/opentargets/json_schema/2.6.2
   EFOVersion: v3.62.0
   cell_passport_file: https://cog.sanger.ac.uk/cmp/download/model_list_latest.csv.gz
   curation_repo: https://raw.githubusercontent.com/opentargets/curation/24.03
@@ -77,6 +77,7 @@ TargetSafety:
   safetyRisk: target_safety/safety_risks.tsv
   toxcast: gs://otar001-core/TargetSafety/data_files/toxcast/ToxCast_2021-08-17.tsv
   aopwiki: gs://otar001-core/TargetSafety/data_files/aopwiki/aopwiki-2023-01-20.json
+  pharmacogenetics: gs://otar012-eva/pharmacogenomics/cttv012-2024-02-16_pgkb.json.gz
   outputBucket: gs://otar001-core/TargetSafety/json
 ChemicalProbes:
   probesExcelDump: https://www.probes-drugs.org/media/download/probes/pd_export_02_2023_probes_standardized.xlsx
