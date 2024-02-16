@@ -68,7 +68,7 @@ ppft==1.7.6.8
 pronto==2.5.3
 protobuf==4.25.3
 psutil==5.9.8
-PuLP==2.8.0
+PuLP==2.7.0
 py4j==0.10.9.5
 pyasn1==0.5.1
 pyasn1-modules==0.3.0
