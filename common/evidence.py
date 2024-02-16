@@ -98,7 +98,10 @@ class GenerateDiseaseCellLines:
     """
 
     def __init__(
-        self, cell_passport_file: str, spark, cell_line_to_uberon_mapping: str
+        self,
+        spark: SparkSession,
+        cell_passport_file: str,
+        cell_line_to_uberon_mapping: str,
     ) -> None:
         self.cell_passport_file = cell_passport_file
         self.spark = spark
@@ -106,7 +109,7 @@ class GenerateDiseaseCellLines:
             cell_line_to_uberon_mapping
         )
 
-    def generate_map(self) -> None:
+    def generate_disease_cell_lines(self) -> DataFrame:
         """Reading and procesing cell line data from the cell passport file.
 
         The schema of the returned dataframe is:
@@ -128,9 +131,9 @@ class GenerateDiseaseCellLines:
             * Microsatellite stability is the only inferred biomarker.
             * The cell line name has the dashes removed.
             * Id is the cell line identifier from Sanger
-            * Tissue id is the UBERON identifier for the tissue, fetched from OLS
+            * Tissue id is the UBERON identifier for the tissue, based on manual curation.
         """
-
+        self.tissue_to_uberon_map.show()
         # loading cell line annotation data from Sanger:
         cell_df = (
             # The following option is required to correctly parse CSV records which contain newline characters.
@@ -140,16 +143,18 @@ class GenerateDiseaseCellLines:
             .select(
                 f.col("model_name").alias("name"),
                 f.col("model_id").alias("id"),
-                f.col("tissue"),
+                f.lower(f.col("tissue")).alias("tissueFromSource"),
                 f.col("biomarkerList"),
             )
             # Joning with the UBERON mapping:
-            .join(self.tissue_to_uberon_map, on="tissue", how="left")
+            .join(self.tissue_to_uberon_map, on="tissueFromSource", how="left")
             .persist()
         )
 
         # Getting the number of unmapped tissues:
-        unmapped_tissues = cell_df.filter(f.col("tissueId").isNull()).select("tissue")
+        unmapped_tissues = cell_df.filter(f.col("tissueId").isNull()).select(
+            "tissueFromSource"
+        )
         logging.info(
             f"Number of unmapped tissues: {unmapped_tissues.distinct().count()}"
         )
@@ -193,12 +198,7 @@ class GenerateDiseaseCellLines:
             )
 
         # Reading the mapping file into a Spark dataframe.
-        return self.spark.read.csv(
-            cell_line_to_uberon_mapping, header=True, sep="\t"
-        ).withColumnRenamed("tissueFromSource", "tissue")
-
-    def get_mapping(self):
-        return self.cell_map
+        return self.spark.read.csv(cell_line_to_uberon_mapping, header=True, sep=",")
 
     @staticmethod
     @f.udf(
@@ -211,7 +211,7 @@ class GenerateDiseaseCellLines:
             )
         )
     )
-    def parse_msi_status(status: str) -> list:
+    def parse_msi_status(status: str) -> Optional[list]:
         """Based on the content of the MSI status, we generate the corresponding biomarker object."""
 
         if status == "MSI":
@@ -274,7 +274,7 @@ def read_path(path: str, spark_instance) -> DataFrame:
         return spark_instance.read.option("recursiveFileLookup", "true").json(path)
 
     # A directory with Parquet files.
-    if parquet_files:
+    else:
         return spark_instance.read.parquet(path)
 
 
