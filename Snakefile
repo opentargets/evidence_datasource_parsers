@@ -563,10 +563,9 @@ rule Pharmacogenetics:                     # Generating pharmacogenetics evidenc
     params:
         schema = f"{config['global']['schema']}/{config['Pharmacogenetics']['schema']}",
         phenotypes = f"{config['global']['curation_repo']}/{config['Pharmacogenetics']['phenotypes']}",
-        cache_dir = config['global']['cacheDir'],
-        openai_api_key = os.environ['OPENAI_API_KEY']
+        cache_dir = config['global']['cacheDir']
     output:
-        evidence = "pharmacogenetics.json.gz"
+        evidence = "pharmacogenetics.json.gz",
         phenotypes = "pharmgkb_phenotypes.json"
     log:
         'log/pharmacogenetics.log'
@@ -576,7 +575,6 @@ rule Pharmacogenetics:                     # Generating pharmacogenetics evidenc
         python modules/Pharmacogenetics.py \
             --pharmgkb_evidence_path {input.evidenceFile} \
             --extracted_phenotypes_path {params.phenotypes} \
-            --openai_api_key {params.openai_api_key} \
             --output_file_path {output.evidence} \
             --output_phenotypes_path {output.phenotypes} \
             --cache_dir {params.cache_dir}

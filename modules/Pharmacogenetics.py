@@ -4,6 +4,7 @@
 import argparse
 import json
 import logging
+import os
 import sys
 
 from openai import OpenAI
@@ -132,7 +133,7 @@ def get_parser():
     parser.add_argument(
         "--openai_api_key", help="OpenAI API key. From https://platform.openai.com/api-keys.",
         type=str,
-        required=True
+        required=False
     )
     parser.add_argument(
         "--output_evidence_path", help="Output gzipped json file containing the pharmgkb evidence with a new `phenotypeText` and `diseaseFromSourceMappedId` fields.",
@@ -142,7 +143,7 @@ def get_parser():
     parser.add_argument(
         "--output_phenotypes_path", help="Output json file containing an updated version of the pharmgkb genotype to phenotype automatic annotation. The `curation` repo should be updated with this file.",
         type=str,
-        required=True
+        required=False
     )
     parser.add_argument(
         "--cache_dir",
@@ -185,7 +186,7 @@ if __name__ == "__main__":
         
     else:
         logging.error("There are evidence without a phenotype. Please update the extracted phenotypes table before evidence generation.")
-        client = OpenAI(api_key=args.openai_api_key)
+        client = OpenAI(api_key=os.environ['OPENAI_API_KEY'])
         
         new_phenotypes_df = parse_phenotypes(
             unparsed_texts.toPandas()["genotypeAnnotationText"].to_list(),
