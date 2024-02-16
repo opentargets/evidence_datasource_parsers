@@ -202,7 +202,7 @@ class DepMapEssentiality:
         """
         self.spark.sparkContext.addFile(tissue_mapping_url)
         return self.spark.read.csv(
-            "file://" + SparkFiles.get(tissue_mapping_url.split("/")[-1]),
+            SparkFiles.get(tissue_mapping_url.split("/")[-1]),
             sep=",",
             header=True,
         )

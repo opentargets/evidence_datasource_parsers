@@ -112,7 +112,7 @@ rule baselineExpression:      # Calculate baseline expression data from GTEx V8.
 
 rule essentiality:            # Process essentiality data from DepMap.
     params:
-        tissue_mapping = HTTP.remote(
+        tissue_mapping = f"{config['global']['curation_repo']}{config['Essentiality']['depmap_tissue_mapping']}",
             config['global']['curation_repo'] +
             config['Essentiality']['depmap_tissue_mapping']
         ),
