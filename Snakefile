@@ -24,6 +24,7 @@ ALL_FILES = [
     ('clingen.json.gz', GS.remote(f"{config['ClinGen']['outputBucket']}/clingen-{timeStamp}.json.gz")),
     ('clingen-Gene-Disease-Summary.csv', GS.remote(f"{config['ClinGen']['inputBucket']}/clingen-Gene-Disease-Summary-{timeStamp}.csv")),
     ('crispr.json.gz', GS.remote(f"{config['CRISPR']['outputBucket']}/crispr-{timeStamp}.json.gz")),
+    ('essentiality.json.gz', GS.remote(f"{config['Essentiality']['outputBucket']}/essentiality-{timeStamp}.json.gz")),
     ('gene_burden.json.gz', GS.remote(f"{config['GeneBurden']['outputBucket']}/gene_burden-{timeStamp}.json.gz")),
     ('gene2phenotype.json.gz', GS.remote(f"{config['Gene2Phenotype']['outputBucket']}/gene2phenotype-{timeStamp}.json.gz")),
     ('DDG2P.csv.gz', GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/DDG2P-{timeStamp}.csv.gz")),
@@ -106,6 +107,27 @@ rule baselineExpression:      # Calculate baseline expression data from GTEx V8.
             --gtex-source-data-path {params.gtex_source_data_path} \
             --tissue-name-to-uberon-mapping-path {params.tissue_name_to_uberon_mapping_path} \
             --output-file-path {output}
+        opentargets_validator --schema {params.schema} {output}
+        """
+
+rule essentiality:            # Process essentiality data from DepMap.
+    params:
+        tissue_mapping = f"{config['global']['curation_repo']}{config['Essentiality']['depmap_tissue_mapping']}",
+        schema = f"{config['global']['schema']}/schemas/gene-essentiality.json",
+        input_folder = config['Essentiality']['inputBucket']
+    output:
+        'essentiality.json.gz'
+    log:
+        'log/essentiality.json.log'
+    shell:
+        """
+        exec &> {log}
+        # copy files from bucket to the home folder:
+        gsutil -m cp -r "{params.input_folder}/*" ~/
+        python modules/Essentiality.py \
+            --depmap_input_folder  ~/ \
+            --depmap_tissue_mapping {params.tissue_mapping} \
+            --output_file {output}
         opentargets_validator --schema {params.schema} {output}
         """
 
