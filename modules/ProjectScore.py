@@ -1,4 +1,6 @@
+"""Disease to target evidence parser for Project Score v2."""
 import argparse
+import logging
 
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as f
@@ -55,7 +57,13 @@ def main(
     cell_passport_file: str,
     cell_line_to_uberon_mapping: str,
     out_file: str,
-):
+) -> None:
+    # Logging command parameters:
+    logging.info(
+        f"Running Project Score parser with parameters: evid_file={evid_file}, "
+        f"cell_line_file={cell_line_file}, cell_passport_file={cell_passport_file}, "
+        f"cell_line_to_uberon_mapping={cell_line_to_uberon_mapping}, out_file={out_file}"
+    )
     # Extract disease cell line data from cell passport file:
     cell_passport_data = GenerateDiseaseCellLines(
         spark, cell_passport_file, cell_line_to_uberon_mapping
@@ -86,15 +94,15 @@ def main(
 
 
 def parse_args() -> argparse.Namespace:
+    """Parsing command line arguments.
+
+    Returns:
+        argparse.Namespace: _description_
+    """
     parser = argparse.ArgumentParser(
         description="Parse datasource parsers from Project Score"
     )
-    parser.add_argument(
-        "--descriptions_file",
-        help="Name of tsv file with the description of the method per cancer type",
-        type=str,
-        required=True,
-    )
+
     parser.add_argument(
         "--evidence_file",
         help="Name of tsv file with the priority score",
@@ -104,6 +112,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--cell_types_file",
         help="Name of tsv file with cell line names per cancer type",
+        type=str,
+        required=True,
+    )
+    parser.add_argument(
+        "--cell_passport_file",
+        help="Csv file with the Sanger Cell Passport model data.",
+        type=str,
+        required=True,
+    )
+    parser.add_argument(
+        "--cell_line_to_uberon_mappinge",
+        help="Path to the manual curation file for mapping cell lines to uberon terms.",
         type=str,
         required=True,
     )
@@ -127,23 +147,18 @@ def parse_args() -> argparse.Namespace:
 if __name__ == "__main__":
     # Parse arguments:
     args = parse_args()
-    desc_file = args.descriptions_file
-    evid_file = args.evidence_file
-    cell_file = args.cell_types_file
-    out_file = args.output_file
 
     # Initialize logger:
-    initialize_logger()
+    initialize_logger(args.log_file)
 
     # Initialize spark session:
     spark = initialize_sparksession()
 
-    main(desc_file, evid_file, cell_file, out_file)
-    initialize_logger()
-
-    main(desc_file, evid_file, cell_file, out_file)
-    main(desc_file, evid_file, cell_file, out_file)
-    initialize_logger()
-
-    main(desc_file, evid_file, cell_file, out_file)
-    main(desc_file, evid_file, cell_file, out_file)
+    main(
+        spark,
+        args.evidence_file,
+        args.cell_types_file,
+        args.cell_passport_file,
+        args.cell_line_to_uberon_mapping,
+        args.output_file,
+    )
