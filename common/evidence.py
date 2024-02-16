@@ -1,10 +1,12 @@
+"""Shared functions for evidence generation."""
+from __future__ import annotations
+
 import json
 import logging
 import os
 import sys
 import tempfile
-from logging.config import fileConfig
-from typing import Dict, Optional
+from typing import TYPE_CHECKING, Dict, Optional
 
 import gcsfs
 import pyspark.sql.functions as f
@@ -13,10 +15,12 @@ from psutil import virtual_memory
 from pyspark import SparkFiles
 from pyspark.conf import SparkConf
 from pyspark.sql import DataFrame, SparkSession
-from pyspark.sql.types import ArrayType, StringType, StructField, StructType
+
+if TYPE_CHECKING:
+    from pyspark.sql import Column, DataFrame
 
 
-def initialize_logger(log_file: Optional[str] = None) -> None:
+def initialize_logger(name: str, log_file: Optional[str] = None) -> None:
     """Initialize the logger.
 
     Args:
@@ -25,16 +29,25 @@ def initialize_logger(log_file: Optional[str] = None) -> None:
     Returns:
         None
     """
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s %(module)s - %(funcName)s: %(message)s",
+
+    log_formatter = logging.Formatter(
+        "%(asctime)s %(levelname)s %(module)s - %(funcName)s: %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
+
+    # Setting up stream handler:
+    stream_handler = logging.StreamHandler(sys.stderr)
+    stream_handler.setFormatter(log_formatter)
+    logger.addHandler(stream_handler)
+
+    # If a log file is provided, add as a handler:
     if log_file is not None:
-        fileConfig(log_file, disable_existing_loggers=False)
-    else:
-        logging.StreamHandler(sys.stderr)
+        file_handler = logging.FileHandler(log_file, mode="w")
+        file_handler.setFormatter(log_formatter)
+        logger.addHandler(file_handler)
 
 
 def detect_spark_memory_limit():
@@ -133,32 +146,23 @@ class GenerateDiseaseCellLines:
             * Id is the cell line identifier from Sanger
             * Tissue id is the UBERON identifier for the tissue, based on manual curation.
         """
-        self.tissue_to_uberon_map.show()
         # loading cell line annotation data from Sanger:
         cell_df = (
             # The following option is required to correctly parse CSV records which contain newline characters.
             self.spark.read.option("multiline", True)
             .csv(self.cell_passport_file, header=True, sep=",", quote='"')
-            .withColumn("biomarkerList", self.parse_msi_status(f.col("msi_status")))
             .select(
                 f.col("model_name").alias("name"),
                 f.col("model_id").alias("id"),
                 f.lower(f.col("tissue")).alias("tissueFromSource"),
-                f.col("biomarkerList"),
+                f.array(self.parse_msi_status(f.col("msi_status"))).alias(
+                    "biomarkerList"
+                ),
             )
             # Joning with the UBERON mapping:
             .join(self.tissue_to_uberon_map, on="tissueFromSource", how="left")
             .persist()
         )
-
-        # Getting the number of unmapped tissues:
-        unmapped_tissues = cell_df.filter(f.col("tissueId").isNull()).select(
-            "tissueFromSource"
-        )
-        logging.info(
-            f"Number of unmapped tissues: {unmapped_tissues.distinct().count()}"
-        )
-        logging.info(f"Unmapped tissues: {unmapped_tissues.distinct().collect()}")
 
         # Joining with cell lines:
         return (
@@ -201,25 +205,26 @@ class GenerateDiseaseCellLines:
         return self.spark.read.csv(cell_line_to_uberon_mapping, header=True, sep=",")
 
     @staticmethod
-    @f.udf(
-        ArrayType(
-            StructType(
-                [
-                    StructField("name", StringType(), nullable=False),
-                    StructField("description", StringType(), nullable=False),
-                ]
-            )
-        )
-    )
-    def parse_msi_status(status: str) -> Optional[list]:
+    def parse_msi_status(status: Column) -> Column:
         """Based on the content of the MSI status, we generate the corresponding biomarker object."""
 
-        if status == "MSI":
-            return [{"name": "MSI", "description": "Microsatellite instable"}]
-        if status == "MSS":
-            return [{"name": "MSS", "description": "Microsatellite stable"}]
-        else:
-            return None
+        return (
+            f.when(
+                status == "MSI",
+                f.struct(
+                    f.lit("MSI").alias("name"),
+                    f.lit("Microsatellite instable").alias("description"),
+                ),
+            )
+            .when(
+                status == "MSS",
+                f.struct(
+                    f.lit("MSS").alias("name"),
+                    f.lit("Microsatellite stable").alias("description"),
+                ),
+            )
+            .otherwise(f.lit(None))
+        )
 
 
 def read_path(path: str, spark_instance) -> DataFrame:
