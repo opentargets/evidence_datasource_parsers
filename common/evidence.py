@@ -24,6 +24,7 @@ def initialize_logger(name: str, log_file: Optional[str] = None) -> None:
     """Initialize the logger.
 
     Args:
+        name (str): Name of the logger. This is typically the name of the module. Required to identify the logger.
         log_file (str): Path to the log file.
 
     Returns:

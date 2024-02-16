@@ -23,7 +23,7 @@ ALL_FILES = [
     ('chembl.json.gz', GS.remote(f"{config['ChEMBL']['outputBucket']}/chembl-{timeStamp}.json.gz")),
     ('clingen.json.gz', GS.remote(f"{config['ClinGen']['outputBucket']}/clingen-{timeStamp}.json.gz")),
     ('clingen-Gene-Disease-Summary.csv', GS.remote(f"{config['ClinGen']['inputBucket']}/clingen-Gene-Disease-Summary-{timeStamp}.csv")),
-    ('crispr.json.gz', GS.remote(f"{config['CRISPR']['outputBucket']}/crispr-{timeStamp}.json.gz")),
+    ('project_score.json.gz', GS.remote(f"{config['CRISPR']['outputBucket']}/project_score-{timeStamp}.json.gz")),
     ('gene_burden.json.gz', GS.remote(f"{config['GeneBurden']['outputBucket']}/gene_burden-{timeStamp}.json.gz")),
     ('gene2phenotype.json.gz', GS.remote(f"{config['Gene2Phenotype']['outputBucket']}/gene2phenotype-{timeStamp}.json.gz")),
     ('DDG2P.csv.gz', GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/DDG2P-{timeStamp}.csv.gz")),
@@ -178,25 +178,27 @@ rule clingen:                 # Process the Gene Validity Curations table from C
         opentargets_validator --schema {params.schema} {output.evidenceFile}
         """
 
-rule crispr:                  # Process cancer therapeutic targets using CRISPR–Cas9 screens.
+rule projectScore:                  # Process cancer therapeutic targets using CRISPR–Cas9 screens.
     input:
-        evidenceFile = GS.remote(config['CRISPR']['inputAssociationsTable']),
-        descriptionsFile = GS.remote(config['CRISPR']['inputDescriptionsTable']),
-        cellTypesFile = GS.remote(config['CRISPR']['inputCellTypesTable'])
+        evidenceFile = GS.remote(config['ProjectScore']['geneScores']),
+        cellTypesFile = GS.remote(config['ProjectScore']['cellLinesTable']),
+        uberontoCellLineMapping = HTTP.remote(f"{config['global']['curation_repo']}/{config['GeneBurden']['curation']}"),,
     params:
         schema = f"{config['global']['schema']}/schemas/disease_target_evidence.json"
     output:
-        evidenceFile = 'crispr.json.gz'
+        evidenceFile = 'project_score.json.gz'
     log:
         'log/crispr.log'
     shell:
         """
         exec &> {log}
-        python modules/CRISPR.py \
-          --evidence_file {input.evidenceFile} \
-          --descriptions_file {input.descriptionsFile} \
-          --cell_types_file {input.cellTypesFile} \
-          --output_file {output.evidenceFile}
+        python modules/ProjectScore.py \
+            --evidence_file /Users/dsuveges/Downloads/project_score_v2/mapped_diseases.tsv \
+            --cell_types_file /Users/dsuveges/Downloads/project_score_v2/cell_types.tsv \
+            --cell_passport_file /Users/dsuveges/Downloads/model_list_20240110.csv \
+            --cell_line_to_uberon_mapping https://raw.githubusercontent.com/opentargets/curation/master/mappings/biosystem/depmap_uberon_mapping.csv \
+            --output_file {output.evidenceFile} \
+            --log_file cicaful.log
         opentargets_validator --schema {params.schema} {output.evidenceFile}
         """
 
