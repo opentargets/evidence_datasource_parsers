@@ -1,19 +1,40 @@
+import json
 import logging
 import os
-from psutil import virtual_memory
-import json
-import yaml
+import sys
 import tempfile
-from typing import Dict
+from logging.config import fileConfig
+from typing import Dict, Optional
 
 import gcsfs
-import requests
-
-from pyspark.conf import SparkConf
-from pyspark.sql import SparkSession, DataFrame
 import pyspark.sql.functions as f
-from pyspark.sql.types import StringType, StructField, StructType, ArrayType
+import yaml
+from psutil import virtual_memory
 from pyspark import SparkFiles
+from pyspark.conf import SparkConf
+from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql.types import ArrayType, StringType, StructField, StructType
+
+
+def initialize_logger(log_file: Optional[str] = None) -> None:
+    """Initialize the logger.
+
+    Args:
+        log_file (str): Path to the log file.
+
+    Returns:
+        None
+    """
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(module)s - %(funcName)s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+    if log_file is not None:
+        fileConfig(log_file, disable_existing_loggers=False)
+    else:
+        logging.StreamHandler(sys.stderr)
 
 
 def detect_spark_memory_limit():
@@ -76,10 +97,14 @@ class GenerateDiseaseCellLines:
         cell_passport_file: Path to the cell passport file.
     """
 
-    def __init__(self, cell_passport_file: str, spark) -> None:
+    def __init__(
+        self, cell_passport_file: str, spark, cell_line_to_uberon_mapping: str
+    ) -> None:
         self.cell_passport_file = cell_passport_file
         self.spark = spark
-        self.cell_map = self.generate_map()
+        self.tissue_to_uberon_map = self.read_uberon_mapping(
+            cell_line_to_uberon_mapping
+        )
 
     def generate_map(self) -> None:
         """Reading and procesing cell line data from the cell passport file.
@@ -118,51 +143,62 @@ class GenerateDiseaseCellLines:
                 f.col("tissue"),
                 f.col("biomarkerList"),
             )
+            # Joning with the UBERON mapping:
+            .join(self.tissue_to_uberon_map, on="tissue", how="left")
             .persist()
         )
 
-        # Generating a unique set of tissues in a pandas dataframe:
-        tissues = cell_df.select("tissue").distinct().toPandas()
-        logging.info(f"Found {len(tissues)} tissues.")
-
-        # Generating a unique set of cell lines in a pandas series:
-        # TODO: UBERON IDs should not be mapped via REST queries. This should be done via joining with owl data.
-        mapped_tissues = tissues.assign(
-            tissueId=lambda df: df.tissue.apply(self.lookup_uberon)
-        )
+        # Getting the number of unmapped tissues:
+        unmapped_tissues = cell_df.filter(f.col("tissueId").isNull()).select("tissue")
         logging.info(
-            f"Found mapping for {len(mapped_tissues.loc[mapped_tissues.tissueId.notna()])} tissues."
+            f"Number of unmapped tissues: {unmapped_tissues.distinct().count()}"
         )
-
-        # Converting to spark dataframe:
-        mapped_tissues_spark = self.spark.createDataFrame(mapped_tissues)
+        logging.info(f"Unmapped tissues: {unmapped_tissues.distinct().collect()}")
 
         # Joining with cell lines:
         return (
-            cell_df.join(mapped_tissues_spark, on="tissue", how="left")
+            cell_df
             # Generating the diseaseCellLines object:
             .select(
                 f.regexp_replace(f.col("name"), "-", "").alias("name"),
                 "id",
                 "biomarkerList",
-                f.struct(["tissue", "name", "id", "tissueId"]).alias("diseaseCellLine"),
+                f.struct(
+                    f.col("tissueName").alias("tissue"), "name", "id", "tissueId"
+                ).alias("diseaseCellLine"),
             )
         )
 
+    def read_uberon_mapping(self, cell_line_to_uberon_mapping: str) -> DataFrame:
+        """Read the cell line to UBERON mapping file into a Spark dataframe (http or local).
+
+        Returned schema:
+            root
+            |-- tissue: string (nullable = true)
+            |-- tissueId: string (nullable = true)
+            |-- tissueName: string (nullable = true)
+
+        Args:
+            cell_line_to_uberon_mapping (str): Path to the cell line to UBERON mapping file.
+
+        Returns:
+            DataFrame: Spark dataframe containing the cell line to UBERON mapping.
+        """
+
+        # If the mapping file is a URL, download it and read it into a Spark dataframe.
+        if "http" in cell_line_to_uberon_mapping:
+            self.spark.sparkContext.addFile(cell_line_to_uberon_mapping)
+            cell_line_to_uberon_mapping = SparkFiles.get(
+                cell_line_to_uberon_mapping.split("/")[-1]
+            )
+
+        # Reading the mapping file into a Spark dataframe.
+        return self.spark.read.csv(
+            cell_line_to_uberon_mapping, header=True, sep="\t"
+        ).withColumnRenamed("tissueFromSource", "tissue")
+
     def get_mapping(self):
         return self.cell_map
-
-    @staticmethod
-    def lookup_uberon(tissue_label: str) -> str:
-        """Mapping tissue labels to tissue identifiers (UBERON codes) via the OLS API."""
-
-        url = f"https://www.ebi.ac.uk/ols/api/search?q={tissue_label.lower()}&queryFields=label&ontology=uberon&exact=true"
-        r = requests.get(url).json()
-
-        if r["response"]["numFound"] == 0:
-            return None
-        else:
-            return r["response"]["docs"][0]["short_form"]
 
     @staticmethod
     @f.udf(
@@ -241,10 +277,11 @@ def read_path(path: str, spark_instance) -> DataFrame:
     if parquet_files:
         return spark_instance.read.parquet(path)
 
+
 def read_project_config() -> Dict[str, str]:
     """Load the configuration file into a dictionary."""
     base_dir = os.getcwd()
-    if 'common' in base_dir:
+    if "common" in base_dir:
         config_path = os.path.join(os.path.dirname(base_dir), "configuration.yaml")
     else:
         config_path = os.path.join(base_dir, "configuration.yaml")
@@ -252,9 +289,10 @@ def read_project_config() -> Dict[str, str]:
         raise FileNotFoundError(f"Configuration file ({config_path}) does not exist.")
     return yaml.safe_load(open(config_path))
 
+
 def import_trait_mappings(spark: SparkSession) -> DataFrame:
     """Load the remote trait mappings file to a Spark dataframe. The file is downloaded from the curated data repository.
-    
+
     Args:
         spark (SparkSession): Spark session.
 
@@ -263,14 +301,13 @@ def import_trait_mappings(spark: SparkSession) -> DataFrame:
     """
     remote_trait_mappings_url = f"{read_project_config()['global']['curation_repo']}/mappings/disease/manual_string.tsv"
     spark.sparkContext.addFile(remote_trait_mappings_url)
-    return (
-        spark.read.csv(SparkFiles.get("manual_string.tsv"), header=True, sep="\t")
-        .select(
-            f.col("PROPERTY_VALUE").alias("diseaseFromSource"),
-            f.element_at(f.split(f.col("SEMANTIC_TAG"), "/"), -1).alias(
-                "diseaseFromSourceMappedId"
-            ),
-        )
+    return spark.read.csv(
+        SparkFiles.get("manual_string.tsv"), header=True, sep="\t"
+    ).select(
+        f.col("PROPERTY_VALUE").alias("diseaseFromSource"),
+        f.element_at(f.split(f.col("SEMANTIC_TAG"), "/"), -1).alias(
+            "diseaseFromSourceMappedId"
+        ),
     )
 
 

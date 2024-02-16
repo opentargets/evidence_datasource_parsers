@@ -24,10 +24,9 @@ ClinGen:
   webSource: https://search.clinicalgenome.org/kb/gene-validity/download
   inputBucket: gs://otar000-evidence_input/ClinGen/data_files
   outputBucket: gs://otar000-evidence_input/ClinGen/json
-CRISPR:
-  inputAssociationsTable: gs://otar000-evidence_input/CRISPR/data_files/crispr_evidence.tsv
-  inputDescriptionsTable: gs://otar000-evidence_input/CRISPR/data_files/crispr_descriptions.tsv
-  inputCellTypesTable: gs://otar000-evidence_input/CRISPR/data_files/crispr_cell_lines_enriched_2021-10-22.tsv
+ProjectScore:
+  cellLinesTable: gs://otar000-evidence_input/CRISPR/project_score_v2/cell_types.tsv
+  geneScores: gs://otar000-evidence_input/CRISPR/project_score_v2/mapped_diseases.tsv
   outputBucket: gs://otar000-evidence_input/CRISPR/json
 GeneBurden:
   azPhewasBinary: gs://otar000-evidence_input/GeneBurden/data_files/azphewas-com-450k-phewas-binary
