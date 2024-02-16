@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import sys
+from typing import List, Optional
 
 from openai import OpenAI
 import pyspark.sql.functions as f
@@ -16,7 +17,7 @@ from pyspark.sql.types import StructType, StructField, StringType, ArrayType
 from common.evidence import initialize_sparksession, write_evidence_strings
 from common.ontology import add_efo_mapping
 
-def parse_phenotype_with_gpt(genotype_text: str, openai_client: OpenAI, gpt_model: str = "gpt-3.5-turbo-1106") -> list | None:
+def parse_phenotype_with_gpt(genotype_text: str, openai_client: OpenAI, gpt_model: str = "gpt-3.5-turbo-1106") -> Optional[List[str]]:
     """Query the OpenAI API to extract the phenotype from the genotype text."""
     prompt = f"""
         Context: We want to analyze PharmGKB clinical annotations. Their data includes a column, "genotypeAnnotationText", which typically informs about efficacy,side effects, or patient response variability given a specific genotype. The data is presented in a lengthy and complex format, making it challenging to quickly grasp the key phenotypic outcomes.
@@ -54,7 +55,7 @@ def parse_phenotype_with_gpt(genotype_text: str, openai_client: OpenAI, gpt_mode
         print(f"An error occurred: {e}")
         return None
 
-def parse_phenotypes(texts_to_parse: list[str], openai_client: OpenAI) -> DataFrame:
+def parse_phenotypes(texts_to_parse: List[str], openai_client: OpenAI) -> DataFrame:
     """Parse the phenotypes from the given texts by calling the OpenAI API."""
     results_dict = {}
     for text in texts_to_parse:

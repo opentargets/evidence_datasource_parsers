@@ -8,8 +8,6 @@ GS = GSRemoteProvider()
 HTTP = HTTPRemoteProvider()
 
 # Settings.
-envvars:
-    "OPENAI_API_KEY"
 timeStamp = datetime.now().strftime('%Y-%m-%d')  # YYYY-MM-DD.
 configfile: 'configuration.yaml'
 
@@ -563,10 +561,10 @@ rule Pharmacogenetics:                     # Generating pharmacogenetics evidenc
     params:
         schema = f"{config['global']['schema']}/{config['Pharmacogenetics']['schema']}",
         phenotypes = f"{config['global']['curation_repo']}/{config['Pharmacogenetics']['phenotypes']}",
+        phenotypes_optional_output = "pharmgkb_phenotypes.json",
         cache_dir = config['global']['cacheDir']
     output:
-        evidence = "pharmacogenetics.json.gz",
-        phenotypes = "pharmgkb_phenotypes.json"
+        evidence = "pharmacogenetics.json.gz"
     log:
         'log/pharmacogenetics.log'
     shell:
@@ -575,8 +573,8 @@ rule Pharmacogenetics:                     # Generating pharmacogenetics evidenc
         python modules/Pharmacogenetics.py \
             --pharmgkb_evidence_path {input.evidenceFile} \
             --extracted_phenotypes_path {params.phenotypes} \
-            --output_file_path {output.evidence} \
-            --output_phenotypes_path {output.phenotypes} \
+            --output_evidence_path {output.evidence} \
+            --output_phenotypes_path {params.phenotypes_optional_output} \
             --cache_dir {params.cache_dir}
         opentargets_validator --schema {params.schema} {output.evidence}
         """
