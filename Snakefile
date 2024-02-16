@@ -113,9 +113,6 @@ rule baselineExpression:      # Calculate baseline expression data from GTEx V8.
 rule essentiality:            # Process essentiality data from DepMap.
     params:
         tissue_mapping = f"{config['global']['curation_repo']}{config['Essentiality']['depmap_tissue_mapping']}",
-            config['global']['curation_repo'] +
-            config['Essentiality']['depmap_tissue_mapping']
-        ),
         schema = f"{config['global']['schema']}/schemas/gene-essentiality.json",
         input_folder = config['Essentiality']['inputBucket']
     output:
