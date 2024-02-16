@@ -23,7 +23,7 @@ ALL_FILES = [
     ('chembl.json.gz', GS.remote(f"{config['ChEMBL']['outputBucket']}/chembl-{timeStamp}.json.gz")),
     ('clingen.json.gz', GS.remote(f"{config['ClinGen']['outputBucket']}/clingen-{timeStamp}.json.gz")),
     ('clingen-Gene-Disease-Summary.csv', GS.remote(f"{config['ClinGen']['inputBucket']}/clingen-Gene-Disease-Summary-{timeStamp}.csv")),
-    ('project_score.json.gz', GS.remote(f"{config['CRISPR']['outputBucket']}/project_score-{timeStamp}.json.gz")),
+    ('project_score.json.gz', GS.remote(f"{config['ProjectScore']['outputBucket']}/project_score-{timeStamp}.json.gz")),
     ('essentiality.json.gz', GS.remote(f"{config['Essentiality']['outputBucket']}/essentiality-{timeStamp}.json.gz")),
     ('gene_burden.json.gz', GS.remote(f"{config['GeneBurden']['outputBucket']}/gene_burden-{timeStamp}.json.gz")),
     ('gene2phenotype.json.gz', GS.remote(f"{config['Gene2Phenotype']['outputBucket']}/gene2phenotype-{timeStamp}.json.gz")),
@@ -112,7 +112,7 @@ rule baselineExpression:      # Calculate baseline expression data from GTEx V8.
 
 rule essentiality:            # Process essentiality data from DepMap.
     params:
-        tissue_mapping = f"{config['global']['curation_repo']}{config['Essentiality']['depmap_tissue_mapping']}",
+        tissue_mapping = f"{config['global']['curation_repo']}/{config['Essentiality']['depmap_tissue_mapping']}",
         schema = f"{config['global']['schema']}/schemas/gene-essentiality.json",
         input_folder = config['Essentiality']['inputBucket']
     output:
@@ -204,23 +204,23 @@ rule projectScore:                  # Process cancer therapeutic targets using C
     input:
         evidenceFile = GS.remote(config['ProjectScore']['geneScores']),
         cellTypesFile = GS.remote(config['ProjectScore']['cellLinesTable']),
-        uberontoCellLineMapping = HTTP.remote(f"{config['global']['curation_repo']}/{config['GeneBurden']['curation']}"),,
+        uberontoCellLineMapping = HTTP.remote(f"{config['global']['curation_repo']}/{config['Essentiality']['depmap_tissue_mapping']}"),
+        cell_passport_file = HTTP.remote({config['global']['cell_passport_file']})
     params:
         schema = f"{config['global']['schema']}/schemas/disease_target_evidence.json"
     output:
         evidenceFile = 'project_score.json.gz'
     log:
-        'log/crispr.log'
+        'log/project_score.log'
     shell:
         """
         exec &> {log}
         python modules/ProjectScore.py \
-            --evidence_file /Users/dsuveges/Downloads/project_score_v2/mapped_diseases.tsv \
-            --cell_types_file /Users/dsuveges/Downloads/project_score_v2/cell_types.tsv \
-            --cell_passport_file /Users/dsuveges/Downloads/model_list_20240110.csv \
-            --cell_line_to_uberon_mapping https://raw.githubusercontent.com/opentargets/curation/master/mappings/biosystem/depmap_uberon_mapping.csv \
-            --output_file {output.evidenceFile} \
-            --log_file cicaful.log
+            --evidence_file {input.evidenceFile} \
+            --cell_types_file {input.cellTypesFile} \
+            --cell_passport_file {input.cell_passport_file} \
+            --cell_line_to_uberon_mapping {input.uberontoCellLineMapping} \
+            --output_file {output.evidenceFile} 
         opentargets_validator --schema {params.schema} {output.evidenceFile}
         """
 
