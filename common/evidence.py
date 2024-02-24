@@ -20,31 +20,34 @@ if TYPE_CHECKING:
     from pyspark.sql import Column, DataFrame
 
 
-def initialize_logger(name: str, log_file: Optional[str] = None) -> None:
+def initialize_logger(
+    name: str, log_file: Optional[str] = None, log_level: int = logging.INFO
+) -> None:
     """Initialize the logger.
 
     Args:
         name (str): Name of the logger. This is typically the name of the module. Required to identify the logger.
         log_file (str): Path to the log file.
+        log_level (int): log level eg. logging.INFO, logging.ERROR
 
     Returns:
         None
     """
-
+    # Setting the format of the log messages:
     log_formatter = logging.Formatter(
         "%(asctime)s %(levelname)s %(module)s - %(funcName)s: %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
     logger = logging.getLogger(name)
-    logger.setLevel(logging.INFO)
+    logger.setLevel(log_level)
 
     # Setting up stream handler:
     stream_handler = logging.StreamHandler(sys.stderr)
     stream_handler.setFormatter(log_formatter)
     logger.addHandler(stream_handler)
 
-    # If a log file is provided, add as a handler:
+    # If a log file is provided, add that handler too:
     if log_file is not None:
         file_handler = logging.FileHandler(log_file, mode="w")
         file_handler.setFormatter(log_formatter)

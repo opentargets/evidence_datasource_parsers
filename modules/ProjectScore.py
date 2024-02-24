@@ -13,31 +13,30 @@ from common.evidence import (
     write_evidence_strings,
 )
 
-# This parser is specific for the second release of Porject Score, so the publication identifier is hardcoded
+# This parser is specific for the second release of Porject Score, so the publication identifier is hardcoded:
 PMID = "38215750"
 
 
 def generate_project_score_evidence(
-    project_score_cell_lines: DataFrame, project_score_evidence: DataFrame
+    project_score_cell_lines: DataFrame, project_score_hits: DataFrame
 ) -> DataFrame:
     """Generate evidence strings for Project Score v2.
 
     Args:
         project_score_cell_lines (DataFrame): DataFrame containing cell line annotations
-        project_score_evidence (DataFrame): DataFrame containing evidence data
+        project_score_hits (DataFrame): DataFrame containing evidence data
 
     Returns:
         DataFrame: DataFrame containing evidence strings
     """
-    pmid = "38215750"
     return (
-        project_score_evidence.select(
+        project_score_hits.select(
             f.col("targetSymbol").alias("targetFromSource"),
             f.col("diseaseName").alias("diseaseFromSource"),
             f.col("diseaseId").alias("diseaseFromSourceMappedId"),
             f.col("PRIORITY").cast(t.FloatType()).alias("resourceScore"),
             f.col("targetId").alias("targetFromSourceId"),
-            f.array(f.lit(pmid)).alias("literature"),
+            f.array(f.lit(PMID)).alias("literature"),
             f.lit("crispr").alias("datasourceId"),
             f.lit("affected_pathway").alias("datatypeId"),
             f.lower(f.col("cancerType")).alias("cancerType"),
@@ -58,7 +57,16 @@ def main(
     cell_line_to_uberon_mapping: str,
     out_file: str,
 ) -> None:
-    """Main function for parsing Project Score v2 data."""
+    """Main function for parsing Project Score v2 data.
+
+    Args:
+        spark (SparkSession):
+        evid_file (str): File containing project score hits.
+        cell_line_file (str): File containing project score cell lines.
+        cell_passport_file (str): File containing Sanger Cell Model Passport data.
+        cell_line_to_uberon_mapping (str): File containing tissue label to UBERON mapping.
+        out_file (str): Output file name (gizpped json).
+    """
     # Get logger:
     logger = logging.getLogger(__name__)
 
@@ -127,13 +135,13 @@ def parse_args() -> argparse.Namespace:
 
     parser.add_argument(
         "--evidence_file",
-        help="Name of tsv file with the priority score",
+        help="Name of tsv file with the priority scores.",
         type=str,
         required=True,
     )
     parser.add_argument(
         "--cell_types_file",
-        help="Name of tsv file with cell line names per cancer type",
+        help="Name of tsv file with applied cell line names and model passport identifier.",
         type=str,
         required=True,
     )
@@ -151,13 +159,13 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--output_file",
-        help="Name of evidence file. (gzip compressed json)",
+        help="Name of evidence file (gzip compressed json)",
         type=str,
         required=True,
     )
     parser.add_argument(
         "--log_file",
-        help="Name of log file. If not provided logs are written to standard error.",
+        help="Name of log file.",
         type=str,
         required=False,
     )
