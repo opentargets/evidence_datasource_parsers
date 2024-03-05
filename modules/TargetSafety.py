@@ -86,11 +86,27 @@ def main(
         .agg(
             F.collect_set(F.col("biosample")).alias("biosamples"),
             F.collect_set(F.col("study")).alias("studies"),
+            F.collect_set(F.col("supporting_variation")).alias("supporting_variation"),
         )
         .withColumn(
             "biosamples", F.when(F.size("biosamples") != 0, F.col("biosamples"))
         )
+        # Add the supporting variation to the study metadata
+        .withColumn(
+            "studies",
+            F.transform(
+                F.col("studies"),
+                lambda x: F.struct(
+                    x["name"].alias("name"),
+                    x["type"].alias("type"),
+                    F.concat(
+                        F.lit("Genetic variation linked to this safety liability: "), F.array_join(F.col("supporting_variation"), ", ")
+                    ).alias("description"),
+                ),
+            ),
+        )
         .withColumn("studies", F.when(F.size("studies") != 0, F.col("studies")))
+        .drop("supporting_variation")
     )
 
     # Write output
@@ -324,6 +340,12 @@ def process_toxcast(toxcast: str) -> DataFrame:
 
 def process_pharmacogenetics(spark: SparkSession, pgx_df: DataFrame, cache_dir: str) -> DataFrame:
     """Given the pharmacogenetics evidence, extract the evidence related to target toxicity."""
+    evidence_unique_cols = [
+        "id",
+        "event",
+        "datasource",
+        "url",
+    ]
     pgkb_url_template = "https://www.pharmgkb.org/search?query="
     pgx_safety = (
         pgx_df
@@ -334,6 +356,11 @@ def process_pharmacogenetics(spark: SparkSession, pgx_df: DataFrame, cache_dir: 
         .filter(~(F.col("phenotypeText").contains("no significant association") | F.col("phenotypeText").contains("not associated with")))
         .withColumn("event", clean_phenotype_to_describe_safety_event(F.col("phenotypeText")))
         .filter(F.col("event") != "drug response")
+        # Explode evidence by the variation that supports the liability - this will be used to build the study metadata
+        .withColumn("supporting_variation", F.explode(
+                F.array_union(F.array("genotypeId"), F.array("haplotypeId")),
+            )
+        )
         # Define unaggregated target/event pairs
         .select(
             F.col("targetFromSourceId").alias("id"),
@@ -343,11 +370,12 @@ def process_pharmacogenetics(spark: SparkSession, pgx_df: DataFrame, cache_dir: 
             F.concat(F.lit(pgkb_url_template), F.col("targetFromSourceId")).alias("url"),
             # To build study metadata later - each study is a drug after which the phenotype was observed
             "drugFromSource",
+            "supporting_variation",
         )
         .withColumn(
             "study", F.struct(
                 F.concat(F.col("drugFromSource"), F.lit(" induced effect")).alias("name"),
-                F.lit("patient-level").alias("type")
+                F.lit("patient-level").alias("type"),
             )
         )
     )
