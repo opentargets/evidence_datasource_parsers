@@ -204,10 +204,10 @@ rule projectScore:                  # Process cancer therapeutic targets using C
     input:
         evidenceFile = GS.remote(config['ProjectScore']['geneScores']),
         cellTypesFile = GS.remote(config['ProjectScore']['cellLinesTable']),
-        uberontoCellLineMapping = HTTP.remote(f"{config['global']['curation_repo']}/{config['Essentiality']['depmap_tissue_mapping']}"),
         cell_passport_file = HTTP.remote({config['global']['cell_passport_file']})
     params:
-        schema = f"{config['global']['schema']}/schemas/disease_target_evidence.json"
+        schema = f"{config['global']['schema']}/schemas/disease_target_evidence.json",
+        uberontoCellLineMapping = f"{config['global']['curation_repo']}/{config['Essentiality']['depmap_tissue_mapping']}"
     output:
         evidenceFile = 'project_score.json.gz'
     log:
@@ -219,7 +219,7 @@ rule projectScore:                  # Process cancer therapeutic targets using C
             --evidence_file {input.evidenceFile} \
             --cell_types_file {input.cellTypesFile} \
             --cell_passport_file {input.cell_passport_file} \
-            --cell_line_to_uberon_mapping {input.uberontoCellLineMapping} \
+            --cell_line_to_uberon_mapping {params.uberontoCellLineMapping} \
             --output_file {output.evidenceFile} 
         opentargets_validator --schema {params.schema} {output.evidenceFile}
         """
