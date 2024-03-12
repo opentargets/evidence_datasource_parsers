@@ -31,8 +31,6 @@ ALL_FILES = [
     ('EyeG2P.csv.gz', GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/EyeG2P-{timeStamp}.csv.gz")),
     ('SkinG2P.csv.gz', GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/SkinG2P-{timeStamp}.csv.gz")),
     ('CancerG2P.csv.gz', GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/CancerG2P-{timeStamp}.csv.gz")),
-    ('pd_export_01_2023_probes_standardized.xlsx', GS.remote(f"{config['ChemicalProbes']['inputBucket']}/pd_export_01_2023_probes_standardized-{timeStamp}.xlsx")),
-    ('pd_export_01_2023_links_standardized.csv', GS.remote(f"{config['ChemicalProbes']['inputBucket']}/pd_export_01_2023_links_standardized-{timeStamp}.csv")),
     ('intogen.json.gz', GS.remote(f"{config['intOGen']['outputBucket']}/intogen-{timeStamp}.json.gz")),
     ('orphanet.json.gz', GS.remote(f"{config['Orphanet']['outputBucket']}/orphanet-{timeStamp}.json.gz")),
     ('genomics_england.json.gz', GS.remote(f"{config['PanelApp']['outputBucket']}/genomics_england-{timeStamp}.json.gz")),
@@ -45,6 +43,7 @@ ALL_FILES = [
     ('safetyLiabilities.json.gz', GS.remote(f"{config['TargetSafety']['outputBucket']}/safetyLiabilities-{timeStamp}.json.gz")),
     ('chemicalProbes.json.gz', GS.remote(f"{config['ChemicalProbes']['outputBucket']}/chemicalProbes-{timeStamp}.json.gz")),
     ('crispr_screens.json.gz', GS.remote(f"{config['CrisprScreens']['outputBucket']}/crispr_screens-{timeStamp}.json.gz")),
+    ('pharmacogenetics.json.gz', GS.remote(f"{config['Pharmacogenetics']['outputBucket']}/cttv012-{timeStamp}_pgkb.json.gz")),
 ]
 LOCAL_FILENAMES = [f[0] for f in ALL_FILES]
 REMOTE_FILENAMES = [f[1] for f in ALL_FILES]
@@ -469,10 +468,12 @@ rule crisprScreens:           # Generating disease/target evidence based on vari
 rule targetSafety:            # Process data from different sources that describe target safety liabilities.
     input:
         toxcast = GS.remote(config['TargetSafety']['toxcast']),
-        aopwiki = GS.remote(config['TargetSafety']['aopwiki'])
+        aopwiki = GS.remote(config['TargetSafety']['aopwiki']),
+        pharmacogenetics = GS.remote(config['TargetSafety']['pharmacogenetics'])
     params:
         ae = f"{config['global']['curation_repo']}/{config['TargetSafety']['adverseEvents']}",
         sr = f"{config['global']['curation_repo']}/{config['TargetSafety']['safetyRisk']}",
+        cache_dir = config['global']['cacheDir'],
         schema = f"{config['global']['schema']}/schemas/target_safety.json"
     output:
         'safetyLiabilities.json.gz'
@@ -486,6 +487,8 @@ rule targetSafety:            # Process data from different sources that describ
             --safety_risk {params.sr} \
             --toxcast {input.toxcast} \
             --aopwiki {input.aopwiki} \
+            --pharmacogenetics {input.pharmacogenetics} \
+            --cache_dir {params.cache_dir} \
             --output {output}
         opentargets_validator --schema {params.schema} {output}
         """
@@ -497,8 +500,6 @@ rule chemicalProbes:          # Process data from the Probes&Drugs portal.
     params:
         schema = f"{config['global']['schema']}/schemas/chemical_probes.json"
     output:
-        rawProbesExcel = 'pd_export_01_2023_probes_standardized.xlsx',
-        probesXrefsTable = 'pd_export_01_2023_links_standardized.csv',
         evidenceFile = 'chemicalProbes.json.gz'
     log:
         'log/chemicalProbes.log'
@@ -578,12 +579,27 @@ rule validation_lab:          # Generating PPP evidence for Validation Lab
         opentargets_validator --schema {params.schema} {output}
         """
 
-rule PPP:                     # Moving local PPP evidence to the destination bucket.
+rule Pharmacogenetics:                     # Generating pharmacogenetics evidence
     input:
-        [source[0] for source in PPP_sources]
+        evidenceFile = GS.remote(config['Pharmacogenetics']['evidence']),
+    params:
+        schema = f"{config['global']['schema']}/{config['Pharmacogenetics']['schema']}",
+        phenotypes = f"{config['global']['curation_repo']}/{config['Pharmacogenetics']['phenotypes']}",
+        phenotypes_optional_output = "pharmgkb_phenotypes.json",
+        cache_dir = config['global']['cacheDir']
     output:
-        [source[1] for source in PPP_sources]
-    run:
-        for source in PPP_sources:
-            os.rename(source[0], source[1])
+        evidence = "pharmacogenetics.json.gz"
+    log:
+        'log/pharmacogenetics.log'
+    shell:
+        """
+        exec &> {log}
+        python modules/Pharmacogenetics.py \
+            --pharmgkb_evidence_path {input.evidenceFile} \
+            --extracted_phenotypes_path {params.phenotypes} \
+            --output_evidence_path {output.evidence} \
+            --output_phenotypes_path {params.phenotypes_optional_output} \
+            --cache_dir {params.cache_dir}
+        opentargets_validator --schema {params.schema} {output.evidence}
+        """
 
