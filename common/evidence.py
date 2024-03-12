@@ -1,4 +1,5 @@
 """Shared functions for evidence generation."""
+
 from __future__ import annotations
 
 import json
@@ -212,22 +213,18 @@ class GenerateDiseaseCellLines:
     def parse_msi_status(status: Column) -> Column:
         """Based on the content of the MSI status, we generate the corresponding biomarker object."""
 
-        return (
-            f.when(
-                status == "MSI",
-                f.struct(
-                    f.lit("MSI").alias("name"),
-                    f.lit("Microsatellite instable").alias("description"),
-                ),
-            )
-            .when(
-                status == "MSS",
-                f.struct(
-                    f.lit("MSS").alias("name"),
-                    f.lit("Microsatellite stable").alias("description"),
-                ),
-            )
-            .otherwise(f.lit(None))
+        return f.when(
+            status == "MSI",
+            f.struct(
+                f.lit("MSI").alias("name"),
+                f.lit("Microsatellite instable").alias("description"),
+            ),
+        ).when(
+            status == "MSS",
+            f.struct(
+                f.lit("MSS").alias("name"),
+                f.lit("Microsatellite stable").alias("description"),
+            ),
         )
 
 
@@ -252,15 +249,17 @@ def read_path(path: str, spark_instance) -> DataFrame:
             return spark_instance.read.csv(path, sep="\t", header=True)
         elif path.endswith((".json", ".json.gz", ".jsonl", ".jsonl.gz")):
             return spark_instance.read.json(path)
+        elif path.endswith(".parquet"):
+            return spark_instance.read.parquet(path)
         else:
             raise AssertionError(
                 f"The format of the provided file {path} is not supported."
             )
 
-    # Case 2: We are provided with a directory. Let's peek inside to see what it contains.
+    # Case 2: If we are provided with a directory. Let's peek inside to see what it contains.
     all_files = [
         os.path.join(dp, filename)
-        for dp, dn, filenames in os.walk(path)
+        for dp, _, filenames in os.walk(path)
         for filename in filenames
     ]
 

@@ -25,8 +25,8 @@ ClinGen:
   inputBucket: gs://otar000-evidence_input/ClinGen/data_files
   outputBucket: gs://otar000-evidence_input/ClinGen/json
 ProjectScore:
-  cellLinesTable: gs://otar000-evidence_input/CRISPR/project_score_v2/cell_types.tsv
-  geneScores: gs://otar000-evidence_input/CRISPR/project_score_v2/mapped_diseases.tsv
+  cellLinesTable: gs://otar000-evidence_input/CRISPR/data_files/project_score_v2/cell_types.tsv
+  geneScores: gs://otar000-evidence_input/CRISPR/data_files/project_score_v2/mapped_diseases.tsv
   outputBucket: gs://otar000-evidence_input/CRISPR/json
 Essentiality:
   inputBucket: gs://otar000-evidence_input/Essentiality/DepMap/2023Q4

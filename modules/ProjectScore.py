@@ -1,4 +1,5 @@
 """Disease to target evidence parser for Project Score v2."""
+
 import argparse
 import logging
 
@@ -13,7 +14,7 @@ from common.evidence import (
     write_evidence_strings,
 )
 
-# This parser is specific for the second release of Porject Score, so the publication identifier is hardcoded:
+# This parser is specific for the second release of Project Score, so the publication identifier is hardcoded:
 PMID = "38215750"
 
 
@@ -49,6 +50,45 @@ def generate_project_score_evidence(
     )
 
 
+def get_disease_cell_lines(
+    cell_passport_data: GenerateDiseaseCellLines, cell_line_data: DataFrame
+) -> DataFrame:
+    """Based on the cell passport data and cell line data, generate a dataframe with disease cell lines.
+
+    Args:
+        cell_passport_data (GenerateDiseaseCellLines): Cell passport data as a GenerateDiseaseCellLines object
+        cell_line_data (DataFrame): Cell line data from ProjectScore as a DataFrame
+
+    Returns:
+        DataFrame: Prepared disease cell lines objects indexed as cancerType.
+    """
+    passport_disease_cell_lines = cell_passport_data.generate_disease_cell_lines()
+
+    # Joining disease cell-lines dataframe for Project Score:
+    disease_cell_lines = (
+        cell_line_data.select(
+            f.lower(f.col("CANCER_TYPE")).alias("cancerType"),
+            f.col("CMP_ID").alias("id"),
+        )
+        .join(passport_disease_cell_lines, on="id", how="right")
+        .groupBy("cancerType")
+        .agg(f.collect_set("diseaseCellLine").alias("diseaseCellLines"))
+    )
+    # Get report:
+    logger = logging.getLogger(__name__)
+
+    # Are there any cancer types that are not in the cell line file?
+    missing_cancer_types = disease_cell_lines.filter(f.col("diseaseCellLines").isNull())
+    if missing_cancer_types.count() > 0:
+        logger.warning(
+            f"The following cancer types are not in the cell line file: {missing_cancer_types.collect()}"
+        )
+    else:
+        logger.info("All cancer types are in the cell line file.")
+
+    return disease_cell_lines
+
+
 def main(
     spark: SparkSession,
     evid_file: str,
@@ -78,35 +118,19 @@ def main(
     logger.info(f"Cell line to uberon mapping: {cell_line_to_uberon_mapping}")
     logger.info(f"Output file: {out_file}")
 
+    # Read gene based data and generate evidence strings:
+    evidence_table = spark.read.csv(evid_file, sep="\t", header=True)
+
+    # Open cell lines file:
+    cell_line_data = spark.read.csv(cell_line_file, sep="\t", header=True)
+
     # Extract disease cell line data from cell passport file:
     cell_passport_data = GenerateDiseaseCellLines(
         spark, cell_passport_file, cell_line_to_uberon_mapping
     )
 
-    passport_disease_cell_lines = cell_passport_data.generate_disease_cell_lines()
-
-    # Joining disease cell-lines dataframe for Project Score:
-    disease_cell_lines = (
-        spark.read.csv(cell_line_file, sep="\t", header=True)
-        .select(
-            f.lower(f.col("CANCER_TYPE")).alias("cancerType"),
-            f.col("CMP_ID").alias("id"),
-        )
-        .join(passport_disease_cell_lines, on="id", how="right")
-        .groupBy("cancerType")
-        .agg(f.collect_set("diseaseCellLine").alias("diseaseCellLines"))
-    )
-    # Are there any cancer types that are not in the cell line file?
-    missing_cancer_types = disease_cell_lines.filter(f.col("diseaseCellLines").isNull())
-    if missing_cancer_types.count() > 0:
-        logger.warning(
-            f"The following cancer types are not in the cell line file: {missing_cancer_types.collect()}"
-        )
-    else:
-        logger.info("All cancer types are in the cell line file.")
-
-    # Read gene based data and generate evidence strings:
-    evidence_table = spark.read.csv(evid_file, sep="\t", header=True)
+    # Generate disease cell lines from cell passport and cell line data:
+    disease_cell_lines = get_disease_cell_lines(cell_passport_data, cell_line_data)
 
     project_score_evidence = generate_project_score_evidence(
         disease_cell_lines, evidence_table
