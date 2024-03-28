@@ -189,13 +189,6 @@ class OTAR_CRISPR_evience_generator:
         self.study_table = study_table
         self.logger = logging.getLogger(__name__)
         self.data_path = data_path
-        self.data_columns = [
-            "studyId",
-            "projectId",
-            "filterColumn",
-            "threshold",
-            "replicates",
-        ]
 
     @staticmethod
     def _get_test_side(filter_column: str) -> Column:
@@ -217,6 +210,16 @@ class OTAR_CRISPR_evience_generator:
         filter_column: str,
         threshold: float,
     ) -> DataFrame:
+        """Read and filter MAGeCK files based on the provided threshold applied on the specified column.
+
+        Args:
+            files (List[str]): A list of files to be read.
+            filter_column (str): A filter column name.
+            threshold (float): A threshold to filter the data.
+
+        Returns:
+            DataFrame: A DataFrame with filtered data.
+        """
         side = filter_column.split("|")[0]
         return (
             self.spark.read.csv(files, header=True, sep="\t")
@@ -227,7 +230,6 @@ class OTAR_CRISPR_evience_generator:
                 self._get_test_side(filter_column).alias("statisticalTestTail"),
             )
             .filter(f.col("resourceScore") < threshold)
-            .persist()
         )
 
     def _process_replicate(
@@ -237,7 +239,20 @@ class OTAR_CRISPR_evience_generator:
         filter_column: str,
         threshold: float,
     ):
+        """Process a single replicate: finding hits, exclude controls if provided.
+
+        Args:
+            data_files (List[str]): A list of data files in mageck format.
+            control_dataset (Optional[str]): A control dataset in mageck format.
+            filter_column (str): A filter column name.
+            threshold (float): A threshold to filter the data.
+
+        Returns:
+            DataFrame: A DataFrame with processed data.
+        """
+        # Extract hist from the data files:
         hits = self._read_and_filter_mageck_files(data_files, filter_column, threshold)
+        # If control dataset is provided, filter out the hits:
         if control_dataset:
             hits = hits.join(
                 (
@@ -255,6 +270,14 @@ class OTAR_CRISPR_evience_generator:
     def _process_process_study_table_row(
         self: OTAR_CRISPR_evience_generator, row: Row
     ) -> DataFrame:
+        """Process a single row from the study table.
+
+        Args:
+            row (Row): A row from the study table.
+
+        Returns:
+            DataFrame: A DataFrame with processed data.
+        """
         # Process all replicates and collect the results in a list of dataframes:
         replicate_data = [
             self._process_replicate(
@@ -302,10 +325,10 @@ class OTAR_CRISPR_evience_generator:
         all_hits = reduce(
             lambda df1, df2: df1.unionByName(df2),
             [
-                self._process_process_study_table_row(row)
-                for row in self.study_table.collect()
+                self._process_process_study_table_row(study)
+                for study in self.study_table.collect()
             ],
-        ).persist()
+        )
 
         # Adding study level metadata:
         evidence = (
@@ -408,9 +431,6 @@ def parse_arguments() -> argparse.Namespace:
 if __name__ == "__main__":
     # Parse arguments:
     args = parse_arguments()
-
-    # Initialize logger:
-    initialize_logger(__name__, args.log_file)
 
     study_table = args.study_table
     log_file = args.log_file
