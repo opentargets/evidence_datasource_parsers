@@ -527,9 +527,11 @@ rule ot_crispr:               # Generating PPP evidence for OTAR CRISPR screens
     shell:
         """
         exec &> {log}
+        # Fetching the data from the bucket to the home folder:
+        gsutil -m cp -r "{params.data_folder}/*" ~/crispr_data/
         python partner_preview_scripts/ot_crispr.py \
             --study_table {params.study_table} \
-            --data_folder {params.data_folder} \
+            --data_folder ~/crispr_data/ \
             --output {output}
         opentargets_validator --schema {params.schema} {output}
         """
