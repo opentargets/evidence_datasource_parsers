@@ -516,9 +516,10 @@ rule chemicalProbes:          # Process data from the Probes&Drugs portal.
         """
 
 rule ot_crispr:               # Generating PPP evidence for OTAR CRISPR screens
+    input:
+        study_table = GS.remote(config['OT_CRISPR']['config']),
     params:
         data_folder = config['OT_CRISPR']['data_directory'],
-        study_table = config['OT_CRISPR']['config'],
         schema = f"{config['global']['schema']}/schemas/disease_target_evidence.json"
     output:
         'ot_crispr.json.gz'
@@ -527,12 +528,18 @@ rule ot_crispr:               # Generating PPP evidence for OTAR CRISPR screens
     shell:
         """
         exec &> {log}
+        
         # Fetching the data from the bucket to the home folder:
-        gsutil -m cp -r "{params.data_folder}/*" ~/crispr_data/
+        mkdir -p ~/ot_crispr_data
+        gsutil -m cp -r "{params.data_folder}/*" ~/ot_crispr_data/
+        
+        # Call parser script:
         python partner_preview_scripts/ot_crispr.py \
-            --study_table {params.study_table} \
-            --data_folder ~/crispr_data/ \
+            --study_table {input.study_table} \
+            --data_folder ~/ot_crispr_data \
             --output {output}
+        
+        # Validate schema:
         opentargets_validator --schema {params.schema} {output}
         """
 
