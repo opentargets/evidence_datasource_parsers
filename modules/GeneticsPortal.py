@@ -5,10 +5,11 @@ import argparse
 import logging
 import sys
 
-from pyspark.conf import SparkConf
-from pyspark.sql import Column, DataFrame, SparkSession, Window
+from pyspark.sql import Column, DataFrame, Window
 from pyspark.sql import functions as f
 from pyspark.sql import types as t
+
+from common.evidence import initialize_sparksession
 
 
 def get_most_significant_qtl_effect(df: DataFrame) -> DataFrame:
@@ -183,27 +184,6 @@ def initialize_logger(logFile=None):
         logging.config.fileConfig(filename=logFile)
     else:
         logging.StreamHandler(sys.stderr)
-
-
-def initialize_spark():
-    """Spins up a Spark session."""
-
-    # Initialize spark session
-    spark_mem_limit = detect_spark_memory_limit()
-    spark_conf = (
-        SparkConf()
-        .set("spark.driver.memory", f"{spark_mem_limit}g")
-        .set("spark.executor.memory", f"{spark_mem_limit}g")
-        .set("spark.driver.maxResultSize", "0")
-        .set("spark.debug.maxToStringFields", "2000")
-        .set("spark.sql.execution.arrow.maxRecordsPerBatch", "500000")
-    )
-    spark = (
-        SparkSession.builder.config(conf=spark_conf).master("local[*]").getOrCreate()
-    )
-    logging.info(f"Spark version: {spark.version}")
-
-    return spark
 
 
 def load_eco_dict(vep_consequences: str):
@@ -538,7 +518,7 @@ if __name__ == "__main__":
     initialize_logger(args.logFile)
 
     global spark
-    spark = initialize_spark()
+    spark = initialize_sparksession()
 
     main(
         locus2gene=args.locus2gene,
