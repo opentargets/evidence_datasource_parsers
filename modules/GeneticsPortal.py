@@ -3,13 +3,23 @@
 
 import argparse
 import logging
+import os
 import sys
+import tempfile
 
-from pyspark.sql import Column, DataFrame, Window
+from psutil import virtual_memory
+from pyspark.conf import SparkConf
+from pyspark.sql import Column, DataFrame, SparkSession, Window
 from pyspark.sql import functions as f
 from pyspark.sql import types as t
 
-from common.evidence import initialize_sparksession
+
+def detect_spark_memory_limit():
+    """Spark does not automatically use all available memory on a machine. When working on large datasets, this may
+    cause Java heap space errors, even though there is plenty of RAM available. To fix this, we detect the total amount
+    of physical memory and allow Spark to use (almost) all of it."""
+    mem_gib = virtual_memory().total >> 30
+    return int(mem_gib * 0.9)
 
 
 def get_most_significant_qtl_effect(df: DataFrame) -> DataFrame:
@@ -107,6 +117,7 @@ def process_coloc(coloc_file: str) -> DataFrame:
             f.col("left_study").alias("study_id"),
             f.col("right_gene_id").alias("gene_id"),
             f.col("left_var_right_study_beta").alias("qtlEffect"),
+            f.col("left_var_right_study_pval").alias("qtlPValue"),
         )
         .distinct()
         # Windowing over the study/locus/gene QTLs and get the highest beta:
@@ -184,6 +195,27 @@ def initialize_logger(logFile=None):
         logging.config.fileConfig(filename=logFile)
     else:
         logging.StreamHandler(sys.stderr)
+
+
+def initialize_spark():
+    """Spins up a Spark session."""
+
+    # Initialize spark session
+    spark_mem_limit = detect_spark_memory_limit()
+    spark_conf = (
+        SparkConf()
+        .set("spark.driver.memory", f"{spark_mem_limit}g")
+        .set("spark.executor.memory", f"{spark_mem_limit}g")
+        .set("spark.driver.maxResultSize", "0")
+        .set("spark.debug.maxToStringFields", "2000")
+        .set("spark.sql.execution.arrow.maxRecordsPerBatch", "500000")
+    )
+    spark = (
+        SparkSession.builder.config(conf=spark_conf).master("local[*]").getOrCreate()
+    )
+    logging.info(f"Spark version: {spark.version}")
+
+    return spark
 
 
 def load_eco_dict(vep_consequences: str):
@@ -432,15 +464,21 @@ def process_variant_rsid(variant_index: str):
     )
 
 
-def write_evidence_strings(evidence_df: DataFrame, output_file: str) -> int:
-    """
-    Exports the table to a compressed JSON file containing the evidence strings.
-    Pandas is used to export it to a single file, not a directory.
-    """
-    evidence_df.coalesce(1).write.format("json").mode("overwrite").option(
-        "compression", "gzip"
-    ).save(output_file)
-    return 0
+def write_evidence_strings(evidence_df: DataFrame, output_file: str) -> None:
+    """Exports the table to a compressed JSON file containing the evidence strings."""
+    with tempfile.TemporaryDirectory() as tmp_dir_name:
+        (
+            evidence_df.coalesce(1)
+            .write.format("json")
+            .mode("overwrite")
+            .option("compression", "org.apache.hadoop.io.compress.GzipCodec")
+            .save(tmp_dir_name)
+        )
+        json_chunks = [f for f in os.listdir(tmp_dir_name) if f.endswith(".json.gz")]
+        assert (
+            len(json_chunks) == 1
+        ), f"Expected one JSON file, but found {len(json_chunks)}."
+        os.rename(os.path.join(tmp_dir_name, json_chunks[0]), output_file)
 
 
 def main(
@@ -506,10 +544,6 @@ def main(
     logging.info("Evidence strings have been processed. Saving...")
     genetics_df = parse_genetics_evidence(genetics_df)
     write_evidence_strings(genetics_df, output_file)
-    logging.info(
-        f"{genetics_df.count()} evidence strings have been saved to {output_file}. Exiting."
-    )
-
     return 0
 
 
@@ -518,7 +552,7 @@ if __name__ == "__main__":
     initialize_logger(args.logFile)
 
     global spark
-    spark = initialize_sparksession()
+    spark = initialize_spark()
 
     main(
         locus2gene=args.locus2gene,
