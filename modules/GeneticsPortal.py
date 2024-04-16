@@ -6,32 +6,25 @@ import logging
 import sys
 
 from pyspark.conf import SparkConf
-from pyspark.sql import (
-    SparkSession,
-    DataFrame,
-    Column,
-    types as t,
-    functions as f,
-    Window,
-)
-
-from common.evidence import detect_spark_memory_limit
+from pyspark.sql import Column, DataFrame, SparkSession, Window
+from pyspark.sql import functions as f
+from pyspark.sql import types as t
 
 
-def get_biggest_effect(df: DataFrame) -> DataFrame:
-    """Filter dataframe for rows with the highest absolute QTL effect.
+def get_most_significant_qtl_effect(df: DataFrame) -> DataFrame:
+    """Filter dataframe for rows with the most significant QTL effect.
 
     Args:
         df (DataFrame): Dataframe with the colocalization dataset
 
     Returns:
-        DataFrame: From each group (defined by the groupbyColumn) only one row is returned.
+        DataFrame: From each group (defined by the groupbyColumns) only one row is returned.
     """
     # These are the columns we grouping by:
     group_columns = ["study_id", "gene_id", "chrom", "pos", "ref", "alt"]
 
     # Column name with the effect:
-    effect_column = "qtlEffect"
+    qtl_significance_column = "qtlPValue"
 
     return (
         df
@@ -39,11 +32,15 @@ def get_biggest_effect(df: DataFrame) -> DataFrame:
         .withColumn(
             "effectRank",
             f.row_number().over(
-                Window.partitionBy(*group_columns).orderBy(f.abs(effect_column).desc())
+                Window.partitionBy(*group_columns).orderBy(
+                    f.col(qtl_significance_column).asc()
+                )
             ),
         )
         # Fiter by rank:
-        .filter(f.col("effectRank") == 1).drop("effectRank")
+        .filter(f.col("effectRank") == 1)
+        # Drop helper columns:
+        .drop("effectRank", "qtlPValue")
     )
 
 
@@ -94,7 +91,13 @@ def process_coloc(coloc_file: str) -> DataFrame:
     # Filtering and processing coloc table:
     return (
         spark.read.parquet(coloc_file)
-        .filter(f.col("right_type") != "gwas")
+        .filter(
+            # Dropping GWAS loci:
+            (f.col("right_type") != "gwas")
+            &
+            # Excluding splice QTLs:
+            (f.col("right_type") != "sqtl")
+        )
         .select(
             f.col("left_chrom").alias("chrom"),
             f.col("left_pos").alias("pos"),
@@ -106,7 +109,7 @@ def process_coloc(coloc_file: str) -> DataFrame:
         )
         .distinct()
         # Windowing over the study/locus/gene QTLs and get the highest beta:
-        .transform(get_biggest_effect)
+        .transform(get_most_significant_qtl_effect)
         .withColumn(
             "variantFunctionalConsequenceFromQtlId", map_betas_to_so(f.col("qtlEffect"))
         )
@@ -431,7 +434,8 @@ def process_consequences_table(variant_index: str, vep_consequences: str) -> Dat
         # Get most severe consequences
         .withColumn(
             "most_severe_gene_csq", get_most_severe_consequence_udf(f.col("csq_arr"))
-        ).withColumn(
+        )
+        .withColumn(
             "consequence_link", get_consequence_link_udf(f.col("most_severe_gene_csq"))
         )
     )
