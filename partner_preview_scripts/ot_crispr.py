@@ -104,7 +104,7 @@ class OTAR_CRISPR_study_parser:
                 "projectDescription",
                 "studyOverview",
                 "releaseVersion",
-                "releaseDate",
+                f.col("releaseDate").cast(t.DateType()).alias("releaseDate"),
                 # Splitting diseases:
                 self.split_column_value(f.col("diseases")).alias(
                     "diseaseFromSourceMappedId"
@@ -219,18 +219,40 @@ class OTAR_CRISPR_evience_generator:
 
         Returns:
             DataFrame: A DataFrame with filtered data.
+
+        Raises:
+            ValueError: If the label separator is not recognized.
         """
         side = filter_column.split("|")[0]
-        return (
-            self.spark.read.csv(files, header=True, sep="\t")
-            .select(
-                f.split(f.col("id"), "_")[0].alias("targetFromSourceId"),
-                f.col(f"{side}|lfc").alias("log2FoldChangeValue"),
-                f.col(filter_column).alias("resourceScore"),
-                self._get_test_side(filter_column).alias("statisticalTestTail"),
-            )
-            .filter(f.col("resourceScore") < threshold)
+
+        # Some MAGEcK files have different column label separators eg. "pos|lfc" vs "pos.lfc" We have to sort this out:
+        label_separator = "|"
+        raw_data = self.spark.read.csv(files, header=True, sep="\t")
+
+        # Checking label separator in the third column, which expected to be: neg|score or neg.score:
+        if "|" in raw_data.columns[3]:
+            label_separator = "|"
+        elif "." in raw_data.columns[3]:
+            label_separator = "."
+        else:
+            raise ValueError(f"Unrecognized label separator in {raw_data.columns[2]}")
+
+        # Updating column names according to the identified label separator:
+        raw_data = reduce(
+            # Rename all columns:
+            lambda df, col: df.withColumnRenamed(
+                col, col.replace(label_separator, "|")
+            ),
+            raw_data.columns,
+            raw_data,
         )
+
+        return raw_data.select(
+            f.split(f.col("id"), "_")[0].alias("targetFromSourceId"),
+            f.col(f"{side}|lfc").cast(t.FloatType()).alias("log2FoldChangeValue"),
+            f.col(filter_column).cast(t.FloatType()).alias("resourceScore"),
+            self._get_test_side(filter_column).alias("statisticalTestTail"),
+        ).filter(f.col("resourceScore") < threshold)
 
     def _process_replicate(
         self: OTAR_CRISPR_evience_generator,
@@ -363,6 +385,12 @@ class OTAR_CRISPR_evience_generator:
             )
         )
         write_evidence_strings(evidence, output_file)
+        evidence.write.json(
+            "mucika.json.gz",
+            mode="overwrite",
+            compression="gzip",
+            dateFormat="yyyy-MM-dd",
+        )
 
 
 def main(study_table_path, output_file, data_folder) -> None:
