@@ -3,35 +3,39 @@
 
 import argparse
 import logging
+import os
 import sys
+import tempfile
 
+from psutil import virtual_memory
 from pyspark.conf import SparkConf
-from pyspark.sql import (
-    SparkSession,
-    DataFrame,
-    Column,
-    types as t,
-    functions as f,
-    Window,
-)
-
-from common.evidence import detect_spark_memory_limit
+from pyspark.sql import Column, DataFrame, SparkSession, Window
+from pyspark.sql import functions as f
+from pyspark.sql import types as t
 
 
-def get_biggest_effect(df: DataFrame) -> DataFrame:
-    """Filter dataframe for rows with the highest absolute QTL effect.
+def detect_spark_memory_limit():
+    """Spark does not automatically use all available memory on a machine. When working on large datasets, this may
+    cause Java heap space errors, even though there is plenty of RAM available. To fix this, we detect the total amount
+    of physical memory and allow Spark to use (almost) all of it."""
+    mem_gib = virtual_memory().total >> 30
+    return int(mem_gib * 0.9)
+
+
+def get_most_significant_qtl_effect(df: DataFrame) -> DataFrame:
+    """Filter dataframe for rows with the most significant QTL effect.
 
     Args:
         df (DataFrame): Dataframe with the colocalization dataset
 
     Returns:
-        DataFrame: From each group (defined by the groupbyColumn) only one row is returned.
+        DataFrame: From each group (defined by the groupbyColumns) only one row is returned.
     """
     # These are the columns we grouping by:
     group_columns = ["study_id", "gene_id", "chrom", "pos", "ref", "alt"]
 
     # Column name with the effect:
-    effect_column = "qtlEffect"
+    qtl_significance_column = "qtlPValue"
 
     return (
         df
@@ -39,11 +43,15 @@ def get_biggest_effect(df: DataFrame) -> DataFrame:
         .withColumn(
             "effectRank",
             f.row_number().over(
-                Window.partitionBy(*group_columns).orderBy(f.abs(effect_column).desc())
+                Window.partitionBy(*group_columns).orderBy(
+                    f.col(qtl_significance_column).asc()
+                )
             ),
         )
         # Fiter by rank:
-        .filter(f.col("effectRank") == 1).drop("effectRank")
+        .filter(f.col("effectRank") == 1)
+        # Drop helper columns:
+        .drop("effectRank", "qtlPValue")
     )
 
 
@@ -94,7 +102,13 @@ def process_coloc(coloc_file: str) -> DataFrame:
     # Filtering and processing coloc table:
     return (
         spark.read.parquet(coloc_file)
-        .filter(f.col("right_type") != "gwas")
+        .filter(
+            # Dropping GWAS loci:
+            (f.col("right_type") != "gwas")
+            &
+            # Excluding splice QTLs:
+            (f.col("right_type") != "sqtl")
+        )
         .select(
             f.col("left_chrom").alias("chrom"),
             f.col("left_pos").alias("pos"),
@@ -103,10 +117,11 @@ def process_coloc(coloc_file: str) -> DataFrame:
             f.col("left_study").alias("study_id"),
             f.col("right_gene_id").alias("gene_id"),
             f.col("left_var_right_study_beta").alias("qtlEffect"),
+            f.col("left_var_right_study_pval").alias("qtlPValue"),
         )
         .distinct()
         # Windowing over the study/locus/gene QTLs and get the highest beta:
-        .transform(get_biggest_effect)
+        .transform(get_most_significant_qtl_effect)
         .withColumn(
             "variantFunctionalConsequenceFromQtlId", map_betas_to_so(f.col("qtlEffect"))
         )
@@ -431,7 +446,8 @@ def process_consequences_table(variant_index: str, vep_consequences: str) -> Dat
         # Get most severe consequences
         .withColumn(
             "most_severe_gene_csq", get_most_severe_consequence_udf(f.col("csq_arr"))
-        ).withColumn(
+        )
+        .withColumn(
             "consequence_link", get_consequence_link_udf(f.col("most_severe_gene_csq"))
         )
     )
@@ -448,15 +464,16 @@ def process_variant_rsid(variant_index: str):
     )
 
 
-def write_evidence_strings(evidence_df: DataFrame, output_file: str) -> int:
-    """
-    Exports the table to a compressed JSON file containing the evidence strings.
-    Pandas is used to export it to a single file, not a directory.
-    """
-    evidence_df.coalesce(1).write.format("json").mode("overwrite").option(
-        "compression", "gzip"
-    ).save(output_file)
-    return 0
+def write_evidence_strings(evidence_df: DataFrame, output_file: str) -> None:
+    """Exports the table to a compressed JSON file containing the evidence strings."""
+    (
+        evidence_df.toPandas().to_json(
+            output_file,
+            orient="records",
+            lines=True,
+            compression="gzip",
+        )
+    )
 
 
 def main(
@@ -522,10 +539,6 @@ def main(
     logging.info("Evidence strings have been processed. Saving...")
     genetics_df = parse_genetics_evidence(genetics_df)
     write_evidence_strings(genetics_df, output_file)
-    logging.info(
-        f"{genetics_df.count()} evidence strings have been saved to {output_file}. Exiting."
-    )
-
     return 0
 
 
