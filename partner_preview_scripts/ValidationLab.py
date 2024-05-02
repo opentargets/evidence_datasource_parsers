@@ -9,11 +9,13 @@
     - Sanger Model Passport data.
 """
 
+from __future__ import annotations
+
 import argparse
 import logging
-import sys
 from dataclasses import dataclass
 from functools import reduce
+from typing import Callable
 
 import pyspark.sql.functions as f
 import pyspark.sql.types as t
@@ -122,7 +124,7 @@ class BiomarkerParser:
     }
 
     @staticmethod
-    def _get_biomarker_wrapper(biomarker_map: dict):
+    def _get_biomarker_wrapper(biomarker_map: dict) -> Callable:
         @f.udf(
             t.StructType(
                 [
@@ -131,7 +133,7 @@ class BiomarkerParser:
                 ]
             )
         )
-        def wrapped_function(column_name: Column, biomarker: Column):
+        def wrapped_function(column_name: Column, biomarker: Column) -> dict | None:
             """This function returns a struct with the biomarker name and description."""
 
             # If the biomarker value has a direct mapping:
@@ -165,7 +167,9 @@ class BiomarkerParser:
         return wrapped_function
 
     @classmethod
-    def get_biomarkers(cls, biomarker_df):
+    def get_biomarkers(
+        cls: type[BiomarkerParser], biomarker_df: DataFrame
+    ) -> DataFrame:
         biomarkers_in_data = [
             biomarker
             for biomarker in cls.BIOMARKERMAPS.keys()
@@ -191,7 +195,7 @@ class BiomarkerParser:
         )
 
         # The biomarker columns are unstacked into one single 'biomarkers' column:
-        biomarker_unstack = f"""stack({len(biomarkers_in_data)}, {", ".join([f"'{x}', {x}" for x in biomarkers_in_data])}) as (biomarker_name, biomarkers)"""
+        biomarker_unstack = f"""stack({len(biomarkers_in_data)}, {", ".join([f"'{x}', {x}" for x in biomarkers_in_data])}) as (biomarker_name, biomarker)"""
 
         return (
             processed_biomarkers
@@ -201,11 +205,11 @@ class BiomarkerParser:
                 f.expr(biomarker_unstack),
             )
             # Filter out all null biomarkers:
-            .filter((f.col("biomarkers").isNotNull()))
+            .filter((f.col("biomarker").isNotNull()))
             # Grouping data by cell lines again:
             .groupBy("cellLineName")
             .agg(
-                f.collect_list("biomarkers").alias("biomarkers"),
+                f.collect_list("biomarker").alias("biomarkerList"),
             )
             .persist()
         )
@@ -219,7 +223,7 @@ class ValidationLabEvidenceParser:
 
     @staticmethod
     def _get_disease_cell_lines(model_passport_df: DataFrame) -> DataFrame:
-        x = (
+        return (
             # The following option is required to correctly parse CSV records which contain newline characters.
             model_passport_df.select(
                 f.col("model_name").alias("cellLineName"),
@@ -227,12 +231,13 @@ class ValidationLabEvidenceParser:
                 f.lower(f.col("tissue")).alias("tissueFromSource"),
             )
         )
-        x.show()
-        return x
 
     def generate_evidence(
-        self, spark: SparkSession, input_path: str, model_passport_file: str
-    ):
+        self: ValidationLabEvidenceParser,
+        spark: SparkSession,
+        input_path: str,
+        model_passport_file: str,
+    ) -> DataFrame:
         # Get diease cell lines:
         disease_cell_lines = self._get_disease_cell_lines(
             spark.read.option("multiline", True).csv(
@@ -271,7 +276,7 @@ class ValidationLabEvidenceParser:
                 "releaseDate",
                 "releaseVersion",
                 # Evidence:
-                "targetFromSource",
+                "targetFromSourceId",
                 "diseaseFromSourceMappedId",
                 "diseaseFromSource",
                 # Assessments:
@@ -287,7 +292,7 @@ class ValidationLabEvidenceParser:
                         f.col("tissueId"),
                     )
                 ).alias("diseaseCellLines"),
-                "biomarkers",
+                "biomarkerList",
                 # Primary project:
                 "primaryProjectHit",
                 "primaryProjectId",
@@ -309,19 +314,28 @@ class ValidationLabProjectParser:
     excludeStudy: bool
 
     def parse_evidence(
-        self, spark: SparkSession, input_path: str, assays: list
+        self: ValidationLabProjectParser,
+        spark: SparkSession,
+        input_path: str,
+        assays: list,
     ) -> DataFrame:
+        logger = logging.getLogger(__name__)
+
+        validation_input_file = f"{input_path}/{self.experimentDataFile}"
+        biomarker_file = f"{input_path}/{self.biomarkerDataFile}"
+
+        logger.info(f"Reading project data: {validation_input_file}")
+        logger.info(f"Reading biomarker data: {biomarker_file}")
+
         # Reading data:
         raw_experiment_data = spark.read.option("multiline", True).csv(
-            f"{input_path}/{self.experimentDataFile}", sep="\t", header=True
+            validation_input_file, sep="\t", header=True
         )
         # First round of processing:
         processed_experiment = self._process_raw_evidence(raw_experiment_data, assays)
 
         # Reading biomarker data:
-        raw_biomarkers = spark.read.csv(
-            f"{input_path}/{self.biomarkerDataFile}", sep="\t", header=True
-        )
+        raw_biomarkers = spark.read.csv(biomarker_file, sep="\t", header=True)
 
         # Formatting assays (depends on the formatted experiment data):
         parsed_assays = self._parser_assay_object(processed_experiment, assays, spark)
@@ -342,11 +356,11 @@ class ValidationLabProjectParser:
 
         return (
             processed_experiment.join(
-                parsed_assays, on=["targetFromSource", "cellLineName"], how="inner"
+                parsed_assays, on=["targetFromSourceId", "cellLineName"], how="inner"
             )
             .select(
                 # Columns from the raw evidence file:
-                "targetFromSource",
+                "targetFromSourceId",
                 "cellLineName",
                 "assessment",
                 "primaryProjectHit",
@@ -366,7 +380,7 @@ class ValidationLabProjectParser:
         # Read full evidence data:
         return raw_data.select(
             # Extract target name:
-            f.col("gene_ID").alias("targetFromSource"),
+            f.col("gene_ID").alias("targetFromSourceId"),
             # Extract cell-line name:
             f.col("cell_line_ID").alias("cellLineName"),
             # Extract VL assessment:
@@ -390,38 +404,61 @@ class ValidationLabProjectParser:
         # Generate unpivot expression:
         assay_names = [assay["shortName"] for assay in assays]
 
-        unpivot_expression = f"""stack({len(assay_names)}, {', '.join([f"'{assay}', `{assay}`" for assay in assay_names])}) as (shortName, isAssayHit)"""
+        unpivot_expression = f"""stack({len(assay_names)}, {', '.join([f"'{assay}', `{assay}`" for assay in assay_names])}) as (shortName, isHit)"""
 
         return (
             raw_evidence_df.select(
-                "targetFromSource", "cellLineName", f.expr(unpivot_expression)
+                "targetFromSourceId", "cellLineName", f.expr(unpivot_expression)
             )
+            # Dropping rows without assessment:
+            .filter(f.col("isHit").isNotNull())
+            # Joining with the assay metadata:
             .join(spark.createDataFrame(assays), on="shortName", how="inner")
-            .groupBy("targetFromSource", "cellLineName")
-            .agg(f.collect_set(f.struct("shortName", "description")).alias("assays"))
+            .groupBy("targetFromSourceId", "cellLineName")
+            .agg(
+                f.collect_set(f.struct("shortName", "description", "isHit")).alias(
+                    "assays"
+                )
+            )
         )
 
 
 def main(
     config_file: str, output_file: str, cell_passport_file: str, data_folder: str
 ) -> None:
+    # Logginging the configuration:
+    logger = logging.getLogger(__name__)
+    logger.info(f"Config file: {config_file}")
+    logger.info(f"Output file: {output_file}")
+    logger.info(f"Sanger Model Passport file: {cell_passport_file}")
+    logger.info(f"Validation lab files read from: {data_folder}")
+
     # Initialize spark session
     spark = initialize_sparksession()
 
     # Parse experimental parameters:
     validation_lab_config = read_ppp_config(config_file)
+    logger.info(f"Number of projects: {len(validation_lab_config['projects'])}")
+    logger.info(f"Number of assays: {len(validation_lab_config['assays'])}")
+    logger.info(
+        f"List of assays: {', '.join([assay['shortName'] for assay in validation_lab_config['assays']])}"
+    )
 
     # Generate evidence from all validation projects:
     combined_evidence_df = ValidationLabEvidenceParser(
         **validation_lab_config
     ).generate_evidence(spark, data_folder, cell_passport_file)
 
+    logger.info(
+        f"Number of rows in the combined evidence: {combined_evidence_df.count()}"
+    )
     # Save the combined evidence dataframe:
     write_evidence_strings(combined_evidence_df, output_file)
+    logger.info(f"Saved evidence to {output_file}")
 
 
-if __name__ == "__main__":
-    # Reading output file name from the command line:
+def parse_arguments() -> argparse.Namespace:
+    """Parses command line arguments."""
     parser = argparse.ArgumentParser(
         description="This script parse validation lab data and generates disease target evidence."
     )
@@ -450,7 +487,13 @@ if __name__ == "__main__":
         help="Location of input files to process.",
         required=True,
     )
-    args = parser.parse_args()
+    return parser.parse_args()
+
+
+if __name__ == "__main__":
+    # Reading output file name from the command line:
+    args = parse_arguments()
+    initialize_logger(args.log_file)
 
     # Passing all the required arguments:
     main(
