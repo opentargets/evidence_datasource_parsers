@@ -3,10 +3,10 @@
 
 - The parser uses results from various screening experiments.
 - Input files are defined in the ValidationLab_config.json configuration in the PPP-evidence-configuration repo
-- Files:
+- Data files:
     - Cell line data with biomarker annotation
     - Result file with the measured values.
-    - Hypothesis files with the binary flags for each tested biomarker in the context of the tested gene.
+    - Sanger Model Passport data.
 """
 
 import argparse
@@ -17,8 +17,7 @@ from functools import reduce
 
 import pyspark.sql.functions as f
 import pyspark.sql.types as t
-from pyspark.sql import SparkSession
-from pyspark.sql.dataframe import DataFrame
+from pyspark.sql import Column, DataFrame, SparkSession
 
 from common.evidence import (
     initialize_logger,
@@ -29,6 +28,22 @@ from common.evidence import (
 
 
 class BiomarkerParser:
+    """This class is responsible for parsing biomarker data.
+
+    There are a handful of accepted biomarkers listed as dictionary keys. These values are expected to be
+    column names in the biomarker input table. Then the column values are mapped to a standardised format.
+
+    The output expected to collate all the biomarkers into a single column for each cell line. With the
+    follwoing schema:
+
+    root
+    |-- cellName: string (nullable = true)
+    |-- biomarkers: array (nullable = false)
+    |    |-- element: struct (containsNull = false)
+    |    |    |-- name: string (nullable = false)
+    |    |    |-- description: string (nullable = false)
+    """
+
     BIOMARKERMAPS = {
         "PAN": {
             "direct_mapping": {
@@ -107,43 +122,47 @@ class BiomarkerParser:
     }
 
     @staticmethod
-    @f.udf(
-        t.StructType(
-            [
-                t.StructField("name", t.StringType(), False),
-                t.StructField("description", t.StringType(), False),
-            ]
+    def _get_biomarker_wrapper(biomarker_map: dict):
+        @f.udf(
+            t.StructType(
+                [
+                    t.StructField("name", t.StringType(), False),
+                    t.StructField("description", t.StringType(), False),
+                ]
+            )
         )
-    )
-    def _get_biomarker(column_name, biomarker, BIOMARKERMAPS):
-        """This function returns a struct with the biomarker name and description."""
+        def wrapped_function(column_name: Column, biomarker: Column):
+            """This function returns a struct with the biomarker name and description."""
 
-        # If the biomarker has a direct mapping:
-        if "direct_mapping" in BIOMARKERMAPS[column_name]:
-            try:
-                return BIOMARKERMAPS[column_name]["direct_mapping"][biomarker]
-            except KeyError:
+            # If the biomarker value has a direct mapping:
+            if "direct_mapping" in biomarker_map[column_name]:
+                try:
+                    return biomarker_map[column_name]["direct_mapping"][biomarker]
+                except KeyError:
+                    logging.warning(
+                        f"Could not find direct mapping for {column_name}:{biomarker}"
+                    )
+                    return None
+
+            # If the value needs to be parsed:
+            if biomarker == "wt":
+                return {
+                    "name": biomarker_map[column_name]["name"] + biomarker,
+                    "description": biomarker_map[column_name]["description"]
+                    + "wild type",
+                }
+            elif biomarker == "mut":
+                return {
+                    "name": biomarker_map[column_name]["name"] + biomarker,
+                    "description": biomarker_map[column_name]["description"] + "mutant",
+                }
+            else:
                 logging.warning(
-                    f"Could not find direct mapping for {column_name}:{biomarker}"
+                    f"Could not find direct mapping for {column_name}: {biomarker}"
                 )
                 return None
 
-        # If the value needs to be parsed:
-        if biomarker == "wt":
-            return {
-                "name": BIOMARKERMAPS[column_name]["name"] + biomarker,
-                "description": BIOMARKERMAPS[column_name]["description"] + "wild type",
-            }
-        elif biomarker == "mut":
-            return {
-                "name": BIOMARKERMAPS[column_name]["name"] + biomarker,
-                "description": BIOMARKERMAPS[column_name]["description"] + "mutant",
-            }
-        else:
-            logging.warning(
-                f"Could not find direct mapping for {column_name}: {biomarker}"
-            )
-            return None
+        return wrapped_function
 
     @classmethod
     def get_biomarkers(cls, biomarker_df):
@@ -160,8 +179,9 @@ class BiomarkerParser:
                 # Function to process biomarker:
                 lambda biomarker: (
                     biomarker,
-                    cls._get_biomarker(
-                        f.lit(biomarker), f.col(biomarker), cls.BIOMARKERMAPS
+                    cls._get_biomarker_wrapper(cls.BIOMARKERMAPS)(
+                        f.lit(biomarker),
+                        f.col(biomarker),
                     ),
                 ),
                 # Iterator to apply the function over:
@@ -199,7 +219,7 @@ class ValidationLabEvidenceParser:
 
     @staticmethod
     def _get_disease_cell_lines(model_passport_df: DataFrame) -> DataFrame:
-        return (
+        x = (
             # The following option is required to correctly parse CSV records which contain newline characters.
             model_passport_df.select(
                 f.col("model_name").alias("cellLineName"),
@@ -207,6 +227,8 @@ class ValidationLabEvidenceParser:
                 f.lower(f.col("tissue")).alias("tissueFromSource"),
             )
         )
+        x.show()
+        return x
 
     def generate_evidence(
         self, spark: SparkSession, input_path: str, model_passport_file: str
@@ -302,7 +324,7 @@ class ValidationLabProjectParser:
         )
 
         # Formatting assays (depends on the formatted experiment data):
-        parsed_assays = self._parser_assay_object(processed_experiment, assays)
+        parsed_assays = self._parser_assay_object(processed_experiment, assays, spark)
 
         # Get parsed biomarkers:
         biomarkers = BiomarkerParser.get_biomarkers(raw_biomarkers)
@@ -360,7 +382,9 @@ class ValidationLabProjectParser:
         )
 
     @staticmethod
-    def _parser_assay_object(raw_evidence_df: DataFrame, assays: list) -> DataFrame:
+    def _parser_assay_object(
+        raw_evidence_df: DataFrame, assays: list, spark: SparkSession
+    ) -> DataFrame:
         """Organise experimental data into the right shape."""
 
         # Generate unpivot expression:
@@ -385,24 +409,12 @@ def main(
     spark = initialize_sparksession()
 
     # Parse experimental parameters:
-    parameters = read_ppp_config(config_file)
+    validation_lab_config = read_ppp_config(config_file)
 
-    # Opening and parsing the cell passport data from Sanger:
-    cell_passport_df = get_cell_passport_data(spark, cell_passport_file)
-
-    logging.info(f"Cell passport dataframe has {cell_passport_df.count()} rows.")
-
-    logging.info("Parsing experiment data...")
-
-    # Create evidence for all experiments:
-    evidence_dfs = []
-    for experiment in parameters["experiments"]:
-        evidence_dfs.append(
-            parse_experiment(spark, experiment, cell_passport_df, data_folder)
-        )
-
-    # combine all evidence dataframes into one:
-    combined_evidence_df = reduce(lambda df1, df2: df1.union(df2), evidence_dfs)
+    # Generate evidence from all validation projects:
+    combined_evidence_df = ValidationLabEvidenceParser(
+        **validation_lab_config
+    ).generate_evidence(spark, data_folder, cell_passport_file)
 
     # Save the combined evidence dataframe:
     write_evidence_strings(combined_evidence_df, output_file)
@@ -439,17 +451,6 @@ if __name__ == "__main__":
         required=True,
     )
     args = parser.parse_args()
-
-    # If no logfile is specified, logs are written to the standard error:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s %(module)s - %(funcName)s: %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
-    if args.log_file:
-        logging.config.fileConfig(filename=args.log_file)
-    else:
-        logging.StreamHandler(sys.stderr)
 
     # Passing all the required arguments:
     main(
