@@ -7,398 +7,380 @@
     - Cell line data with biomarker annotation
     - Result file with the measured values.
     - Hypothesis files with the binary flags for each tested biomarker in the context of the tested gene.
-
 """
 
 import argparse
 import logging
 import sys
+from dataclasses import dataclass
 from functools import reduce
 
-from pyspark.sql import SparkSession
 import pyspark.sql.functions as f
 import pyspark.sql.types as t
+from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
 
 from common.evidence import (
-    write_evidence_strings,
+    initialize_logger,
     initialize_sparksession,
     read_ppp_config,
+    write_evidence_strings,
 )
 
 
-# Datasource-wide constants:
-VALIDATION_LAB_DATASOURCE_ID = "ot_crispr_validation"
-VALIDATION_LAB_DATATYPE_ID = "ot_validation_lab"
+class BiomarkerParser:
+    BIOMARKERMAPS = {
+        "PAN": {
+            "direct_mapping": {
+                "CO": {"name": "PAN-CO", "description": "Pan-colorectal carcinoma"}
+            }
+        },
+        "MS_status": {
+            "direct_mapping": {
+                "MSI": {"name": "MSI", "description": "Microsatellite instable"},
+                "MSS": {"name": "MSS", "description": "Microsatellite stable"},
+            }
+        },
+        "PAM50_status": {
+            "direct_mapping": {
+                "Luminal B": {
+                    "name": "Luminal B",
+                    "description": "PAM50 status: luminal B",
+                },
+                "Luminal A": {
+                    "name": "Luminal B",
+                    "description": "PAM50 status: luminal A",
+                },
+                "Basal": {"name": "Basal", "description": "PAM50 status: basal"},
+            }
+        },
+        "Hormone_status": {
+            "direct_mapping": {
+                "Hormone dependent": {
+                    "name": "Hormone dependent",
+                    "description": "Hormone dependency: hormone dependent",
+                },
+                "Hormone refractory (TNBC)": {
+                    "name": "Hormone refractory (TNBC)",
+                    "description": "Hormone dependency:  hormone refractory (triple-negative breast cancer)",
+                },
+            }
+        },
+        "CRIS_subtype": {
+            "direct_mapping": {
+                "A": {
+                    "name": "CRIS-A",
+                    "description": "mucinous, glycolytic, enriched for microsatellite instability or KRAS mutations.",
+                },
+                "B": {
+                    "name": "CRIS-B",
+                    "description": "TGF-β pathway activity, epithelial-mesenchymal transition, poor prognosis.",
+                },
+                "C": {
+                    "name": "CRIS-C",
+                    "description": "elevated EGFR signalling, sensitivity to EGFR inhibitors.",
+                },
+                "D": {
+                    "name": "CRIS-D",
+                    "description": "WNT activation, IGF2 gene overexpression and amplification.",
+                },
+                "E": {
+                    "name": "CRIS-E",
+                    "description": "Paneth cell-like phenotype, TP53 mutations.",
+                },
+                "?": {"name": "CRIS-?", "description": "CRIS subtype undetermined."},
+            }
+        },
+        "KRAS_status": {
+            "description": "KRAS mutation status: ",
+            "name": "KRAS-",
+        },
+        "TP53_status": {
+            "description": "TP53 mutation status: ",
+            "name": "TP53-",
+        },
+        "APC_status": {
+            "description": "APC mutation status: ",
+            "name": "APC-",
+        },
+        "BRAF_status": {"description": "BRAF mutation status: ", "name": "BRAF-"},
+    }
 
-# This is a map that provides recipie to generate the biomarker objects
-# If a value cannot be found in the map, the value will be returned.
-BIOMARKERMAPS = {
-    "PAN": {
-        "direct_mapping": {
-            "CO": {"name": "PAN-CO", "description": "Pan-colorectal carcinoma"}
-        }
-    },
-    "MS_status": {
-        "direct_mapping": {
-            "MSI": {"name": "MSI", "description": "Microsatellite instable"},
-            "MSS": {"name": "MSS", "description": "Microsatellite stable"},
-        }
-    },
-    "CRIS_subtype": {
-        "direct_mapping": {
-            "A": {
-                "name": "CRIS-A",
-                "description": "mucinous, glycolytic, enriched for microsatellite instability or KRAS mutations.",
-            },
-            "B": {
-                "name": "CRIS-B",
-                "description": "TGF-β pathway activity, epithelial-mesenchymal transition, poor prognosis.",
-            },
-            "C": {
-                "name": "CRIS-C",
-                "description": "elevated EGFR signalling, sensitivity to EGFR inhibitors.",
-            },
-            "D": {
-                "name": "CRIS-D",
-                "description": "WNT activation, IGF2 gene overexpression and amplification.",
-            },
-            "E": {
-                "name": "CRIS-E",
-                "description": "Paneth cell-like phenotype, TP53 mutations.",
-            },
-            "?": {"name": "CRIS-?", "description": "CRIS subtype undetermined."},
-        }
-    },
-    "KRAS_status": {
-        "description": "KRAS mutation status: ",
-        "name": "KRAS-",
-    },
-    "TP53_status": {
-        "description": "TP53 mutation status: ",
-        "name": "TP53-",
-    },
-    "APC_status": {
-        "description": "APC mutation status: ",
-        "name": "APC-",
-    },
-    "BRAF_status": {"description": "BRAF mutation status: ", "name": "BRAF-"},
-}
-
-
-class ParseHypotheses:
-    def __init__(self, spark) -> None:
-        self.spark = spark
-
-    def parse_hypotheses(self, expectedFile: str, observedFile: str) -> DataFrame:
-        """
-        Hypothesis is parsed from two files describing the expected and observed results.
-        This function reads the files, compare them, parses the hypothesis as biomarker? + status
-
-        Args:
-            expectedFile: file with the expected results
-            observedFile: file with the observed results
-        Returns:
-            DataFrame with the following schema:
-
-            |-- gene: string (nullable = true)
-            |-- hypotheses: array (nullable = false)
-            |    |-- element: struct (containsNull = false)
-            |    |    |-- name: string (nullable = true)
-            |    |    |-- description: string (nullable = true)
-            |    |    |-- status: string (nullable = false)
-        """
-
-        # The observed and expected results follows the same schema and parsed the same way:
-        expected_df = self.read_hypothesis_data(expectedFile, "expected")
-        observed_df = self.read_hypothesis_data(observedFile, "observed")
-
-        return (
-            expected_df
-            # Joining expected vs observed hypothesis tables:
-            .join(observed_df, on=["gene", "hypothesis"], how="inner")
-            # Filter hypotheses where at least one was True:
-            # .filter(col('expected') | col('observed'))
-            # From the hypothesis column eg. CRIS_subtype-B ectract the type CRIS_subtype and the call: B
-            .withColumn(
-                "hypothesis_type", f.element_at(f.split(f.col("hypothesis"), "-"), 1)
-            )
-            .withColumn(
-                "hypothesis_call", f.element_at(f.split(f.col("hypothesis"), "-"), 2)
-            )
-            # Using the biomarker parser generate an struct similar to the biomarker object:
-            .withColumn(
-                "hypothesis",
-                get_biomarker(f.col("hypothesis_type"), f.col("hypothesis_call")),
-            )
-            # Besides the annotation we add the status of the hypothesis:
-            .withColumn(
-                "status",
-                f.when(f.col("expected") & f.col("observed"), "observed and expected")
-                .when(f.col("expected"), "expected but not observed")
-                .when(f.col("observed"), "observed but not expected")
-                .otherwise("not expected and not observed"),
-            )
-            .withColumn("hypothesis", f.struct("hypothesis.*", "status"))
-            # Collect all hypotheses for each gene:
-            .groupBy("gene")
-            .agg(f.collect_set("hypothesis").alias("validationHypotheses"))
-            .persist()
+    @staticmethod
+    @f.udf(
+        t.StructType(
+            [
+                t.StructField("name", t.StringType(), False),
+                t.StructField("description", t.StringType(), False),
+            ]
         )
-
-    def read_hypothesis_data(self, file: str, call: str) -> DataFrame:
-        """Parsing the hypothesis file.
-
-        Args:
-            file: hypothesis file tsv with genes in rows and biomarkers in columns, the hypotheses are boolean.
-        Returns:
-            DataFrame with the following columns: gene, hypothesis, call (true/false)
-        """
-
-        hypothesis_df = (
-            self.spark.read.csv(file, sep="\t", header=True).withColumnRenamed(
-                "Gene", "gene"
-            )
-            # The gene names are manually typed, there are lower and upper case names:
-            .withColumn("gene", f.upper(f.col("gene")))
-        )
-
-        # The first column is the gene name, the rest are the hypotheses:
-        hypothesis_columns = hypothesis_df.columns[1:]
-
-        unpivot_expression = f"""stack({len(hypothesis_columns)}, {", ".join([f"'{x}', `{x}`" for x in hypothesis_columns])} ) as (hypothesis, {call})"""
-
-        return (
-            hypothesis_df.select("Gene", f.expr(unpivot_expression))
-            .withColumn(call, f.col(call).cast(t.BooleanType()))
-            .persist()
-        )
-
-
-@f.udf(
-    t.StructType(
-        [
-            t.StructField("name", t.StringType(), False),
-            t.StructField("description", t.StringType(), False),
-        ]
     )
-)
-def get_biomarker(column_name, biomarker):
-    """This function returns with a struct with the biomarker name and description"""
+    def _get_biomarker(column_name, biomarker, BIOMARKERMAPS):
+        """This function returns a struct with the biomarker name and description."""
 
-    # If the biomarker has a direct mapping:
-    if "direct_mapping" in BIOMARKERMAPS[column_name]:
-        try:
-            return BIOMARKERMAPS[column_name]["direct_mapping"][biomarker]
-        except KeyError:
+        # If the biomarker has a direct mapping:
+        if "direct_mapping" in BIOMARKERMAPS[column_name]:
+            try:
+                return BIOMARKERMAPS[column_name]["direct_mapping"][biomarker]
+            except KeyError:
+                logging.warning(
+                    f"Could not find direct mapping for {column_name}:{biomarker}"
+                )
+                return None
+
+        # If the value needs to be parsed:
+        if biomarker == "wt":
+            return {
+                "name": BIOMARKERMAPS[column_name]["name"] + biomarker,
+                "description": BIOMARKERMAPS[column_name]["description"] + "wild type",
+            }
+        elif biomarker == "mut":
+            return {
+                "name": BIOMARKERMAPS[column_name]["name"] + biomarker,
+                "description": BIOMARKERMAPS[column_name]["description"] + "mutant",
+            }
+        else:
             logging.warning(
-                f"Could not find direct mapping for {column_name}:{biomarker}"
+                f"Could not find direct mapping for {column_name}: {biomarker}"
             )
             return None
 
-    # If the value needs to be parsed:
-    if biomarker == "wt":
-        return {
-            "name": BIOMARKERMAPS[column_name]["name"] + biomarker,
-            "description": BIOMARKERMAPS[column_name]["description"] + "wild type",
-        }
-    elif biomarker == "mut":
-        return {
-            "name": BIOMARKERMAPS[column_name]["name"] + biomarker,
-            "description": BIOMARKERMAPS[column_name]["description"] + "mutant",
-        }
-    else:
-        logging.warning(f"Could not find direct mapping for {column_name}: {biomarker}")
-        return None
+    @classmethod
+    def get_biomarkers(cls, biomarker_df):
+        biomarkers_in_data = [
+            biomarker
+            for biomarker in cls.BIOMARKERMAPS.keys()
+            if biomarker in biomarker_df.columns
+        ]
 
-
-def get_cell_passport_data(spark: SparkSession, cell_passport_file: str) -> DataFrame:
-
-    # loading cell line annotation data from Sanger:
-    return (
-        spark.read.option("multiline", True)
-        .csv(cell_passport_file, header=True, sep=",", quote='"')
-        .select(
-            f.regexp_replace(f.col("model_name"), r"-", "").alias("cellName"),
-            f.col("model_id").alias("cellId"),
-            f.col("tissue"),
-        )
-        .persist()
-    )
-
-
-def parse_experiment(
-    spark: SparkSession, parameters: dict, cellPassportDf: DataFrame, data_folder: str
-) -> DataFrame:
-    """
-    Parse experiment data from a file.
-
-    Args:
-        spark: Spark session.
-        parameters: Dictionary of experimental parameters.
-        cellPassportDf: Dataframe of cell passport data.
-        data_folder: Location of the input data files.
-
-    Returns:
-        A dataframe of experiment data.
-    """
-
-    # Extracting parameters:
-    experiment_file = f"{data_folder}/{parameters['experimentData']}"
-    contrast = parameters["contrast"]
-    studyOverview = parameters["studyOverview"]
-    projectId = parameters["projectId"]
-    projectDescription = parameters["projectDescription"]
-    diseaseFromSource = parameters["diseaseFromSource"]
-    diseaseFromSourceMapId = parameters["diseaseFromSourceMappedId"]
-    confidenceCutoff = parameters["confidenceCutoff"]
-    cell_line_file = f"{data_folder}/{parameters['cellLineFile']}"
-    tissue_id = parameters["tissueId"]
-
-    # The hypothesis is defined by two datasets:
-    hypothesis_expected_file = f"{data_folder}/{parameters['hypothesisFileExpected']}"
-    hypothesis_observed_file = f"{data_folder}/{parameters['hypothesisFileObserved']}"
-
-    # Reading cell metadata from validation lab:
-    validation_lab_cell_lines = (
-        spark.read.csv(cell_line_file, sep="\t", header=True)
-        # Renaming columns:
-        .withColumnRenamed("cell_line", "cellName")
-        .drop("tissue")
-        # Joining dataset with cell model data read downloaded from Sanger website:
-        .join(cellPassportDf, on="cellName", how="left")
-        # Adding UBERON code to tissues (it's constant colon)
-        .withColumn("tissueID", f.lit(tissue_id))
-        # generating disease cell lines object:
-        .withColumn(
-            "diseaseCellLines",
-            f.array(
-                f.struct(
-                    f.col("cellName").alias("name"),
-                    f.col("cellId").alias("id"),
-                    f.col("tissue"),
-                    f.lit(tissue_id).alias("tissueId"),
-                )
+        # Applying the full map on the dataframe one-by-one:
+        processed_biomarkers = reduce(
+            lambda DF, value: DF.withColumn(*value),
+            map(
+                # Function to process biomarker:
+                lambda biomarker: (
+                    biomarker,
+                    cls._get_biomarker(
+                        f.lit(biomarker), f.col(biomarker), cls.BIOMARKERMAPS
+                    ),
+                ),
+                # Iterator to apply the function over:
+                biomarkers_in_data,
             ),
+            biomarker_df,
         )
-        .persist()
-    )
 
-    logging.info(
-        f"Validation lab cell lines has {validation_lab_cell_lines.count()} cell types."
-    )
+        # The biomarker columns are unstacked into one single 'biomarkers' column:
+        biomarker_unstack = f"""stack({len(biomarkers_in_data)}, {", ".join([f"'{x}', {x}" for x in biomarkers_in_data])}) as (biomarker_name, biomarkers)"""
 
-    # Defining how to process biomarkers:
-    # 1. Looping through all possible biomarker - from biomarkerMaps.keys()
-    # 2. The biomakers are then looked up in the map and process based on how the map defines.
-    # 3. Description is also added read from the map.
-    biomarkers_in_data = [
-        biomarker
-        for biomarker in BIOMARKERMAPS.keys()
-        if biomarker in validation_lab_cell_lines.columns
-    ]
-
-    expressions = map(
-        # Function to process biomarker:
-        lambda biomarker: (
-            biomarker,
-            get_biomarker(f.lit(biomarker), f.col(biomarker)),
-        ),
-        # Iterator to apply the function over:
-        biomarkers_in_data,
-    )
-
-    # Applying the full map on the dataframe one-by-one:
-    biomarkers = reduce(
-        lambda DF, value: DF.withColumn(*value), expressions, validation_lab_cell_lines
-    )
-
-    # The biomarker columns are unstacked into one single 'biomarkers' column:
-    biomarker_unstack = f"""stack({len(biomarkers_in_data)}, {", ".join([f"'{x}', {x}" for x in biomarkers_in_data])}) as (biomarker_name, biomarkers)"""
-
-    validation_lab_cell_lines = (
-        biomarkers
-        # Selecting cell line name, cell line annotation and applyting the stacking expression:
-        .select(
-            f.col("cellName"),
-            "diseaseCellLines",
-            f.expr(biomarker_unstack),
-        )
-        # Filter out all null biomarkers:
-        .filter(
-            (f.col("biomarkers").isNotNull())
-            &
-            # Following the request of the validation lab, we are removing CRIS biomarker annotation:
-            (f.col("biomarker_name") != "CRIS_subtype")
-        )
-        # Grouping data by cell lines again:
-        .groupBy("cellName")
-        .agg(
-            f.collect_list("biomarkers").alias("biomarkers"),
-            f.first(f.col("diseaseCellLines")).alias("diseaseCellLines"),
-        )
-        .persist()
-    )
-
-    # Reading and processing hypothesis data:
-    hypothesis_generator = ParseHypotheses(spark)
-    validation_hypotheses_df = hypothesis_generator.parse_hypotheses(
-        expectedFile=hypothesis_expected_file, observedFile=hypothesis_observed_file
-    )
-
-    # Reading experiment data from validation lab:
-    evidence = (
-        # Reading evidence:
-        spark.read.csv(experiment_file, sep="\t", header=True)
-        .withColumnRenamed("cell_line", "cellName")
-        # Genes need to be uppercase:
-        .withColumn("gene", f.upper(f.col("gene")))
-        # Joining hypothesis data:
-        .join(validation_hypotheses_df, on="gene", how="left")
-        # Joining with cell line data:
-        .join(validation_lab_cell_lines, on="cellName", how="left")
-        # Selecting all columns:
-        .select(
-            f.col("gene").alias("targetFromSourceId"),
-            f.col("validationHypotheses"),
-            f.when(
-                f.col("effect_size").cast("double") > 0,
-                f.col("effect_size").cast("double"),
+        return (
+            processed_biomarkers
+            # Selecting cell line name, cell line annotation and applyting the stacking expression:
+            .select(
+                f.col("Cell Line Name").alias("cellLineName"),
+                f.expr(biomarker_unstack),
             )
-            .otherwise(0)
-            .alias("resourceScore"),
-            f.when(
-                f.col("effect_size").cast("double") >= confidenceCutoff,
-                f.lit("significant"),
+            # Filter out all null biomarkers:
+            .filter((f.col("biomarkers").isNotNull()))
+            # Grouping data by cell lines again:
+            .groupBy("cellLineName")
+            .agg(
+                f.collect_list("biomarkers").alias("biomarkers"),
             )
-            .otherwise(f.lit("not significant"))
-            .alias("confidence"),
-            f.when(f.col("expected_to_pass") == "TRUE", f.lit("significant"))
-            .otherwise(f.lit("not significant"))
-            .alias("expectedConfidence"),
-            f.lit("upper tail").alias("statisticalTestTail"),
-            f.lit(contrast).alias("contrast"),
-            f.lit(studyOverview).alias("studyOverview"),
-            f.lit(diseaseFromSourceMapId).alias("diseaseFromSourceMappedId"),
-            f.lit(diseaseFromSource).alias("diseaseFromSource"),
-            f.lit(projectId).alias("projectId"),
-            f.lit(projectDescription).alias("projectDescription"),
-            f.col("biomarkers").alias("biomarkerList"),
-            f.col("diseaseCellLines"),
-            f.lit(VALIDATION_LAB_DATATYPE_ID).alias("datatypeId"),
-            f.lit(VALIDATION_LAB_DATASOURCE_ID).alias("datasourceId"),
+            .persist()
         )
-        .persist()
-    )
 
-    logging.info(f"Evidence count: {evidence.count()}.")
-    return evidence
+
+@dataclass
+class ValidationLabEvidenceParser:
+    projects: list
+    assays: list
+    sharedParemeters: dict
+
+    @staticmethod
+    def _get_disease_cell_lines(model_passport_df: DataFrame) -> DataFrame:
+        return (
+            # The following option is required to correctly parse CSV records which contain newline characters.
+            model_passport_df.select(
+                f.col("model_name").alias("cellLineName"),
+                f.col("model_id").alias("id"),
+                f.lower(f.col("tissue")).alias("tissueFromSource"),
+            )
+        )
+
+    def generate_evidence(
+        self, spark: SparkSession, input_path: str, model_passport_file: str
+    ):
+        # Get diease cell lines:
+        disease_cell_lines = self._get_disease_cell_lines(
+            spark.read.option("multiline", True).csv(
+                model_passport_file, header=True, sep=",", quote='"'
+            )
+        )
+
+        return (
+            # Combining evidence from all validation projects
+            reduce(
+                lambda df1, df2: df1.unionByName(df1),
+                [
+                    # Generate evidence from a given project:
+                    ValidationLabProjectParser(**project).parse_evidence(
+                        spark, input_path, self.assays
+                    )
+                    for project in self.projects
+                    if not project["excludeStudy"]
+                ],
+            )
+            # Adding shared columns:
+            .select(
+                "*",
+                *[
+                    f.lit(value).alias(colname)
+                    for colname, value in self.sharedParemeters.items()
+                ],
+            )
+            .join(disease_cell_lines, on="cellLineName", how="left")
+            .select(
+                # constants:
+                "datasourceId",
+                "datatypeId",
+                "studyOverview",
+                "projectId",
+                "releaseDate",
+                "releaseVersion",
+                # Evidence:
+                "targetFromSource",
+                "diseaseFromSourceMappedId",
+                "diseaseFromSource",
+                # Assessments:
+                f.lit(1.0).alias("resourceScore"),  # Resource score will come from VL.
+                "assessment",
+                "assays",
+                # Cell lines:
+                f.array(
+                    f.struct(
+                        f.col("cellLineName").alias("name"),
+                        f.col("id").alias("id"),
+                        f.col("tissueFromSource").alias("tissue"),
+                        f.col("tissueId"),
+                    )
+                ).alias("diseaseCellLines"),
+                "biomarkers",
+                # Primary project:
+                "primaryProjectHit",
+                "primaryProjectId",
+            )
+        )
+
+
+@dataclass
+class ValidationLabProjectParser:
+    diseaseFromSourceMappedId: str
+    diseaseFromSource: str
+    tissueId: str
+    experimentDataFile: str
+    biomarkerDataFile: str
+    studyOverview: str
+    primaryProjectId: str
+    releaseVersion: str
+    releaseDate: str
+    excludeStudy: bool
+
+    def parse_evidence(
+        self, spark: SparkSession, input_path: str, assays: list
+    ) -> DataFrame:
+        # Reading data:
+        raw_experiment_data = spark.read.option("multiline", True).csv(
+            f"{input_path}/{self.experimentDataFile}", sep="\t", header=True
+        )
+        # First round of processing:
+        processed_experiment = self._process_raw_evidence(raw_experiment_data, assays)
+
+        # Reading biomarker data:
+        raw_biomarkers = spark.read.csv(
+            f"{input_path}/{self.biomarkerDataFile}", sep="\t", header=True
+        )
+
+        # Formatting assays (depends on the formatted experiment data):
+        parsed_assays = self._parser_assay_object(processed_experiment, assays)
+
+        # Get parsed biomarkers:
+        biomarkers = BiomarkerParser.get_biomarkers(raw_biomarkers)
+
+        # attributes added as column:
+        columns_to_add = [
+            "diseaseFromSourceMappedId",
+            "diseaseFromSource",
+            "tissueId",
+            "studyOverview",
+            "primaryProjectId",
+            "releaseVersion",
+            "releaseDate",
+        ]
+
+        return (
+            processed_experiment.join(
+                parsed_assays, on=["targetFromSource", "cellLineName"], how="inner"
+            )
+            .select(
+                # Columns from the raw evidence file:
+                "targetFromSource",
+                "cellLineName",
+                "assessment",
+                "primaryProjectHit",
+                # Column from the assay parser:
+                "assays",
+                # Columns from the project metadata:
+                *[
+                    f.lit(getattr(self, colname)).alias(colname)
+                    for colname in columns_to_add
+                ],
+            )
+            .join(biomarkers, on="cellLineName", how="left")
+        )
+
+    @staticmethod
+    def _process_raw_evidence(raw_data: DataFrame, assays: list) -> DataFrame:
+        # Read full evidence data:
+        return raw_data.select(
+            # Extract target name:
+            f.col("gene_ID").alias("targetFromSource"),
+            # Extract cell-line name:
+            f.col("cell_line_ID").alias("cellLineName"),
+            # Extract VL assessment:
+            f.regexp_replace(f.col("OTVL Assessment"), r"\n", " ").alias("assessment"),
+            f.col("OTAR Primary Project Hit")
+            .cast(t.BooleanType())
+            .alias("primaryProjectHit"),
+            # Extract all assays:
+            *[
+                f.col(assay["label"]).cast(t.BooleanType()).alias(assay["shortName"])
+                for assay in assays
+            ],
+        )
+
+    @staticmethod
+    def _parser_assay_object(raw_evidence_df: DataFrame, assays: list) -> DataFrame:
+        """Organise experimental data into the right shape."""
+
+        # Generate unpivot expression:
+        assay_names = [assay["shortName"] for assay in assays]
+
+        unpivot_expression = f"""stack({len(assay_names)}, {', '.join([f"'{assay}', `{assay}`" for assay in assay_names])}) as (shortName, isAssayHit)"""
+
+        return (
+            raw_evidence_df.select(
+                "targetFromSource", "cellLineName", f.expr(unpivot_expression)
+            )
+            .join(spark.createDataFrame(assays), on="shortName", how="inner")
+            .groupBy("targetFromSource", "cellLineName")
+            .agg(f.collect_set(f.struct("shortName", "description")).alias("assays"))
+        )
 
 
 def main(
     config_file: str, output_file: str, cell_passport_file: str, data_folder: str
 ) -> None:
-
     # Initialize spark session
     spark = initialize_sparksession()
 
@@ -427,7 +409,6 @@ def main(
 
 
 if __name__ == "__main__":
-
     # Reading output file name from the command line:
     parser = argparse.ArgumentParser(
         description="This script parse validation lab data and generates disease target evidence."
