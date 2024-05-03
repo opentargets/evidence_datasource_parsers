@@ -47,7 +47,7 @@ class OTAR_CRISPR_study_parser:
         self.study_table_path = study_table_path
         self.spark = spark
         self.logger = logging.getLogger(__name__)
-        self.study_table = None
+        self.study_table: DataFrame
 
     @staticmethod
     def split_column_value(col: Column, separator: str = r"\|") -> Column:
@@ -92,7 +92,7 @@ class OTAR_CRISPR_study_parser:
         Returns:
             DataFrame: A DataFrame with parsed study level metadata.
         """
-        self.study_table = (
+        study_table = (
             self.spark.read.csv(
                 self.study_table_path, header=True, inferSchema=True, sep="\t"
             )
@@ -157,6 +157,9 @@ class OTAR_CRISPR_study_parser:
                 ).alias("replicates")
             )
         )
+        assert isinstance(study_table, DataFrame), "Failed to parse the study table."
+        self.study_table = study_table
+
         # Let's check the study table:
         self.log_study_table()
         return self
@@ -383,7 +386,9 @@ class OTAR_CRISPR_evidence_generator:
                 f.lit("ot_partner").alias("datatypeId"),
             )
         )
+        self.logger.info(f"Number of evidence: {evidence.count()}")
         write_evidence_strings(evidence, output_file)
+        self.logger.info("Done.")
 
 
 def main(study_table_path, output_file, data_folder) -> None:
