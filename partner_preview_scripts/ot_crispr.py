@@ -13,7 +13,7 @@ from __future__ import annotations
 import argparse
 import logging
 from functools import reduce
-from typing import List, Optional
+from typing import Optional
 
 from pyspark.sql import Column, DataFrame, Row, SparkSession
 from pyspark.sql import functions as f
@@ -47,6 +47,7 @@ class OTAR_CRISPR_study_parser:
         self.study_table_path = study_table_path
         self.spark = spark
         self.logger = logging.getLogger(__name__)
+        self.study_table = None
 
     @staticmethod
     def split_column_value(col: Column, separator: str = r"\|") -> Column:
@@ -95,7 +96,7 @@ class OTAR_CRISPR_study_parser:
             self.spark.read.csv(
                 self.study_table_path, header=True, inferSchema=True, sep="\t"
             )
-            # Dropping studies with no OTAR project:
+            # Dropping studies with no OTAR project and the field description row:
             .filter(f.col("projectId").startswith("OTAR"))
             # Selecting relevant columns:
             .select(
@@ -123,8 +124,7 @@ class OTAR_CRISPR_study_parser:
                 ).alias("filterColumn"),
                 # Casting threshold to float:
                 f.col("threshold").cast(t.FloatType()).alias("threshold"),
-                # Splitting data files:
-                self.split_column_value(f.col("dataFile")).alias("dataFiles"),
+                "dataFile",
                 "ControlDataset",
                 # Adding replicate identifier when missing:
                 f.when(f.col("replicateNumber").isNull(), f.lit(1))
@@ -153,7 +153,7 @@ class OTAR_CRISPR_study_parser:
             # Collecting replicates for each study:
             .agg(
                 f.collect_list(
-                    f.struct("dataFiles", "ControlDataset", "replicateId")
+                    f.struct("dataFile", "ControlDataset", "replicateId")
                 ).alias("replicates")
             )
         )
@@ -166,7 +166,7 @@ class OTAR_CRISPR_study_parser:
         return self.study_table
 
 
-class OTAR_CRISPR_evience_generator:
+class OTAR_CRISPR_evidence_generator:
     """Generate evidence from OTAR CRISPR datasets.
 
     Based on the provided study-level metadata and the provided raw data files, the evidence is generated.
@@ -204,16 +204,16 @@ class OTAR_CRISPR_evience_generator:
             f.lit(filter_column).contains("neg"), f.lit("lower tail")
         )
 
-    def _read_and_filter_mageck_files(
-        self: OTAR_CRISPR_evience_generator,
-        files: List[str],
+    def _read_and_filter_mageck_file(
+        self: OTAR_CRISPR_evidence_generator,
+        mageck_file: str,
         filter_column: str,
         threshold: float,
     ) -> DataFrame:
         """Read and filter MAGeCK files based on the provided threshold applied on the specified column.
 
         Args:
-            files (List[str]): A list of files to be read.
+            mageck_file (str): A list of files to be read.
             filter_column (str): A filter column name.
             threshold (float): A threshold to filter the data.
 
@@ -227,9 +227,9 @@ class OTAR_CRISPR_evience_generator:
 
         # Some MAGEcK files have different column label separators eg. "pos|lfc" vs "pos.lfc" We have to sort this out:
         label_separator = "|"
-        raw_data = self.spark.read.csv(files, header=True, sep="\t")
+        raw_data = self.spark.read.csv(mageck_file, header=True, sep="\t")
 
-        # Checking label separator in the third column, which expected to be: neg|score or neg.score:
+        # Checking label separator in the third column, which expected to be: neg|p-value or neg.p-value:
         if "|" in raw_data.columns[3]:
             label_separator = "|"
         elif "." in raw_data.columns[3]:
@@ -255,16 +255,16 @@ class OTAR_CRISPR_evience_generator:
         ).filter(f.col("resourceScore") < threshold)
 
     def _process_replicate(
-        self: OTAR_CRISPR_evience_generator,
-        data_files: List[str],
+        self: OTAR_CRISPR_evidence_generator,
+        data_file: str,
         control_dataset: Optional[str],
         filter_column: str,
         threshold: float,
-    ):
+    ) -> DataFrame:
         """Process a single replicate: finding hits, exclude controls if provided.
 
         Args:
-            data_files (List[str]): A list of data files in mageck format.
+            data_file (str): A single file in mageck format.
             control_dataset (Optional[str]): A control dataset in mageck format.
             filter_column (str): A filter column name.
             threshold (float): A threshold to filter the data.
@@ -273,13 +273,13 @@ class OTAR_CRISPR_evience_generator:
             DataFrame: A DataFrame with processed data.
         """
         # Extract hist from the data files:
-        hits = self._read_and_filter_mageck_files(data_files, filter_column, threshold)
+        hits = self._read_and_filter_mageck_file(data_file, filter_column, threshold)
         # If control dataset is provided, filter out the hits:
         if control_dataset:
             hits = hits.join(
                 (
-                    self._read_and_filter_mageck_files(
-                        [control_dataset], filter_column, threshold
+                    self._read_and_filter_mageck_file(
+                        control_dataset, filter_column, threshold
                     )
                     .select("targetFromSourceId")
                     .distinct()
@@ -289,8 +289,8 @@ class OTAR_CRISPR_evience_generator:
             )
         return hits
 
-    def _process_process_study_table_row(
-        self: OTAR_CRISPR_evience_generator, row: Row
+    def _process_study_table_row(
+        self: OTAR_CRISPR_evidence_generator, row: Row
     ) -> DataFrame:
         """Process a single row from the study table.
 
@@ -303,10 +303,7 @@ class OTAR_CRISPR_evience_generator:
         # Process all replicates and collect the results in a list of dataframes:
         replicate_data = [
             self._process_replicate(
-                data_files=[
-                    f"{self.data_path}/{row.projectId}/{data_file}"
-                    for data_file in replicate.dataFiles
-                ],
+                data_file=f"{self.data_path}/{row.projectId}/{replicate.dataFile}",
                 control_dataset=f"{self.data_path}/{row.projectId}/{replicate.ControlDataset}"
                 if replicate.ControlDataset
                 else None,
@@ -342,12 +339,14 @@ class OTAR_CRISPR_evience_generator:
             )
         )
 
-    def write__evidence(self: OTAR_CRISPR_evience_generator, output_file: str) -> None:
+    def save_evidence_data(
+        self: OTAR_CRISPR_evidence_generator, output_file: str
+    ) -> None:
         # Process the study table:
         all_hits = reduce(
             lambda df1, df2: df1.unionByName(df2),
             [
-                self._process_process_study_table_row(study)
+                self._process_study_table_row(study)
                 for study in self.study_table.collect()
             ],
         )
@@ -385,12 +384,6 @@ class OTAR_CRISPR_evience_generator:
             )
         )
         write_evidence_strings(evidence, output_file)
-        evidence.write.json(
-            "mucika.json.gz",
-            mode="overwrite",
-            compression="gzip",
-            dateFormat="yyyy-MM-dd",
-        )
 
 
 def main(study_table_path, output_file, data_folder) -> None:
@@ -413,7 +406,7 @@ def main(study_table_path, output_file, data_folder) -> None:
     )
 
     # Parsing study table:
-    OTAR_CRISPR_evience_generator(spark, study_table, data_folder).write__evidence(
+    OTAR_CRISPR_evidence_generator(spark, study_table, data_folder).save_evidence_data(
         output_file
     )
 
@@ -422,7 +415,7 @@ def parse_arguments() -> argparse.Namespace:
     """Parsing command line arguments.
 
     Returns:
-        argparse.Namespace: _description_
+        argparse.Namespace: Parser for the ot_crispr evidence generation
     """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
