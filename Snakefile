@@ -31,6 +31,7 @@ ALL_FILES = [
     ('EyeG2P.csv.gz', GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/EyeG2P-{timeStamp}.csv.gz")),
     ('SkinG2P.csv.gz', GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/SkinG2P-{timeStamp}.csv.gz")),
     ('CancerG2P.csv.gz', GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/CancerG2P-{timeStamp}.csv.gz")),
+    ('SkeletalG2P.csv.gz', GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/SkeletalG2P-{timeStamp}.csv.gz")),
     ('pd_export_01_2023_probes_standardized.xlsx', GS.remote(f"{config['ChemicalProbes']['inputBucket']}/pd_export_01_2023_probes_standardized-{timeStamp}.xlsx")),
     ('pd_export_01_2023_links_standardized.csv', GS.remote(f"{config['ChemicalProbes']['inputBucket']}/pd_export_01_2023_links_standardized-{timeStamp}.csv")),
     ('intogen.json.gz', GS.remote(f"{config['intOGen']['outputBucket']}/intogen-{timeStamp}.json.gz")),
@@ -254,7 +255,8 @@ rule gene2Phenotype:          # Processes four gene panels from Gene2Phenotype
         eyePanel = HTTP.remote(config['Gene2Phenotype']['webSource_eye_panel']),
         skinPanel = HTTP.remote(config['Gene2Phenotype']['webSource_skin_panel']),
         cancerPanel = HTTP.remote(config['Gene2Phenotype']['webSource_cancer_panel']),
-        cardiacPanel = HTTP.remote(config['Gene2Phenotype']['webSource_cardiac_panel'])
+        cardiacPanel = HTTP.remote(config['Gene2Phenotype']['webSource_cardiac_panel']),
+        skeletalPanel = HTTP.remote(config['Gene2Phenotype']['webSource_skeletal_panel'])
     params:
         cacheDir = config['global']['cacheDir'],
         schema = f"{config['global']['schema']}/schemas/disease_target_evidence.json"
@@ -264,6 +266,7 @@ rule gene2Phenotype:          # Processes four gene panels from Gene2Phenotype
         skinBucket = 'SkinG2P.csv.gz',
         cancerBucket = 'CancerG2P.csv.gz',
         cardiacBucket = 'CardiacG2P.csv.gz',
+        skeletalBucket = 'SkeletalG2P.csv.gz',
         evidenceFile = 'gene2phenotype.json.gz'
     log:
         'log/gene2Phenotype.log'
@@ -276,15 +279,11 @@ rule gene2Phenotype:          # Processes four gene panels from Gene2Phenotype
         cp {input.skinPanel} {output.skinBucket}
         cp {input.cancerPanel} {output.cancerBucket}
         cp {input.cardiacPanel} {output.cardiacBucket}
+        cp {input.skeletalPanel} {output.skeletalBucket}
         python modules/Gene2Phenotype.py \
-          --dd_panel {input.ddPanel} \
-          --eye_panel {input.eyePanel} \
-          --skin_panel {input.skinPanel} \
-          --cancer_panel {input.cancerPanel} \
-          --cardiac_panel {input.cardiacPanel} \
+          --panels {input.ddPanel} {input.eyePanel} {input.skinPanel} {input.cancerPanel} {input.cardiacPanel} {input.skeletalPanel} \
           --output_file {output.evidenceFile} \
           --cache_dir {params.cacheDir} \
-          --local
         opentargets_validator --schema {params.schema} {output.evidenceFile}
         """
 

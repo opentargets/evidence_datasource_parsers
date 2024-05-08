@@ -3,70 +3,90 @@
 
 import argparse
 import logging
-import sys
+from collections import OrderedDict
+from typing import List, Optional
 
-from pyspark.conf import SparkConf
-from pyspark.sql import DataFrame, SparkSession, functions as f, types as t
+from pyspark.sql import Column, DataFrame, SparkSession
+from pyspark.sql import functions as f
+from pyspark.sql import types as t
 
+from common.evidence import (
+    initialize_logger,
+    initialize_sparksession,
+    write_evidence_strings,
+)
 from common.ontology import add_efo_mapping
-from common.evidence import initialize_sparksession, write_evidence_strings
 
+"""As of 2024.05, the following consequence terms are used in the G2P data:
 
-G2P_mutationCsq2functionalCsq = {
-    "uncertain": "SO_0002220",  # function_uncertain_variant
-    "absent gene product": "SO_0002317",  # absent_gene_product
-    "altered gene product structure": "SO_0002318",  # altered_gene_product_structure
-    "5_prime or 3_prime UTR mutation": "SO_0001622",  # UTR_variant
-    "increased gene product level": "SO_0002315",  # increased_gene_product_level
-    "cis-regulatory or promotor mutation": "SO_0001566",  # regulatory_region_variant
-}
++-----------------------------------+
+|uncertain                          |
+|absent gene product                |
+|altered gene product structure     |
+|5_prime or 3_prime UTR mutation    |
+|increased gene product level       |
+|decreased gene product level       |
+|cis-regulatory or promotor mutation|
++-----------------------------------+
+"""
+G2P_mutationCsq2functionalCsq = OrderedDict(
+    [
+        ("uncertain", "SO_0002220"),
+        ("cis-regulatory or promotor mutation", "SO_0001566"),
+        ("5_prime or 3_prime UTR mutation", "SO_0001622"),
+        ("increased gene product level", "SO_0002315"),
+        ("decreased gene product level", "SO_0002316"),
+        ("altered gene product structure", "SO_0002318"),
+        ("absent gene product", "SO_0002317"),
+    ]
+)
 
 
 def main(
-    dd_file: str,
-    eye_file: str,
-    skin_file: str,
-    cancer_file: str,
-    cardiac_file: str,
+    gene2phenotype_panels: List[str],
     output_file: str,
-    cache_dir: str,
-    local: bool = False,
+    cache_dir: Optional[str],
 ) -> None:
+    # Get logger:
+    logger = logging.getLogger(__name__)
+
     # Initialize spark session
     spark = initialize_sparksession()
 
+    # Logg the processed panels:
+    for panel in gene2phenotype_panels:
+        logger.info(f"Processing the following Gene2Phenotype panel: {panel}")
+
     # Read and process G2P's tables into evidence strings
-    gene2phenotype_df = read_input_files(
-        spark, dd_file, eye_file, skin_file, cancer_file, cardiac_file
-    )
-    logging.info(
-        "Gene2Phenotype panels have been imported. Processing evidence strings."
-    )
+    gene2phenotype_df = read_input_files(spark, gene2phenotype_panels)
+    logger.info("Processing evidence strings.")
 
     evidence_df = process_gene2phenotype(gene2phenotype_df)
 
     evidence_df = add_efo_mapping(
         evidence_strings=evidence_df, ontoma_cache_dir=cache_dir, spark_instance=spark
     )
-    logging.info("Disease mappings have been added.")
+    logger.info("Disease mappings have been added.")
 
     # Saving data:
     write_evidence_strings(evidence_df, output_file)
-    logging.info(
+    logger.info(
         f"{evidence_df.count()} evidence strings have been saved to {output_file}"
     )
 
 
 def read_input_files(
     spark: SparkSession,
-    dd_file: str,
-    eye_file: str,
-    skin_file: str,
-    cancer_file: str,
-    cardiac_file: str,
+    gene2phenotype_panels: List[str],
 ) -> DataFrame:
-    """
-    Reads G2P's panel CSV files into a Spark DataFrame forcing the schema
+    """Read G2P's panel CSV files into a Spark DataFrame forcing the schema.
+
+    Args:
+        spark: The Spark session.
+        gene2phenotype_panels (List[str]): List of paths to G2P's panel CSV files.
+
+    Returns:
+        DataFrame: The DataFrame with the parsed data.
     """
 
     gene2phenotype_schema = (
@@ -96,26 +116,28 @@ def read_input_files(
     return (
         spark.read.option("multiLine", True)
         .option("encoding", "UTF-8")
+        # There are rows with newlines and quotes, so there must be some escaping:
+        .option("quote", '"')
+        .option("escape", '"')
         .csv(
-            [dd_file, eye_file, skin_file, cancer_file, cardiac_file],
+            gene2phenotype_panels,
             schema=gene2phenotype_schema,
             enforceSchema=True,
             header=True,
             sep=",",
-            quote='"',
+            multiLine=True,
         )
-        # Dropping one incomplete evidence due to parsing problem:
-        # All data: 4094
-        # Filtered data: 4093
-        .filter(f.col("gene symbol").isNotNull() & f.col("panel").isNotNull())
     )
+
+
+def parse_consequences(consequence_column: Column) -> Column:
+    return f.explode(f.split(consequence_column, ";"))
 
 
 def process_gene2phenotype(gene2phenotype_df: DataFrame) -> DataFrame:
     """
     The JSON Schema format is applied to the df
     """
-
     return gene2phenotype_df.select(
         # Split pubmed IDs to list:
         f.split(f.col("pmids"), ";").alias("literature"),
@@ -158,50 +180,30 @@ def translate(mapping):
     Mapping consequences - to SO codes
     """
 
-    def translate_(col):
-        return mapping.get(col)
+    def __translate(col):
+        return sorted(
+            # Get a list of consequene labels mapped to SO terms:
+            [mapping.get(consequence_term) for consequence_term in col.split(";")],
+            # Sort SO terms based on the order in the consequnce map:
+            key=lambda x: list(G2P_mutationCsq2functionalCsq.values()).index(x),
+            # Get the most severe SO term:
+        )[-1]
 
-    return f.udf(translate_, t.StringType())
+    return f.udf(__translate, t.StringType())
 
 
-if __name__ == "__main__":
+def parse_parameters() -> argparse.Namespace:
+    """Parse CLI arguments."""
     # Parse CLI arguments
     parser = argparse.ArgumentParser(
         description="Parse Gene2Phenotype gene-disease files downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads/"
     )
     parser.add_argument(
-        "-d",
-        "--dd_panel",
-        help="DD panel file downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads",
+        "-p",
+        "--panels",
+        help="Space separated list of gene2phenotype panels downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads",
         required=True,
-        type=str,
-    )
-    parser.add_argument(
-        "-e",
-        "--eye_panel",
-        help="Eye panel file downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads",
-        required=True,
-        type=str,
-    )
-    parser.add_argument(
-        "-s",
-        "--skin_panel",
-        help="Skin panel file downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads",
-        required=True,
-        type=str,
-    )
-    parser.add_argument(
-        "-c",
-        "--cancer_panel",
-        help="Cancer panel file downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads",
-        required=True,
-        type=str,
-    )
-    parser.add_argument(
-        "-cr",
-        "--cardiac_panel",
-        help="Cardiac panel file downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads",
-        required=True,
+        nargs="+",
         type=str,
     )
     parser.add_argument(
@@ -219,46 +221,25 @@ if __name__ == "__main__":
         required=False,
         help="Directory to store the OnToma cache files in.",
     )
-    parser.add_argument(
-        "--local",
-        action="store_true",
-        required=False,
-        default=False,
-        help="Flag to indicate if the script is executed locally or on the cluster",
-    )
 
-    args = parser.parse_args()
+    return parser.parse_args()
 
+
+if __name__ == "__main__":
     # Get parameters
-    dd_file = args.dd_panel
-    eye_file = args.eye_panel
-    skin_file = args.skin_panel
-    cancer_file = args.cancer_panel
-    cardiac_file = args.cardiac_panel
-    output_file = args.output_file
-    log_file = args.log_file
-    cache_dir = args.cache_dir
-    local = args.local
+    args = parse_parameters()
+
+    gene2phenotype_panels: List[str] = args.panels
+    output_file: str = args.output_file
+    log_file: Optional[str] = args.log_file
+    cache_dir: Optional[str] = args.cache_dir
 
     # Configure logger:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s %(module)s - %(funcName)s: %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
-    if log_file:
-        logging.config.fileConfig(fname=log_file)
-    else:
-        logging.StreamHandler(sys.stderr)
-
-    # Report input data:
-    logging.info(f"DD panel file: {dd_file}")
-    logging.info(f"Eye panel file: {eye_file}")
-    logging.info(f"Skin panel file: {skin_file}")
-    logging.info(f"Cancer panel file: {cancer_file}")
-    logging.info(f"Cardiac panel file: {cardiac_file}")
+    initialize_logger(__name__, log_file)
 
     # Calling main:
     main(
-        dd_file, eye_file, skin_file, cancer_file, cardiac_file, output_file, cache_dir
+        gene2phenotype_panels,
+        output_file,
+        cache_dir,
     )
