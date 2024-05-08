@@ -130,10 +130,6 @@ def read_input_files(
     )
 
 
-def parse_consequences(consequence_column: Column) -> Column:
-    return f.explode(f.split(consequence_column, ";"))
-
-
 def process_gene2phenotype(gene2phenotype_df: DataFrame) -> DataFrame:
     """
     The JSON Schema format is applied to the df
@@ -141,8 +137,6 @@ def process_gene2phenotype(gene2phenotype_df: DataFrame) -> DataFrame:
     return gene2phenotype_df.select(
         # Split pubmed IDs to list:
         f.split(f.col("pmids"), ";").alias("literature"),
-        # Phenotypes are excluded from the schema:
-        # f.split(f.col("phenotypes"), ";").alias("phenotypes"),
         # Renaming a few columns:
         f.col("gene symbol").alias("targetFromSourceId"),
         f.col("panel").alias("studyId"),
@@ -166,24 +160,33 @@ def process_gene2phenotype(gene2phenotype_df: DataFrame) -> DataFrame:
             "diseaseFromSource"
         ),
         # Map functional consequences:
-        translate(G2P_mutationCsq2functionalCsq)("mutation consequence").alias(
-            "variantFunctionalConsequenceId"
-        ),
+        parse_functional_consequence(G2P_mutationCsq2functionalCsq)(
+            "mutation consequence"
+        ).alias("variantFunctionalConsequenceId"),
         # Adding constant columns:
         f.lit("gene2phenotype").alias("datasourceId"),
         f.lit("genetic_literature").alias("datatypeId"),
     )
 
 
-def translate(mapping):
-    """
-    Mapping consequences - to SO codes
+def parse_functional_consequence(mapping):
+    """Map semicolon separated list of consequence terms to SO codes.
+
+    Args:
+        mapping(Dict[str]): ordered dictionary with consequence mappings.
+
+    Return:
+        udf
     """
 
     def __translate(col):
         return sorted(
-            # Get a list of consequene labels mapped to SO terms:
-            [mapping.get(consequence_term) for consequence_term in col.split(";")],
+            # Get a list of consequence labels mapped to SO terms:
+            [
+                mapping.get(consequence_term)
+                for consequence_term in col.split(";")
+                if consequence_term in mapping
+            ],
             # Sort SO terms based on the order in the consequnce map:
             key=lambda x: list(G2P_mutationCsq2functionalCsq.values()).index(x),
             # Get the most severe SO term:
@@ -199,7 +202,6 @@ def parse_parameters() -> argparse.Namespace:
         description="Parse Gene2Phenotype gene-disease files downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads/"
     )
     parser.add_argument(
-        "-p",
         "--panels",
         help="Space separated list of gene2phenotype panels downloaded from https://www.ebi.ac.uk/gene2phenotype/downloads",
         required=True,
@@ -207,14 +209,13 @@ def parse_parameters() -> argparse.Namespace:
         type=str,
     )
     parser.add_argument(
-        "-o",
         "--output_file",
         help="Absolute path of the gzipped, JSON evidence file.",
         required=True,
         type=str,
     )
     parser.add_argument(
-        "-l", "--log_file", help="Filename to store the parser logs.", type=str
+        "--log_file", help="Filename to store the parser logs.", type=str
     )
     parser.add_argument(
         "--cache_dir",
@@ -226,7 +227,7 @@ def parse_parameters() -> argparse.Namespace:
 
 
 if __name__ == "__main__":
-    # Get parameters
+    # Get parameters:
     args = parse_parameters()
 
     gene2phenotype_panels: List[str] = args.panels
