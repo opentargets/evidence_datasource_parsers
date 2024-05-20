@@ -17,18 +17,6 @@ from common.evidence import (
 )
 from common.ontology import add_efo_mapping
 
-"""As of 2024.05, the following consequence terms are used in the G2P data:
-
-+-----------------------------------+
-|uncertain                          |
-|absent gene product                |
-|altered gene product structure     |
-|5_prime or 3_prime UTR mutation    |
-|increased gene product level       |
-|decreased gene product level       |
-|cis-regulatory or promotor mutation|
-+-----------------------------------+
-"""
 G2P_mutationCsq2functionalCsq = OrderedDict(
     [
         ("uncertain", "SO_0002220"),
@@ -53,7 +41,7 @@ def main(
     # Initialize spark session
     spark = initialize_sparksession()
 
-    # Logg the processed panels:
+    # Log the processed panels:
     for panel in gene2phenotype_panels:
         logger.info(f"Processing the following Gene2Phenotype panel: {panel}")
 
