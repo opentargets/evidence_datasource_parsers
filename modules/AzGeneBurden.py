@@ -24,6 +24,7 @@ METHOD_DESC = {
     'flexnonsynmtr': 'Burden test carried out with MTR-informed non synonymous variants with a MAF smaller than 0.01%.',
     'ptvraredmg': 'Burden test carried out with PTV or rare missense variants.',
     'rec': 'Burden test carried out with non-synonymous recessive variants with a MAF smaller than 1%.',
+    'syn': 'Burden test carried out with synonymous variants.',
 }
 
 
@@ -58,9 +59,6 @@ def main(spark: SparkSession, az_binary_data: str, az_quant_data: str) -> DataFr
         .repartition(20)
         .persist()
     )
-
-    # Filter out associations from the synonymous model used as a negative control
-    az_phewas_df = remove_false_positives(az_phewas_df)
 
     # WARNING: There are some associations with a p-value of 0.0 in the AstraZeneca PheWAS Portal.
     # This is a bug we still have to ellucidate and it might be due to a float overflow.
