@@ -115,7 +115,7 @@ def main(
     )
 
     # Write output
-    evd_df = parse_az_phewas_evidence(spark, az_phewas_df)
+    evd_df = parse_az_phewas_evidence(spark, az_phewas_df, az_genes_links_df, az_phenotypes_links_df)
 
     if evd_df.filter(F.col("resourceScore") == 0).count() != 0:
         logging.error("There are evidence with a P value of 0.")
