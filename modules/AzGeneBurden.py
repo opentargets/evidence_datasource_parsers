@@ -123,7 +123,7 @@ def main(
             f"There are {evd_df.filter(F.col('resourceScore') == 0).count()} evidence with a P value of 0."
         )
 
-    if not 17_000 < evd_df.count() < 19_000:
+    if not 28_000 < evd_df.count() < 30_000:
         logging.error(
             f"AZ PheWAS Portal number of evidence are different from expected: {evd_df.count()}"
         )
