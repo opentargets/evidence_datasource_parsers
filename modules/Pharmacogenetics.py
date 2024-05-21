@@ -4,7 +4,6 @@
 import argparse
 import json
 import logging
-import os
 import sys
 from typing import List, Optional
 
@@ -127,7 +126,7 @@ def get_parser():
     )
     parser.add_argument(
         "--extracted_phenotypes_path",
-        help="Input TSV containing the categories of the clinical trial reason to stop. Instructions for applying the ML model here: https://github.com/ireneisdoomed/stopReasons.",
+        help="Input remote JSON file containing the phenotypes that have already been regenerated.",
         type=str,
         required=True,
     )
@@ -167,7 +166,7 @@ if __name__ == "__main__":
 
     # Read data
     logging.info(f"PharmGKB evidence JSON file: {args.pharmgkb_evidence_path}")
-    logging.info(f"Table of genotype descriptions to extracted phenotypes: {args.extracted_phenotypes_path}")
+    logging.info(f"Table of genotype descriptions to extract traits: {args.extracted_phenotypes_path}")
     spark.sparkContext.addFile(args.extracted_phenotypes_path)
     pgx_phenotypes_df = spark.read.json(SparkFiles.get(args.extracted_phenotypes_path.split("/")[-1]))
     pharmgkb_df = spark.read.json(args.pharmgkb_evidence_path)
@@ -187,14 +186,14 @@ if __name__ == "__main__":
         
     else:
         logging.error("There are evidence without a phenotype. Please update the extracted phenotypes table before evidence generation.")
-        client = OpenAI(api_key=os.environ['OPENAI_API_KEY'])
+        client = OpenAI(api_key=args.openai_api_key)
         
         new_phenotypes_df = parse_phenotypes(
             unparsed_texts.toPandas()["genotypeAnnotationText"].to_list(),
             client
         )
         updated_phenotypes_df = update_phenotypes_lut(spark, new_phenotypes_df, pgx_phenotypes_df)
-        updated_phenotypes_df.coalesce(1).write.json(args.output_phenotypes_path, mode="overwrite")
+        updated_phenotypes_df.toPandas().to_json(args.output_phenotypes_path, orient="records")  # type: ignore
         logging.info(f"Updated phenotypes have been saved to {args.output_phenotypes_path}. Exiting.")
         pgx_df = generate_evidence(
             spark,
@@ -202,6 +201,8 @@ if __name__ == "__main__":
             updated_phenotypes_df,
             args.cache_dir
         )
+        write_evidence_strings(pgx_df, args.output_evidence_path)
+        logging.info(f"{pgx_df.count()} evidence strings have been saved to {args.output_evidence_path}. Exiting.")
 
         
 
