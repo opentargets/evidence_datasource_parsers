@@ -75,7 +75,7 @@ def process_gene_burden_curation(spark: SparkSession, curated_data: str) -> Data
         # 4. Add hardcoded values and drop URLs (will be handled by the FE) and HGNC symbols
         .withColumn('datasourceId', F.lit('gene_burden'))
         .withColumn('datatypeId', F.lit('genetic_association'))
-        .drop('url', 'targetFromSource')
+        .drop('url', 'targetFromSource', 'studyId')
         .distinct()
     )
 
