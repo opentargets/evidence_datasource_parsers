@@ -23,13 +23,17 @@ ALL_FILES = [
     ('chembl.json.gz', GS.remote(f"{config['ChEMBL']['outputBucket']}/chembl-{timeStamp}.json.gz")),
     ('clingen.json.gz', GS.remote(f"{config['ClinGen']['outputBucket']}/clingen-{timeStamp}.json.gz")),
     ('clingen-Gene-Disease-Summary.csv', GS.remote(f"{config['ClinGen']['inputBucket']}/clingen-Gene-Disease-Summary-{timeStamp}.csv")),
-    ('crispr.json.gz', GS.remote(f"{config['CRISPR']['outputBucket']}/crispr-{timeStamp}.json.gz")),
+    ('project_score.json.gz', GS.remote(f"{config['ProjectScore']['outputBucket']}/project_score-{timeStamp}.json.gz")),
+    ('essentiality.json.gz', GS.remote(f"{config['Essentiality']['outputBucket']}/essentiality-{timeStamp}.json.gz")),
     ('gene_burden.json.gz', GS.remote(f"{config['GeneBurden']['outputBucket']}/gene_burden-{timeStamp}.json.gz")),
     ('gene2phenotype.json.gz', GS.remote(f"{config['Gene2Phenotype']['outputBucket']}/gene2phenotype-{timeStamp}.json.gz")),
     ('DDG2P.csv.gz', GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/DDG2P-{timeStamp}.csv.gz")),
     ('EyeG2P.csv.gz', GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/EyeG2P-{timeStamp}.csv.gz")),
     ('SkinG2P.csv.gz', GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/SkinG2P-{timeStamp}.csv.gz")),
     ('CancerG2P.csv.gz', GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/CancerG2P-{timeStamp}.csv.gz")),
+    ('SkeletalG2P.csv.gz', GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/SkeletalG2P-{timeStamp}.csv.gz")),
+    ('pd_export_01_2023_probes_standardized.xlsx', GS.remote(f"{config['ChemicalProbes']['inputBucket']}/pd_export_01_2023_probes_standardized-{timeStamp}.xlsx")),
+    ('pd_export_01_2023_links_standardized.csv', GS.remote(f"{config['ChemicalProbes']['inputBucket']}/pd_export_01_2023_links_standardized-{timeStamp}.csv")),
     ('intogen.json.gz', GS.remote(f"{config['intOGen']['outputBucket']}/intogen-{timeStamp}.json.gz")),
     ('orphanet.json.gz', GS.remote(f"{config['Orphanet']['outputBucket']}/orphanet-{timeStamp}.json.gz")),
     ('genomics_england.json.gz', GS.remote(f"{config['PanelApp']['outputBucket']}/genomics_england-{timeStamp}.json.gz")),
@@ -108,6 +112,27 @@ rule baselineExpression:      # Calculate baseline expression data from GTEx V8.
         opentargets_validator --schema {params.schema} {output}
         """
 
+rule essentiality:            # Process essentiality data from DepMap.
+    params:
+        tissue_mapping = f"{config['global']['curation_repo']}/{config['Essentiality']['depmap_tissue_mapping']}",
+        schema = f"{config['global']['schema']}/schemas/gene-essentiality.json",
+        input_folder = config['Essentiality']['inputBucket']
+    output:
+        'essentiality.json.gz'
+    log:
+        'log/essentiality.json.log'
+    shell:
+        """
+        exec &> {log}
+        # copy files from bucket to the home folder:
+        gsutil -m cp -r "{params.input_folder}/*" ~/
+        python modules/Essentiality.py \
+            --depmap_input_folder  ~/ \
+            --depmap_tissue_mapping {params.tissue_mapping} \
+            --output_file {output}
+        opentargets_validator --schema {params.schema} {output}
+        """
+
 rule cancerBiomarkers:        # Process the Cancers Biomarkers database from Cancer Genome Interpreter.
     input:
         biomarkers_table = GS.remote(config['cancerBiomarkers']['inputAssociationsTable']),
@@ -177,25 +202,27 @@ rule clingen:                 # Process the Gene Validity Curations table from C
         opentargets_validator --schema {params.schema} {output.evidenceFile}
         """
 
-rule crispr:                  # Process cancer therapeutic targets using CRISPR–Cas9 screens.
+rule projectScore:                  # Process cancer therapeutic targets using CRISPR–Cas9 screens.
     input:
-        evidenceFile = GS.remote(config['CRISPR']['inputAssociationsTable']),
-        descriptionsFile = GS.remote(config['CRISPR']['inputDescriptionsTable']),
-        cellTypesFile = GS.remote(config['CRISPR']['inputCellTypesTable'])
+        evidenceFile = GS.remote(config['ProjectScore']['geneScores']),
+        cellTypesFile = GS.remote(config['ProjectScore']['cellLinesTable']),
+        cell_passport_file = HTTP.remote({config['global']['cell_passport_file']})
     params:
-        schema = f"{config['global']['schema']}/schemas/disease_target_evidence.json"
+        schema = f"{config['global']['schema']}/schemas/disease_target_evidence.json",
+        uberontoCellLineMapping = f"{config['global']['curation_repo']}/{config['Essentiality']['depmap_tissue_mapping']}"
     output:
-        evidenceFile = 'crispr.json.gz'
+        evidenceFile = 'project_score.json.gz'
     log:
-        'log/crispr.log'
+        'log/project_score.log'
     shell:
         """
         exec &> {log}
-        python modules/CRISPR.py \
-          --evidence_file {input.evidenceFile} \
-          --descriptions_file {input.descriptionsFile} \
-          --cell_types_file {input.cellTypesFile} \
-          --output_file {output.evidenceFile}
+        python modules/ProjectScore.py \
+            --evidence_file {input.evidenceFile} \
+            --cell_types_file {input.cellTypesFile} \
+            --cell_passport_file {input.cell_passport_file} \
+            --cell_line_to_uberon_mapping {params.uberontoCellLineMapping} \
+            --output_file {output.evidenceFile} 
         opentargets_validator --schema {params.schema} {output.evidenceFile}
         """
 
@@ -229,7 +256,8 @@ rule gene2Phenotype:          # Processes four gene panels from Gene2Phenotype
         eyePanel = HTTP.remote(config['Gene2Phenotype']['webSource_eye_panel']),
         skinPanel = HTTP.remote(config['Gene2Phenotype']['webSource_skin_panel']),
         cancerPanel = HTTP.remote(config['Gene2Phenotype']['webSource_cancer_panel']),
-        cardiacPanel = HTTP.remote(config['Gene2Phenotype']['webSource_cardiac_panel'])
+        cardiacPanel = HTTP.remote(config['Gene2Phenotype']['webSource_cardiac_panel']),
+        skeletalPanel = HTTP.remote(config['Gene2Phenotype']['webSource_skeletal_panel'])
     params:
         cacheDir = config['global']['cacheDir'],
         schema = f"{config['global']['schema']}/schemas/disease_target_evidence.json"
@@ -239,6 +267,7 @@ rule gene2Phenotype:          # Processes four gene panels from Gene2Phenotype
         skinBucket = 'SkinG2P.csv.gz',
         cancerBucket = 'CancerG2P.csv.gz',
         cardiacBucket = 'CardiacG2P.csv.gz',
+        skeletalBucket = 'SkeletalG2P.csv.gz',
         evidenceFile = 'gene2phenotype.json.gz'
     log:
         'log/gene2Phenotype.log'
@@ -251,15 +280,11 @@ rule gene2Phenotype:          # Processes four gene panels from Gene2Phenotype
         cp {input.skinPanel} {output.skinBucket}
         cp {input.cancerPanel} {output.cancerBucket}
         cp {input.cardiacPanel} {output.cardiacBucket}
+        cp {input.skeletalPanel} {output.skeletalBucket}
         python modules/Gene2Phenotype.py \
-          --dd_panel {input.ddPanel} \
-          --eye_panel {input.eyePanel} \
-          --skin_panel {input.skinPanel} \
-          --cancer_panel {input.cancerPanel} \
-          --cardiac_panel {input.cardiacPanel} \
+          --panels {input.ddPanel} {input.eyePanel} {input.skinPanel} {input.cancerPanel} {input.cardiacPanel} {input.skeletalPanel} \
           --output_file {output.evidenceFile} \
           --cache_dir {params.cacheDir} \
-          --local
         opentargets_validator --schema {params.schema} {output.evidenceFile}
         """
 
@@ -493,9 +518,10 @@ rule chemicalProbes:          # Process data from the Probes&Drugs portal.
         """
 
 rule ot_crispr:               # Generating PPP evidence for OTAR CRISPR screens
+    input:
+        study_table = GS.remote(config['OT_CRISPR']['config']),
     params:
         data_folder = config['OT_CRISPR']['data_directory'],
-        study_table = config['OT_CRISPR']['config'],
         schema = f"{config['global']['schema']}/schemas/disease_target_evidence.json"
     output:
         'ot_crispr.json.gz'
@@ -504,10 +530,18 @@ rule ot_crispr:               # Generating PPP evidence for OTAR CRISPR screens
     shell:
         """
         exec &> {log}
+        
+        # Fetching the data from the bucket to the home folder:
+        mkdir -p ~/ot_crispr_data
+        gsutil -m cp -r "{params.data_folder}/*" ~/ot_crispr_data/
+        
+        # Call parser script:
         python partner_preview_scripts/ot_crispr.py \
-            --study_table {params.study_table} \
-            --data_folder {params.data_folder} \
+            --study_table {input.study_table} \
+            --data_folder ~/ot_crispr_data \
             --output {output}
+        
+        # Validate schema:
         opentargets_validator --schema {params.schema} {output}
         """
 

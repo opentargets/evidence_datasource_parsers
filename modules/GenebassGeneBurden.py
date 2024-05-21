@@ -35,6 +35,7 @@ def main(spark: SparkSession, genebass_data: str) -> DataFrame:
         SparkSession.getActiveSession()
         .read.parquet(genebass_data)
         .filter(F.col("Pvalue_Burden") <= 6.7e-7)
+        .filter(F.col("trait_type") != "categorical")
         .select(
             "gene_id",
             "annotation",

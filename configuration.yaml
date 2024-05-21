@@ -4,7 +4,7 @@ global:
   schema: https://raw.githubusercontent.com/opentargets/json_schema/2.6.2
   EFOVersion: v3.62.0
   cell_passport_file: https://cog.sanger.ac.uk/cmp/download/model_list_latest.csv.gz
-  curation_repo: https://raw.githubusercontent.com/opentargets/curation/24.03
+  curation_repo: https://raw.githubusercontent.com/opentargets/curation/24.06
 baselineExpression:
   gtexSourceDataPath: https://storage.googleapis.com/adult-gtex/bulk-gex/v8/rna-seq/GTEx_Analysis_2017-06-05_v8_RNASeQCv1.1.9_gene_median_tpm.gct.gz
   tissueNameToUberonMappingPath: mappings/biosystem/gtex_v8_tissues.tsv
@@ -24,14 +24,17 @@ ClinGen:
   webSource: https://search.clinicalgenome.org/kb/gene-validity/download
   inputBucket: gs://otar000-evidence_input/ClinGen/data_files
   outputBucket: gs://otar000-evidence_input/ClinGen/json
-CRISPR:
-  inputAssociationsTable: gs://otar000-evidence_input/CRISPR/data_files/crispr_evidence.tsv
-  inputDescriptionsTable: gs://otar000-evidence_input/CRISPR/data_files/crispr_descriptions.tsv
-  inputCellTypesTable: gs://otar000-evidence_input/CRISPR/data_files/crispr_cell_lines_enriched_2021-10-22.tsv
+ProjectScore:
+  cellLinesTable: gs://otar000-evidence_input/CRISPR/data_files/project_score_v2/cell_types.tsv
+  geneScores: gs://otar000-evidence_input/CRISPR/data_files/project_score_v2/mapped_diseases.tsv
   outputBucket: gs://otar000-evidence_input/CRISPR/json
+Essentiality:
+  inputBucket: gs://otar000-evidence_input/Essentiality/DepMap/2023Q4
+  depmap_tissue_mapping: mappings/biosystem/depmap_uberon_mapping.csv
+  outputBucket: gs://otar000-evidence_input/Essentiality/json
 GeneBurden:
-  azPhewasBinary: gs://otar000-evidence_input/GeneBurden/data_files/azphewas-com-450k-phewas-binary
-  azPhewasQuantitative: gs://otar000-evidence_input/GeneBurden/data_files/azphewas-com-450k-phewas-quantitative
+  azPhewasBinary: gs://otar000-evidence_input/GeneBurden/data_files/azphewas-com-470k-phewas-binary
+  azPhewasQuantitative: gs://otar000-evidence_input/GeneBurden/data_files/azphewas-com-470k-phewas-quantitative
   curation: gene_burden/curated_evidence.tsv
   genebass: gs://otar000-evidence_input/GeneBurden/data_files/genebass_entries
   outputBucket: gs://otar000-evidence_input/GeneBurden/json
@@ -41,6 +44,7 @@ Gene2Phenotype:
   webSource_skin_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/SkinG2P.csv.gz
   webSource_cancer_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/CancerG2P.csv.gz
   webSource_cardiac_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/CardiacG2P.csv.gz
+  webSource_skeletal_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/SkeletalG2P.csv.gz
   inputBucket: gs://otar000-evidence_input/Gene2Phenotype/data_files
   outputBucket: gs://otar000-evidence_input/Gene2Phenotype/json
 intOGen:
@@ -52,7 +56,7 @@ Orphanet:
   webSource: http://www.orphadata.org/data/xml/en_product6.xml
   outputBucket: gs://otar000-evidence_input/Orphanet/json
 PanelApp:
-  inputAssociationsTable: gs://otar000-evidence_input/GenomicsEngland/data_files/All_genes_20220804-1350_green_amber_red_public_v1plus_no_superpanels.tsv
+  inputAssociationsTable: gs://otar000-evidence_input/GenomicsEngland/data_files/All_genes_20240514_public_v1plus_panels_all_ratings.tsv
   outputBucket: gs://otar000-evidence_input/GenomicsEngland/json
 IMPC:
   evidenceOutputBucket: gs://otar000-evidence_input/IMPC/json
@@ -86,7 +90,7 @@ ChemicalProbes:
   outputBucket: gs://otar001-core/ChemicalProbes/annotation
 OT_CRISPR:
   data_directory: gs://otar013-ppp/ot_crispr/input_data
-  config: gs://otar013-ppp/PPP-evidence-configuration/ot_crispr_config.json
+  config: gs://otar013-ppp/PPP-evidence-configuration/raw_study_table.tsv
   outputBucket: gs://otar013-ppp/ot_crispr
 ValidationLab:
   data_directory: gs://otar013-ppp/validation_lab/input_data/2022.05
