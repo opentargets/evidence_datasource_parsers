@@ -203,7 +203,7 @@ def parse_az_phewas_evidence(
         .withColumn("datatypeId", F.lit("genetic_association"))
         .withColumn("literature", F.array(F.lit("34375979")))
         .withColumn("projectId", F.lit("AstraZeneca PheWAS Portal"))
-        .withColumn("cohortId", F.lit("UK Biobank 450k"))
+        .withColumn("cohortId", F.lit("UK Biobank 470k"))
         .withColumnRenamed("Gene", "targetFromSourceId")
         .withColumnRenamed("Phenotype", "diseaseFromSource")
         .join(
@@ -266,8 +266,8 @@ def parse_az_phewas_evidence(
             "urls",
             F.array(
                 F.struct(
-                    F.lit("AstraZeneca PheWAS Portal").alias("niceName"),
                     F.col("url").alias("url"),
+                    F.lit("AstraZeneca PheWAS Portal").alias("niceName"),
                 )
             ),
         )
