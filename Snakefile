@@ -229,6 +229,8 @@ rule geneBurden:              # Processes gene burden data from various burden a
     input:
         azPhewasBinary = GS.remote(config['GeneBurden']['azPhewasBinary']),
         azPhewasQuant = GS.remote(config['GeneBurden']['azPhewasQuantitative']),
+        azGenesLinks = GS.remote(config['GeneBurden']['azPhewasGenesLinks']),
+        azPhenoLinks = GS.remote(config['GeneBurden']['azPhewasPhenotypesLinks']),
         curation = HTTP.remote(f"{config['global']['curation_repo']}/{config['GeneBurden']['curation']}"),
         genebass = GS.remote(config['GeneBurden']['genebass']),
     output:
@@ -243,6 +245,8 @@ rule geneBurden:              # Processes gene burden data from various burden a
         python modules/GeneBurden.py \
             --az_binary_data {input.azPhewasBinary} \
             --az_quant_data {input.azPhewasQuant} \
+            --az_genes_links {input.azGenesLinks} \
+            --az_phenotypes_links {input.azPhenoLinks} \
             --curated_data {input.curation} \
             --genebass_data {input.genebass} \
             --output {output.evidenceFile}
