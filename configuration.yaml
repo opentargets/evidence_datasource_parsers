@@ -1,8 +1,8 @@
 global:
   logDir: gs://otar000-evidence_input/parser_logs
   cacheDir: cache_dir
-  schema: https://raw.githubusercontent.com/opentargets/json_schema/2.6.1
-  EFOVersion: v3.62.0
+  schema: https://raw.githubusercontent.com/opentargets/json_schema/2.7.3
+  EFOVersion: v3.65.0
   cell_passport_file: https://cog.sanger.ac.uk/cmp/download/model_list_latest.csv.gz
   curation_repo: https://raw.githubusercontent.com/opentargets/curation/24.06
 baselineExpression:
@@ -17,8 +17,8 @@ cancerBiomarkers:
   drugIndex: gs://open-targets-data-releases/22.11/output/etl/parquet/molecule
   outputBucket: gs://otar000-evidence_input/CancerBiomarkers/json
 ChEMBL:
-  evidence: gs://otar008-chembl/cttv008_10-08-2023.json.gz
-  stopReasonCategories: gs://otar000-evidence_input/ChEMBL/data_files/chembl_predictions-2023-08-11.json
+  evidence: gs://otar008-chembl/cttv008_17-05-2024.json.gz
+  stopReasonCategories: gs://otar000-evidence_input/ChEMBL/data_files/chembl_predictions-2024-05-20.json
   outputBucket: gs://otar000-evidence_input/ChEMBL/json
 ClinGen:
   webSource: https://search.clinicalgenome.org/kb/gene-validity/download
@@ -35,6 +35,8 @@ Essentiality:
 GeneBurden:
   azPhewasBinary: gs://otar000-evidence_input/GeneBurden/data_files/azphewas-com-470k-phewas-binary
   azPhewasQuantitative: gs://otar000-evidence_input/GeneBurden/data_files/azphewas-com-470k-phewas-quantitative
+  azPhewasGenesLinks: gs://otar000-evidence_input/GeneBurden/data_files/azphewas_com_genes_UK Biobank_470k.csv
+  azPhewasPhenotypesLinks: gs://otar000-evidence_input/GeneBurden/data_files/azphewas_com_phenotypes_UK Biobank_470k.csv
   curation: gene_burden/curated_evidence.tsv
   genebass: gs://otar000-evidence_input/GeneBurden/data_files/genebass_entries
   outputBucket: gs://otar000-evidence_input/GeneBurden/json
