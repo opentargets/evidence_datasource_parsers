@@ -221,33 +221,35 @@ def parse_az_phewas_evidence(
         )
         .withColumn(
             "beta",
-            F.when(F.col("Type") == "Quantitative", F.col("beta")),
+            F.when(F.col("Type") == "Quantitative", F.col("beta")).cast("float"),
         )
         .withColumn(
             "betaConfidenceIntervalLower",
-            F.when(F.col("Type") == "Quantitative", F.col("LCI")),
+            F.when(F.col("Type") == "Quantitative", F.col("LCI")).cast("float"),
         )
         .withColumn(
             "betaConfidenceIntervalUpper",
-            F.when(F.col("Type") == "Quantitative", F.col("UCI")),
+            F.when(F.col("Type") == "Quantitative", F.col("UCI")).cast("float"),
         )
         .withColumn(
             "oddsRatio",
-            F.when(F.col("Type") == "Binary", F.col("binOddsRatio")),
+            F.when(F.col("Type") == "Binary", F.col("binOddsRatio")).cast("float"),
         )
         .withColumn(
             "oddsRatioConfidenceIntervalLower",
-            F.when(F.col("Type") == "Binary", F.col("LCI")),
+            F.when(F.col("Type") == "Binary", F.col("LCI")).cast("float"),
         )
         .withColumn(
             "oddsRatioConfidenceIntervalUpper",
-            F.when(F.col("Type") == "Binary", F.col("UCI")),
+            F.when(F.col("Type") == "Binary", F.col("UCI")).cast("float"),
         )
         .withColumn("ancestry", F.lit("EUR"))
         .withColumn("ancestryId", F.lit("HANCESTRO_0005"))
-        .withColumnRenamed("nSamples", "studySampleSize")
-        .withColumnRenamed("nCases", "studyCases")
-        .withColumnRenamed("nCasesQV", "studyCasesWithQualifyingVariants")
+        .withColumn("studySampleSize", F.col("nSamples").cast("int"))
+        .withColumn("studyCases", F.col("nCases").cast("int"))
+        .withColumn(
+            "studyCasesWithQualifyingVariants", F.col("nCasesQV").cast("int")
+        )
         .withColumnRenamed("CollapsingModel", "statisticalMethod")
         .withColumn("statisticalMethodOverview", F.col("statisticalMethod"))
         .replace(to_replace=METHOD_DESC, subset=["statisticalMethodOverview"])
