@@ -474,7 +474,7 @@ rule targetSafety:            # Process data from different sources that describ
     input:
         toxcast = GS.remote(config['TargetSafety']['toxcast']),
         aopwiki = GS.remote(config['TargetSafety']['aopwiki']),
-        pharmacogenetics = GS.remote(config['TargetSafety']['pharmacogenetics'])
+        pharmacogenetics = rules.Pharmacogenetics.output.evidence,
     params:
         ae = f"{config['global']['curation_repo']}/{config['TargetSafety']['adverseEvents']}",
         sr = f"{config['global']['curation_repo']}/{config['TargetSafety']['safetyRisk']}",
