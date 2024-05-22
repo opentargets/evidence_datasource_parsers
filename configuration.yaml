@@ -83,7 +83,7 @@ TargetSafety:
   safetyRisk: target_safety/safety_risks.tsv
   toxcast: gs://otar001-core/TargetSafety/data_files/toxcast/ToxCast_2021-08-17.tsv
   aopwiki: gs://otar001-core/TargetSafety/data_files/aopwiki/aopwiki-2023-01-20.json
-  pharmacogenetics: gs://otar012-eva/pharmacogenomics/cttv012-2024-02-16_pgkb.json.gz
+  pharmacogenetics: gs://otar012-eva/pharmacogenomics/cttv012-2024-05-08_pgkb.json.gz
   outputBucket: gs://otar001-core/TargetSafety/json
 ChemicalProbes:
   probesExcelDump: https://www.probes-drugs.org/media/download/probes/pd_export_01_2024_probes_standardized.xlsx
