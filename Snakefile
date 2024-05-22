@@ -593,6 +593,9 @@ rule validation_lab:          # Generating PPP evidence for Validation Lab
         opentargets_validator --schema {params.schema} {output}
         """
 
+envvars:
+    "OPENAI_API_KEY"
+
 rule Pharmacogenetics:                     # Generating pharmacogenetics evidence
     input:
         evidenceFile = GS.remote(config['Pharmacogenetics']['evidence']),
@@ -601,6 +604,7 @@ rule Pharmacogenetics:                     # Generating pharmacogenetics evidenc
         phenotypes = f"{config['global']['curation_repo']}/{config['Pharmacogenetics']['phenotypes']}",
         phenotypes_optional_output = "pharmgkb_phenotypes.json",
         cache_dir = config['global']['cacheDir']
+        openai_api_key = os.environ['OPENAI_API_KEY']
     output:
         evidence = "pharmacogenetics.json.gz"
     log:
@@ -611,6 +615,7 @@ rule Pharmacogenetics:                     # Generating pharmacogenetics evidenc
         python modules/Pharmacogenetics.py \
             --pharmgkb_evidence_path {input.evidenceFile} \
             --extracted_phenotypes_path {params.phenotypes} \
+            --openai_api_key {params.openai_api_key} \
             --output_evidence_path {output.evidence} \
             --output_phenotypes_path {params.phenotypes_optional_output} \
             --cache_dir {params.cache_dir}
