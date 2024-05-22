@@ -603,7 +603,7 @@ rule Pharmacogenetics:                     # Generating pharmacogenetics evidenc
         schema = f"{config['global']['schema']}/{config['Pharmacogenetics']['schema']}",
         phenotypes = f"{config['global']['curation_repo']}/{config['Pharmacogenetics']['phenotypes']}",
         phenotypes_optional_output = "pharmgkb_phenotypes.json",
-        cache_dir = config['global']['cacheDir']
+        cache_dir = config['global']['cacheDir'],
         openai_api_key = os.environ['OPENAI_API_KEY']
     output:
         evidence = "pharmacogenetics.json.gz"
