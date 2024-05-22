@@ -21,6 +21,8 @@ def main(
     spark: SparkSession,
     az_binary_data: str,
     az_quant_data: str,
+    az_genes_links: str,
+    az_phenotypes_links: str,
     curated_data: str,
     genebass_data: str,
 ) -> DataFrame:
@@ -28,7 +30,7 @@ def main(
 
     burden_evidence_sets = [
         # Generate evidence from AZ data:
-        process_az_gene_burden(spark, az_binary_data, az_quant_data).persist(),
+        process_az_gene_burden(spark, az_binary_data, az_quant_data, az_genes_links, az_phenotypes_links).persist(),
         # Generate evidence from manual data:
         process_gene_burden_curation(spark, curated_data).persist(),
         # Generate evidence from GeneBass data:
@@ -73,7 +75,7 @@ def process_gene_burden_curation(spark: SparkSession, curated_data: str) -> Data
         # 4. Add hardcoded values and drop URLs (will be handled by the FE) and HGNC symbols
         .withColumn('datasourceId', F.lit('gene_burden'))
         .withColumn('datatypeId', F.lit('genetic_association'))
-        .drop('url', 'targetFromSource')
+        .drop('url', 'targetFromSource', 'studyId')
         .distinct()
     )
 
@@ -135,6 +137,18 @@ def get_parser():
         required=True,
     )
     parser.add_argument(
+        "--az_genes_links",
+        help="Input CSV file that consists of a look up table between a gene and its link in the AZ Phewas Portal.",
+        type=str,
+        required=True,
+    )
+    parser.add_argument(
+        "--az_phenotypes_links",
+        help="Input CSV file that consists of a look up table between a phenotype and its link in the AZ Phewas Portal.",
+        type=str,
+        required=True,
+    )
+    parser.add_argument(
         '--curated_data',
         help='Input remote CSV file containing the gene burden manual curation.',
         type=str,
@@ -183,6 +197,8 @@ if __name__ == "__main__":
         spark=spark,
         az_binary_data=args.az_binary_data,
         az_quant_data=args.az_quant_data,
+        az_genes_links=args.az_genes_links,
+        az_phenotypes_links=args.az_phenotypes_links,
         curated_data=args.curated_data,
         genebass_data=args.genebass_data,
     )
