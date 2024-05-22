@@ -469,35 +469,6 @@ rule crisprScreens:           # Generating disease/target evidence based on vari
         opentargets_validator --schema {params.schema} {output}
         """
 
-
-rule targetSafety:            # Process data from different sources that describe target safety liabilities.
-    input:
-        toxcast = GS.remote(config['TargetSafety']['toxcast']),
-        aopwiki = GS.remote(config['TargetSafety']['aopwiki']),
-        pharmacogenetics = rules.Pharmacogenetics.output.evidence,
-    params:
-        ae = f"{config['global']['curation_repo']}/{config['TargetSafety']['adverseEvents']}",
-        sr = f"{config['global']['curation_repo']}/{config['TargetSafety']['safetyRisk']}",
-        cache_dir = config['global']['cacheDir'],
-        schema = f"{config['global']['schema']}/schemas/target_safety.json"
-    output:
-        'safetyLiabilities.json.gz'
-    log:
-        'log/safetyLiabilities.log'
-    shell:
-        """
-        exec &> {log}
-        python modules/TargetSafety.py  \
-            --adverse_events {params.ae} \
-            --safety_risk {params.sr} \
-            --toxcast {input.toxcast} \
-            --aopwiki {input.aopwiki} \
-            --pharmacogenetics {input.pharmacogenetics} \
-            --cache_dir {params.cache_dir} \
-            --output {output}
-        opentargets_validator --schema {params.schema} {output}
-        """
-
 rule chemicalProbes:          # Process data from the Probes&Drugs portal.
     input:
         rawProbesExcel = HTTP.remote(config['ChemicalProbes']['probesExcelDump']),
@@ -622,3 +593,30 @@ rule Pharmacogenetics:                     # Generating pharmacogenetics evidenc
         opentargets_validator --schema {params.schema} {output.evidence}
         """
 
+rule targetSafety:            # Process data from different sources that describe target safety liabilities.
+    input:
+        toxcast = GS.remote(config['TargetSafety']['toxcast']),
+        aopwiki = GS.remote(config['TargetSafety']['aopwiki']),
+        pharmacogenetics = rules.Pharmacogenetics.output.evidence,
+    params:
+        ae = f"{config['global']['curation_repo']}/{config['TargetSafety']['adverseEvents']}",
+        sr = f"{config['global']['curation_repo']}/{config['TargetSafety']['safetyRisk']}",
+        cache_dir = config['global']['cacheDir'],
+        schema = f"{config['global']['schema']}/schemas/target_safety.json"
+    output:
+        'safetyLiabilities.json.gz'
+    log:
+        'log/safetyLiabilities.log'
+    shell:
+        """
+        exec &> {log}
+        python modules/TargetSafety.py  \
+            --adverse_events {params.ae} \
+            --safety_risk {params.sr} \
+            --toxcast {input.toxcast} \
+            --aopwiki {input.aopwiki} \
+            --pharmacogenetics {input.pharmacogenetics} \
+            --cache_dir {params.cache_dir} \
+            --output {output}
+        opentargets_validator --schema {params.schema} {output}
+        """
