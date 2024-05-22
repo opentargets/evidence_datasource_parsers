@@ -287,7 +287,7 @@ rule gene2Phenotype:          # Processes four gene panels from Gene2Phenotype
         python modules/Gene2Phenotype.py \
           --panels {input.ddPanel} {input.eyePanel} {input.skinPanel} {input.cancerPanel} {input.cardiacPanel} {input.skeletalPanel} \
           --output_file {output.evidenceFile} \
-          --cache_dir {params.cacheDir} \
+          --cache_dir {params.cacheDir}
         opentargets_validator --schema {params.schema} {output.evidenceFile}
         """
 

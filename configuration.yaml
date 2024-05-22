@@ -35,8 +35,8 @@ Essentiality:
 GeneBurden:
   azPhewasBinary: gs://otar000-evidence_input/GeneBurden/data_files/azphewas-com-470k-phewas-binary
   azPhewasQuantitative: gs://otar000-evidence_input/GeneBurden/data_files/azphewas-com-470k-phewas-quantitative
-  azPhewasGenesLinks: gs://otar000-evidence_input/GeneBurden/data_files/azphewas_com_genes_UK Biobank_470k.csv
-  azPhewasPhenotypesLinks: gs://otar000-evidence_input/GeneBurden/data_files/azphewas_com_phenotypes_UK Biobank_470k.csv
+  azPhewasGenesLinks: gs://otar000-evidence_input/GeneBurden/data_files/azphewas_com_genes_UK_Biobank_470k.csv
+  azPhewasPhenotypesLinks: gs://otar000-evidence_input/GeneBurden/data_files/azphewas_com_phenotypes_UK_Biobank_470k.csv
   curation: gene_burden/curated_evidence.tsv
   genebass: gs://otar000-evidence_input/GeneBurden/data_files/genebass_entries
   outputBucket: gs://otar000-evidence_input/GeneBurden/json
@@ -85,8 +85,8 @@ TargetSafety:
   aopwiki: gs://otar001-core/TargetSafety/data_files/aopwiki/aopwiki-2023-01-20.json
   outputBucket: gs://otar001-core/TargetSafety/json
 ChemicalProbes:
-  probesExcelDump: https://www.probes-drugs.org/media/download/probes/pd_export_02_2023_probes_standardized.xlsx
-  probesMappingsTable: https://www.probes-drugs.org/media/download/id_mapping/pd_export_02_2023_links_standardized.csv
+  probesExcelDump: https://www.probes-drugs.org/media/download/probes/pd_export_01_2024_probes_standardized.xlsx
+  probesMappingsTable: https://www.probes-drugs.org/media/download/id_mapping/pd_export_01_2024_links_standardized.csv
   inputBucket: gs://otar001-core/ChemicalProbes/data_files
   outputBucket: gs://otar001-core/ChemicalProbes/annotation
 OT_CRISPR:

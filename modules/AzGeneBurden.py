@@ -123,7 +123,7 @@ def main(
             f"There are {evd_df.filter(F.col('resourceScore') == 0).count()} evidence with a P value of 0."
         )
 
-    if not 17_000 < evd_df.count() < 19_000:
+    if not 28_000 < evd_df.count() < 30_000:
         logging.error(
             f"AZ PheWAS Portal number of evidence are different from expected: {evd_df.count()}"
         )
@@ -203,7 +203,7 @@ def parse_az_phewas_evidence(
         .withColumn("datatypeId", F.lit("genetic_association"))
         .withColumn("literature", F.array(F.lit("34375979")))
         .withColumn("projectId", F.lit("AstraZeneca PheWAS Portal"))
-        .withColumn("cohortId", F.lit("UK Biobank 450k"))
+        .withColumn("cohortId", F.lit("UK Biobank 470k"))
         .withColumnRenamed("Gene", "targetFromSourceId")
         .withColumnRenamed("Phenotype", "diseaseFromSource")
         .join(
@@ -221,33 +221,35 @@ def parse_az_phewas_evidence(
         )
         .withColumn(
             "beta",
-            F.when(F.col("Type") == "Quantitative", F.col("beta")),
+            F.when(F.col("Type") == "Quantitative", F.col("beta")).cast("float"),
         )
         .withColumn(
             "betaConfidenceIntervalLower",
-            F.when(F.col("Type") == "Quantitative", F.col("LCI")),
+            F.when(F.col("Type") == "Quantitative", F.col("LCI")).cast("float"),
         )
         .withColumn(
             "betaConfidenceIntervalUpper",
-            F.when(F.col("Type") == "Quantitative", F.col("UCI")),
+            F.when(F.col("Type") == "Quantitative", F.col("UCI")).cast("float"),
         )
         .withColumn(
             "oddsRatio",
-            F.when(F.col("Type") == "Binary", F.col("binOddsRatio")),
+            F.when(F.col("Type") == "Binary", F.col("binOddsRatio")).cast("float"),
         )
         .withColumn(
             "oddsRatioConfidenceIntervalLower",
-            F.when(F.col("Type") == "Binary", F.col("LCI")),
+            F.when(F.col("Type") == "Binary", F.col("LCI")).cast("float"),
         )
         .withColumn(
             "oddsRatioConfidenceIntervalUpper",
-            F.when(F.col("Type") == "Binary", F.col("UCI")),
+            F.when(F.col("Type") == "Binary", F.col("UCI")).cast("float"),
         )
         .withColumn("ancestry", F.lit("EUR"))
         .withColumn("ancestryId", F.lit("HANCESTRO_0005"))
-        .withColumnRenamed("nSamples", "studySampleSize")
-        .withColumnRenamed("nCases", "studyCases")
-        .withColumnRenamed("nCasesQV", "studyCasesWithQualifyingVariants")
+        .withColumn("studySampleSize", F.col("nSamples").cast("int"))
+        .withColumn("studyCases", F.col("nCases").cast("int"))
+        .withColumn(
+            "studyCasesWithQualifyingVariants", F.col("nCasesQV").cast("int")
+        )
         .withColumnRenamed("CollapsingModel", "statisticalMethod")
         .withColumn("statisticalMethodOverview", F.col("statisticalMethod"))
         .replace(to_replace=METHOD_DESC, subset=["statisticalMethodOverview"])
@@ -264,8 +266,8 @@ def parse_az_phewas_evidence(
             "urls",
             F.array(
                 F.struct(
-                    F.lit("AstraZeneca PheWAS Portal").alias("niceName"),
                     F.col("url").alias("url"),
+                    F.lit("AstraZeneca PheWAS Portal").alias("niceName"),
                 )
             ),
         )

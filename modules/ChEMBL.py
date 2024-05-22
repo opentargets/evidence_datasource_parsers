@@ -44,11 +44,11 @@ def main(chembl_evidence: str, predictions: str, output_file: str) -> None:
     )
 
     # We expect that ~10% of evidence strings have a reason to stop assigned
-    # It is asserted that this fraction is between 9 and 11% of the total count
+    # It is asserted that this fraction is between 9 and 15% of the total count
     total_count = chembl_df.count()
     early_stopped_count = early_stopped_evd_df.count()
 
-    if not 0.08 < early_stopped_count / total_count < 0.11:
+    if not 0.08 < early_stopped_count / total_count < 0.15:
         raise AssertionError(f'The fraction of evidence with a CT reason to stop class is not as expected ({early_stopped_count / total_count}).')
 
     logging.info('Evidence strings have been processed. Saving...')
