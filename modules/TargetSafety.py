@@ -90,22 +90,26 @@ def main(
         .withColumn(
             "biosamples", F.when(F.size("biosamples") != 0, F.col("biosamples"))
         )
-        # Add the supporting variation to the study metadata
+        # Add the supporting variation to the study metadata for the PGx evidence
         .withColumn(
             "studies",
-            F.transform(
-                F.col("studies"),
-                lambda x: F.struct(
-                    x["name"].alias("name"),
-                    x["type"].alias("type"),
-                    F.concat(
-                        F.lit("Genetic variation linked to this safety liability: "), F.array_join(F.col("supporting_variation"), ", ")
-                    ).alias("description"),
-                ),
-            ),
+            F.when(
+                F.col("datasource") == "PharmGKB",
+                F.transform(
+                    F.col("studies"),
+                    lambda x: F.struct(
+                        F.concat(
+                            F.lit("Genetic variation linked to this safety liability: "), F.array_join(F.col("supporting_variation"), ", ")
+                        ).alias("description"),
+                        x["name"].alias("name"),
+                        x["type"].alias("type"),
+                    ),
+                )
+            ).otherwise(F.col("studies")),
         )
         .withColumn("studies", F.when(F.size("studies") != 0, F.col("studies")))
         .drop("supporting_variation")
+        .distinct()
     )
 
     # Write output
@@ -357,11 +361,10 @@ def process_pharmacogenetics(spark: SparkSession, pgx_df: DataFrame, cache_dir: 
         .select(
             F.col("targetFromSourceId").alias("id"),
             "event",
-            F.lit(True).alias("isHumanApplicable"),
             F.lit("PharmGKB").alias("datasource"),
             F.concat(F.lit(pgkb_url_template), F.col("targetFromSourceId")).alias("url"),
             # To build study metadata later - each study is a drug after which the phenotype was observed
-            "drugFromSource",
+            F.explode(F.col("drugs.drugFromSource")).alias("drugFromSource"),
             "supporting_variation",
         )
         .withColumn(
