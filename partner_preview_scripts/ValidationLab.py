@@ -178,30 +178,19 @@ class BiomarkerParser:
             for biomarker in cls.BIOMARKERMAPS.keys()
             if biomarker in biomarker_df.columns
         ]
-
-        # Applying the full map on the dataframe one-by-one:
-        processed_biomarkers = reduce(
-            lambda DF, value: DF.withColumn(*value),
-            map(
-                # Function to process biomarker:
-                lambda biomarker: (
-                    biomarker,
-                    cls._get_biomarker_wrapper(cls.BIOMARKERMAPS)(
-                        f.lit(biomarker),
-                        f.col(biomarker),
-                    ),
+        for biomarker in biomarkers_in_data:
+            biomarker_df = biomarker_df.withColumn(
+                biomarker,
+                cls._get_biomarker_wrapper(cls.BIOMARKERMAPS)(
+                    f.lit(biomarker), f.col(biomarker)
                 ),
-                # Iterator to apply the function over:
-                biomarkers_in_data,
-            ),
-            biomarker_df,
-        )
+            )
 
         # The biomarker columns are unstacked into one single 'biomarkers' column:
         biomarker_unstack = f"""stack({len(biomarkers_in_data)}, {", ".join([f"'{x}', {x}" for x in biomarkers_in_data])}) as (biomarker_name, biomarker)"""
 
         return (
-            processed_biomarkers
+            biomarker_df
             # Selecting cell line name, cell line annotation and applyting the stacking expression:
             .select(
                 f.col("Cell Line Name").alias("cellLineName"),
@@ -224,17 +213,6 @@ class ValidationLabEvidenceParser:
     assays: list
     sharedParemeters: dict
 
-    @staticmethod
-    def _get_disease_cell_lines(model_passport_df: DataFrame) -> DataFrame:
-        return (
-            # The following option is required to correctly parse CSV records which contain newline characters.
-            model_passport_df.select(
-                f.col("model_name").alias("cellLineName"),
-                f.col("model_id").alias("id"),
-                f.lower(f.col("tissue")).alias("tissueFromSource"),
-            )
-        )
-
     def generate_evidence(
         self: ValidationLabEvidenceParser,
         spark: SparkSession,
@@ -242,16 +220,20 @@ class ValidationLabEvidenceParser:
         model_passport_file: str,
     ) -> DataFrame:
         # Get diease cell lines:
-        disease_cell_lines = self._get_disease_cell_lines(
-            spark.read.option("multiline", True).csv(
-                model_passport_file, header=True, sep=",", quote='"'
+        disease_cell_lines = (
+            spark.read.option("multiline", True)
+            .csv(model_passport_file, header=True, sep=",", quote='"')
+            .select(
+                f.col("model_name").alias("cellLineName"),
+                f.col("model_id").alias("id"),
+                f.lower(f.col("tissue")).alias("tissueFromSource"),
             )
         )
 
         return (
             # Combining evidence from all validation projects
             reduce(
-                lambda df1, df2: df1.unionByName(df1),
+                lambda df1, df2: df1.unionByName(df2),
                 [
                     # Generate evidence from a given project:
                     ValidationLabProjectParser(**project).parse_evidence(
@@ -261,21 +243,15 @@ class ValidationLabEvidenceParser:
                     if not project["excludeStudy"]
                 ],
             )
-            # Adding shared columns:
+            .join(disease_cell_lines, on="cellLineName", how="left")
             .select(
-                "*",
+                # Adding shared columns:
                 *[
                     f.lit(value).alias(colname)
                     for colname, value in self.sharedParemeters.items()
                 ],
-            )
-            .join(disease_cell_lines, on="cellLineName", how="left")
-            .select(
                 # constants:
-                "datasourceId",
-                "datatypeId",
                 "studyOverview",
-                "projectId",
                 "releaseDate",
                 "releaseVersion",
                 # Evidence:
@@ -330,21 +306,50 @@ class ValidationLabProjectParser:
         logger.info(f"Reading project data: {validation_input_file}")
         logger.info(f"Reading biomarker data: {biomarker_file}")
 
+        # Reading biomarker data:
+        raw_biomarkers = spark.read.csv(biomarker_file, sep="\t", header=True)
+
+        # Get parsed biomarkers:
+        biomarkers = BiomarkerParser.get_biomarkers(raw_biomarkers)
+
         # Reading data:
         raw_experiment_data = spark.read.option("multiline", True).csv(
             validation_input_file, sep="\t", header=True
         )
-        # First round of processing:
-        processed_experiment = self._process_raw_evidence(raw_experiment_data, assays)
 
-        # Reading biomarker data:
-        raw_biomarkers = spark.read.csv(biomarker_file, sep="\t", header=True)
+        # First round of processing:
+        processed_experiment = (
+            raw_experiment_data
+            # Read full evidence data:
+            .select(
+                # Extract target name:
+                f.col("gene_ID").alias("targetFromSourceId"),
+                # Extract cell-line name:
+                f.col("cell_line_ID").alias("cellLineName"),
+                # Extract VL assessment:
+                f.regexp_replace(f.col("OTVL_Assessment"), r"\n", " ").alias(
+                    "assessment"
+                ),
+                f.col("OTAR Primary Project Hit")
+                .cast(t.BooleanType())
+                .alias("primaryProjectHit"),
+                # Extract assessment score:
+                f.col("OTVL_Assessment_Score")
+                .cast(t.FloatType())
+                .alias("resourceScore"),
+                # Extract all assays:
+                *[
+                    f.col(assay["label"])
+                    .cast(t.BooleanType())
+                    .alias(assay["shortName"])
+                    for assay in assays
+                    if assay["label"] in raw_experiment_data.columns
+                ],
+            )
+        )
 
         # Formatting assays (depends on the formatted experiment data):
-        parsed_assays = self._parser_assay_object(processed_experiment, assays, spark)
-
-        # Get parsed biomarkers:
-        biomarkers = BiomarkerParser.get_biomarkers(raw_biomarkers)
+        parsed_assays = self._parse_assay(processed_experiment, assays, spark)
 
         # attributes added as column:
         columns_to_add = [
@@ -380,33 +385,14 @@ class ValidationLabProjectParser:
         )
 
     @staticmethod
-    def _process_raw_evidence(raw_data: DataFrame, assays: list) -> DataFrame:
-        # Read full evidence data:
-        return raw_data.select(
-            # Extract target name:
-            f.col("gene_ID").alias("targetFromSourceId"),
-            # Extract cell-line name:
-            f.col("cell_line_ID").alias("cellLineName"),
-            # Extract VL assessment:
-            f.regexp_replace(f.col("OTVL_Assessment"), r"\n", " ").alias("assessment"),
-            f.col("OTAR Primary Project Hit")
-            .cast(t.BooleanType())
-            .alias("primaryProjectHit"),
-            # Extract assessment score:
-            f.col("OTVL_Assessment_Score").cast(t.FloatType()).alias("resourceScore"),
-            # Extract all assays:
-            *[
-                f.col(assay["label"]).cast(t.BooleanType()).alias(assay["shortName"])
-                for assay in assays
-                if assay["label"] in raw_data.columns
-            ],
-        )
-
-    @staticmethod
-    def _parser_assay_object(
+    def _parse_assay(
         raw_evidence_df: DataFrame, assays: list, spark: SparkSession
     ) -> DataFrame:
-        """Organise experimental data into the right shape."""
+        """Organise experimental data into the right shape.
+
+        For each evidence there might be a varying number of assays available.
+        This function collate all the assays into a single list column of structs.
+        """
         # Generate unpivot expression - not all assays are present in the data, some project might done with fewer assays:
         assay_names = [
             assay["shortName"]
