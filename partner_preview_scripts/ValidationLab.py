@@ -54,7 +54,7 @@ class BiomarkerParser:
         },
         "MS_status": {
             "direct_mapping": {
-                "MSI": {"name": "MSI", "description": "Microsatellite instable"},
+                "MSI": {"name": "MSI", "description": "Microsatellite unstable"},
                 "MSS": {"name": "MSS", "description": "Microsatellite stable"},
             }
         },
