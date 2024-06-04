@@ -135,6 +135,9 @@ class BiomarkerParser:
         )
         def wrapped_function(column_name: Column, biomarker: Column) -> dict | None:
             """This function returns a struct with the biomarker name and description."""
+            # If the biomarker is not applied on the given cell type the value is zero:
+            if biomarker == "0":
+                return None
 
             # If the biomarker value has a direct mapping:
             if "direct_mapping" in biomarker_map[column_name]:
@@ -280,7 +283,7 @@ class ValidationLabEvidenceParser:
                 "diseaseFromSourceMappedId",
                 "diseaseFromSource",
                 # Assessments:
-                f.lit(1.0).alias("resourceScore"),  # Resource score will come from VL.
+                "resourceScore",
                 "assessment",
                 "assays",
                 # Cell lines:
@@ -363,6 +366,7 @@ class ValidationLabProjectParser:
                 "targetFromSourceId",
                 "cellLineName",
                 "assessment",
+                "resourceScore",
                 "primaryProjectHit",
                 # Column from the assay parser:
                 "assays",
@@ -384,14 +388,17 @@ class ValidationLabProjectParser:
             # Extract cell-line name:
             f.col("cell_line_ID").alias("cellLineName"),
             # Extract VL assessment:
-            f.regexp_replace(f.col("OTVL Assessment"), r"\n", " ").alias("assessment"),
+            f.regexp_replace(f.col("OTVL_Assessment"), r"\n", " ").alias("assessment"),
             f.col("OTAR Primary Project Hit")
             .cast(t.BooleanType())
             .alias("primaryProjectHit"),
+            # Extract assessment score:
+            f.col("OTVL_Assessment_Score").cast(t.FloatType()).alias("resourceScore"),
             # Extract all assays:
             *[
                 f.col(assay["label"]).cast(t.BooleanType()).alias(assay["shortName"])
                 for assay in assays
+                if assay["label"] in raw_data.columns
             ],
         )
 
@@ -400,9 +407,12 @@ class ValidationLabProjectParser:
         raw_evidence_df: DataFrame, assays: list, spark: SparkSession
     ) -> DataFrame:
         """Organise experimental data into the right shape."""
-
-        # Generate unpivot expression:
-        assay_names = [assay["shortName"] for assay in assays]
+        # Generate unpivot expression - not all assays are present in the data, some project might done with fewer assays:
+        assay_names = [
+            assay["shortName"]
+            for assay in assays
+            if assay["shortName"] in raw_evidence_df.columns
+        ]
 
         unpivot_expression = f"""stack({len(assay_names)}, {', '.join([f"'{assay}', `{assay}`" for assay in assay_names])}) as (shortName, isHit)"""
 
