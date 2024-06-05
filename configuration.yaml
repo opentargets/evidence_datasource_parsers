@@ -94,7 +94,7 @@ OT_CRISPR:
   config: gs://otar013-ppp/PPP-evidence-configuration/raw_study_table.tsv
   outputBucket: gs://otar013-ppp/ot_crispr
 ValidationLab:
-  data_directory: gs://otar013-ppp/validation_lab/input_data/2022.05
+  data_directory: gs://otar013-ppp/validation_lab/input_data/2024.06
   config: gs://otar013-ppp/PPP-evidence-configuration/ValidationLab_config.json
   outputBucket: gs://otar013-ppp/validation_lab
 Encore:
