@@ -4,14 +4,13 @@
 import argparse
 from functools import reduce
 import logging
-import sys
 from typing import Optional
 
 from pyspark import SparkFiles
 from pyspark.sql import DataFrame, Column, SparkSession
-import pyspark.sql.functions as F
+import pyspark.sql.functions as f
 
-from common.evidence import initialize_sparksession, write_evidence_strings
+from common.evidence import initialize_logger, initialize_sparksession, write_evidence_strings
 from common.ontology import add_efo_mapping
 
 
@@ -39,19 +38,10 @@ def main(
     """
 
     # Logger initializer. If no log_file is specified, logs are written to stderr
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s %(module)s - %(funcName)s: %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
-    if log_file:
-        logging.config.fileConfig(filename=log_file)
-    else:
-        logging.StreamHandler(sys.stderr)
-    
+    logger = logging.getLogger(__name__)
     spark.sparkContext.addFile(adverse_events)
     spark.sparkContext.addFile(safety_risk)
-    logging.info("Remote files successfully added to the Spark Context.")
+    logger.info("Remote files successfully added to the Spark Context.")
 
     # Extract
     pgx_df = spark.read.json(pharmacogenetics)
@@ -62,7 +52,7 @@ def main(
     toxcast_df = process_toxcast(toxcast)
     aopwiki_df = process_aop(aopwiki)
     pgx_df = process_pharmacogenetics(spark, pgx_df, cache_dir)
-    logging.info("Data has been processed. Merging...")
+    logger.info("Data has been processed. Merging...")
 
     # Combine dfs and group evidence
     evidence_unique_cols = [
@@ -83,39 +73,39 @@ def main(
         # Collect biosample and study metadata by grouping on the unique evidence fields
         .groupBy(evidence_unique_cols)
         .agg(
-            F.collect_set(F.col("biosample")).alias("biosamples"),
-            F.collect_set(F.col("study")).alias("studies"),
-            F.collect_set(F.col("supporting_variation")).alias("supporting_variation"),
+            f.collect_set(f.col("biosample")).alias("biosamples"),
+            f.collect_set(f.col("study")).alias("studies"),
+            f.collect_set(f.col("supporting_variation")).alias("supporting_variation"),
         )
         .withColumn(
-            "biosamples", F.when(F.size("biosamples") != 0, F.col("biosamples"))
+            "biosamples", f.when(f.size("biosamples") != 0, f.col("biosamples"))
         )
         # Add the supporting variation to the study metadata for the PGx evidence
         .withColumn(
             "studies",
-            F.when(
-                F.col("datasource") == "PharmGKB",
-                F.transform(
-                    F.col("studies"),
-                    lambda x: F.struct(
-                        F.concat(
-                            F.lit("Genetic variation linked to this safety liability: "), F.array_join(F.col("supporting_variation"), ", ")
+            f.when(
+                f.col("datasource") == "PharmGKB",
+                f.transform(
+                    f.col("studies"),
+                    lambda x: f.struct(
+                        f.concat(
+                            f.lit("Genetic variation linked to this safety liability: "), f.array_join(f.col("supporting_variation"), ", ")
                         ).alias("description"),
                         x["name"].alias("name"),
                         x["type"].alias("type"),
                     ),
                 )
-            ).otherwise(F.col("studies")),
+            ).otherwise(f.col("studies")),
         )
-        .withColumn("studies", F.when(F.size("studies") != 0, F.col("studies")))
+        .withColumn("studies", f.when(f.size("studies") != 0, f.col("studies")))
         .drop("supporting_variation")
         .distinct()
     )
 
     # Write output
-    logging.info("Evidence strings have been processed. Saving...")
+    logger.info("Evidence strings have been processed. Saving...")
     write_evidence_strings(safety_df, output)
-    logging.info(
+    logger.info(
         f"{safety_df.count()} evidence of safety liabilities have been saved to {output}. Exiting."
     )
 
@@ -128,20 +118,20 @@ def process_aop(aopwiki: str) -> DataFrame:
     return (
         spark.read.json(aopwiki)
         # data bug: some events have the substring "NA" at the start - removal and trim the string
-        .withColumn("event", F.trim(F.regexp_replace(F.col("event"), "^NA", "")))
+        .withColumn("event", f.trim(f.regexp_replace(f.col("event"), "^NA", "")))
         # data bug: effects.direction need to be in lowercase, this field is an enum
         .withColumn(
             "effects",
-            F.transform(
-                F.col("effects"),
-                lambda x: F.struct(
-                    F.when(
+            f.transform(
+                f.col("effects"),
+                lambda x: f.struct(
+                    f.when(
                         x.direction == "Activation",
-                        F.lit("Activation/Increase/Upregulation"),
+                        f.lit("Activation/Increase/Upregulation"),
                     )
                     .when(
                         x.direction == "Inhibition",
-                        F.lit("Inhibition/Decrease/Downregulation"),
+                        f.lit("Inhibition/Decrease/Downregulation"),
                     )
                     .alias("direction"),
                     x.dosing.alias("dosing"),
@@ -149,7 +139,7 @@ def process_aop(aopwiki: str) -> DataFrame:
             ),
         )
         # I need to convert the biosamples array into a struct so that data is parsed the same way as the rest of the sources
-        .withColumn("biosample", F.explode_outer("biosamples"))
+        .withColumn("biosample", f.explode_outer("biosamples"))
     )
 
 
@@ -183,41 +173,41 @@ def process_adverse_events(adverse_events: str) -> DataFrame:
     ae_df = (
         spark.read.csv(adverse_events, sep="\t", header=True)
         .select(
-            F.col("ensemblId").alias("id"),
-            F.col("symptom").alias("event"),
-            F.col("efoId").alias("eventId"),
-            F.col("ref").alias("datasource"),
-            F.col("pmid").alias("literature"),
+            f.col("ensemblId").alias("id"),
+            f.col("symptom").alias("event"),
+            f.col("efoId").alias("eventId"),
+            f.col("ref").alias("datasource"),
+            f.col("pmid").alias("literature"),
             "url",
-            F.struct(
-                F.col("biologicalSystem").alias("tissueLabel"),
-                F.col("uberonCode").alias("tissueId"),
-                F.lit(None).alias("cellLabel"),
-                F.lit(None).alias("cellFormat"),
-                F.lit(None).alias("cellId"),
+            f.struct(
+                f.col("biologicalSystem").alias("tissueLabel"),
+                f.col("uberonCode").alias("tissueId"),
+                f.lit(None).alias("cellLabel"),
+                f.lit(None).alias("cellFormat"),
+                f.lit(None).alias("cellId"),
             ).alias("biosample"),
-            F.split(F.col("effect"), "_").alias("effects"),
+            f.split(f.col("effect"), "_").alias("effects"),
         )
         .withColumn(
             "effects",
-            F.struct(
-                F.when(
-                    F.col("effects")[0].contains("activation"),
-                    F.lit("Activation/Increase/Upregulation"),
+            f.struct(
+                f.when(
+                    f.col("effects")[0].contains("activation"),
+                    f.lit("Activation/Increase/Upregulation"),
                 )
                 .when(
-                    F.col("effects")[0].contains("inhibition"),
-                    F.lit("Inhibition/Decrease/Downregulation"),
+                    f.col("effects")[0].contains("inhibition"),
+                    f.lit("Inhibition/Decrease/Downregulation"),
                 )
                 .alias("direction"),
-                F.element_at(F.col("effects"), 2).alias("dosing"),
+                f.element_at(f.col("effects"), 2).alias("dosing"),
             ),
         )
     )
 
     # Multiple dosing effects need to be grouped in the same record.
     effects_df = ae_df.groupBy("id", "event", "datasource").agg(
-        F.collect_set(F.col("effects")).alias("effects")
+        f.collect_set(f.col("effects")).alias("effects")
     )
     ae_df = ae_df.drop("effects").join(
         effects_df, on=["id", "event", "datasource"], how="left"
@@ -254,34 +244,34 @@ def process_safety_risk(safety_risk: str) -> DataFrame:
     return (
         spark.read.csv(safety_risk, sep="\t", header=True)
         .select(
-            F.col("ensemblId").alias("id"),
+            f.col("ensemblId").alias("id"),
             "event",
             "eventId",
-            F.col("pmid").alias("literature"),
-            F.col("ref").alias("datasource"),
-            F.struct(
-                F.col("biologicalSystem").alias("tissueLabel"),
-                F.col("uberonId").alias("tissueId"),
-                F.lit(None).alias("cellLabel"),
-                F.lit(None).alias("cellFormat"),
-                F.lit(None).alias("cellId"),
+            f.col("pmid").alias("literature"),
+            f.col("ref").alias("datasource"),
+            f.struct(
+                f.col("biologicalSystem").alias("tissueLabel"),
+                f.col("uberonId").alias("tissueId"),
+                f.lit(None).alias("cellLabel"),
+                f.lit(None).alias("cellFormat"),
+                f.lit(None).alias("cellId"),
             ).alias("biosample"),
-            F.struct(
-                F.col("liability").alias("description"),
-                F.lit(None).alias("name"),
-                F.lit(None).alias("type"),
+            f.struct(
+                f.col("liability").alias("description"),
+                f.lit(None).alias("name"),
+                f.lit(None).alias("type"),
             ).alias("study"),
         )
         .withColumn(
             "event",
-            F.when(F.col("datasource").contains("Force"), "heart disease").when(
-                F.col("datasource").contains("Lamore"), "cardiac arrhythmia"
+            f.when(f.col("datasource").contains("Force"), "heart disease").when(
+                f.col("datasource").contains("Lamore"), "cardiac arrhythmia"
             ),
         )
         .withColumn(
             "eventId",
-            F.when(F.col("datasource").contains("Force"), "EFO_0003777").when(
-                F.col("datasource").contains("Lamore"), "EFO_0004269"
+            f.when(f.col("datasource").contains("Force"), "EFO_0003777").when(
+                f.col("datasource").contains("Lamore"), "EFO_0004269"
             ),
         )
     )
@@ -313,69 +303,63 @@ def process_toxcast(toxcast: str) -> DataFrame:
     """
 
     return spark.read.csv(toxcast, sep="\t", header=True).select(
-        F.trim(F.col("official_symbol")).alias("targetFromSourceId"),
-        F.col("biological_process_target").alias("event"),
+        f.trim(f.col("official_symbol")).alias("targetFromSourceId"),
+        f.col("biological_process_target").alias("event"),
         "eventId",
-        F.struct(
-            F.col("tissue").alias("tissueLabel"),
-            F.lit(None).alias("tissueId"),
-            F.col("cell_short_name").alias("cellLabel"),
-            F.col("cell_format").alias("cellFormat"),
-            F.lit(None).alias("cellId"),
+        f.struct(
+            f.col("tissue").alias("tissueLabel"),
+            f.lit(None).alias("tissueId"),
+            f.col("cell_short_name").alias("cellLabel"),
+            f.col("cell_format").alias("cellFormat"),
+            f.lit(None).alias("cellId"),
         ).alias("biosample"),
-        F.lit("ToxCast").alias("datasource"),
-        F.lit(
+        f.lit("ToxCast").alias("datasource"),
+        f.lit(
             "https://www.epa.gov/chemical-research/exploring-toxcast-data-downloadable-data"
         ).alias("url"),
-        F.struct(
-            F.col("assay_component_endpoint_name").alias("name"),
-            F.col("assay_component_desc").alias("description"),
-            F.col("assay_format_type").alias("type"),
+        f.struct(
+            f.col("assay_component_endpoint_name").alias("name"),
+            f.col("assay_component_desc").alias("description"),
+            f.col("assay_format_type").alias("type"),
         ).alias("study"),
     )
 
 def process_pharmacogenetics(spark: SparkSession, pgx_df: DataFrame, cache_dir: str) -> DataFrame:
     """Given the pharmacogenetics evidence, extract the evidence related to target toxicity."""
-    evidence_unique_cols = [
-        "id",
-        "event",
-        "datasource",
-        "url",
-    ]
     pgkb_url_template = "https://www.pharmgkb.org/search?query="
     pgx_safety = (
         pgx_df
         # Only interested in the evidence that is related to toxicity
-        .filter(F.col("pgxCategory") == "toxicity")
-        .filter((F.col("targetFromSourceId").isNotNull()) & (F.col("phenotypeText").isNotNull()))
+        .filter(f.col("pgxCategory") == "toxicity")
+        .filter((f.col("targetFromSourceId").isNotNull()) & (f.col("phenotypeText").isNotNull()))
         # Safety liabilities extraction
-        .filter(~(F.col("phenotypeText").contains("no significant association") | F.col("phenotypeText").contains("not associated with")))
-        .withColumn("event", clean_phenotype_to_describe_safety_event(F.col("phenotypeText")))
-        .filter(F.col("event") != "drug response")
+        .filter(~(f.col("phenotypeText").contains("no significant association") | f.col("phenotypeText").contains("not associated with")))
+        .withColumn("event", clean_phenotype_to_describe_safety_event(f.col("phenotypeText")))
+        .filter(f.col("event") != "drug response")
         # Explode evidence by the variation that supports the liability - this will be used to build the study metadata
-        .withColumn("supporting_variation", F.explode(
-                F.array_union(F.array("genotypeId"), F.array("haplotypeId")),
+        .withColumn("supporting_variation", f.explode(
+                f.array_union(f.array("genotypeId"), f.array("haplotypeId")),
             )
         )
         # Define unaggregated target/event pairs
         .select(
-            F.col("targetFromSourceId").alias("id"),
+            f.col("targetFromSourceId").alias("id"),
             "event",
-            F.lit("PharmGKB").alias("datasource"),
-            F.concat(F.lit(pgkb_url_template), F.col("targetFromSourceId")).alias("url"),
+            f.lit("PharmGKB").alias("datasource"),
+            f.concat(f.lit(pgkb_url_template), f.col("targetFromSourceId")).alias("url"),
             # To build study metadata later - each study is a drug after which the phenotype was observed
-            F.explode(F.col("drugs.drugFromSource")).alias("drugFromSource"),
+            f.explode(f.col("drugs.drugFromSource")).alias("drugFromSource"),
             "supporting_variation",
         )
         .withColumn(
-            "study", F.struct(
-                F.concat(F.col("drugFromSource"), F.lit(" induced effect")).alias("name"),
-                F.lit("patient-level").alias("type"),
+            "study", f.struct(
+                f.concat(f.col("drugFromSource"), f.lit(" induced effect")).alias("name"),
+                f.lit("patient-level").alias("type"),
             )
         )
     )
     return add_efo_mapping(
-        pgx_safety.select("*", F.col("event").alias("diseaseFromSource"), F.lit(None).alias("diseaseFromSourceId")),
+        pgx_safety.select("*", f.col("event").alias("diseaseFromSource"), f.lit(None).alias("diseaseFromSourceId")),
         spark,
         cache_dir
     ).withColumnRenamed("diseaseFromSourceMappedId", "eventId").drop("diseaseFromSource")
@@ -397,12 +381,12 @@ def clean_phenotype_to_describe_safety_event(phenotype_col_name: Column) -> Colu
         "risk": "drug toxicity"
     }
 
-    cleaned_col = F.regexp_replace(phenotype_col_name, words_to_remove, "")
-    cleaned_col = F.regexp_extract(cleaned_col, pattern, 1)
-    cleaned_col = F.trim(F.regexp_replace(cleaned_col, "\\s+", " "))
+    cleaned_col = f.regexp_replace(phenotype_col_name, words_to_remove, "")
+    cleaned_col = f.regexp_extract(cleaned_col, pattern, 1)
+    cleaned_col = f.trim(f.regexp_replace(cleaned_col, "\\s+", " "))
   
     for original, replacement in replacements.items():
-        cleaned_col = F.when(cleaned_col == original, F.lit(replacement)).otherwise(cleaned_col)
+        cleaned_col = f.when(cleaned_col == original, f.lit(replacement)).otherwise(cleaned_col)
 
     return cleaned_col
 
@@ -467,6 +451,7 @@ if __name__ == "__main__":
     args = get_parser().parse_args()
 
     spark = initialize_sparksession()
+    initialize_logger(__name__, args.log_file)
     main(
         spark,
         toxcast=args.toxcast,
