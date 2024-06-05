@@ -107,5 +107,5 @@ CrisprScreens:
 Pharmacogenetics:
   evidence: gs://otar012-eva/pharmacogenomics/cttv012-2024-05-08.json.gz
   phenotypes: pharmacogenetics/pharmgkb_phenotypes.json
-  outputBucket: gs://otar012-eva/pharmacogenomics
+  outputBucket: gs://otar001-core/Pharmacogenetics/json
   schema: schemas/pharmacogenomics.json
