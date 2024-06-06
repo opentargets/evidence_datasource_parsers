@@ -104,3 +104,8 @@ Encore:
 CrisprScreens:
   outputBucket: gs://otar000-evidence_input/Crispr_screens/json
   crispr_brain_mapping: mappings/disease/brain_crispr_studies.tsv
+Pharmacogenetics:
+  evidence: gs://otar012-eva/pharmacogenomics/cttv012-2024-05-08.json.gz
+  phenotypes: pharmacogenetics/pharmgkb_phenotypes.json
+  outputBucket: gs://otar001-core/Pharmacogenetics/json
+  schema: schemas/pharmacogenomics.json
