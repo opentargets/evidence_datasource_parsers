@@ -224,9 +224,9 @@ class cancerBiomarkersEvidenceGenerator:
                     'GO_0010467'
                 )
             )
-            # Create variant struct
+            # Create geneticVariation struct
             .withColumn(
-                'variant',
+                'geneticVariation',
                 when(
                     col('alteration_type') != 'EXPR',
                     struct(
@@ -259,7 +259,7 @@ class cancerBiomarkersEvidenceGenerator:
             # confidence, literature and urls populated above
             .withColumnRenamed('gene', 'targetFromSourceId')
             .withColumnRenamed('Biomarker', 'biomarkerName')
-            # variant, geneExpression populated above
+            # geneticVariation, geneExpression populated above
             .drop(
                 'tumor_type', 'source', 'alteration', 'alteration_type', 'IndividualMutation', 'geneExpressionId',
                 'gDNA', 'functionalConsequenceId', 'variantId', 'DrugFullName', 'niceName', 'url')
@@ -274,25 +274,25 @@ class cancerBiomarkersEvidenceGenerator:
             .agg(
                 collect_set('literature').alias('literature'),
                 collect_set('urls').alias('urls'),
-                collect_set('variant').alias('variant'),
+                collect_set('geneticVariation').alias('geneticVariation'),
                 collect_set('geneExpression').alias('geneExpression'),
             )
             # Replace empty lists with null values
             .withColumn('literature', when(size(col('literature')) == 0, lit(None)).otherwise(col('literature')))
             .withColumn('urls', when(size(col('urls')) == 0, lit(None)).otherwise(col('urls')))
-            .withColumn('variant', when(size(col('variant')) == 0, lit(None)).otherwise(col('variant')))
+            .withColumn('geneticVariation', when(size(col('geneticVariation')) == 0, lit(None)).otherwise(col('geneticVariation')))
             .withColumn(
                 'geneExpression',
                 when(size(col('geneExpression')) == 0, lit(None))
                 .otherwise(col('geneExpression')))
-            # Collect variant info into biomarkers struct
+            # Collect geneticVariation info into biomarkers struct
             .withColumn(
                 'biomarkers',
                 struct(
-                    'variant',
+                    'geneticVariation',
                     'geneExpression'
                 ))
-            .drop('variant', 'geneExpression')
+            .drop('geneticVariation', 'geneExpression')
             .distinct()
         )
 
