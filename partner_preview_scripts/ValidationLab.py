@@ -260,7 +260,7 @@ class ValidationLabEvidenceParser:
                 "diseaseFromSource",
                 # Assessments:
                 "resourceScore",
-                "assessment",
+                "assessments",
                 "assays",
                 # Cell lines:
                 f.array(
@@ -326,9 +326,9 @@ class ValidationLabProjectParser:
                 f.col("gene_ID").alias("targetFromSourceId"),
                 # Extract cell-line name:
                 f.col("cell_line_ID").alias("cellLineName"),
-                # Extract VL assessment:
-                f.regexp_replace(f.col("OTVL_Assessment"), r"\n", " ").alias(
-                    "assessment"
+                # Extract VL assessments:
+                f.split(f.col("OTVL_Assessment"), r"\n").alias(
+                    "assessments"
                 ),
                 f.col("OTAR Primary Project Hit")
                 .cast(t.BooleanType())
@@ -370,7 +370,7 @@ class ValidationLabProjectParser:
                 # Columns from the raw evidence file:
                 "targetFromSourceId",
                 "cellLineName",
-                "assessment",
+                "assessments",
                 "resourceScore",
                 "primaryProjectHit",
                 # Column from the assay parser:
