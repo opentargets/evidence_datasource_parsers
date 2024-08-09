@@ -345,3 +345,14 @@ def read_ppp_config(config_path: str) -> dict:
             raise e(f"Could not read parameter file. {config_path}")
 
     return parameters
+
+def apply_bonferroni_correction(n_tests: int) -> float:
+    """Multiple test correction based on the number of tests.
+    
+    Args:
+        n_tests (int): Number of hypotheses testes assuming they are independent
+
+    Returns:
+        float: new statistical significance level
+    """
+    return 0.05 / n_tests

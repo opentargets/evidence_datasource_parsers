@@ -4,7 +4,7 @@ global:
   schema: https://raw.githubusercontent.com/opentargets/json_schema/2.7.3
   EFOVersion: v3.65.0
   cell_passport_file: https://cog.sanger.ac.uk/cmp/download/model_list_latest.csv.gz
-  curation_repo: https://raw.githubusercontent.com/opentargets/curation/24.06
+  curation_repo: https://raw.githubusercontent.com/opentargets/curation/24.09
 baselineExpression:
   gtexSourceDataPath: https://storage.googleapis.com/adult-gtex/bulk-gex/v8/rna-seq/GTEx_Analysis_2017-06-05_v8_RNASeQCv1.1.9_gene_median_tpm.gct.gz
   tissueNameToUberonMappingPath: mappings/biosystem/gtex_v8_tissues.tsv
@@ -37,6 +37,8 @@ GeneBurden:
   azPhewasQuantitative: gs://otar000-evidence_input/GeneBurden/data_files/azphewas-com-470k-phewas-quantitative
   azPhewasGenesLinks: gs://otar000-evidence_input/GeneBurden/data_files/azphewas_com_genes_UK_Biobank_470k.csv
   azPhewasPhenotypesLinks: gs://otar000-evidence_input/GeneBurden/data_files/azphewas_com_phenotypes_UK_Biobank_470k.csv
+  finngen: gs://finngen-public-data-r11/lof_2.0/data/finngen_R11_lof.txt
+  finngenManifest: https://r11.finngen.fi/api/phenos
   curation: gene_burden/curated_evidence.tsv
   genebass: gs://otar000-evidence_input/GeneBurden/data_files/genebass_entries
   outputBucket: gs://otar000-evidence_input/GeneBurden/json
