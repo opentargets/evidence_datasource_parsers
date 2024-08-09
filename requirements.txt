@@ -3,7 +3,7 @@ google-api-python-client==2.74.0
 google-cloud-storage==2.7.0
 google-crc32c==1.5.0
 numpy==1.24.1
-ontoma==1.1.0
+ontoma==1.1.2
 openpyxl==3.1.2
 opentargets-validator==1.0.0
 pandarallel==1.6.4
