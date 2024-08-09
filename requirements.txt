@@ -14,3 +14,4 @@ requests==2.32.0
 retry2==0.9.5
 snakemake==7.20.0
 openai==1.8
+PuLP==2.7.0
