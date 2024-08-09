@@ -116,52 +116,18 @@ def generate_evidence(
     return enriched_pharmgkb_df
 
 def add_variantid_column(input_df: DataFrame) -> DataFrame:
-    """ Adds a variantId column to the dataset"""
-    output_df = (
+    """Based on the content of the genotypeId column, adds a variantId column to the dataset"""
+    return (
         input_df
-        # extract chr_pos_ref_allele1_allele2 elements
-        .withColumn("chr", f.regexp_extract(f.col("genotypeId"), r"^([0-9YX]{1,2})_(\d+)_([GATC]+)_([GATC]+),([GATC]+)$", 1))
-        .withColumn("pos", f.regexp_extract(f.col("genotypeId"), r"^([0-9YX]{1,2})_(\d+)_([GATC]+)_([GATC]+),([GATC]+)$", 2))
-        .withColumn("ref", f.regexp_extract(f.col("genotypeId"), r"^([0-9YX]{1,2})_(\d+)_([GATC]+)_([GATC]+),([GATC]+)$", 3))
-        .withColumn("allele1", f.regexp_extract(f.col("genotypeId"), r"^([0-9YX]{1,2})_(\d+)_([GATC]+)_([GATC]+),([GATC]+)$", 4))
-        .withColumn("allele2", f.regexp_extract(f.col("genotypeId"), r"^([0-9YX]{1,2})_(\d+)_([GATC]+)_([GATC]+),([GATC]+)$", 5))
-        # concatenate relevant elements to form new variantId column. entries are arrays to accommodate biallelic case
-        .withColumn(
-            "variantId",
-            # if allele1 == allele2, doesn't matter if they are ref,ref or alt,alt
-            # also need to check that alleles are not empty strings, which happens when genotypeId is already in the chr_pos_ref_alt format,
-            # which does not satisfy the regex above but empty strings are still captured
-            f.when(
-                ((f.col("allele1") == f.col("allele2")) & ((f.col("allele1") != ''))),
-                f.array(f.concat_ws('_', f.col("chr"), f.col("pos"), f.col("ref"), f.col("allele1")))
-            )
-            # if allele1 != allele2 & allele1 != ref & allele2 == ref, means allele1 is alt - take that
-            .when(
-                ((f.col("allele1") != f.col("allele2")) & (f.col("allele1") != f.col("ref")) & (f.col("allele2") == f.col("ref"))),
-                f.array(f.concat_ws('_', f.col("chr"), f.col("pos"), f.col("ref"), f.col("allele1")))
-            )
-            # if allele1 != allele2 & allele1 == ref & allele2 != ref, means allele2 is alt - take that
-            .when(
-                ((f.col("allele1") != f.col("allele2")) & (f.col("allele1") == f.col("ref")) & (f.col("allele2") != f.col("ref"))),
-                f.array(f.concat_ws('_', f.col("chr"), f.col("pos"), f.col("ref"), f.col("allele2")))
-            )
-            # if allele1 != allele2 & allele1 != ref & allele2 != ref, means both allele1 and allele2 are alt - capture both cases as array
-            .when(
-                ((f.col("allele1") != f.col("allele2")) & (f.col("allele1") != f.col("ref")) & (f.col("allele2") != f.col("ref"))),
-                f.array(
-                    f.concat_ws('_', f.col("chr"), f.col("pos"), f.col("ref"), f.col("allele1")),
-                    f.concat_ws('_', f.col("chr"), f.col("pos"), f.col("ref"), f.col("allele2"))
-                )
-            )
-            # where genotypeId is already in the chr_pos_ref_alt format
-            .otherwise(f.array(f.col("genotypeId")))
-        )
-        # drop temporary columns created above
-        .drop("chr", "pos", "ref", "allele1", "allele2")
-        # explode variantId column - applies to biallelic case
-        .withColumn('variantId', f.explode(f.col('variantId')))
+        # split genotypeId column into chr pos ref alt columns
+        .select("genotypeId", f.from_csv(f.col("genotypeId"), "chr string, pos string, ref string, alt string", {'sep': '_'}).alias("genotype_split"))
+        .select("genotypeId", "genotype_split.*").toDF("genotypeId", "chr", "pos", "ref", "alt")
+        # split alt column and explode
+        .withColumn("alt", f.explode(f.split(f.col("alt"), ',')))
+        .filter(~(f.col("ref") == f.col("alt")))
+        .select("genotypeId", f.concat_ws('_', f.col("chr"), f.col("pos"), f.col("ref"), f.col("alt")).alias("variantId"))
+        .join(input_df, on="genotypeId", how="right")
     )
-    return output_df
 
 def get_parser():
     """Get parser object for script pharmgkb.py."""
