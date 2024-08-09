@@ -115,6 +115,20 @@ def generate_evidence(
     assert enriched_pharmgkb_df.count() >= pharmgkb_df.count(), "There are fewer evidence after processing."
     return enriched_pharmgkb_df
 
+def add_variantid_column(input_df: DataFrame) -> DataFrame:
+    """Based on the content of the genotypeId column, adds a variantId column to the dataset"""
+    return (
+        input_df
+        # split genotypeId column into chr pos ref alt columns
+        .select("genotypeId", f.from_csv(f.col("genotypeId"), "chr string, pos string, ref string, alt string", {'sep': '_'}).alias("genotype_split"))
+        .select("genotypeId", "genotype_split.*").toDF("genotypeId", "chr", "pos", "ref", "alt")
+        # split alt column and explode
+        .withColumn("alt", f.explode(f.split(f.col("alt"), ',')))
+        .filter(~(f.col("ref") == f.col("alt")))
+        .select("genotypeId", f.concat_ws('_', f.col("chr"), f.col("pos"), f.col("ref"), f.col("alt")).alias("variantId"))
+        .join(input_df, on="genotypeId", how="right")
+    )
+
 def get_parser():
     """Get parser object for script pharmgkb.py."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -182,6 +196,8 @@ if __name__ == "__main__":
     unparsed_texts = pgx_df.filter(f.col("phenotypeText").isNull()).select("genotypeAnnotationText").distinct()
     if unparsed_texts.count() == 0:
         logging.info("All evidence have been correctly parsed.")
+        pgx_df = add_variantid_column(pgx_df)
+        logging.info("Added variantId column.")
         write_evidence_strings(pgx_df, args.output_evidence_path)
         logging.info(f"{pgx_df.count()} evidence strings have been saved to {args.output_evidence_path}. Exiting.")
         
@@ -202,6 +218,8 @@ if __name__ == "__main__":
             updated_phenotypes_df,
             args.cache_dir
         )
+        pgx_df = add_variantid_column(pgx_df)
+        logging.info("Added variantId column.")
         write_evidence_strings(pgx_df, args.output_evidence_path)
         logging.info(f"{pgx_df.count()} evidence strings have been saved to {args.output_evidence_path}. Exiting.")
 
