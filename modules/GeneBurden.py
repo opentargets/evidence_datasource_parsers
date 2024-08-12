@@ -64,7 +64,7 @@ def process_finngen_gene_burden(spark: SparkSession, finngen_data: str, finngen_
         )
         .withColumn(
             "resourceScore",
-            10**-f.col("LOG10P")
+            10**-f.col("LOG10P").cast("float")
         )
         .withColumn(
             "pValueExponent",
@@ -79,9 +79,9 @@ def process_finngen_gene_burden(spark: SparkSession, finngen_data: str, finngen_
         .select(
             f.lit("finnish").alias("ancestry"),
             f.lit("HANCESTRO_0321").alias("ancestryId"),
-            f.col("BETA").alias("beta"),
-            (f.col("BETA") - f.col("SE")).alias("betaConfidenceIntervalLower"),
-            (f.col("BETA") + f.col("SE")).alias("betaConfidenceIntervalUpper"),
+            f.col("BETA").alias("beta").cast("float"),
+            (f.col("BETA") - f.col("SE")).alias("betaConfidenceIntervalLower").cast("float"),
+            (f.col("BETA") + f.col("SE")).alias("betaConfidenceIntervalUpper").cast("float"),
             f.lit("FinnGen R11").alias("cohortId"),
             f.lit("genetic_association").alias("datatypeId"),
             f.col("diseaseFromSource"),
