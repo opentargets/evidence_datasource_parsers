@@ -77,6 +77,7 @@ def process_finngen_gene_burden(spark: SparkSession, finngen_data: str, finngen_
             )
         )
         .select(
+            f.lit("gene_burden").alias("datasourceId"),
             f.lit("finnish").alias("ancestry"),
             f.lit("HANCESTRO_0321").alias("ancestryId"),
             f.col("BETA").alias("beta").cast("float"),
