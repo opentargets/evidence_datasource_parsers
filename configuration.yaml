@@ -17,7 +17,7 @@ cancerBiomarkers:
   drugIndex: gs://open-targets-data-releases/22.11/output/etl/parquet/molecule
   outputBucket: gs://otar000-evidence_input/CancerBiomarkers/json
 ChEMBL:
-  evidence: gs://otar008-chembl/cttv008_17-05-2024.json.gz
+  evidence: gs://otar008-chembl/cttv008_2024-08-09.json.gz
   stopReasonCategories: gs://otar000-evidence_input/ChEMBL/data_files/chembl_predictions-2024-05-20.json
   outputBucket: gs://otar000-evidence_input/ChEMBL/json
 ClinGen:
