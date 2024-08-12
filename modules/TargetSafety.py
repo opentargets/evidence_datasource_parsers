@@ -49,7 +49,7 @@ def main(
         process_toxcast(toxcast),
         process_aop(aopwiki),
         process_pharmacogenetics(spark, spark.read.json(pharmacogenetics), cache_dir),
-        spark.read.json(brennan),
+        process_brennan(spark.read.json(brennan)),
     ]
     logger.info("Data has been processed. Merging...")
 
@@ -212,6 +212,16 @@ def process_adverse_events(adverse_events: str) -> DataFrame:
 
     return ae_df
 
+def process_brennan(brennan_df: DataFrame) -> DataFrame:
+    """Loads and processes the Brennan input JSON prepared by the Target Safety team."""
+    
+    # effects need to be an array
+    if isinstance(brennan_df.schema["effects"].dataType, StructType):
+        effects_expr = f.array(f.col("effects"))
+    elif isinstance(brennan_df.schema["effects"].dataType, ArrayType):
+        effects_expr = f.col("effects")
+
+    return brennan_df.withColumn("effects", effects_expr)
 
 def process_safety_risk(safety_risk: str) -> DataFrame:
     """
