@@ -32,8 +32,8 @@ ALL_FILES = [
     ('SkinG2P.csv.gz', GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/SkinG2P-{timeStamp}.csv.gz")),
     ('CancerG2P.csv.gz', GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/CancerG2P-{timeStamp}.csv.gz")),
     ('SkeletalG2P.csv.gz', GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/SkeletalG2P-{timeStamp}.csv.gz")),
-    ('pd_export_01_2023_probes_standardized.xlsx', GS.remote(f"{config['ChemicalProbes']['inputBucket']}/pd_export_01_2023_probes_standardized-{timeStamp}.xlsx")),
-    ('pd_export_01_2023_links_standardized.csv', GS.remote(f"{config['ChemicalProbes']['inputBucket']}/pd_export_01_2023_links_standardized-{timeStamp}.csv")),
+    (config['ChemicalProbes']['probesExcelDump'], GS.remote(f"{config['ChemicalProbes']['inputBucket']}/config['ChemicalProbes']['probesExcelDump']-{timeStamp}.xlsx")),
+    (config['ChemicalProbes']['probesMappingsTable'], GS.remote(f"{config['ChemicalProbes']['inputBucket']}/config['ChemicalProbes']['probesMappingsTable']-{timeStamp}.csv")),
     ('intogen.json.gz', GS.remote(f"{config['intOGen']['outputBucket']}/intogen-{timeStamp}.json.gz")),
     ('orphanet.json.gz', GS.remote(f"{config['Orphanet']['outputBucket']}/orphanet-{timeStamp}.json.gz")),
     ('genomics_england.json.gz', GS.remote(f"{config['PanelApp']['outputBucket']}/genomics_england-{timeStamp}.json.gz")),
@@ -475,8 +475,8 @@ rule crisprScreens:           # Generating disease/target evidence based on vari
 
 rule chemicalProbes:          # Process data from the Probes&Drugs portal.
     input:
-        rawProbesExcel = HTTP.remote(config['ChemicalProbes']['probesExcelDump']),
-        probesXrefsTable = HTTP.remote(config['ChemicalProbes']['probesMappingsTable'])
+        rawProbesExcel = HTTP.remote(f"https://www.probes-drugs.org/media/download/probes/{config['ChemicalProbes']['probesExcelDump']}"),
+        probesXrefsTable = HTTP.remote(f"https://www.probes-drugs.org/media/download/id_mapping/{config['ChemicalProbes']['probesMappingsTable']}")
     params:
         schema = f"{config['global']['schema']}/schemas/chemical_probes.json"
     output:
@@ -486,9 +486,6 @@ rule chemicalProbes:          # Process data from the Probes&Drugs portal.
     shell:
         """
         exec &> {log}
-        # Retain the inputs. They will be later uploaded to GCS.
-        cp {input.rawProbesExcel} {output.rawProbesExcel}
-        cp {input.probesXrefsTable} {output.probesXrefsTable}
         python modules/chemicalProbes.py \
             --probes_excel_path {input.rawProbesExcel} \
             --probes_mappings_path {input.probesXrefsTable} \

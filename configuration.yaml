@@ -87,8 +87,8 @@ TargetSafety:
   aopwiki: gs://otar001-core/TargetSafety/data_files/aopwiki/aopwiki-2023-01-20.json
   outputBucket: gs://otar001-core/TargetSafety/json
 ChemicalProbes:
-  probesExcelDump: https://www.probes-drugs.org/media/download/probes/pd_export_01_2024_probes_standardized.xlsx
-  probesMappingsTable: https://www.probes-drugs.org/media/download/id_mapping/pd_export_01_2024_links_standardized.csv
+  probesExcelDump: pd_export_01_2024_probes_standardized.xlsx
+  probesMappingsTable: pd_export_01_2024_links_standardized.csv
   inputBucket: gs://otar001-core/ChemicalProbes/data_files
   outputBucket: gs://otar001-core/ChemicalProbes/annotation
 OT_CRISPR:
