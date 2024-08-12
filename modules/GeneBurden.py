@@ -64,14 +64,25 @@ def process_finngen_gene_burden(spark: SparkSession, finngen_data: str, finngen_
         )
         .withColumn(
             "resourceScore",
-            10**-f.col("LOG10P")
+            10**-f.col("LOG10P").cast("float")
+        )
+        .withColumn(
+            "pValueExponent",
+            f.log10(f.col("resourceScore")).cast("int") - f.lit(1)
+        )
+        .withColumn(
+            "pValueMantissa",
+            f.round(
+                f.col("resourceScore") / f.pow(f.lit(10), f.col("pValueExponent")), 3
+            )
         )
         .select(
+            f.lit("gene_burden").alias("datasourceId"),
             f.lit("finnish").alias("ancestry"),
             f.lit("HANCESTRO_0321").alias("ancestryId"),
-            f.col("BETA").alias("beta"),
-            (f.col("BETA") - f.col("SE")).alias("betaConfidenceIntervalLower"),
-            (f.col("BETA") + f.col("SE")).alias("betaConfidenceIntervalUpper"),
+            f.col("BETA").alias("beta").cast("float"),
+            (f.col("BETA") - f.col("SE")).alias("betaConfidenceIntervalLower").cast("float"),
+            (f.col("BETA") + f.col("SE")).alias("betaConfidenceIntervalUpper").cast("float"),
             f.lit("FinnGen R11").alias("cohortId"),
             f.lit("genetic_association").alias("datatypeId"),
             f.col("diseaseFromSource"),
@@ -79,10 +90,8 @@ def process_finngen_gene_burden(spark: SparkSession, finngen_data: str, finngen_
             f.col("diseaseFromSourceMappedId"),
             f.lit("FinnGen").alias("projectId"),
             f.col("resourceScore"),
-            (f.log10(f.col("resourceScore")).cast("int") - f.lit(1)).alias("pValueExponent"),
-            f.round(
-                f.col("resourceScore") / f.pow(f.lit(10), f.col("pValueExponent")), 3
-            ).alias("pValueMantissa"),
+            f.col("pValueExponent"),
+            f.col("pValueMantissa"),
             f.lit("R11").alias("releaseVersion"),
             f.lit("LoF burden").alias("statisticalMethod"),
             f.lit("Burden test carried out with LoF variants with MAF smaller than 1%.").alias("statisticalMethodOverview"),
