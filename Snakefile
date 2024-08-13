@@ -480,12 +480,17 @@ rule chemicalProbes:          # Process data from the Probes&Drugs portal.
     params:
         schema = f"{config['global']['schema']}/schemas/chemical_probes.json"
     output:
+        rawProbesExcel = config['ChemicalProbes']['probesExcelDump'],
+        probesXrefsTable = config['ChemicalProbes']['probesMappingsTable'],
         evidenceFile = 'chemicalProbes.json.gz'
     log:
         'log/chemicalProbes.log'
     shell:
         """
         exec &> {log}
+        # Retain the inputs. They will be later uploaded to GCS.
+        cp {input.rawProbesExcel} {output.rawProbesExcel}
+        cp {input.probesXrefsTable} {output.probesXrefsTable}
         python modules/chemicalProbes.py \
             --probes_excel_path {input.rawProbesExcel} \
             --probes_mappings_path {input.probesXrefsTable} \
