@@ -218,7 +218,7 @@ def process_brennan(brennan_df: DataFrame) -> DataFrame:
     """Loads and processes the Brennan input JSON prepared by the Target Safety team."""
 
     return (
-        brennan
+        brennan_df
         .withColumn(
             "effects",
             f.array(
