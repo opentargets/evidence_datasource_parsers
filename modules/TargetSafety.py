@@ -216,16 +216,26 @@ def process_adverse_events(adverse_events: str) -> DataFrame:
 
 def process_brennan(brennan_df: DataFrame) -> DataFrame:
     """Loads and processes the Brennan input JSON prepared by the Target Safety team."""
-    
-    # effects need to be an array
-    if isinstance(brennan_df.schema["effects"].dataType, StructType):
-        effects_expr = f.array(f.col("effects"))
-    elif isinstance(brennan_df.schema["effects"].dataType, ArrayType):
-        effects_expr = f.col("effects")
 
     return (
-        brennan_df
-        .withColumn("effects", effects_expr)
+        brennan
+        .withColumn(
+            "effects",
+            f.array(
+                f.struct(
+                    f.when(
+                    f.col("effects.direction") == "Activation",
+                    f.lit("Activation/Increase/Upregulation")
+                    ).when(
+                        f.col("effects.direction") == "Inhibition",
+                        f.lit("Inhibition/Decrease/Downregulation")
+                    )
+                    .otherwise(f.col("effects.direction"))
+                    .alias("direction"),
+                    f.col("effects.dosing")
+                )
+            )
+        )
         .withColumnRenamed("studies", "study")
         .withColumnRenamed("biosamples", "biosample")
         .withColumnRenamed("id", "targetFromSourceId")
