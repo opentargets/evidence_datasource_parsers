@@ -599,6 +599,7 @@ rule targetSafety:            # Process data from different sources that describ
         toxcast = GS.remote(config['TargetSafety']['toxcast']),
         aopwiki = GS.remote(config['TargetSafety']['aopwiki']),
         pharmacogenetics = rules.Pharmacogenetics.output.evidence,
+        brennan = GS.remote(config['TargetSafety']['brennan']),
     params:
         ae = f"{config['global']['curation_repo']}/{config['TargetSafety']['adverseEvents']}",
         sr = f"{config['global']['curation_repo']}/{config['TargetSafety']['safetyRisk']}",
@@ -617,6 +618,7 @@ rule targetSafety:            # Process data from different sources that describ
             --toxcast {input.toxcast} \
             --aopwiki {input.aopwiki} \
             --pharmacogenetics {input.pharmacogenetics} \
+            --brennan {input.brennan} \
             --cache_dir {params.cache_dir} \
             --output {output}
         opentargets_validator --schema {params.schema} {output}
