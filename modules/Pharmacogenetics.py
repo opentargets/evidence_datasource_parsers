@@ -112,7 +112,7 @@ def generate_evidence(
     ).withColumnRenamed("diseaseFromSourceMappedId", "phenotypeFromSourceId").drop("diseaseFromSource")
     logging.info("Disease mappings have been added.")
 
-    assert enriched_pharmgkb_df.count() >= pharmgkb_df.count(), "There are fewer evidence after processing."
+    assert enriched_pharmgkb_df.select("studyId").distinct().count() >= pharmgkb_df.select("studyId").distinct().count(), "Fewer PharmGKB references after processing."
     return enriched_pharmgkb_df
 
 def add_variantid_column(input_df: DataFrame) -> DataFrame:

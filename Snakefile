@@ -32,8 +32,8 @@ ALL_FILES = [
     ('SkinG2P.csv.gz', GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/SkinG2P-{timeStamp}.csv.gz")),
     ('CancerG2P.csv.gz', GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/CancerG2P-{timeStamp}.csv.gz")),
     ('SkeletalG2P.csv.gz', GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/SkeletalG2P-{timeStamp}.csv.gz")),
-    ('pd_export_01_2023_probes_standardized.xlsx', GS.remote(f"{config['ChemicalProbes']['inputBucket']}/pd_export_01_2023_probes_standardized-{timeStamp}.xlsx")),
-    ('pd_export_01_2023_links_standardized.csv', GS.remote(f"{config['ChemicalProbes']['inputBucket']}/pd_export_01_2023_links_standardized-{timeStamp}.csv")),
+    (config['ChemicalProbes']['probesExcelDump'], GS.remote(f"{config['ChemicalProbes']['inputBucket']}/config['ChemicalProbes']['probesExcelDump']-{timeStamp}.xlsx")),
+    (config['ChemicalProbes']['probesMappingsTable'], GS.remote(f"{config['ChemicalProbes']['inputBucket']}/config['ChemicalProbes']['probesMappingsTable']-{timeStamp}.csv")),
     ('intogen.json.gz', GS.remote(f"{config['intOGen']['outputBucket']}/intogen-{timeStamp}.json.gz")),
     ('orphanet.json.gz', GS.remote(f"{config['Orphanet']['outputBucket']}/orphanet-{timeStamp}.json.gz")),
     ('genomics_england.json.gz', GS.remote(f"{config['PanelApp']['outputBucket']}/genomics_england-{timeStamp}.json.gz")),
@@ -234,7 +234,7 @@ rule geneBurden:              # Processes gene burden data from various burden a
         azPhenoLinks = GS.remote(config['GeneBurden']['azPhewasPhenotypesLinks']),
         curation = HTTP.remote(f"{config['global']['curation_repo']}/{config['GeneBurden']['curation']}"),
         genebass = GS.remote(config['GeneBurden']['genebass']),
-        finngen = GS.remote(config['GeneBurden']['finngen'])
+        finngen = GS.remote(config['GeneBurden']['finngen']),
         finngen_manifest = HTTP.remote(f"{config['GeneBurden']['finngenManifest']}")
     output:
         evidenceFile = "gene_burden.json.gz"
@@ -253,7 +253,7 @@ rule geneBurden:              # Processes gene burden data from various burden a
             --curated_data {input.curation} \
             --genebass_data {input.genebass} \
             --finngen_data {input.finngen} \
-            --finngen_manifest {params.finngen_manifest} \
+            --finngen_manifest {input.finngen_manifest} \
             --output {output.evidenceFile}
         opentargets_validator --schema {params.schema} {output.evidenceFile}
         """
@@ -475,8 +475,8 @@ rule crisprScreens:           # Generating disease/target evidence based on vari
 
 rule chemicalProbes:          # Process data from the Probes&Drugs portal.
     input:
-        rawProbesExcel = HTTP.remote(config['ChemicalProbes']['probesExcelDump']),
-        probesXrefsTable = HTTP.remote(config['ChemicalProbes']['probesMappingsTable'])
+        rawProbesExcel = HTTP.remote(f"https://www.probes-drugs.org/media/download/probes/{config['ChemicalProbes']['probesExcelDump']}"),
+        probesXrefsTable = HTTP.remote(f"https://www.probes-drugs.org/media/download/id_mapping/{config['ChemicalProbes']['probesMappingsTable']}")
     params:
         schema = f"{config['global']['schema']}/schemas/chemical_probes.json"
     output:
@@ -486,9 +486,6 @@ rule chemicalProbes:          # Process data from the Probes&Drugs portal.
     shell:
         """
         exec &> {log}
-        # Retain the inputs. They will be later uploaded to GCS.
-        cp {input.rawProbesExcel} {output.rawProbesExcel}
-        cp {input.probesXrefsTable} {output.probesXrefsTable}
         python modules/chemicalProbes.py \
             --probes_excel_path {input.rawProbesExcel} \
             --probes_mappings_path {input.probesXrefsTable} \
@@ -602,6 +599,7 @@ rule targetSafety:            # Process data from different sources that describ
         toxcast = GS.remote(config['TargetSafety']['toxcast']),
         aopwiki = GS.remote(config['TargetSafety']['aopwiki']),
         pharmacogenetics = rules.Pharmacogenetics.output.evidence,
+        brennan = GS.remote(config['TargetSafety']['brennan']),
     params:
         ae = f"{config['global']['curation_repo']}/{config['TargetSafety']['adverseEvents']}",
         sr = f"{config['global']['curation_repo']}/{config['TargetSafety']['safetyRisk']}",
@@ -620,6 +618,7 @@ rule targetSafety:            # Process data from different sources that describ
             --toxcast {input.toxcast} \
             --aopwiki {input.aopwiki} \
             --pharmacogenetics {input.pharmacogenetics} \
+            --brennan {input.brennan} \
             --cache_dir {params.cache_dir} \
             --output {output}
         opentargets_validator --schema {params.schema} {output}
