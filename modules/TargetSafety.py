@@ -222,7 +222,13 @@ def process_brennan(brennan_df: DataFrame) -> DataFrame:
     elif isinstance(brennan_df.schema["effects"].dataType, ArrayType):
         effects_expr = f.col("effects")
 
-    return brennan_df.withColumn("effects", effects_expr)
+    return (
+        brennan_df
+        .withColumn("effects", effects_expr)
+        .withColumnRenamed("studies", "study")
+        .withColumnRenamed("biosamples", "biosample")
+        .drop("Type")
+    )
 
 def process_safety_risk(safety_risk: str) -> DataFrame:
     """
