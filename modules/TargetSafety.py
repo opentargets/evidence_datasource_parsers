@@ -56,7 +56,6 @@ def main(
 
     # Combine dfs and group evidence
     evidence_unique_cols = [
-        "id",
         "targetFromSourceId",
         "event",
         "eventId",
@@ -96,6 +95,7 @@ def main(
             ).otherwise(f.col("studies")),
         )
         .withColumn("studies", f.when(f.size("studies") != 0, f.col("studies")))
+        .withColumnRenamed("targetFromSourceId", "id")
         .drop("supporting_variation")
         .distinct()
     )
@@ -115,6 +115,7 @@ def process_aop(aopwiki: str) -> DataFrame:
 
     return (
         spark.read.json(aopwiki)
+        .withColumnRenamed("id", "targetFromSourceId")
         # data bug: some events have the substring "NA" at the start - removal and trim the string
         .withColumn("event", f.trim(f.regexp_replace(f.col("event"), "^NA", "")))
         # data bug: effects.direction need to be in lowercase, this field is an enum
@@ -158,20 +159,20 @@ def process_adverse_events(adverse_events: str) -> DataFrame:
         url              | null
 
     Ex. output record:
-        id         | ENSG00000133019
-        event      | bronchoconstriction
-        datasource | Bowes et al. (2012)
-        eventId    | EFO_0009836
-        literature | 23197038
-        url        | null
-        biosample  | {gastrointestinal, UBERON_0005409, null, null, null}
-        effects    | [{Activation/Increase/Upregulation, general}]
+        targetFromSourceId    | ENSG00000133019
+        event                 | bronchoconstriction
+        datasource            | Bowes et al. (2012)
+        eventId               | EFO_0009836
+        literature            | 23197038
+        url                   | null
+        biosample             | {gastrointestinal, UBERON_0005409, null, null, null}
+        effects               | [{Activation/Increase/Upregulation, general}]
     """
 
     ae_df = (
         spark.read.csv(adverse_events, sep="\t", header=True)
         .select(
-            f.col("ensemblId").alias("id"),
+            f.col("ensemblId").alias("targetFromSourceId"),
             f.col("symptom").alias("event"),
             f.col("efoId").alias("eventId"),
             f.col("ref").alias("datasource"),
@@ -204,11 +205,11 @@ def process_adverse_events(adverse_events: str) -> DataFrame:
     )
 
     # Multiple dosing effects need to be grouped in the same record.
-    effects_df = ae_df.groupBy("id", "event", "datasource").agg(
+    effects_df = ae_df.groupBy("targetFromSourceId", "event", "datasource").agg(
         f.collect_set(f.col("effects")).alias("effects")
     )
     ae_df = ae_df.drop("effects").join(
-        effects_df, on=["id", "event", "datasource"], how="left"
+        effects_df, on=["targetFromSourceId", "event", "datasource"], how="left"
     )
 
     return ae_df
@@ -227,6 +228,7 @@ def process_brennan(brennan_df: DataFrame) -> DataFrame:
         .withColumn("effects", effects_expr)
         .withColumnRenamed("studies", "study")
         .withColumnRenamed("biosamples", "biosample")
+        .withColumnRenamed("id", "targetFromSourceId")
         .drop("Type")
     )
 
@@ -258,7 +260,7 @@ def process_safety_risk(safety_risk: str) -> DataFrame:
     return (
         spark.read.csv(safety_risk, sep="\t", header=True)
         .select(
-            f.col("ensemblId").alias("id"),
+            f.col("ensemblId").alias("targetFromSourceId"),
             "event",
             "eventId",
             f.col("pmid").alias("literature"),
@@ -357,7 +359,7 @@ def process_pharmacogenetics(spark: SparkSession, pgx_df: DataFrame, cache_dir: 
         )
         # Define unaggregated target/event pairs
         .select(
-            f.col("targetFromSourceId").alias("id"),
+            f.col("targetFromSourceId"),
             "event",
             f.lit("PharmGKB").alias("datasource"),
             f.concat(f.lit(pgkb_url_template), f.col("targetFromSourceId")).alias("url"),
