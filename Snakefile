@@ -42,7 +42,7 @@ ALL_FILES = [
     ('progeny.json.gz', GS.remote(f"{config['PROGENy']['outputBucket']}/progeny-{timeStamp}.json.gz")),
     ('slapenrich.json.gz', GS.remote(f"{config['SLAPEnrich']['outputBucket']}/slapenrich-{timeStamp}.json.gz")),
     ('sysbio.json.gz', GS.remote(f"{config['SysBio']['outputBucket']}/sysbio-{timeStamp}.json.gz")),
-    ('tep.json.gz', GS.remote(f"{config['TEP']['outputBucket']}/tep-{timeStamp}.json.gz")),
+    #('tep.json.gz', GS.remote(f"{config['TEP']['outputBucket']}/tep-{timeStamp}.json.gz")),
     ('safetyLiabilities.json.gz', GS.remote(f"{config['TargetSafety']['outputBucket']}/safetyLiabilities-{timeStamp}.json.gz")),
     ('chemicalProbes.json.gz', GS.remote(f"{config['ChemicalProbes']['outputBucket']}/chemicalProbes-{timeStamp}.json.gz")),
     ('crispr_screens.json.gz', GS.remote(f"{config['CrisprScreens']['outputBucket']}/crispr_screens-{timeStamp}.json.gz")),
@@ -480,12 +480,17 @@ rule chemicalProbes:          # Process data from the Probes&Drugs portal.
     params:
         schema = f"{config['global']['schema']}/schemas/chemical_probes.json"
     output:
+        rawProbesExcel = config['ChemicalProbes']['probesExcelDump'],
+        probesXrefsTable = config['ChemicalProbes']['probesMappingsTable'],
         evidenceFile = 'chemicalProbes.json.gz'
     log:
         'log/chemicalProbes.log'
     shell:
         """
         exec &> {log}
+        # Retain the inputs. They will be later uploaded to GCS.
+        cp {input.rawProbesExcel} {output.rawProbesExcel}
+        cp {input.probesXrefsTable} {output.probesXrefsTable}
         python modules/chemicalProbes.py \
             --probes_excel_path {input.rawProbesExcel} \
             --probes_mappings_path {input.probesXrefsTable} \
