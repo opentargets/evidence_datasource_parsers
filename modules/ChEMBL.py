@@ -2,7 +2,9 @@
 """This module adds the category of why a clinical trial has stopped early to the ChEMBL evidence."""
 
 import argparse
+from datetime import datetime
 import logging
+import re
 import sys
 
 import pyspark.sql.functions as f
@@ -132,6 +134,7 @@ def get_parser():
 if __name__ == '__main__':
     args = get_parser().parse_args()
 
+
     # Logger initializer. If no log_file is specified, logs are written to stderr
     logging.basicConfig(
         level=logging.INFO,
@@ -142,6 +145,13 @@ if __name__ == '__main__':
         logging.config.fileConfig(filename=args.log_file)
     else:
         logging.StreamHandler(sys.stderr)
+
+    # Make sure we use the right predicted stopped reasons file based on the date
+    date_pattern = "([0-9]{4}\-[0-9]{2}\-[0-9]{2})"
+    evd_date = datetime.strptime(re.findall(date_pattern, args.chembl_evidence)[0], "%Y-%m-%d")
+    predictions_date = datetime.strptime(re.findall(date_pattern, args.predictions)[0], "%Y-%m-%d")
+    if predictions_date < evd_date:
+        raise AssertionError(f'The predictions file is older than the ChEMBL evidence file. {predictions_date} < {evd_date}')
 
     global spark
     spark = initialize_sparksession()
