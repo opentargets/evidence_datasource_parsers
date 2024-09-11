@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import tempfile
 from typing import Any
 
 import requests
@@ -130,10 +131,10 @@ class UniprotVariantsExtractor:
         # Set the query and return format
         sparql.setQuery(cls.UNIPROT_SPARQL_QUERY)
         sparql.setReturnFormat(JSON)
-        logger.info("Data extraction completed.")
 
         # Execute the query and fetch results
         results = sparql.query().convert()
+        logger.info("Data extraction completed.")
 
         variant_data = []
         for result in results["results"]["bindings"]:
@@ -180,10 +181,10 @@ class UniprotVariantsExtractor:
             # Extract target annotation
             f.col("protein").alias("targetFromSourceId"),
             f.col("comment").alias("variantToTargetAnnotation"),
-            # Extract variant information:
-            f.col("rsid").alias("variantRsId"),
+            # Extract variant information - might be empty string:
+            f.when(f.col("rsid") != "", f.col("rsid")).alias("variantRsId"),
             f.when(f.col("substitution") != "", f.col("substitution")).alias(
-                "altAmioAcid"
+                "altAminoAcid"
             ),
             f.col("begin").alias("proteinPosition"),
             f.col("reference_sequence").alias("refAminoAcid"),
@@ -244,7 +245,7 @@ class rsidMapper:
         ]
     )
 
-    API_SIZE_LIMIT = 10  # 200
+    API_SIZE_LIMIT = 200
 
     API_URL = "https://rest.ensembl.org/vep/human/id"
     REQUEST_HEADERS = {
@@ -272,16 +273,32 @@ class rsidMapper:
             self.rsid_cache_df = spark.createDataFrame([], schema=self.CACHE_SCHEMA)
 
         # Get a list of already mapped rsids:
-        self.cached_rsids = [
-            row["rsid"]
-            for row in self.rsid_cache_df.select("rsid").distinct().collect()
+        self.cached_rsids: list[str] = [
+            row["variantRsId"]
+            for row in self.rsid_cache_df.select("variantRsId").distinct().collect()
         ]
+        # Register with a temporary view:
+        self.rsid_cache_df.createOrReplaceTempView("cached_rsids")
 
         logger.info(f"Number of cached rsids: {len(self.cached_rsids)}.")
 
     def update_cache_file(self) -> None:
         """Save the cache file in the provided location."""
-        self.rsid_cache_df.write.mode("overwrite").parquet(self.rsid_cache)
+        # Create a temporary file
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".parquet")
+        temp_file_path = temp_file.name
+        # Write the updated DataFrame to the temporary Parquet file
+        self.rsid_cache_df.write.mode("overwrite").parquet(temp_file_path)
+
+        (
+            # Read the temporary Parquet file
+            self.spark.read.parquet(temp_file_path)
+            .write.mode("overwrite")
+            .parquet(self.rsid_cache)
+        )
+        temp_file.close()
+        # Refresh the table to invalidate the cache
+        self.spark.sql("REFRESH TABLE cached_rsids")
 
     def get_mapped_variants(self) -> DataFrame:
         """Return the cache DataFrame.
@@ -289,9 +306,9 @@ class rsidMapper:
         Returns:
             DataFrame: The cache DataFrame.
         """
-        return self.rsid_cache_df.persist()
+        return self.rsid_cache_df
 
-    def map_rsids(self, rsids: list[str]) -> None:
+    def map_rsids(self, rsids) -> None:
         """Map rsids to variant ids. Adds the mapping to the cache.
 
         Args:
@@ -322,7 +339,7 @@ class rsidMapper:
 
         logger.info("Mapping rsids completed.")
 
-    def _map_rsids_chunk(self, rsids: list[str]) -> DataFrame:
+    def _map_rsids_chunk(self, rsids) -> DataFrame:
         vep_annotated_data = self._get_vep_for_rsid(rsids)
 
         # Ensure the vcf_string is a list - neccesary as the VEP schema is inconsistent:
@@ -340,7 +357,7 @@ class rsidMapper:
             # Do transformations to get the final schema:
             .select(
                 # Selecting only the necessary columns:
-                f.col("input").alias("rsId"),
+                f.col("input").alias("variantRsId"),
                 # TODO: The variant id should be generated from the vcf_string field:
                 f.concat_ws(
                     "_",
@@ -357,18 +374,18 @@ class rsidMapper:
                     f.split(f.col("amino_acids"), "/")[1],
                 ).alias("vepAltAminoAcid"),
                 # Stripping uniprot version from id:
-                f.split(f.col("uniprot_id"), r"\.")[0].alias("uniprotId"),
+                f.split(f.col("uniprot_id"), r"\.")[0].alias("targetFromSourceId"),
                 f.col("vcf_string"),
                 # Flag multiallelic variants:
                 (f.size("vcf_string") > 1).alias("isMultiAllelic"),
             )
             # Dropping non-protein coding consequeces:
-            .filter(f.col("uniprot_id").isNotNull())
+            .filter(f.col("targetFromSourceId").isNotNull())
             .distinct()
-            .orderBy("rsId", "variantId")
+            .orderBy("variantRsId", "variantId")
         )
 
-    def _get_vep_for_rsid(self, variants_to_map: list[str]) -> list[dict[str, Any]]:
+    def _get_vep_for_rsid(self, variants_to_map) -> list:
         """Get VEP data for a list of variants.
 
         Args:
@@ -421,7 +438,7 @@ def resolve_variant_ids(
                 f.lit(True),
                 # Only accept multiallelic variants if they match the alternative amino acid matches the VEP annotation:
             )
-            .when(f.col("AltAminoAcid") == f.col("vepAltAminoAcid"), f.lit(True))
+            .when(f.col("altAminoAcid") == f.col("vepAltAminoAcid"), f.lit(True))
             .otherwise(f.lit(False)),
         )
         .withColumn(
@@ -438,7 +455,6 @@ def resolve_variant_ids(
             *uniprot_columns,
             f.col("variantId"),
             f.col("vepAltAminoAcid"),
-            f.col("AltAminoAcid"),
             f.col("isMultiAllelic"),
         )
         .distinct()
@@ -462,13 +478,14 @@ def main(
     uniprot_variants = (
         UniprotVariantsExtractor.get_dataframe(spark)
         # For testing purposes, limit the number of rows:
-        .orderBy(f.rand())
-        .limit(100)
+        # .orderBy(f.rand())
+        # .limit(20)
     )
 
     # Get unique rsids:
     unique_rsids = [
-        row["rsid"] for row in uniprot_variants.select("rsid").distinct().collect()
+        row["variantRsId"]
+        for row in uniprot_variants.select("variantRsId").distinct().collect()
     ]
 
     logger.info(f"Number of unique rsids: {len(unique_rsids)}.")
@@ -494,8 +511,32 @@ def main(
 
     # Write data:
     logger.info("Writing data.")
-    write_evidence_strings(evidence_df, output_file)
-    evidence_df.write.mode("overwrite").parquet(f"{output_file}.parquet")
+    evidence_df.write.mode("overwrite").parquet("uniprot_debug.parquet")
+    write_evidence_strings(
+        (
+            evidence_df
+            # TODO: Based on targetToDiseaseAnnotation classify confidence
+            # TODO: Based on variantToTargetAnnotation classify direction of effect/target modulation
+            # The reference and altenate amino acids are there for troubleshooting purposes.
+            .drop(
+                "targetToDiseaseAnnotation",
+                "variantToTargetAnnotation",
+                "altAminoAcid",
+                "proteinPosition",
+                "refAminoAcid",
+                "isMultiAllelic",
+                "vepAltAminoAcid",
+            ).withColumns(
+                {
+                    "datasourceId": f.lit("uniprot_variants"),
+                    "datatypeId": f.lit("genetic_association"),
+                    "confidence": f.lit("high"),
+                    "targetModulation": f.lit("up_or_down"),
+                }
+            )
+        ),
+        output_file,
+    )
 
 
 def parse_command_line_arguments() -> argparse.Namespace:
@@ -510,17 +551,17 @@ def parse_command_line_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--rsid_cache",
         type=str,
-        mandatory=False,
         help="RsId cache file containing rsid to variant id mapping.",
     )
     parser.add_argument(
-        "output_file",
+        "--output_file",
         type=str,
         help="Path to the output file.",
     )
     parser.add_argument(
         "--log_file",
         type=str,
+        required=False,
         help="Path to the log file.",
     )
     parser.add_argument(
