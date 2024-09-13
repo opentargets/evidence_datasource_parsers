@@ -427,7 +427,7 @@ def resolve_variant_ids(
     return (
         uniprot_variants
         # Join the uniprot variants with the variant mappings:
-        .join(mapped_variants, on=["variantRsId", "targetFromSourceId"], how="inner")
+        .join(mapped_variants, on=["variantRsId", "targetFromSourceId"], how="left")
         # Create a boolean indicating if the variantId is accepted for the evidence:
         # This logic can be further refined to include more complex logic
         .withColumn(
@@ -458,7 +458,6 @@ def resolve_variant_ids(
             f.col("isMultiAllelic"),
         )
         .distinct()
-        .persist()
     )
 
 
