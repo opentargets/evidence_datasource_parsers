@@ -47,16 +47,13 @@ ALL_FILES = [
     ('chemicalProbes.json.gz', GS.remote(f"{config['ChemicalProbes']['outputBucket']}/chemicalProbes-{timeStamp}.json.gz")),
     ('crispr_screens.json.gz', GS.remote(f"{config['CrisprScreens']['outputBucket']}/crispr_screens-{timeStamp}.json.gz")),
     ('pharmacogenetics.json.gz', GS.remote(f"{config['Pharmacogenetics']['outputBucket']}/cttv012-{timeStamp}_pgkb.json.gz")),
-]
-LOCAL_FILENAMES = [f[0] for f in ALL_FILES]
-REMOTE_FILENAMES = [f[1] for f in ALL_FILES]
-
-# At this point parsing the PPP datasources are not yet as integrated as to add these files to the complete set of output:
-PPP_sources = [
+    # PPP specific parsers:
     ('ot_crispr.json.gz', GS.remote(f"{config['OT_CRISPR']['outputBucket']}/ot_crispr-{timeStamp}.json.gz")),
     ('validation_lab.json.gz', GS.remote(f"{config['ValidationLab']['outputBucket']}/validation_lab-{timeStamp}.json.gz")),
     ('encore.json.gz', GS.remote(f"{config['Encore']['outputBucket']}/encore-{timeStamp}.json.gz"))
 ]
+LOCAL_FILENAMES = [f[0] for f in ALL_FILES]
+REMOTE_FILENAMES = [f[1] for f in ALL_FILES]
 
 # Auxiliary rules.
 rule help:                    # Print help comments for Snakefile.
