@@ -272,7 +272,7 @@ class EncoreEvidenceGenerator:
                 # Based on the z-score we can tell the nature of the interaction:
                 # - positive z-score means synergictic
                 # - negative z-score means antagonistics interaction
-                f.when(f.col("geneticInteractionScore") > 0, "synergistic")
+                f.when(f.col("geneticInteractionScore") > 0, "cooperative")
                 .otherwise("antagonistic")
                 .alias("geneInteractionType"),
             )
