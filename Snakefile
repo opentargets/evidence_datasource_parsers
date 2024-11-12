@@ -566,9 +566,14 @@ rule validation_lab:          # Generating PPP evidence for Validation Lab
     shell:
         """
         exec &> {log}
+
+	# Fetching data from bucket to home folder:
+        mkdir -p ~/validation_lab_data
+        gsutil -m cp -r "{params.data_folder}/*" ~/validation_lab_data/
+
         python partner_preview_scripts/ValidationLab.py \
             --parameter_file {params.config} \
-            --data_folder {params.data_folder} \
+            --data_folder ~/validation_lab_data \
             --cell_passport_file {input.cell_passport_table} \
             --output_file {output}
         opentargets_validator --schema {params.schema} {output}
