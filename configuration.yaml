@@ -101,7 +101,7 @@ ValidationLab:
   config: gs://otar013-ppp/PPP-evidence-configuration/ValidationLab_config.json
   outputBucket: gs://otar013-ppp/validation_lab
 Encore:
-  data_directory: gs://otar013-ppp/encore/input
+  data_directory: gs://otar013-ppp/encore/input/2024.01.11-Freeze4
   config: gs://otar013-ppp/PPP-evidence-configuration/encore_config.json
   outputBucket: gs://otar013-ppp/encore
 CrisprScreens:
