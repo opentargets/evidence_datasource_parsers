@@ -514,13 +514,13 @@ class EncoreEvidenceGenerator:
         return evidence_df
 
 
-def main(outputFile: str, parameters: dict, cellPassportFile: str) -> None:
+def main(outputFile: str, parameters: dict, cellPassportFile: str, cellLineToUberonMapping: str) -> None:
 
     # Initialize spark session
     spark = initialize_sparksession()
 
     # Opening and parsing the cell passport data from Sanger:
-    cell_passport_df = GenerateDiseaseCellLines(cellPassportFile, spark).get_mapping()
+    cell_passport_df = GenerateDiseaseCellLines(spark, cellPassportFile, cellLineToUberonMapping).generate_disease_cell_lines()
 
     logging.info(f"Cell passport dataframe has {cell_passport_df.count()} rows.")
     logging.info("Parsing experiment data...")
@@ -581,6 +581,12 @@ if __name__ == "__main__":
         help="File containing cell passport data",
         required=True,
     )
+    parser.add_argument(
+        "--cell_line_to_uberon_mapping",
+        type=str,
+        help="Path to the manual curation file for mapping cell lines to uberon terms.",
+        required=True,
+    )
     args = parser.parse_args()
 
     # If no logfile is specified, logs are written to the standard error:
@@ -606,4 +612,4 @@ if __name__ == "__main__":
     parameters["sharedMetadata"]["data_folder"] = args.data_folder
 
     # Passing all the required arguments:
-    main(args.output_file, parameters, args.cell_passport_file)
+    main(args.output_file, parameters, args.cell_passport_file, args.cell_line_to_uberon_mapping)

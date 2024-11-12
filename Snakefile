@@ -527,7 +527,8 @@ rule encore:                  # Generating PPP evidence for ENCORE
     params:
         data_folder = config['Encore']['data_directory'],
         config = config['Encore']['config'],
-        schema = f"{config['global']['schema']}/schemas/disease_target_evidence.json"
+        schema = f"{config['global']['schema']}/schemas/disease_target_evidence.json",
+	cell_line_to_uberon_mapping = f"{config['global']['curation_repo']}/{config['Essentiality']['depmap_tissue_mapping']}"
     output:
         'encore.json.gz'
     input:
@@ -537,11 +538,17 @@ rule encore:                  # Generating PPP evidence for ENCORE
     shell:
         """
         exec &> {log}
+
+	# Fetching data from bucket to home folder:
+	mkdir -p ~/encore_data
+	gsutil -m cp -r "{params.data_folder}/*" ~/encore_data/
+
         python partner_preview_scripts/encore_parser.py \
             --output_file {output} \
             --parameter_file {params.config} \
-            --data_folder {params.data_folder} \
-            --cell_passport_file {input.cell_passport_table}
+            --data_folder ~/encore_data \
+            --cell_passport_file {input.cell_passport_table} \
+	    --cell_line_to_uberon_mapping {params.cell_line_to_uberon_mapping}
         opentargets_validator --schema {params.schema} {output}
         """
 
