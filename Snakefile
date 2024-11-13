@@ -48,9 +48,9 @@ ALL_FILES = [
     ('crispr_screens.json.gz', GS.remote(f"{config['CrisprScreens']['outputBucket']}/crispr_screens-{timeStamp}.json.gz")),
     ('pharmacogenetics.json.gz', GS.remote(f"{config['Pharmacogenetics']['outputBucket']}/cttv012-{timeStamp}_pgkb.json.gz")),
     # PPP specific parsers:
-    ('ot_crispr.json.gz', GS.remote(f"{config['OT_CRISPR']['outputBucket']}/ot_crispr-{timeStamp}.json.gz")),
-    ('validation_lab.json.gz', GS.remote(f"{config['ValidationLab']['outputBucket']}/validation_lab-{timeStamp}.json.gz")),
-    ('encore.json.gz', GS.remote(f"{config['Encore']['outputBucket']}/encore-{timeStamp}.json.gz"))
+    #('ot_crispr.json.gz', GS.remote(f"{config['OT_CRISPR']['outputBucket']}/ot_crispr-{timeStamp}.json.gz")),
+    #('validation_lab.json.gz', GS.remote(f"{config['ValidationLab']['outputBucket']}/validation_lab-{timeStamp}.json.gz")),
+    #('encore.json.gz', GS.remote(f"{config['Encore']['outputBucket']}/encore-{timeStamp}.json.gz"))
 ]
 LOCAL_FILENAMES = [f[0] for f in ALL_FILES]
 REMOTE_FILENAMES = [f[1] for f in ALL_FILES]
