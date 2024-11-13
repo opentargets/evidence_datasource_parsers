@@ -48,9 +48,9 @@ ALL_FILES = [
     ('crispr_screens.json.gz', GS.remote(f"{config['CrisprScreens']['outputBucket']}/crispr_screens-{timeStamp}.json.gz")),
     ('pharmacogenetics.json.gz', GS.remote(f"{config['Pharmacogenetics']['outputBucket']}/cttv012-{timeStamp}_pgkb.json.gz")),
     # PPP specific parsers:
-    ('ot_crispr.json.gz', GS.remote(f"{config['OT_CRISPR']['outputBucket']}/ot_crispr-{timeStamp}.json.gz")),
-    ('validation_lab.json.gz', GS.remote(f"{config['ValidationLab']['outputBucket']}/validation_lab-{timeStamp}.json.gz")),
-    ('encore.json.gz', GS.remote(f"{config['Encore']['outputBucket']}/encore-{timeStamp}.json.gz"))
+    #('ot_crispr.json.gz', GS.remote(f"{config['OT_CRISPR']['outputBucket']}/ot_crispr-{timeStamp}.json.gz")),
+    #('validation_lab.json.gz', GS.remote(f"{config['ValidationLab']['outputBucket']}/validation_lab-{timeStamp}.json.gz")),
+    #('encore.json.gz', GS.remote(f"{config['Encore']['outputBucket']}/encore-{timeStamp}.json.gz"))
 ]
 LOCAL_FILENAMES = [f[0] for f in ALL_FILES]
 REMOTE_FILENAMES = [f[1] for f in ALL_FILES]
@@ -527,7 +527,8 @@ rule encore:                  # Generating PPP evidence for ENCORE
     params:
         data_folder = config['Encore']['data_directory'],
         config = config['Encore']['config'],
-        schema = f"{config['global']['schema']}/schemas/disease_target_evidence.json"
+        schema = f"{config['global']['schema']}/schemas/disease_target_evidence.json",
+	cell_line_to_uberon_mapping = f"{config['global']['curation_repo']}/{config['Essentiality']['depmap_tissue_mapping']}"
     output:
         'encore.json.gz'
     input:
@@ -537,11 +538,17 @@ rule encore:                  # Generating PPP evidence for ENCORE
     shell:
         """
         exec &> {log}
+
+	# Fetching data from bucket to home folder:
+	mkdir -p ~/encore_data
+	gsutil -m cp -r "{params.data_folder}/*" ~/encore_data/
+
         python partner_preview_scripts/encore_parser.py \
             --output_file {output} \
             --parameter_file {params.config} \
-            --data_folder {params.data_folder} \
-            --cell_passport_file {input.cell_passport_table}
+            --data_folder ~/encore_data \
+            --cell_passport_file {input.cell_passport_table} \
+	    --cell_line_to_uberon_mapping {params.cell_line_to_uberon_mapping}
         opentargets_validator --schema {params.schema} {output}
         """
 
@@ -559,9 +566,14 @@ rule validation_lab:          # Generating PPP evidence for Validation Lab
     shell:
         """
         exec &> {log}
+
+	# Fetching data from bucket to home folder:
+        mkdir -p ~/validation_lab_data
+        gsutil -m cp -r "{params.data_folder}/*" ~/validation_lab_data/
+
         python partner_preview_scripts/ValidationLab.py \
             --parameter_file {params.config} \
-            --data_folder {params.data_folder} \
+            --data_folder ~/validation_lab_data \
             --cell_passport_file {input.cell_passport_table} \
             --output_file {output}
         opentargets_validator --schema {params.schema} {output}

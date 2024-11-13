@@ -1,10 +1,10 @@
 global:
   logDir: gs://otar000-evidence_input/parser_logs
   cacheDir: cache_dir
-  schema: https://raw.githubusercontent.com/opentargets/json_schema/2.8.0
-  EFOVersion: v3.68.0
+  schema: https://raw.githubusercontent.com/opentargets/json_schema/2.8.2
+  EFOVersion: v3.71.0
   cell_passport_file: https://cog.sanger.ac.uk/cmp/download/model_list_latest.csv.gz
-  curation_repo: https://raw.githubusercontent.com/opentargets/curation/24.09.1
+  curation_repo: https://raw.githubusercontent.com/opentargets/curation/24.12
 baselineExpression:
   gtexSourceDataPath: https://storage.googleapis.com/adult-gtex/bulk-gex/v8/rna-seq/GTEx_Analysis_2017-06-05_v8_RNASeQCv1.1.9_gene_median_tpm.gct.gz
   tissueNameToUberonMappingPath: mappings/biosystem/gtex_v8_tissues.tsv
@@ -101,7 +101,7 @@ ValidationLab:
   config: gs://otar013-ppp/PPP-evidence-configuration/ValidationLab_config.json
   outputBucket: gs://otar013-ppp/validation_lab
 Encore:
-  data_directory: gs://otar013-ppp/encore/input
+  data_directory: gs://otar013-ppp/encore/input/2024.01.11-Freeze4
   config: gs://otar013-ppp/PPP-evidence-configuration/encore_config.json
   outputBucket: gs://otar013-ppp/encore
 CrisprScreens:
