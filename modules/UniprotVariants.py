@@ -36,25 +36,26 @@ class UniprotVariantsExtractor:
         PREFIX taxon: <http://purl.uniprot.org/taxonomy/>
 
         SELECT 
-                ?protein 
-                ?annotation 
-                ?comment 
-                ?rsid 
-                ?disease_label 
-                ?disease_comment 
-                ?disease_crossrefs
-                # Grouping pubmed links to a single string:
-                (GROUP_CONCAT(DISTINCT ?source; SEPARATOR=", ") AS ?sources)
-                ?reference_sequence
-                ?begin
-                ?end
-                ?substitution
+            ?protein 
+            ?annotation 
+            ?comment 
+            ?variantRsId 
+            ?diseaseLabel 
+            ?diseaseComment 
+            ?diseaseCrossrefs
+            # Grouping pubmed links to a single string:
+            (GROUP_CONCAT(DISTINCT ?source; SEPARATOR=", ") AS ?sources)
+            ?referenceSequence
+            ?begin
+            ?end
+            ?substitution
+            ?geneToDiseaseComment
         WHERE
         {
             # Defining the universe of proteins:
             # BIND(<http://purl.uniprot.org/uniprot/B1AK53> AS ?protein) .
             ?protein a up:Protein ;
-                up:organism taxon:9606 .
+               up:organism taxon:9606 .
 
             ?protein up:annotation ?annotation .
 
@@ -64,27 +65,31 @@ class UniprotVariantsExtractor:
             ?annotation rdfs:comment ?comment .
 
             # Extracting the rsid of the variant if present:
-            OPTIONAL { ?annotation rdfs:seeAlso ?rsid .}
+            OPTIONAL { ?annotation rdfs:seeAlso ?variantRsId .}
 
             # Extracting substituted amino acid if present:
             OPTIONAL{ ?annotation up:substitution ?substitution .}
 
             # Extracting the disease annotations related to the natural variant, expected. Not interested in variants without disease annotations:
             ?annotation skos:related ?related_disease .
-            ?related_disease skos:prefLabel ?disease_label .
-            ?related_disease rdfs:comment ?disease_comment .
-            ?related_disease rdfs:seeAlso ?disease_crossrefs .
+            ?related_disease skos:prefLabel ?diseaseLabel .
+            ?related_disease rdfs:comment ?diseaseComment .
+            ?related_disease rdfs:seeAlso ?diseaseCrossrefs .
+            
+            # Extracting gene to disease confidence:
+            ?subject up:disease ?related_disease .
+            ?subject rdfs:comment ?geneToDiseaseComment .
 
             # Extracting disease source if source is from OMIM:
-            # FILTER(CONTAINS(STR(?disease_crossrefs), "mim"))
-            ?disease_crossrefs up:database <http://purl.uniprot.org/database/MIM>
+            # FILTER(CONTAINS(STR(?diseaseCrossrefs), "mim"))
+            ?diseaseCrossrefs up:database <http://purl.uniprot.org/database/MIM>
 
             # Extracting evidence links to the variant/disease relationship:
             OPTIONAL {
-                    ?linkToEvidence rdf:object ?annotation ;
-                                    up:attribution ?attribution .
-                    ?attribution up:source ?source .
-                    ?source a up:Journal_Citation .
+                ?linkToEvidence rdf:object ?annotation ;
+                    up:attribution ?attribution .
+                ?attribution up:source ?source .
+                ?source a up:Journal_Citation .
             }
 
             # Extracting the sequence range of the variant (needs to be optional, as not all variants have a range): 
@@ -96,27 +101,30 @@ class UniprotVariantsExtractor:
                 ?beginNode faldo:position ?begin .
                 ?beginNode faldo:reference ?sequence .
                 ?sequence rdf:value ?value .
-                BIND (substr(?value, ?begin, 1) as ?reference_sequence) .
+                BIND (substr(?value, ?begin, 1) as ?referenceSequence) .
             }
         }
         GROUP BY 
-                ?protein 
-                ?annotation 
-                ?comment 
-                ?rsid 
-                ?substitution 
-                ?disease_label 
-                ?disease_comment 
-                ?disease_crossrefs
-                ?sequence
-                ?begin
-                ?end
-                ?value
-                ?reference_sequence
+            ?protein 
+            ?annotation 
+            ?comment 
+            ?variantRsId 
+            ?substitution 
+            ?diseaseLabel 
+            ?diseaseComment 
+            ?diseaseCrossrefs
+            ?sequence
+            ?begin
+            ?end
+            ?value
+            ?referenceSequence
+            ?geneToDiseaseComment
     """
 
     @classmethod
-    def extract_variants_data(cls) -> list[dict[str, Any]]:
+    def extract_variants_data(
+        cls: type[UniprotVariantsExtractor],
+    ) -> list[dict[str, Any]]:
         """Extracts Uniprot variants data from the Uniprot SPARQL API.
 
         Returns:
@@ -157,7 +165,9 @@ class UniprotVariantsExtractor:
         return variant_data
 
     @classmethod
-    def get_dataframe(cls, spark: SparkSession) -> DataFrame:
+    def get_dataframe(
+        cls: type[UniprotVariantsExtractor], spark: SparkSession
+    ) -> DataFrame:
         """Convert VEP data to a Spark DataFrame and minimally process it.
 
         Args:
@@ -170,29 +180,32 @@ class UniprotVariantsExtractor:
 
         return spark.createDataFrame(variant_data).select(
             # Extract disease information:
-            f.col("disease_label").alias("diseaseFromSource"),
+            f.col("diseaseLabel").alias("diseaseFromSource"),
             f.concat(
                 f.lit("OMIM:"),
-                f.split("disease_crossrefs", "/").getItem(
-                    f.size(f.split("disease_crossrefs", "/")) - 1
+                f.split("diseaseCrossrefs", "/").getItem(
+                    f.size(f.split("diseaseCrossrefs", "/")) - 1
                 ),
             ).alias("diseaseFromSourceId"),
-            f.col("disease_comment").alias("targetToDiseaseAnnotation"),
+            f.col("diseaseComment").alias("targetToDiseaseAnnotation"),
             # Extract target annotation
             f.col("protein").alias("targetFromSourceId"),
             f.col("comment").alias("variantToTargetAnnotation"),
             # Extract variant information - might be empty string:
-            f.when(f.col("rsid") != "", f.col("rsid")).alias("variantRsId"),
+            f.when(f.col("variantRsId") != "", f.col("variantRsId")).alias(
+                "variantRsId"
+            ),
             f.when(f.col("substitution") != "", f.col("substitution")).alias(
                 "altAminoAcid"
             ),
             f.col("begin").alias("proteinPosition"),
-            f.col("reference_sequence").alias("refAminoAcid"),
+            f.col("referenceSequence").alias("refAminoAcid"),
             # Extract pmids from sources:
             f.transform(
                 f.split(f.col("sources"), ", "),
                 lambda uri: f.split(uri, "/").getItem(f.size(f.split(uri, "/")) - 1),
             ).alias("literature"),
+            "geneToDiseaseComment",
         )
 
     @staticmethod
@@ -511,31 +524,31 @@ def main(
     # Write data:
     logger.info("Writing data.")
     evidence_df.write.mode("overwrite").parquet("uniprot_debug.parquet")
-    write_evidence_strings(
-        (
-            evidence_df
-            # TODO: Based on targetToDiseaseAnnotation classify confidence
-            # TODO: Based on variantToTargetAnnotation classify direction of effect/target modulation
-            # The reference and altenate amino acids are there for troubleshooting purposes.
-            .drop(
-                "targetToDiseaseAnnotation",
-                "variantToTargetAnnotation",
-                "altAminoAcid",
-                "proteinPosition",
-                "refAminoAcid",
-                "isMultiAllelic",
-                "vepAltAminoAcid",
-            ).withColumns(
-                {
-                    "datasourceId": f.lit("uniprot_variants"),
-                    "datatypeId": f.lit("genetic_association"),
-                    "confidence": f.lit("high"),
-                    "targetModulation": f.lit("up_or_down"),
-                }
-            )
-        ),
-        output_file,
-    )
+    # write_evidence_strings(
+    #     (
+    #         evidence_df
+    #         # TODO: Based on targetToDiseaseAnnotation classify confidence
+    #         # TODO: Based on variantToTargetAnnotation classify direction of effect/target modulation
+    #         # The reference and altenate amino acids are there for troubleshooting purposes.
+    #         .drop(
+    #             "targetToDiseaseAnnotation",
+    #             "variantToTargetAnnotation",
+    #             "altAminoAcid",
+    #             "proteinPosition",
+    #             "refAminoAcid",
+    #             "isMultiAllelic",
+    #             "vepAltAminoAcid",
+    #         ).withColumns(
+    #             {
+    #                 "datasourceId": f.lit("uniprot_variants"),
+    #                 "datatypeId": f.lit("genetic_association"),
+    #                 "confidence": f.lit("high"),
+    #                 "targetModulation": f.lit("up_or_down"),
+    #             }
+    #         )
+    #     ),
+    #     output_file,
+    # )
 
 
 def parse_command_line_arguments() -> argparse.Namespace:

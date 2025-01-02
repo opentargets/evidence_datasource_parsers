@@ -346,6 +346,7 @@ def read_ppp_config(config_path: str) -> dict:
 
     return parameters
 
+
 def apply_bonferroni_correction(n_tests: int) -> float:
     """Multiple test correction based on the number of tests.
     

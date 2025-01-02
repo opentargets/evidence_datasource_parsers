@@ -4,6 +4,7 @@ import random
 import time
 from typing import Optional
 
+import pandas as pd
 from numpy import nan
 from ontoma.interface import OnToma
 from pandarallel import pandarallel
@@ -65,7 +66,7 @@ def add_efo_mapping(
     Currently, both source columns (diseaseFromSource and diseaseFromSourceId) need to be present in the original
     schema, although they do not have to be populated for all rows."""
     logger.info("Collect all distinct (disease name, disease ID) pairs.")
-    disease_info_to_map = (
+    disease_info_to_map: pd.DataFrame = (
         evidence_strings.select("diseaseFromSource", "diseaseFromSourceId")
         .distinct()
         .toPandas()
