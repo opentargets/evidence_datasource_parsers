@@ -4,15 +4,10 @@ from __future__ import annotations
 
 import argparse
 import logging
-import tempfile
-from typing import Any
 
-import requests
 from pyspark.sql import DataFrame, SparkSession, Window
 from pyspark.sql import functions as f
-from pyspark.sql import types as t
-from pyspark.sql.utils import AnalysisException
-from SPARQLWrapper import JSON, SPARQLWrapper
+from uniprot_shared import UniprotShared
 
 from common.evidence import (
     initialize_logger,
@@ -20,12 +15,11 @@ from common.evidence import (
     write_evidence_strings,
 )
 from common.ontology import add_efo_mapping
+from common.variant_rsid_mapping import RsIdMapper
 
 
-class UniprotVariantsExtractor:
+class UniprotVariantsParser(UniprotShared):
     """Class to extract Uniprot variants from the Uniprot SPARQL API."""
-
-    UNIPROT_SPARQL_ENDPOINT = "https://sparql.uniprot.org/sparql"
 
     UNIPROT_SPARQL_QUERY = """
         PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
@@ -121,64 +115,30 @@ class UniprotVariantsExtractor:
             ?geneToDiseaseComment
     """
 
-    @classmethod
-    def extract_variants_data(
-        cls: type[UniprotVariantsExtractor],
-    ) -> list[dict[str, Any]]:
-        """Extracts Uniprot variants data from the Uniprot SPARQL API.
-
-        Returns:
-            list[dict[str, Any]]: The extracted Uniprot variants data.
-        """
-        logger.info(
-            f"Extracting Uniprot variants data from {cls.UNIPROT_SPARQL_ENDPOINT} API endpoint."
-        )
-        # Initialize the SPARQL endpoint
-        sparql = SPARQLWrapper(cls.UNIPROT_SPARQL_ENDPOINT)
-
-        # Set the query and return format
-        sparql.setQuery(cls.UNIPROT_SPARQL_QUERY)
-        sparql.setReturnFormat(JSON)
-
-        # Execute the query and fetch results
-        results = sparql.query().convert()
-        logger.info("Data extraction completed.")
-
-        variant_data = []
-        for result in results["results"]["bindings"]:
-            variant = {}
-            for key, value in result.items():
-                # Extracting only MIM disease cross-references:
-                if key == "disease_crossrefs" and "mim" not in value["value"]:
-                    continue
-
-                if value["type"] == "literal":
-                    variant[key] = value["value"]
-                elif "mim" in value["value"]:
-                    variant[key] = value["value"]
-                elif value["type"] == "uri":
-                    variant[key] = cls.get_uri_leaf(value["value"])
-
-            variant_data.append(variant)
-
-        logger.info(f"Number of disease/target/variant evidence: {len(variant_data)}.")
-        return variant_data
-
-    @classmethod
-    def get_dataframe(
-        cls: type[UniprotVariantsExtractor], spark: SparkSession
-    ) -> DataFrame:
-        """Convert VEP data to a Spark DataFrame and minimally process it.
+    def __init__(
+        self: UniprotVariantsParser,
+        spark: SparkSession,
+        ontoma_cache_dir: str,
+    ):
+        """Initialise the UniprotVariantsParser.
 
         Args:
             spark (SparkSession): The Spark session.
-
-        Returns:
-            DataFrame: The processed VEP data.
+            rsid_cache (str): The rsid cache file.
+            ontoma_cache_dir (str): The OnToma cache directory.
         """
-        variant_data = cls.extract_variants_data()
+        super().__init__(spark)
+        self.ontoma_cache_dir = ontoma_cache_dir
 
-        return spark.createDataFrame(variant_data).select(
+    def extract_evidence_from_uniprot(
+        self: UniprotVariantsParser,
+    ) -> UniprotVariantsParser:
+        """UniprotVariant specific pre-processing of the raw data."""
+        variant_data = self.extract_uniprot_data()
+
+        self.evidence_dataframe = self.SPARK_SESSION.createDataFrame(
+            variant_data
+        ).select(
             # Extract disease information:
             f.col("diseaseLabel").alias("diseaseFromSource"),
             f.concat(
@@ -206,272 +166,141 @@ class UniprotVariantsExtractor:
                 lambda uri: f.split(uri, "/").getItem(f.size(f.split(uri, "/")) - 1),
             ).alias("literature"),
             "geneToDiseaseComment",
+            # Mapping geneToDiseaseComment to confidence:
+            self.map_confidence(f.col("geneToDiseaseComment")).alias("confidence"),
         )
+
+        return self
+
+    def map_rsids(
+        self: UniprotVariantsParser, rsid_mapper: RsIdMapper
+    ) -> UniprotVariantsParser:
+        """Mapping rsids to variant ids.
+
+        Args:
+            rsid_mapper (RsIdMapper): rsid mapper object.
+
+        Returns:
+            UniprotVariantsParser: The UniprotVariantsParser.
+        """
+        # Get a list of unique rsids found in the dataset:
+        unique_rsids = [
+            row["variantRsId"]
+            for row in self.evidence_dataframe.select("variantRsId")
+            .distinct()
+            .collect()
+        ]
+
+        logger.info(f"Number of unique rsids: {len(unique_rsids)}.")
+
+        # Mapping rsids to variant ids:
+        rsid_mapper.map_rsids(unique_rsids)
+
+        # Save the cache file:
+        rsid_mapper.update_cache_file()
+
+        # Resolve variant ids with uniprot evidence:
+        logger.info("Resolving variant ids.")
+        self.evidence_dataframe = self.resolve_variant_ids(
+            self.evidence_dataframe, rsid_mapper.get_mapped_variants()
+        )
+
+        return self
 
     @staticmethod
-    def get_uri_leaf(uri: str) -> str:
-        return uri.split("/")[-1]
+    def resolve_variant_ids(
+        uniprot_variants: DataFrame, mapped_variants: DataFrame
+    ) -> DataFrame:
+        """Resolving variant ids for the Uniprot evidence.
 
-
-class rsidMapper:
-    CACHE_SCHEMA = t.StructType(
-        [
-            t.StructField("variantRsId", t.StringType(), True),
-            t.StructField("variantId", t.StringType(), True),
-            t.StructField("vepProteinPosition", t.IntegerType(), True),
-            t.StructField("vepRefAminoAcid", t.StringType(), True),
-            t.StructField("vepAltAminoAcid", t.StringType(), True),
-            t.StructField("targetFromSourceId", t.StringType(), True),
-            t.StructField("vcf_string", t.ArrayType(t.StringType(), True), True),
-            t.StructField("isMultiAllelic", t.BooleanType(), True),
-        ]
-    )
-
-    API_RESPONSE_SCHEMA = t.StructType(
-        [
-            t.StructField("start", t.LongType(), nullable=False),
-            t.StructField("end", t.LongType(), nullable=False),
-            t.StructField("input", t.StringType(), nullable=False),
-            t.StructField("allele_string", t.StringType(), nullable=False),
-            t.StructField(
-                "transcript_consequences",
-                t.ArrayType(
-                    t.StructType(
-                        [
-                            t.StructField(
-                                "protein_start", t.IntegerType(), nullable=True
-                            ),
-                            t.StructField(
-                                "variant_allele", t.StringType(), nullable=False
-                            ),
-                            t.StructField(
-                                "swissprot", t.ArrayType(t.StringType()), nullable=True
-                            ),
-                            t.StructField("amino_acids", t.StringType(), nullable=True),
-                        ]
-                    )
-                ),
-                nullable=True,
-            ),
-            t.StructField("vcf_string", t.ArrayType(t.StringType()), nullable=True),
-            t.StructField("seq_region_name", t.StringType(), nullable=False),
-        ]
-    )
-
-    API_SIZE_LIMIT = 200
-
-    API_URL = "https://rest.ensembl.org/vep/human/id"
-    REQUEST_HEADERS = {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-    }
-    RESQUEST_PARAMS = {
-        "uniprot": 1,
-        "vcf_string": 1,
-    }
-
-    def __init__(self, spark: SparkSession, rsid_cache: str) -> None:
-        # Store the cache file name:
-        self.rsid_cache = rsid_cache
-        self.spark = spark
-
-        # Try to load the cache file:
-        try:
-            logger.info(f"Reading cache from: {rsid_cache}.")
-            self.rsid_cache_df = spark.read.parquet(rsid_cache)
-        except AnalysisException:
-            logger.info(
-                f"The provided cache file could not be read. Creating new cache here: {rsid_cache}."
-            )
-            self.rsid_cache_df = spark.createDataFrame([], schema=self.CACHE_SCHEMA)
-
-        # Get a list of already mapped rsids:
-        self.cached_rsids: list[str] = [
-            row["variantRsId"]
-            for row in self.rsid_cache_df.select("variantRsId").distinct().collect()
-        ]
-        # Register with a temporary view:
-        self.rsid_cache_df.createOrReplaceTempView("cached_rsids")
-
-        logger.info(f"Number of cached rsids: {len(self.cached_rsids)}.")
-
-    def update_cache_file(self) -> None:
-        """Save the cache file in the provided location."""
-        # Create a temporary file
-        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".parquet")
-        temp_file_path = temp_file.name
-        # Write the updated DataFrame to the temporary Parquet file
-        self.rsid_cache_df.write.mode("overwrite").parquet(temp_file_path)
-
-        (
-            # Read the temporary Parquet file
-            self.spark.read.parquet(temp_file_path)
-            .write.mode("overwrite")
-            .parquet(self.rsid_cache)
-        )
-        temp_file.close()
-        # Refresh the table to invalidate the cache
-        self.spark.sql("REFRESH TABLE cached_rsids")
-
-    def get_mapped_variants(self) -> DataFrame:
-        """Return the cache DataFrame.
-
-        Returns:
-            DataFrame: The cache DataFrame.
-        """
-        return self.rsid_cache_df
-
-    def map_rsids(self, rsids) -> None:
-        """Map rsids to variant ids. Adds the mapping to the cache.
+        This function tries to find the best matching variantId for the
+        Uniprot evidence based on the variantRsId and the predicted amino acid canges.
 
         Args:
-            rsids (list[str]): List of rsids to map.
+            uniprot_variants (DataFrame): The Uniprot variants DataFrame.
+            mapped_variants (DataFrame): The mapped variants DataFrame.
+
+        Returns:
+            DataFrame: The resolved Uniprot evidence DataFrame.
         """
-        # Get the missing rsids:
-        missing_rsids = [rsid for rsid in rsids if rsid not in self.cached_rsids]
-
-        # Chunking the missing rsids into accepted chunks:
-        rsid_chunks = [
-            missing_rsids[i : i + self.API_SIZE_LIMIT]
-            for i in range(0, len(missing_rsids), self.API_SIZE_LIMIT)
-        ]
-
-        # Report missingness:
-        logger.info(
-            f"Number of missing rsids that needs to be mapped: {len(missing_rsids)}."
+        # Variant mappings are aggregated by rsId, disease and target to allow for selection of the correct variantId:
+        window = Window.partitionBy(
+            "diseaseFromSource", "targetFromSourceId", "variantRsId"
         )
-        logger.info(f"Missing rsids are broken down into {len(rsid_chunks)} chunks.")
-
-        # Mapping the missing rsids:
-        for index, rsid_chunk in enumerate(rsid_chunks):
-            logger.info(f"Mapping chunk {index}...")
-            # Get mapping for the chunk:
-            mapped_chunk = self._map_rsids_chunk(rsid_chunk)
-            # Adding chunk to the cache:
-            self.rsid_cache_df = self.rsid_cache_df.unionByName(mapped_chunk)
-
-        logger.info("Mapping rsids completed.")
-
-    def _map_rsids_chunk(self, rsids) -> DataFrame:
-        vep_annotated_data = self._get_vep_for_rsid(rsids)
-
-        # Ensure the vcf_string is a list - neccesary as the VEP schema is inconsistent:
-        for data in vep_annotated_data:
-            if not isinstance(data["vcf_string"], list):
-                data["vcf_string"] = [data["vcf_string"]]
-
+        uniprot_columns = uniprot_variants.columns
         return (
-            # Read VEP output into a DataFrame following a simplified response schema:
-            self.spark.createDataFrame(vep_annotated_data, self.API_RESPONSE_SCHEMA)
-            # Explode transcript consequences and uniprot ids:
-            .withColumn("transcript_consequences", f.explode("transcript_consequences"))
-            .select("*", "transcript_consequences.*")
-            .withColumn("uniprot_id", f.explode("swissprot"))
-            # Do transformations to get the final schema:
-            .select(
-                # Selecting only the necessary columns:
-                f.col("input").alias("variantRsId"),
-                # TODO: The variant id should be generated from the vcf_string field:
-                f.concat_ws(
-                    "_",
-                    "seq_region_name",
-                    "start",
-                    f.split(f.col("allele_string"), "/")[0],
-                    "variant_allele",
-                ).alias("variantId"),
-                # Extracting the protein position and substitued amino acids:
-                f.col("protein_start").alias("vepProteinPosition"),
-                f.split(f.col("amino_acids"), "/")[0].alias("vepRefAminoAcid"),
+            uniprot_variants
+            # Join the uniprot variants with the variant mappings:
+            .join(mapped_variants, on=["variantRsId", "targetFromSourceId"], how="left")
+            # Create a boolean indicating if the variantId is accepted for the evidence:
+            # This logic can be further refined to include more complex logic
+            .withColumn(
+                "isMatch",
+                # Automatically accept biallelic variants:
                 f.when(
-                    f.split(f.col("amino_acids"), "/")[1] != "*",
-                    f.split(f.col("amino_acids"), "/")[1],
-                ).alias("vepAltAminoAcid"),
-                # Stripping uniprot version from id:
-                f.split(f.col("uniprot_id"), r"\.")[0].alias("targetFromSourceId"),
-                f.col("vcf_string"),
-                # Flag multiallelic variants:
-                (f.size("vcf_string") > 1).alias("isMultiAllelic"),
+                    ~f.col("isMultiAllelic"),
+                    f.lit(True),
+                    # Only accept multiallelic variants if they match the alternative amino acid matches the VEP annotation:
+                )
+                .when(f.col("altAminoAcid") == f.col("vepAltAminoAcid"), f.lit(True))
+                .otherwise(f.lit(False)),
             )
-            # Dropping non-protein coding consequeces:
-            .filter(f.col("targetFromSourceId").isNotNull())
+            .withColumn(
+                "isFailedWindow",
+                # Flagging evidence/variantId windows where no match was found:
+                f.when(
+                    ~f.array_contains(f.collect_set("isMatch").over(window), True),
+                    f.lit(True),
+                ).otherwise(f.lit(False)),
+            )
+            # Accepting only matching variantids or failed windows:
+            .filter(f.col("isFailedWindow") | f.col("isMatch"))
+            .select(
+                *uniprot_columns,
+                f.col("variantId"),
+                f.col("vepAltAminoAcid"),
+                f.col("isMultiAllelic"),
+            )
             .distinct()
-            .orderBy("variantRsId", "variantId")
         )
 
-    def _get_vep_for_rsid(self, variants_to_map) -> list:
-        """Get VEP data for a list of variants.
+    def add_efo_mapping(
+        self: UniprotVariantsParser, ontoma_cache_dir: str
+    ) -> UniprotVariantsParser:
+        """Add EFO mappings to the Uniprot evidence.
 
         Args:
-            variants_to_map (list[str]): List of variants to map.
+            ontoma_cache_dir (str): The OnToma cache directory.
 
         Returns:
-            dict[str, Any]: The VEP data for the given variants.
+            UniprotVariantsParser: The UniprotVariantsParser.
         """
-        response = requests.post(
-            self.API_URL,
-            headers=self.REQUEST_HEADERS,
-            params=self.RESQUEST_PARAMS,
-            json={"ids": variants_to_map},
+        self.evidence_dataframe = add_efo_mapping(
+            self.evidence_dataframe, self.SPARK_SESSION, ontoma_cache_dir
+        )
+        # Add EFO mappings:
+        logger.info("Adding EFO mappings.")
+        self.evidence_dataframe = add_efo_mapping(
+            self.evidence_dataframe, self.SPARK_SESSION, ontoma_cache_dir
         )
 
-        return response.json()
+        return self
 
+    def get_evidence(self: UniprotVariantsParser, debug: bool = False) -> DataFrame:
+        """Get the Uniprot evidence.
 
-def resolve_variant_ids(
-    uniprot_variants: DataFrame, mapped_variants: DataFrame
-) -> DataFrame:
-    """Resolving variant ids for the Uniprot evidence.
+        Returns:
+            DataFrame: The Uniprot evidence.
+        """
+        # Return all columns for debugging purposes:
+        if debug:
+            return self.evidence_dataframe
 
-    This function tries to find the best matching variantId for the
-    Uniprot evidence based on the variantRsId and the predicted amino acid canges.
-
-    Args:
-        uniprot_variants (DataFrame): The Uniprot variants DataFrame.
-        mapped_variants (DataFrame): The mapped variants DataFrame.
-
-    Returns:
-        DataFrame: The resolved Uniprot evidence DataFrame.
-    """
-    # Variant mappings are aggregated by rsId, disease and target to allow for selection of the correct variantId:
-    window = Window.partitionBy(
-        "diseaseFromSource", "targetFromSourceId", "variantRsId"
-    )
-    uniprot_columns = uniprot_variants.columns
-    return (
-        uniprot_variants
-        # Join the uniprot variants with the variant mappings:
-        .join(mapped_variants, on=["variantRsId", "targetFromSourceId"], how="left")
-        # Create a boolean indicating if the variantId is accepted for the evidence:
-        # This logic can be further refined to include more complex logic
-        .withColumn(
-            "isMatch",
-            # Automatically accept biallelic variants:
-            f.when(
-                ~f.col("isMultiAllelic"),
-                f.lit(True),
-                # Only accept multiallelic variants if they match the alternative amino acid matches the VEP annotation:
-            )
-            .when(f.col("altAminoAcid") == f.col("vepAltAminoAcid"), f.lit(True))
-            .otherwise(f.lit(False)),
+        return self.evidence_dataframe.select(
+            f.lit("uniprot_variants").alias("datasourceId"),
+            f.lit("genetic_association").alias("datatypeId"),
+            f.lit("up_or_down").alias("targetModulation"),
         )
-        .withColumn(
-            "isFailedWindow",
-            # Flagging evidence/variantId windows where no match was found:
-            f.when(
-                ~f.array_contains(f.collect_set("isMatch").over(window), True),
-                f.lit(True),
-            ).otherwise(f.lit(False)),
-        )
-        # Accepting only matching variantids or failed windows:
-        .filter(f.col("isFailedWindow") | f.col("isMatch"))
-        .select(
-            *uniprot_columns,
-            f.col("variantId"),
-            f.col("vepAltAminoAcid"),
-            f.col("isMultiAllelic"),
-        )
-        .distinct()
-    )
 
 
 def main(
@@ -486,69 +315,30 @@ def main(
     # Initialise spark session:
     spark = initialize_sparksession()
 
-    # Extracting Uniprot evidence:
-    uniprot_variants = (
-        UniprotVariantsExtractor.get_dataframe(spark)
-        # For testing purposes, limit the number of rows:
-        # .orderBy(f.rand())
-        # .limit(20)
-    )
-
-    # Get unique rsids:
-    unique_rsids = [
-        row["variantRsId"]
-        for row in uniprot_variants.select("variantRsId").distinct().collect()
-    ]
-
-    logger.info(f"Number of unique rsids: {len(unique_rsids)}.")
-
     # Initialising rsid mapper with the provided cache file:
-    rsid_mapper = rsidMapper(spark, rsid_cache)
+    rsid_mapper = RsIdMapper(spark, rsid_cache)
 
-    # Mapping rsids to variant ids:
-    rsid_mapper.map_rsids(unique_rsids)
-
-    # Save the cache file:
-    rsid_mapper.update_cache_file()
-
-    # Resolve variant ids with uniprot evidence:
-    logger.info("Resolving variant ids.")
-    resolved_evidence = resolve_variant_ids(
-        uniprot_variants, rsid_mapper.get_mapped_variants()
+    # Extracting Uniprot evidence:
+    uniprot_variants_evidence = (
+        # Initialising the UniprotVariantsParser:
+        UniprotVariantsParser(spark, ontoma_cache_dir)
+        # Extract raw variant data:
+        .extract_evidence_from_uniprot()
+        # map rsIDs to variant IDs:
+        .map_rsids(rsid_mapper)
+        # Map EFO terms:
+        .add_efo_mapping(ontoma_cache_dir)
+        # Accessing evidence data:
+        .get_evidence(debug=True)
     )
-
-    # Add EFO mappings:
-    logger.info("Adding EFO mappings.")
-    evidence_df = add_efo_mapping(resolved_evidence, spark, ontoma_cache_dir)
 
     # Write data:
     logger.info("Writing data.")
-    evidence_df.write.mode("overwrite").parquet("uniprot_debug.parquet")
-    # write_evidence_strings(
-    #     (
-    #         evidence_df
-    #         # TODO: Based on targetToDiseaseAnnotation classify confidence
-    #         # TODO: Based on variantToTargetAnnotation classify direction of effect/target modulation
-    #         # The reference and altenate amino acids are there for troubleshooting purposes.
-    #         .drop(
-    #             "targetToDiseaseAnnotation",
-    #             "variantToTargetAnnotation",
-    #             "altAminoAcid",
-    #             "proteinPosition",
-    #             "refAminoAcid",
-    #             "isMultiAllelic",
-    #             "vepAltAminoAcid",
-    #         ).withColumns(
-    #             {
-    #                 "datasourceId": f.lit("uniprot_variants"),
-    #                 "datatypeId": f.lit("genetic_association"),
-    #                 "confidence": f.lit("high"),
-    #                 "targetModulation": f.lit("up_or_down"),
-    #             }
-    #         )
-    #     ),
-    #     output_file,
-    # )
+
+    write_evidence_strings(
+        uniprot_variants_evidence,
+        output_file,
+    )
 
 
 def parse_command_line_arguments() -> argparse.Namespace:
