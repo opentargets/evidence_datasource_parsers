@@ -3,16 +3,19 @@
 from __future__ import annotations
 
 import logging
+from abc import ABC, abstractmethod
 from typing import Any
 
-from pyspark.sql import Column
+from pyspark.sql import Column, DataFrame, SparkSession
 from pyspark.sql import functions as f
 from SPARQLWrapper import JSON, SPARQLWrapper
+
+from common.ontology import add_efo_mapping
 
 logger = logging.getLogger(__name__)
 
 
-class UniprotShared:
+class UniprotShared(ABC):
     """Shared functions for the UniProt module."""
 
     UNIPROT_SPARQL_ENDPOINT = "https://sparql.uniprot.org/sparql"
@@ -26,10 +29,20 @@ class UniprotShared:
         "The gene represented in this entry may act as a disease modifier",
     ]
     SPARK_SESSION = None
+    EVIDENCE_COLUMNS: list[str] = []
 
-    def __init__(self: UniprotShared, spark: SparkSession) -> None:
-        """Initializes the class."""
-        self.SPARK_SESSION = spark
+    evidence_dataframe: DataFrame | None = None
+
+    @abstractmethod
+    def extract_evidence_from_uniprot(
+        self: UniprotShared,
+    ) -> UniprotShared:
+        """Extracts evidence from UniProt.
+
+        Returns:
+            UniprotShared: The UniProt shared instance.
+        """
+        pass
 
     @classmethod
     def extract_uniprot_data(
@@ -111,3 +124,43 @@ class UniprotShared:
             .otherwise(f.lit("high-confidence"))
             .alias("confidence")
         )
+
+    def get_evidence(self: UniprotShared, debug: bool = False) -> DataFrame:
+        """Get the Uniprot evidence.
+
+        Returns:
+            DataFrame: The Uniprot evidence.
+
+        Raises:
+            ValueError: If no evidence data is found.
+        """
+        if not self.evidence_dataframe:
+            raise ValueError("No evidence data found.")
+
+        # Return all columns for debugging purposes:
+        select_expression = "*" if debug else self.EVIDENCE_COLUMNS
+
+        return self.evidence_dataframe.select(*select_expression)
+
+    def add_efo_mapping(self: UniprotShared, ontoma_cache_dir: str) -> UniprotShared:
+        """Add EFO mappings to the Uniprot evidence.
+
+        Args:
+            ontoma_cache_dir (str): The OnToma cache directory.
+
+        Returns:
+            UniprotVariantsParser: The UniprotVariantsParser.
+
+        Raises:
+            ValueError: If no evidence data is found or Spark session not initialized.
+        """
+        if not self.evidence_dataframe or not self.SPARK_SESSION:
+            raise ValueError("No evidence data found or Spark session not initialized.")
+
+        # Add EFO mappings:
+        logger.info("Adding EFO mappings.")
+        self.evidence_dataframe = add_efo_mapping(
+            self.evidence_dataframe, self.SPARK_SESSION, ontoma_cache_dir
+        )
+
+        return self

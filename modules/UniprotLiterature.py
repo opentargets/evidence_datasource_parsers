@@ -9,16 +9,16 @@ from typing import Any
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as f
 from SPARQLWrapper import JSON, SPARQLWrapper
+from uniprot_shared import UniprotShared
 
 from common.evidence import (
     initialize_logger,
     initialize_sparksession,
     write_evidence_strings,
 )
-from common.ontology import add_efo_mapping
 
 
-class UniprotLiteratureExtractor:
+class UniprotLiteratureExtractor(UniprotShared):
     """Class to extract Uniprot literature annotation from Unirot SPARQL API."""
 
     UNIPROT_SPARQL_ENDPOINT = "https://sparql.uniprot.org/sparql"
@@ -32,9 +32,9 @@ class UniprotLiteratureExtractor:
 
         SELECT DISTINCT
             ?protein 
-            ?db
-            ?disease_label
-            ?disease_comment
+            ?diseaseCrossrefs
+            ?diseaseLabel
+            ?diseaseComment
             (GROUP_CONCAT(DISTINCT ?source; SEPARATOR=", ") AS ?sources)
         
         WHERE
@@ -44,89 +44,72 @@ class UniprotLiteratureExtractor:
             ?protein a up:Protein ;
                 up:organism taxon:9606 .
 
-            ?protein rdfs:seeAlso ?db .
-            ?db up:database <http://purl.uniprot.org/database/MIM> .
-            ?db rdfs:comment ?text .
+            ?protein rdfs:seeAlso ?diseaseCrossrefs .
+            ?diseaseCrossrefs up:database <http://purl.uniprot.org/database/MIM> .
+            ?diseaseCrossrefs rdfs:comment ?text .
             FILTER(CONTAINS(str(?text), "phenotype")) .
-            ?disease_db rdfs:seeAlso ?db .
+            ?disease_db rdfs:seeAlso ?diseaseCrossrefs .
             ?disease_db rdf:type up:Disease .
-            ?disease_db skos:prefLabel ?disease_label .
-            ?disease_db rdfs:comment ?disease_comment .
+            ?disease_db skos:prefLabel ?diseaseLabel .
+            ?disease_db rdfs:comment ?diseaseComment .
             OPTIONAL {
                 ?linkToEvidence rdf:object ?disease_db ;
                                 up:attribution ?attribution .
                 ?attribution up:source ?source .
                 ?source a up:Journal_Citation .
-            }       
+            }
+
+            # Extracting gene to disease confidence:
+            ?subject up:disease ?related_disease .
+            ?subject rdfs:comment ?geneToDiseaseComment .
+
         }
 
         GROUP BY 
             ?protein 
-            ?db
-            ?disease_label
-            ?disease_comment
+            ?diseaseCrossrefs
+            ?diseaseLabel
+            ?diseaseComment
+            ?geneToDiseaseComment
     """
 
-    @classmethod
-    def extract_literature_data(
-        cls: type[UniprotLiteratureExtractor],
-    ) -> list[dict[str, Any]]:
-        """Extract Uniprot literature data from the Uniprot SPARQL API.
+    EVIDENCE_COLUMNS = [
+        "confidence",
+        "datasourceId",
+        "datatypeId",
+        "diseaseFromSource",
+        "diseaseFromSourceId",
+        "diseaseFromSourceMappedId",
+        "literature",
+        "targetFromSourceId",
+        "targetModulation",
+    ]
 
-        Args:
-            limit (int, optional): The number of rows to limit the data to. Defaults to 1000.
-
-        Returns:
-            list[dict[str, Any]]: The Uniprot literature data.
-        """
-        # Initialize the SPARQL endpoint
-        sparql = SPARQLWrapper(cls.UNIPROT_SPARQL_ENDPOINT)
-
-        # Set the query and return format
-        sparql.setQuery(cls.UNIPROT_SPARQL_QUERY)
-        sparql.setReturnFormat(JSON)
-
-        # Execute the query and fetch results
-        results = sparql.query().convert()
-        logger.info("Data extraction completed.")
-
-        literature_data = []
-        for result in results["results"]["bindings"]:
-            disease = {}
-            for key, value in result.items():
-                # Extracting only MIM disease cross-references:
-                if key == "df" and "mim" not in value["value"]:
-                    continue
-
-                if value["type"] == "literal":
-                    disease[key] = value["value"]
-                elif "mim" in value["value"]:
-                    disease[key] = value["value"]
-                elif value["type"] == "uri":
-                    disease[key] = cls.get_uri_leaf(value["value"])
-            literature_data.append(disease)
-
-        logger.info(
-            f"Number of disease/target/variant evidence: {len(literature_data)}."
-        )
-        return literature_data
-
-    @classmethod
-    def get_dataframe(cls, spark: SparkSession) -> DataFrame:
-        """Convert VEP data to a Spark DataFrame and minimally process it.
+    def __init__(self: UniprotLiteratureExtractor, spark: SparkSession) -> None:
+        """Initialize the UniprotLiteratureExtractor class.
 
         Args:
             spark (SparkSession): The Spark session.
+        """
+        self.SPARK_SESSION = spark
+
+    def extract_evidence_from_uniprot(
+        self: UniprotLiteratureExtractor,
+    ) -> UniprotLiteratureExtractor:
+        """Extract Uniprot literature data from the Uniprot SPARQL API.
 
         Returns:
-            DataFrame: The processed VEP data.
+            UniprotLiteratureExtractor: The Uniprot literature extractor instance.
         """
-        literature_data = cls.extract_literature_data()
+        # Get data from Uniprot:
+        literature_data = self.extract_uniprot_data()
 
         # Convert to a Spark DataFrame:
-        return spark.createDataFrame(literature_data).select(
+        self.evidence_dataframe = self.SPARK_SESSION.createDataFrame(
+            literature_data
+        ).select(
             # Extract disease information:
-            f.col("disease_label").alias("diseaseFromSource"),
+            f.col("diseaseLabel").alias("diseaseFromSource"),
             f.concat(
                 f.lit("OMIM:"),
                 f.split("db", "/").getItem(f.size(f.split("db", "/")) - 1),
@@ -141,8 +124,16 @@ class UniprotLiteratureExtractor:
                 ),
                 lambda uri: f.split(uri, "/").getItem(f.size(f.split(uri, "/")) - 1),
             ).alias("literature"),
-            f.col("disease_comment").alias("diseaseFromSourceDescription"),
+            # Mapping geneToDiseaseComment to confidence:
+            self.map_confidence(f.col("geneToDiseaseComment")).alias("confidence"),
+            f.col("diseaseComment").alias("diseaseComment"),
+            # Add default values:
+            f.lit("uniprot_literature").alias("datasourceId"),
+            f.lit("genetic_literature").alias("datatypeId"),
+            f.lit("up_or_down").alias("targetModulation"),
         )
+
+        return self
 
     @staticmethod
     def get_uri_leaf(uri: str) -> str:
@@ -160,33 +151,30 @@ def main(
     # Initialise spark session:
     spark = initialize_sparksession()
 
-    # Extracting Uniprot evidence:
-    uniprot_variants = UniprotLiteratureExtractor.get_dataframe(spark)
+    # Get logger:
+    logger.info("Starting Uniprot evidence parser.")
+    logger.info(f"Output file: {output_file}")
 
-    # Add EFO mappings:
-    logger.info("Adding EFO mappings.")
-    evidence_df = add_efo_mapping(uniprot_variants, spark, ontoma_cache_dir)
+    # Initialise spark session:
+    spark = initialize_sparksession()
+
+    # Extracting Uniprot evidence:
+    uniprot_literature_evidence = (
+        # Initialising the UniprotVariantsParser:
+        UniprotLiteratureExtractor(spark)
+        # Extract raw variant data:
+        .extract_evidence_from_uniprot()
+        # Map EFO terms:
+        .add_efo_mapping(ontoma_cache_dir)
+        # Accessing evidence data:
+        .get_evidence(debug=True)
+    )
 
     # Write data:
     logger.info("Writing data.")
-    evidence_df.write.mode("overwrite").parquet("uniprot_debug.parquet")
+
     write_evidence_strings(
-        (
-            evidence_df
-            # TODO: Based on targetToDiseaseAnnotation classify confidence
-            # TODO: Based on variantToTargetAnnotation classify direction of effect/target modulation
-            # The reference and altenate amino acids are there for troubleshooting purposes.
-            .drop(
-                "diseaseFromSourceDescription",
-            ).withColumns(
-                {
-                    "datasourceId": f.lit("uniprot_literature"),
-                    "datatypeId": f.lit("genetic_literature"),
-                    "confidence": f.lit("high"),
-                    "targetModulation": f.lit("up_or_down"),
-                }
-            )
-        ),
+        uniprot_literature_evidence,
         output_file,
     )
 

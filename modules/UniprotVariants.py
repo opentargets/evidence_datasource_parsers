@@ -14,7 +14,6 @@ from common.evidence import (
     initialize_sparksession,
     write_evidence_strings,
 )
-from common.ontology import add_efo_mapping
 from common.variant_rsid_mapping import RsIdMapper
 
 
@@ -115,20 +114,30 @@ class UniprotVariantsParser(UniprotShared):
             ?geneToDiseaseComment
     """
 
+    EVIDENCE_COLUMNS = [
+        "confidence",
+        "datasourceId",
+        "datatypeId",
+        "diseaseFromSource",
+        "diseaseFromSourceId",
+        "diseaseFromSourceMappedId",
+        "literature",
+        "targetFromSourceId",
+        "targetModulation",
+        "variantId",
+        "variantRsId",
+    ]
+
     def __init__(
         self: UniprotVariantsParser,
         spark: SparkSession,
-        ontoma_cache_dir: str,
     ):
         """Initialise the UniprotVariantsParser.
 
         Args:
             spark (SparkSession): The Spark session.
-            rsid_cache (str): The rsid cache file.
-            ontoma_cache_dir (str): The OnToma cache directory.
         """
-        super().__init__(spark)
-        self.ontoma_cache_dir = ontoma_cache_dir
+        self.SPARK_SESSION = spark
 
     def extract_evidence_from_uniprot(
         self: UniprotVariantsParser,
@@ -147,7 +156,7 @@ class UniprotVariantsParser(UniprotShared):
                     f.size(f.split("diseaseCrossrefs", "/")) - 1
                 ),
             ).alias("diseaseFromSourceId"),
-            f.col("diseaseComment").alias("targetToDiseaseAnnotation"),
+            f.col("diseaseComment").alias("diseaseComment"),
             # Extract target annotation
             f.col("protein").alias("targetFromSourceId"),
             f.col("comment").alias("variantToTargetAnnotation"),
@@ -168,6 +177,10 @@ class UniprotVariantsParser(UniprotShared):
             "geneToDiseaseComment",
             # Mapping geneToDiseaseComment to confidence:
             self.map_confidence(f.col("geneToDiseaseComment")).alias("confidence"),
+            # Adding source information:
+            f.lit("uniprot_variants").alias("datasourceId"),
+            f.lit("genetic_association").alias("datatypeId"),
+            f.lit("up_or_down").alias("targetModulation"),
         )
 
         return self
@@ -264,44 +277,6 @@ class UniprotVariantsParser(UniprotShared):
             .distinct()
         )
 
-    def add_efo_mapping(
-        self: UniprotVariantsParser, ontoma_cache_dir: str
-    ) -> UniprotVariantsParser:
-        """Add EFO mappings to the Uniprot evidence.
-
-        Args:
-            ontoma_cache_dir (str): The OnToma cache directory.
-
-        Returns:
-            UniprotVariantsParser: The UniprotVariantsParser.
-        """
-        self.evidence_dataframe = add_efo_mapping(
-            self.evidence_dataframe, self.SPARK_SESSION, ontoma_cache_dir
-        )
-        # Add EFO mappings:
-        logger.info("Adding EFO mappings.")
-        self.evidence_dataframe = add_efo_mapping(
-            self.evidence_dataframe, self.SPARK_SESSION, ontoma_cache_dir
-        )
-
-        return self
-
-    def get_evidence(self: UniprotVariantsParser, debug: bool = False) -> DataFrame:
-        """Get the Uniprot evidence.
-
-        Returns:
-            DataFrame: The Uniprot evidence.
-        """
-        # Return all columns for debugging purposes:
-        if debug:
-            return self.evidence_dataframe
-
-        return self.evidence_dataframe.select(
-            f.lit("uniprot_variants").alias("datasourceId"),
-            f.lit("genetic_association").alias("datatypeId"),
-            f.lit("up_or_down").alias("targetModulation"),
-        )
-
 
 def main(
     rsid_cache: str,
@@ -321,7 +296,7 @@ def main(
     # Extracting Uniprot evidence:
     uniprot_variants_evidence = (
         # Initialising the UniprotVariantsParser:
-        UniprotVariantsParser(spark, ontoma_cache_dir)
+        UniprotVariantsParser(spark)
         # Extract raw variant data:
         .extract_evidence_from_uniprot()
         # map rsIDs to variant IDs:
@@ -329,7 +304,7 @@ def main(
         # Map EFO terms:
         .add_efo_mapping(ontoma_cache_dir)
         # Accessing evidence data:
-        .get_evidence(debug=True)
+        .get_evidence(debug=False)
     )
 
     # Write data:
