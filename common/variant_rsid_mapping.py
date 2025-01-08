@@ -1,4 +1,10 @@
-"""Tools to map variant rsids to variant location and variant identifiers."""
+"""Tools to map variant rsids to variant location and variant identifiers.
+
+Considerations:
+- This tool uses the Ensembl Variant Effect Predictor (VEP) REST API to map rsids to variant locations.
+- As the mapping can be time consuming, the tool uses a cache file to store the already mapped rsids.
+- The cache file can be updated with new mappings once the mapping is complete.
+"""
 
 from __future__ import annotations
 
@@ -6,7 +12,7 @@ import logging
 import tempfile
 
 import requests
-from pyspark.sql import DataFrame, SparkSession, Window
+from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as f
 from pyspark.sql import types as t
 from pyspark.sql.utils import AnalysisException
@@ -17,6 +23,7 @@ logger = logging.getLogger(__name__)
 class RsIdMapper:
     """Class to map rsids to variant ids and locations."""
 
+    # Schema for the cache file is required to initialise empty DataFrame:
     CACHE_SCHEMA = t.StructType(
         [
             t.StructField("variantRsId", t.StringType(), True),
@@ -30,6 +37,7 @@ class RsIdMapper:
         ]
     )
 
+    # Schema for the VEP API response:
     API_RESPONSE_SCHEMA = t.StructType(
         [
             t.StructField("start", t.LongType(), nullable=False),
@@ -61,6 +69,7 @@ class RsIdMapper:
         ]
     )
 
+    # The maximum size of rsIDs that can be submitted to the API at once:
     API_SIZE_LIMIT = 200
 
     API_URL = "https://rest.ensembl.org/vep/human/id"
@@ -68,6 +77,8 @@ class RsIdMapper:
         "Content-Type": "application/json",
         "Accept": "application/json",
     }
+
+    # Extra parameters for the API request:
     RESQUEST_PARAMS = {
         "uniprot": 1,
         "vcf_string": 1,
@@ -146,8 +157,8 @@ class RsIdMapper:
         Args:
             rsids (list[str]): List of rsids to map.
         """
-        # Get the missing rsids:
-        missing_rsids = [rsid for rsid in rsids if rsid not in self.cached_rsids]
+        # Get a unique list of rsIDs that are not already cached:
+        missing_rsids = [rsid for rsid in set(rsids) if rsid not in self.cached_rsids]
 
         # Chunking the missing rsids into accepted chunks:
         rsid_chunks = [
