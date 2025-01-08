@@ -18,8 +18,9 @@ from common.variant_rsid_mapping import RsIdMapper
 
 
 class UniprotVariantsParser(UniprotShared):
-    """Class to extract Uniprot variants from the Uniprot SPARQL API."""
+    """Class to extract evidence from Uniprot curated variation data."""
 
+    # SPARQL query to extract Uniprot variant data:
     UNIPROT_SPARQL_QUERY = """
         PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
         PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
@@ -114,6 +115,7 @@ class UniprotVariantsParser(UniprotShared):
             ?geneToDiseaseComment
     """
 
+    # Uniprot variant evidence columns:
     EVIDENCE_COLUMNS = [
         "confidence",
         "datasourceId",
@@ -128,10 +130,7 @@ class UniprotVariantsParser(UniprotShared):
         "variantRsId",
     ]
 
-    def __init__(
-        self: UniprotVariantsParser,
-        spark: SparkSession,
-    ):
+    def __init__(self: UniprotVariantsParser, spark: SparkSession) -> None:
         """Initialise the UniprotVariantsParser.
 
         Args:
@@ -142,9 +141,15 @@ class UniprotVariantsParser(UniprotShared):
     def extract_evidence_from_uniprot(
         self: UniprotVariantsParser,
     ) -> UniprotVariantsParser:
-        """UniprotVariant specific pre-processing of the raw data."""
+        """UniprotVariant specific pre-processing of the raw data.
+
+        Returns:
+            UniprotVariantsParser: The UniprotVariantsParser.
+        """
+        # Retrieve the raw variant data:
         variant_data = self.extract_uniprot_data()
 
+        # Convert to a Spark DataFrame and process columns:
         self.evidence_dataframe = self.SPARK_SESSION.createDataFrame(
             variant_data
         ).select(
@@ -156,7 +161,7 @@ class UniprotVariantsParser(UniprotShared):
                     f.size(f.split("diseaseCrossrefs", "/")) - 1
                 ),
             ).alias("diseaseFromSourceId"),
-            f.col("diseaseComment").alias("diseaseComment"),
+            "diseaseComment",
             # Extract target annotation
             f.col("protein").alias("targetFromSourceId"),
             f.col("comment").alias("variantToTargetAnnotation"),
@@ -174,8 +179,8 @@ class UniprotVariantsParser(UniprotShared):
                 f.split(f.col("sources"), ", "),
                 lambda uri: f.split(uri, "/").getItem(f.size(f.split(uri, "/")) - 1),
             ).alias("literature"),
-            "geneToDiseaseComment",
             # Mapping geneToDiseaseComment to confidence:
+            "geneToDiseaseComment",
             self.map_confidence(f.col("geneToDiseaseComment")).alias("confidence"),
             # Adding source information:
             f.lit("uniprot_variants").alias("datasourceId"),
@@ -283,6 +288,13 @@ def main(
     output_file: str,
     ontoma_cache_dir: str,
 ) -> None:
+    """Main functin to build Uniprot variant evidence.
+
+    Args:
+        rsid_cache (str): Cache file containing existing rsid to variant id mapping.
+        output_file (str): Path to the output file.
+        ontoma_cache_dir (str): Cache directory for the OnToma data.
+    """
     # Get logger:
     logger.info("Starting Uniprot evidence parser.")
     logger.info(f"Output file: {output_file}")

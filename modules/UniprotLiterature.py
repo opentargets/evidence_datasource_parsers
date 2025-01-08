@@ -4,11 +4,9 @@ from __future__ import annotations
 
 import argparse
 import logging
-from typing import Any
 
-from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql import SparkSession
 from pyspark.sql import functions as f
-from SPARQLWrapper import JSON, SPARQLWrapper
 from uniprot_shared import UniprotShared
 
 from common.evidence import (
@@ -21,8 +19,7 @@ from common.evidence import (
 class UniprotLiteratureExtractor(UniprotShared):
     """Class to extract Uniprot literature annotation from Unirot SPARQL API."""
 
-    UNIPROT_SPARQL_ENDPOINT = "https://sparql.uniprot.org/sparql"
-
+    # SPARQL query to extract Uniprot literature data:
     UNIPROT_SPARQL_QUERY = """
         PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
         PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
@@ -73,6 +70,7 @@ class UniprotLiteratureExtractor(UniprotShared):
             ?geneToDiseaseComment
     """
 
+    # List of columns for Uniprot literature evidence:
     EVIDENCE_COLUMNS = [
         "confidence",
         "datasourceId",
@@ -135,22 +133,17 @@ class UniprotLiteratureExtractor(UniprotShared):
 
         return self
 
-    @staticmethod
-    def get_uri_leaf(uri: str) -> str:
-        return uri.split("/")[-1]
-
 
 def main(
     output_file: str,
     ontoma_cache_dir: str,
 ) -> None:
-    # Get logger:
-    logger.info("Starting Uniprot evidence parser.")
-    logger.info(f"Output file: {output_file}")
+    """Main function to extract Uniprot evidence.
 
-    # Initialise spark session:
-    spark = initialize_sparksession()
-
+    Args:
+        output_file (str): The path to the output file.
+        ontoma_cache_dir (str): The path to the OnToma cache directory.
+    """
     # Get logger:
     logger.info("Starting Uniprot evidence parser.")
     logger.info(f"Output file: {output_file}")

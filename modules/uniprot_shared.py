@@ -1,4 +1,4 @@
-"""Shared functions for the UniProt module."""
+"""Shared functions for the UniProt modules."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Any
 
-from pyspark.sql import Column, DataFrame, SparkSession
+from pyspark.sql import Column, DataFrame
 from pyspark.sql import functions as f
 from SPARQLWrapper import JSON, SPARQLWrapper
 
@@ -16,7 +16,15 @@ logger = logging.getLogger(__name__)
 
 
 class UniprotShared(ABC):
-    """Shared functions for the UniProt module."""
+    """Shared functions for the UniProt modules.
+
+    Shared features between Uniprot variants and literature parsers:
+    - Extract data from UniProt SPARQL API.
+    - Map confidence flags to boolean columns.
+    - Add EFO mappings to the UniProt evidence.
+    - Extract unique leaf from a URI.
+    - Get UniProt evidence - returns the evidence DataFrame.
+    """
 
     UNIPROT_SPARQL_ENDPOINT = "https://sparql.uniprot.org/sparql"
     UNIPROT_SPARQL_QUERY = ""
@@ -127,6 +135,12 @@ class UniprotShared(ABC):
 
     def get_evidence(self: UniprotShared, debug: bool = False) -> DataFrame:
         """Get the Uniprot evidence.
+
+        Returning the expected columns for the evidence, however, if debug is set to True, all columns are returned.
+        Serving as a debugging tool to explore the evidence data in detail.
+
+        Args:
+            debug (bool, optional): Whether to return all columns for debugging purposes. Defaults to False.
 
         Returns:
             DataFrame: The Uniprot evidence.
