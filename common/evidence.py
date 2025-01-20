@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-import logging
+import logging.config
 import os
 import sys
 import tempfile
@@ -21,38 +21,40 @@ if TYPE_CHECKING:
     from pyspark.sql import Column, DataFrame
 
 
-def initialize_logger(
-    name: str, log_file: Optional[str] = None, log_level: int = logging.INFO
-) -> None:
+def initialize_logger(name: str, log_file: Optional[str] = None) -> None:
     """Initialize the logger.
 
     Args:
         name (str): Name of the logger. This is typically the name of the module. Required to identify the logger.
         log_file (str): Path to the log file.
-        log_level (int): log level eg. logging.INFO, logging.ERROR
 
     Returns:
         None
     """
-    # Setting the format of the log messages:
-    log_formatter = logging.Formatter(
-        "%(asctime)s %(levelname)s %(module)s - %(funcName)s: %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
+    # Initialise logger:
+    with open(f"{sys.path[0]}/../logger_config.yaml", "r") as stream:
+        logger_config = yaml.load(stream, Loader=yaml.FullLoader)
 
-    logger = logging.getLogger(name)
-    logger.setLevel(log_level)
+    logging.config.dictConfig(logger_config)
+    # # Setting the format of the log messages:
+    # log_formatter = logging.Formatter(
+    #     "%(asctime)s %(levelname)s %(module)s - %(funcName)s: %(message)s",
+    #     datefmt="%Y-%m-%d %H:%M:%S",
+    # )
 
-    # Setting up stream handler:
-    stream_handler = logging.StreamHandler(sys.stderr)
-    stream_handler.setFormatter(log_formatter)
-    logger.addHandler(stream_handler)
+    # logger = logging.getLogger(name)
+    # logger.setLevel(logging.DEBUG)
 
-    # If a log file is provided, add that handler too:
-    if log_file is not None:
-        file_handler = logging.FileHandler(log_file, mode="w")
-        file_handler.setFormatter(log_formatter)
-        logger.addHandler(file_handler)
+    # # Setting up stream handler:
+    # stream_handler = logging.StreamHandler(sys.stderr)
+    # stream_handler.setFormatter(log_formatter)
+    # logger.addHandler(stream_handler)
+
+    # # If a log file is provided, add that handler too:
+    # if log_file is not None:
+    #     file_handler = logging.FileHandler(log_file, mode="w")
+    #     file_handler.setFormatter(log_formatter)
+    #     logger.addHandler(file_handler)
 
 
 def detect_spark_memory_limit():
@@ -93,11 +95,7 @@ def initialize_sparksession() -> SparkSession:
         .set("spark.sql.execution.arrow.maxRecordsPerBatch", "500000")
         .set("spark.ui.showConsoleProgress", "false")
     )
-    return (
-        SparkSession.builder.config(conf=spark_conf)
-        .master("local[*]")
-        .getOrCreate()
-    )
+    return SparkSession.builder.config(conf=spark_conf).master("local[*]").getOrCreate()
 
 
 class GenerateDiseaseCellLines:
@@ -349,7 +347,7 @@ def read_ppp_config(config_path: str) -> dict:
 
 def apply_bonferroni_correction(n_tests: int) -> float:
     """Multiple test correction based on the number of tests.
-    
+
     Args:
         n_tests (int): Number of hypotheses testes assuming they are independent
 

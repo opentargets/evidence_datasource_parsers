@@ -47,7 +47,7 @@ class UniprotVariantsParser(UniprotShared):
         WHERE
         {
             # Defining the universe of proteins:
-            # BIND(<http://purl.uniprot.org/uniprot/B1AK53> AS ?protein) .
+            # BIND(<http://purl.uniprot.org/uniprot/Q96P20> AS ?protein) .
             ?protein a up:Protein ;
                up:organism taxon:9606 .
 
@@ -73,6 +73,7 @@ class UniprotVariantsParser(UniprotShared):
             # Extracting gene to disease confidence:
             ?subject up:disease ?related_disease .
             ?subject rdfs:comment ?geneToDiseaseComment .
+            ?protein up:annotation ?subject .
 
             # Extracting disease source if source is from OMIM:
             # FILTER(CONTAINS(STR(?diseaseCrossrefs), "mim"))
@@ -155,12 +156,9 @@ class UniprotVariantsParser(UniprotShared):
         ).select(
             # Extract disease information:
             f.col("diseaseLabel").alias("diseaseFromSource"),
-            f.concat(
-                f.lit("OMIM:"),
-                f.split("diseaseCrossrefs", "/").getItem(
-                    f.size(f.split("diseaseCrossrefs", "/")) - 1
-                ),
-            ).alias("diseaseFromSourceId"),
+            self.extract_omim_crossref(f.col("diseaseCrossrefs")).alias(
+                "diseaseFromSourceId"
+            ),
             "diseaseComment",
             # Extract target annotation
             f.col("protein").alias("targetFromSourceId"),
@@ -175,10 +173,7 @@ class UniprotVariantsParser(UniprotShared):
             f.col("begin").alias("proteinPosition"),
             f.col("referenceSequence").alias("refAminoAcid"),
             # Extract pmids from sources:
-            f.transform(
-                f.split(f.col("sources"), ", "),
-                lambda uri: f.split(uri, "/").getItem(f.size(f.split(uri, "/")) - 1),
-            ).alias("literature"),
+            self.extract_pmids(f.col("sources")).alias("literature"),
             # Mapping geneToDiseaseComment to confidence:
             "geneToDiseaseComment",
             self.map_confidence(f.col("geneToDiseaseComment")).alias("confidence"),
@@ -187,7 +182,6 @@ class UniprotVariantsParser(UniprotShared):
             f.lit("genetic_association").alias("datatypeId"),
             f.lit("up_or_down").alias("targetModulation"),
         )
-
         return self
 
     def map_rsids(
@@ -222,7 +216,7 @@ class UniprotVariantsParser(UniprotShared):
         self.evidence_dataframe = self.resolve_variant_ids(
             self.evidence_dataframe, rsid_mapper.get_mapped_variants()
         )
-
+        self.evidence_dataframe.show(1, False, True)
         return self
 
     @staticmethod
@@ -249,7 +243,11 @@ class UniprotVariantsParser(UniprotShared):
         return (
             uniprot_variants
             # Join the uniprot variants with the variant mappings:
-            .join(mapped_variants, on=["variantRsId", "targetFromSourceId"], how="left")
+            .join(
+                mapped_variants,
+                on=["variantRsId", "targetFromSourceId"],
+                how="left",
+            )
             # Create a boolean indicating if the variantId is accepted for the evidence:
             # This logic can be further refined to include more complex logic
             .withColumn(
@@ -314,9 +312,9 @@ def main(
         # map rsIDs to variant IDs:
         .map_rsids(rsid_mapper)
         # Map EFO terms:
-        .add_efo_mapping(ontoma_cache_dir)
+        # .add_efo_mapping(ontoma_cache_dir)
         # Accessing evidence data:
-        .get_evidence(debug=False)
+        .get_evidence(debug=True)
     )
 
     # Write data:

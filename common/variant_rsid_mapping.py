@@ -158,7 +158,11 @@ class RsIdMapper:
             rsids (list[str]): List of rsids to map.
         """
         # Get a unique list of rsIDs that are not already cached:
-        missing_rsids = [rsid for rsid in set(rsids) if rsid not in self.cached_rsids]
+        missing_rsids = [
+            rsid
+            for rsid in set(rsids)
+            if rsid not in self.cached_rsids and rsid is not None
+        ]
 
         # Chunking the missing rsids into accepted chunks:
         rsid_chunks = [
@@ -183,10 +187,23 @@ class RsIdMapper:
         logger.info("Mapping rsids completed.")
 
     def _map_rsids_chunk(self: RsIdMapper, rsids: list[str]) -> DataFrame:
+        """Map a chunk of rsids to variant ids.
+
+        Args:
+            rsids (list[str]): List of rsids to map.
+
+        Returns:
+            DataFrame: The mapped rsids as spark dataframe.
+        """
         vep_annotated_data = self._get_vep_for_rsid(rsids)
 
         # Ensure the vcf_string is a list - neccesary as the VEP schema is inconsistent:
         for data in vep_annotated_data:
+            if not isinstance(data, dict):
+                logger.error(f"VEP response is not a dictionary! Found: {type(data)}.")
+                raise ValueError(
+                    f"VEP response is not a dictionary! Found: {type(data)}.\n{data}"
+                )
             if not isinstance(data["vcf_string"], list):
                 data["vcf_string"] = [data["vcf_string"]]
 
@@ -194,9 +211,11 @@ class RsIdMapper:
             # Read VEP output into a DataFrame following a simplified response schema:
             self.spark.createDataFrame(vep_annotated_data, self.API_RESPONSE_SCHEMA)
             # Explode transcript consequences and uniprot ids:
-            .withColumn("transcript_consequences", f.explode("transcript_consequences"))
+            .withColumn(
+                "transcript_consequences", f.explode_outer("transcript_consequences")
+            )
             .select("*", "transcript_consequences.*")
-            .withColumn("uniprot_id", f.explode("swissprot"))
+            .withColumn("uniprot_id", f.explode_outer("swissprot"))
             # Do transformations to get the final schema:
             .select(
                 # Selecting only the necessary columns:
@@ -220,10 +239,10 @@ class RsIdMapper:
                 f.split(f.col("uniprot_id"), r"\.")[0].alias("targetFromSourceId"),
                 f.col("vcf_string"),
                 # Flag multiallelic variants:
-                (f.size("vcf_string") > 1).alias("isMultiAllelic"),
+                (f.size(f.col("vcf_string")) > 1).alias("isMultiAllelic"),
             )
             # Dropping non-protein coding consequeces:
-            .filter(f.col("targetFromSourceId").isNotNull())
+            # .filter(f.col("targetFromSourceId").isNotNull())
             .distinct()
             .orderBy("variantRsId", "variantId")
         )
@@ -243,5 +262,10 @@ class RsIdMapper:
             params=self.RESQUEST_PARAMS,
             json={"ids": variants_to_map},
         )
+        if response.status_code != 200:
+            logger.warning(
+                f"Failed to map rsids: {variants_to_map}. Response: {response.text}"
+            )
+            return []
 
         return response.json()

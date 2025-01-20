@@ -52,9 +52,8 @@ class UniprotShared(ABC):
         """
         pass
 
-    @classmethod
     def extract_uniprot_data(
-        cls: type[UniprotShared],
+        self: UniprotShared,
     ) -> list[dict[str, Any]]:
         """Extracts Uniprot variants data from the Uniprot SPARQL API.
 
@@ -62,13 +61,13 @@ class UniprotShared(ABC):
             list[dict[str, Any]]: The extracted Uniprot variants data.
         """
         logger.info(
-            f"Extracting Uniprot variants data from {cls.UNIPROT_SPARQL_ENDPOINT} API endpoint."
+            f"Extracting Uniprot variants data from {self.UNIPROT_SPARQL_ENDPOINT} API endpoint."
         )
         # Initialize the SPARQL endpoint
-        sparql = SPARQLWrapper(cls.UNIPROT_SPARQL_ENDPOINT)
+        sparql = SPARQLWrapper(self.UNIPROT_SPARQL_ENDPOINT)
 
         # Set the query and return format
-        sparql.setQuery(cls.UNIPROT_SPARQL_QUERY)
+        sparql.setQuery(self.UNIPROT_SPARQL_QUERY)
         sparql.setReturnFormat(JSON)
 
         # Execute the query and fetch results
@@ -93,7 +92,7 @@ class UniprotShared(ABC):
                 elif "mim" in value["value"]:
                     evidence[key] = value["value"]
                 elif value["type"] == "uri":
-                    evidence[key] = cls.get_uri_leaf(value["value"])
+                    evidence[key] = self.get_uri_leaf(value["value"])
 
             evidence_data.append(evidence)
 
@@ -127,9 +126,9 @@ class UniprotShared(ABC):
                 f.regexp_replace(f.split(confidence_column, r"\. ")[0], r"\.", "").isin(
                     cls.LOW_CONFIDENCE_FLAGS
                 ),
-                f.lit("low-confidence"),
+                f.lit("medium"),
             )
-            .otherwise(f.lit("high-confidence"))
+            .otherwise(f.lit("high"))
             .alias("confidence")
         )
 
@@ -178,3 +177,37 @@ class UniprotShared(ABC):
         )
 
         return self
+
+    @staticmethod
+    def extract_omim_crossref(
+        omim_refs: Column,
+    ) -> Column:
+        """Extract OMIM cross-references from the OMIM references column.
+
+        Args:
+            omim_refs (Column): The OMIM references column.
+
+        Returns:
+            Column: The OMIM cross-references.
+        """
+        return f.concat(
+            f.lit("OMIM:"),
+            f.split(omim_refs, "/")[f.size(f.split(omim_refs, "/")) - 1],
+        )
+
+    @staticmethod
+    def extract_pmids(literature: Column) -> Column:
+        """Extract PMIDs from the literature column.
+
+        Args:
+            literature (Column): The literature column.
+
+        Returns:
+            Column: The PMIDs.
+        """
+        return f.transform(
+            # Literature references are separated by a comma:
+            f.split(literature, ", "),
+            # Each element needs to be further split, and extract the last element:
+            lambda uri: f.split(uri, "/")[f.size(f.split(uri, "/")) - 1],
+        )

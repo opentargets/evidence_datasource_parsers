@@ -32,12 +32,13 @@ class UniprotLiteratureExtractor(UniprotShared):
             ?diseaseCrossrefs
             ?diseaseLabel
             ?diseaseComment
+            ?geneToDiseaseComment
             (GROUP_CONCAT(DISTINCT ?source; SEPARATOR=", ") AS ?sources)
         
         WHERE
         {
             # Defining the universe of proteins:
-            # BIND(<http://purl.uniprot.org/uniprot/B1AK53> AS ?protein) .
+            # BIND(<http://purl.uniprot.org/uniprot/Q06787> AS ?protein) .
             ?protein a up:Protein ;
                 up:organism taxon:9606 .
 
@@ -45,21 +46,21 @@ class UniprotLiteratureExtractor(UniprotShared):
             ?diseaseCrossrefs up:database <http://purl.uniprot.org/database/MIM> .
             ?diseaseCrossrefs rdfs:comment ?text .
             FILTER(CONTAINS(str(?text), "phenotype")) .
-            ?disease_db rdfs:seeAlso ?diseaseCrossrefs .
-            ?disease_db rdf:type up:Disease .
-            ?disease_db skos:prefLabel ?diseaseLabel .
-            ?disease_db rdfs:comment ?diseaseComment .
+            ?related_disease rdfs:seeAlso ?diseaseCrossrefs .
+            ?related_disease rdf:type up:Disease .
+            ?related_disease skos:prefLabel ?diseaseLabel .
+            ?related_disease rdfs:comment ?diseaseComment .
+            
             OPTIONAL {
-                ?linkToEvidence rdf:object ?disease_db ;
+                ?linkToEvidence rdf:object ?related_disease ;
                                 up:attribution ?attribution .
                 ?attribution up:source ?source .
                 ?source a up:Journal_Citation .
             }
 
-            # Extracting gene to disease confidence:
             ?subject up:disease ?related_disease .
             ?subject rdfs:comment ?geneToDiseaseComment .
-
+            ?protein up:annotation ?subject .  # Ensure the subject is linked to the protein
         }
 
         GROUP BY 
@@ -108,21 +109,15 @@ class UniprotLiteratureExtractor(UniprotShared):
         ).select(
             # Extract disease information:
             f.col("diseaseLabel").alias("diseaseFromSource"),
-            f.concat(
-                f.lit("OMIM:"),
-                f.split("db", "/").getItem(f.size(f.split("db", "/")) - 1),
-            ).alias("diseaseFromSourceId"),
+            self.extract_omim_crossref(f.col("diseaseCrossrefs")).alias(
+                "diseaseFromSourceId"
+            ),
             # Extract protein information:
             f.col("protein").alias("targetFromSourceId"),
             # Extract literature information:
-            f.transform(
-                f.filter(
-                    f.split(f.col("sources"), ", "),
-                    lambda source: f.length(source) > 0,
-                ),
-                lambda uri: f.split(uri, "/").getItem(f.size(f.split(uri, "/")) - 1),
-            ).alias("literature"),
+            self.extract_pmids(f.col("sources")).alias("literature"),
             # Mapping geneToDiseaseComment to confidence:
+            "geneToDiseaseComment",
             self.map_confidence(f.col("geneToDiseaseComment")).alias("confidence"),
             f.col("diseaseComment").alias("diseaseComment"),
             # Add default values:
