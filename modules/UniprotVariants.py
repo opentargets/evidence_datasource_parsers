@@ -216,7 +216,6 @@ class UniprotVariantsParser(UniprotShared):
         self.evidence_dataframe = self.resolve_variant_ids(
             self.evidence_dataframe, rsid_mapper.get_mapped_variants()
         )
-        self.evidence_dataframe.show(1, False, True)
         return self
 
     @staticmethod
@@ -312,7 +311,7 @@ def main(
         # map rsIDs to variant IDs:
         .map_rsids(rsid_mapper)
         # Map EFO terms:
-        # .add_efo_mapping(ontoma_cache_dir)
+        .add_efo_mapping(ontoma_cache_dir)
         # Accessing evidence data:
         .get_evidence(debug=True)
     )

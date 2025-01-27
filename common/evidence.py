@@ -27,34 +27,12 @@ def initialize_logger(name: str, log_file: Optional[str] = None) -> None:
     Args:
         name (str): Name of the logger. This is typically the name of the module. Required to identify the logger.
         log_file (str): Path to the log file.
-
-    Returns:
-        None
     """
-    # Initialise logger:
+    # Initialise logger, where the parameters for logging are in a separate yaml file:
     with open(f"{sys.path[0]}/../logger_config.yaml", "r") as stream:
         logger_config = yaml.load(stream, Loader=yaml.FullLoader)
 
     logging.config.dictConfig(logger_config)
-    # # Setting the format of the log messages:
-    # log_formatter = logging.Formatter(
-    #     "%(asctime)s %(levelname)s %(module)s - %(funcName)s: %(message)s",
-    #     datefmt="%Y-%m-%d %H:%M:%S",
-    # )
-
-    # logger = logging.getLogger(name)
-    # logger.setLevel(logging.DEBUG)
-
-    # # Setting up stream handler:
-    # stream_handler = logging.StreamHandler(sys.stderr)
-    # stream_handler.setFormatter(log_formatter)
-    # logger.addHandler(stream_handler)
-
-    # # If a log file is provided, add that handler too:
-    # if log_file is not None:
-    #     file_handler = logging.FileHandler(log_file, mode="w")
-    #     file_handler.setFormatter(log_formatter)
-    #     logger.addHandler(file_handler)
 
 
 def detect_spark_memory_limit():
@@ -76,9 +54,9 @@ def write_evidence_strings(evidence, output_file):
             .save(tmp_dir_name)
         )
         json_chunks = [f for f in os.listdir(tmp_dir_name) if f.endswith(".json.gz")]
-        assert (
-            len(json_chunks) == 1
-        ), f"Expected one JSON file, but found {len(json_chunks)}."
+        assert len(json_chunks) == 1, (
+            f"Expected one JSON file, but found {len(json_chunks)}."
+        )
         os.rename(os.path.join(tmp_dir_name, json_chunks[0]), output_file)
 
 
@@ -234,9 +212,9 @@ def read_path(path: str, spark_instance) -> DataFrame:
 
     # The provided path must exist and must be either a file or a directory.
     assert os.path.exists(path), f"The provided path {path} does not exist."
-    assert os.path.isdir(path) or os.path.isfile(
-        path
-    ), f"The provided path {path} is neither a file or a directory."
+    assert os.path.isdir(path) or os.path.isfile(path), (
+        f"The provided path {path} is neither a file or a directory."
+    )
 
     # Case 1: We are provided with a single file.
     if os.path.isfile(path):
@@ -267,12 +245,12 @@ def read_path(path: str, spark_instance) -> DataFrame:
         if fn.endswith((".json", ".json.gz", ".jsonl", ".jsonl.gz"))
     ]
     parquet_files = [fn for fn in all_files if fn.endswith(".parquet")]
-    assert not (
-        json_files and parquet_files
-    ), f"The provided directory {path} contains a mix of JSON and Parquet."
-    assert (
-        json_files or parquet_files
-    ), f"The provided directory {path} contains neither JSON nor Parquet."
+    assert not (json_files and parquet_files), (
+        f"The provided directory {path} contains a mix of JSON and Parquet."
+    )
+    assert json_files or parquet_files, (
+        f"The provided directory {path} contains neither JSON nor Parquet."
+    )
 
     # A directory with JSON files.
     if json_files:
