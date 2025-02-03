@@ -32,6 +32,7 @@ ALL_FILES = [
     ('SkinG2P.csv.gz', GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/SkinG2P-{timeStamp}.csv.gz")),
     ('CancerG2P.csv.gz', GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/CancerG2P-{timeStamp}.csv.gz")),
     ('SkeletalG2P.csv.gz', GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/SkeletalG2P-{timeStamp}.csv.gz")),
+    ('HearingLossG2P.csv.gz', GS.remote(f"{config['Gene2Phenotype']['inputBucket']}/HearingLossG2P-{timeStamp}.csv.gz")),
     (config['ChemicalProbes']['probesExcelDump'], GS.remote(f"{config['ChemicalProbes']['inputBucket']}/config['ChemicalProbes']['probesExcelDump']-{timeStamp}.xlsx")),
     (config['ChemicalProbes']['probesMappingsTable'], GS.remote(f"{config['ChemicalProbes']['inputBucket']}/config['ChemicalProbes']['probesMappingsTable']-{timeStamp}.csv")),
     ('intogen.json.gz', GS.remote(f"{config['intOGen']['outputBucket']}/intogen-{timeStamp}.json.gz")),
@@ -262,7 +263,8 @@ rule gene2Phenotype:          # Processes four gene panels from Gene2Phenotype
         skinPanel = HTTP.remote(config['Gene2Phenotype']['webSource_skin_panel']),
         cancerPanel = HTTP.remote(config['Gene2Phenotype']['webSource_cancer_panel']),
         cardiacPanel = HTTP.remote(config['Gene2Phenotype']['webSource_cardiac_panel']),
-        skeletalPanel = HTTP.remote(config['Gene2Phenotype']['webSource_skeletal_panel'])
+        skeletalPanel = HTTP.remote(config['Gene2Phenotype']['webSource_skeletal_panel']),
+        hearingLossPanel = HTTP.remote(config['Gene2Phenotype']['webSource_hearing_loss_panel']),
     params:
         cacheDir = config['global']['cacheDir'],
         schema = f"{config['global']['schema']}/schemas/disease_target_evidence.json"
@@ -273,7 +275,8 @@ rule gene2Phenotype:          # Processes four gene panels from Gene2Phenotype
         cancerBucket = 'CancerG2P.csv.gz',
         cardiacBucket = 'CardiacG2P.csv.gz',
         skeletalBucket = 'SkeletalG2P.csv.gz',
-        evidenceFile = 'gene2phenotype.json.gz'
+        hearingLossBucket = 'HearingLossG2P.csv.gz',
+        evidenceFile = 'gene2phenotype.json.gz',
     log:
         'log/gene2Phenotype.log'
     shell:
@@ -286,8 +289,9 @@ rule gene2Phenotype:          # Processes four gene panels from Gene2Phenotype
         cp {input.cancerPanel} {output.cancerBucket}
         cp {input.cardiacPanel} {output.cardiacBucket}
         cp {input.skeletalPanel} {output.skeletalBucket}
+        cp {input.hearingLossPanel} {output.hearingLossBucket}
         python modules/Gene2Phenotype.py \
-          --panels {input.ddPanel} {input.eyePanel} {input.skinPanel} {input.cancerPanel} {input.cardiacPanel} {input.skeletalPanel} \
+          --panels {input.ddPanel} {input.eyePanel} {input.skinPanel} {input.cancerPanel} {input.cardiacPanel} {input.skeletalPanel} {input.hearingLossPanel} \
           --output_file {output.evidenceFile} \
           --cache_dir {params.cacheDir}
         opentargets_validator --schema {params.schema} {output.evidenceFile}
