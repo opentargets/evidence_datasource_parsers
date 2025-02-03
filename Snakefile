@@ -263,6 +263,7 @@ rule gene2Phenotype:          # Processes four gene panels from Gene2Phenotype
         cancerPanel = HTTP.remote(config['Gene2Phenotype']['webSource_cancer_panel']),
         cardiacPanel = HTTP.remote(config['Gene2Phenotype']['webSource_cardiac_panel']),
         skeletalPanel = HTTP.remote(config['Gene2Phenotype']['webSource_skeletal_panel'])
+        hearingLossPanel = HTTP.remote(config['Gene2Phenotype']['webSource_hearing_loss_panel'])
     params:
         cacheDir = config['global']['cacheDir'],
         schema = f"{config['global']['schema']}/schemas/disease_target_evidence.json"
@@ -287,7 +288,7 @@ rule gene2Phenotype:          # Processes four gene panels from Gene2Phenotype
         cp {input.cardiacPanel} {output.cardiacBucket}
         cp {input.skeletalPanel} {output.skeletalBucket}
         python modules/Gene2Phenotype.py \
-          --panels {input.ddPanel} {input.eyePanel} {input.skinPanel} {input.cancerPanel} {input.cardiacPanel} {input.skeletalPanel} \
+          --panels {input.ddPanel} {input.eyePanel} {input.skinPanel} {input.cancerPanel} {input.cardiacPanel} {input.skeletalPanel} {input.hearingLossPanel} \
           --output_file {output.evidenceFile} \
           --cache_dir {params.cacheDir}
         opentargets_validator --schema {params.schema} {output.evidenceFile}
