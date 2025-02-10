@@ -92,10 +92,10 @@ def process_finngen_gene_burden(spark: SparkSession, finngen_data: str, finngen_
             f.col("resourceScore"),
             f.col("pValueExponent"),
             f.col("pValueMantissa"),
-            f.lit("R11").alias("releaseVersion"),
+            f.lit("R12").alias("releaseVersion"),
             f.lit("LoF burden").alias("statisticalMethod"),
             f.lit("Burden test carried out with LoF variants with MAF smaller than 1%.").alias("statisticalMethodOverview"),
-            f.lit(453733).alias("studySampleSize"),
+            f.lit(500348).alias("studySampleSize"),
             f.split(f.col("ID"), "\.")[0].alias("targetFromSourceId"),
         )
     )
