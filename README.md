@@ -84,11 +84,9 @@ Some additional parameters which can be useful for debugging:
 
 ## Notes on how this repository is organised
 
-Each module in [`modules/`](modules/) corresponds to one evidence generator.
+Each module in [`src/modules/`](src/modules/) corresponds to one evidence generator.
 
-Modules which are shared by multiple generators reside in [`common/`](common/).
-
-The Conda virtual environment files, as well as instructions on how to maintain them, are available in [`envs/`](envs/).
+Modules which are shared by multiple generators reside in [`src/common/`](src/common/).
 
 ## Historical notes on individual parsers
 
