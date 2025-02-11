@@ -4,20 +4,24 @@ This repository contains a collection of modules which generate evidence for sev
 
 ## How to set up and update the environment
 
-The file `requirements.txt` contains the **direct** dependencies only with their exact versions pinned. Only this file should be edited directly.
+This project uses `uv` for fast and reliable dependency management. The Python version is pinned to **3.11**, and dependencies are managed via `pyproject.toml`.
 
-Additionally, the file `requirements-frozen.txt` contains all **direct and transitive** dependencies with their exact versions pinned. It is generated automatically from the former file, and is intended for reproducing the exact working environment (as mush as possible) as of any particular commit version. This file should not be directly edited.
+By executing the `setup.sh` script, you will install the required Python version, set up a virtual environment, and install the project dependencies:
 
-These are the steps to update an environment:
+```bash
+bash setup.sh
+```
 
-* Add, delete or update packages as necessary in `requirements.txt`
-* Install requirements with `pip3 install -r requirements.txt`
-* Make sure everything works
-* Update the frozen file with `pip3 freeze > requirements-frozen.txt`
-* Include both files, `requirements.txt` and `requirements-frozen.txt`, with your PR
 
-Make sure to always work in a clean virtual environment to avoid any surprises.
+1. **Install `uv` (if not already installed):**
 
+   Run the following command to install `uv`:
+
+```bash
+# Install uv (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+source ~/.${SHELL##*/}rc
+```
 ## How to generate the evidence
 
 This will create a Google Cloud instance, SSH into it, install the necessary dependencies, generate, validate, and upload the evidence. Tweak the commands as necessary.
@@ -55,10 +59,8 @@ sudo apt install -y openjdk-8-jdk-headless python3-pip python3.8-venv r-base-cor
 # Activate the environment and install Python dependencies.
 git clone https://github.com/opentargets/evidence_datasource_parsers
 cd evidence_datasource_parsers
-python3 -m venv env
-source env/bin/activate
-pip3 install --upgrade pip setuptools
-pip3 install -r requirements-frozen.txt
+pip install uv
+uv sync --all-groups --frozen
 export PYTHONPATH="$PYTHONPATH:$(pwd)"
 
 # Workaround for a potential OnToma race condition: pre-initialise cache directory.
@@ -151,3 +153,21 @@ The SLAPenrich parser processes two files:
 Generates the mouse model target-disease evidence by querying the IMPC SOLR API.
 
 The base of the evidence is the `disease_model_summary` table, which is unique on the combination of (`model_id`, `disease_id`). When target information is added, an original row may explode into multiple evidence strings. As a result, the final output is unique on the combination of (`biologicalModelId`, `targetFromSourceId`, `targetInModelId`, `diseaseFromSourceId`).
+
+
+
+## How to set up and update the environment
+
+The file `requirements.txt` contains the **direct** dependencies only with their exact versions pinned. Only this file should be edited directly.
+
+Additionally, the file `requirements-frozen.txt` contains all **direct and transitive** dependencies with their exact versions pinned. It is generated automatically from the former file, and is intended for reproducing the exact working environment (as much as possible) as of any particular commit version. This file should not be directly edited.
+
+These are the steps to update an environment:
+
+* Add, delete or update packages as necessary in `requirements.txt`
+* Install requirements with `uv pip install -r requirements.txt`
+* Make sure everything works
+* Update the frozen file with `uv pip freeze > requirements-frozen.txt`
+* Include both files, `requirements.txt` and `requirements-frozen.txt`, with your PR
+
+Make sure to always work in a clean virtual environment to avoid any surprises.
