@@ -8,10 +8,9 @@ import logging
 from pyspark import SparkFiles
 from pyspark.sql import DataFrame, Column, SparkSession
 import pyspark.sql.functions as f
-from pyspark.sql.types import ArrayType, StructType
 
-from common.evidence import initialize_logger, initialize_sparksession, write_evidence_strings
-from common.ontology import add_efo_mapping
+from src.common.evidence import initialize_logger, initialize_sparksession, write_evidence_strings
+from src.common.ontology import add_efo_mapping
 
 
 def main(

@@ -10,7 +10,7 @@ from pyspark.sql.dataframe import DataFrame
 import pyspark.sql.functions as F
 import pyspark.sql.types as T
 
-from common.evidence import (
+from src.common.evidence import (
     initialize_sparksession,
     import_trait_mappings,
     write_evidence_strings,

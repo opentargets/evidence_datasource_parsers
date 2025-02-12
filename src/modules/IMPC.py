@@ -18,8 +18,8 @@ from pyspark.sql.types import StructType, StructField, StringType
 import requests
 from retry import retry
 
-from common.ontology import add_efo_mapping
-from common.evidence import detect_spark_memory_limit, write_evidence_strings
+from src.common.ontology import add_efo_mapping
+from src.common.evidence import detect_spark_memory_limit, write_evidence_strings
 
 
 # The tables and their fields to fetch from SOLR. Other tables (not currently used): gene, disease_gene_summary.

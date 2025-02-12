@@ -9,8 +9,8 @@ from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.functions import array, col, lit, monotonically_increasing_id, struct, trim
 from pyspark.sql.types import StringType, StructType, TimestampType
 
-from common.ontology import add_efo_mapping
-from common.evidence import write_evidence_strings
+from src.common.ontology import add_efo_mapping
+from src.common.evidence import write_evidence_strings
 
 
 def main(input_file: str, output_file: str, cache_dir: str, local: bool = False) -> None:

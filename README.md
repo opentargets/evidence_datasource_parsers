@@ -4,20 +4,24 @@ This repository contains a collection of modules which generate evidence for sev
 
 ## How to set up and update the environment
 
-The file `requirements.txt` contains the **direct** dependencies only with their exact versions pinned. Only this file should be edited directly.
+This project uses `uv` for fast and reliable dependency management. The Python version is pinned to **3.11**, and dependencies are managed via `pyproject.toml`.
 
-Additionally, the file `requirements-frozen.txt` contains all **direct and transitive** dependencies with their exact versions pinned. It is generated automatically from the former file, and is intended for reproducing the exact working environment (as mush as possible) as of any particular commit version. This file should not be directly edited.
+By executing the `setup.sh` script, you will install the required Python version, set up a virtual environment, and install the project dependencies:
 
-These are the steps to update an environment:
+```bash
+bash setup.sh
+```
 
-* Add, delete or update packages as necessary in `requirements.txt`
-* Install requirements with `pip3 install -r requirements.txt`
-* Make sure everything works
-* Update the frozen file with `pip3 freeze > requirements-frozen.txt`
-* Include both files, `requirements.txt` and `requirements-frozen.txt`, with your PR
 
-Make sure to always work in a clean virtual environment to avoid any surprises.
+1. **Install `uv` (if not already installed):**
 
+   Run the following command to install `uv`:
+
+```bash
+# Install uv (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+source ~/.${SHELL##*/}rc
+```
 ## How to generate the evidence
 
 This will create a Google Cloud instance, SSH into it, install the necessary dependencies, generate, validate, and upload the evidence. Tweak the commands as necessary.
@@ -50,16 +54,12 @@ screen
 
 # Install the system dependencies.
 sudo apt update
-sudo apt install -y openjdk-8-jdk-headless python3-pip python3.8-venv r-base-core
+sudo apt install -y openjdk-8-jdk-headless python3-pip r-base-core
 
 # Activate the environment and install Python dependencies.
 git clone https://github.com/opentargets/evidence_datasource_parsers
 cd evidence_datasource_parsers
-python3 -m venv env
-source env/bin/activate
-pip3 install --upgrade pip setuptools
-pip3 install -r requirements-frozen.txt
-export PYTHONPATH="$PYTHONPATH:$(pwd)"
+bash setup.sh
 
 # Workaround for a potential OnToma race condition: pre-initialise cache directory.
 # This prevents an issue where several OnToma instances are trying to do this at once and fail.
@@ -68,10 +68,10 @@ echo 'asthma' | ontoma --cache-dir cache_dir
 
 At this point, we are ready to run the Snakemake pipeline. The following options are available:
 
-* `snakemake --cores all`: Display help (the list of possible rules to be run) and do not run anything.
-* `snakemake --cores all --until local`: Generate all files, but do not upload them to Google Cloud Storage. The files generated in this way do not have prefixes, e.g. `cancer_biomarkers.json.gz`. This is done intentionally, so that the pipeline can be re-run the next day without having to re-generate all the files.
+* `uv run snakemake --cores all`: Display help (the list of possible rules to be run) and do not run anything.
+* `uv run snakemake --cores all --until local`: Generate all files, but do not upload them to Google Cloud Storage. The files generated in this way do not have prefixes, e.g. `cancer_biomarkers.json.gz`. This is done intentionally, so that the pipeline can be re-run the next day without having to re-generate all the files.
   * It is also possible to locally run only a single rule by substituting its name instead of “local”.
-* `snakemake --cores all --until all`: Generate all files and then upload them to Google Cloud Storage.
+* `uv run snakemake --cores all --until all`: Generate all files and then upload them to Google Cloud Storage.
 
 All individual parser rules are strictly local. The only rule which uploads files to Google Cloud Storage (all at once) is "all".
 
@@ -82,11 +82,9 @@ Some additional parameters which can be useful for debugging:
 
 ## Notes on how this repository is organised
 
-Each module in [`modules/`](modules/) corresponds to one evidence generator.
+Each module in [`src/modules/`](src/modules/) corresponds to one evidence generator.
 
-Modules which are shared by multiple generators reside in [`common/`](common/).
-
-The Conda virtual environment files, as well as instructions on how to maintain them, are available in [`envs/`](envs/).
+Modules which are shared by multiple generators reside in [`src/common/`](src/common/).
 
 ## Historical notes on individual parsers
 
@@ -151,3 +149,21 @@ The SLAPenrich parser processes two files:
 Generates the mouse model target-disease evidence by querying the IMPC SOLR API.
 
 The base of the evidence is the `disease_model_summary` table, which is unique on the combination of (`model_id`, `disease_id`). When target information is added, an original row may explode into multiple evidence strings. As a result, the final output is unique on the combination of (`biologicalModelId`, `targetFromSourceId`, `targetInModelId`, `diseaseFromSourceId`).
+
+
+
+## How to set up and update the environment
+
+The file `requirements.txt` contains the **direct** dependencies only with their exact versions pinned. Only this file should be edited directly.
+
+Additionally, the file `requirements-frozen.txt` contains all **direct and transitive** dependencies with their exact versions pinned. It is generated automatically from the former file, and is intended for reproducing the exact working environment (as much as possible) as of any particular commit version. This file should not be directly edited.
+
+These are the steps to update an environment:
+
+* Add, delete or update packages as necessary in `requirements.txt`
+* Install requirements with `uv pip install -r requirements.txt`
+* Make sure everything works
+* Update the frozen file with `uv pip freeze > requirements-frozen.txt`
+* Include both files, `requirements.txt` and `requirements-frozen.txt`, with your PR
+
+Make sure to always work in a clean virtual environment to avoid any surprises.

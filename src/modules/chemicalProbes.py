@@ -7,7 +7,7 @@ import pyspark.sql.functions as f
 import pyspark.sql.types as t
 from pyspark.sql import DataFrame
 
-from common.evidence import initialize_sparksession, write_evidence_strings
+from src.common.evidence import initialize_sparksession, write_evidence_strings
 
 PROBES_SETS = [
     "Bromodomains chemical toolbox",

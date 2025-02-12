@@ -8,8 +8,8 @@ import re
 import requests
 from pyspark.sql import functions as f, SparkSession
 
-from common.ontology import add_efo_mapping
-from common.evidence import write_evidence_strings
+from src.common.ontology import add_efo_mapping
+from src.common.evidence import write_evidence_strings
 
 
 class PanelAppEvidenceGenerator:

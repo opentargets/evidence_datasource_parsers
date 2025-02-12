@@ -103,7 +103,7 @@ rule baselineExpression:      # Calculate baseline expression data from GTEx V8.
         # In this and the following rules, the exec call redirects the output of all subsequent commands (both STDOUT
         # and STDERR) to the specified log file.
         exec &> {log}
-        python modules/baseline_expression/baseline.py \
+        python src/modules/baseline_expression/baseline.py \
             --gtex-source-data-path {params.gtex_source_data_path} \
             --tissue-name-to-uberon-mapping-path {params.tissue_name_to_uberon_mapping_path} \
             --output-file-path {output}
@@ -124,7 +124,7 @@ rule essentiality:            # Process essentiality data from DepMap.
         exec &> {log}
         # copy files from bucket to the home folder:
         gsutil -m cp -r "{params.input_folder}/*" ~/
-        python modules/Essentiality.py \
+        python src/modules/Essentiality.py \
             --depmap_input_folder  ~/ \
             --depmap_tissue_mapping {params.tissue_mapping} \
             --output_file {output}
@@ -146,7 +146,7 @@ rule cancerBiomarkers:        # Process the Cancers Biomarkers database from Can
     shell:
         """
         exec &> {log}
-        python modules/cancerBiomarkers.py \
+        python src/modules/cancerBiomarkers.py \
           --biomarkers_table {input.biomarkers_table} \
           --source_table {input.source_table} \
           --disease_table {input.disease_table} \
@@ -168,7 +168,7 @@ rule chembl:                  # Add the category of why a clinical trial has sto
     shell:
         """
         exec &> {log}
-        python modules/ChEMBL.py  \
+        python src/modules/ChEMBL.py  \
             --chembl_evidence {input.evidenceFile} \
             --predictions {input.stopReasonCategories} \
             --output {output.evidenceFile}
@@ -192,7 +192,7 @@ rule clingen:                 # Process the Gene Validity Curations table from C
         wget -q -O clingen_summary.csv {params.summaryTableWeb}
         # Retain the original summary table and store that in GCS.
         cp clingen_summary.csv {output.summaryTable}
-        python modules/ClinGen.py \
+        python src/modules/ClinGen.py \
           --input_file clingen_summary.csv \
           --output_file {output.evidenceFile} \
           --cache_dir {params.cacheDir} \
@@ -215,7 +215,7 @@ rule projectScore:                  # Process cancer therapeutic targets using C
     shell:
         """
         exec &> {log}
-        python modules/ProjectScore.py \
+        python src/modules/ProjectScore.py \
             --evidence_file {input.evidenceFile} \
             --cell_types_file {input.cellTypesFile} \
             --cell_passport_file {input.cell_passport_file} \
@@ -243,7 +243,7 @@ rule geneBurden:              # Processes gene burden data from various burden a
     shell:
         """
         exec &> {log}
-        python modules/GeneBurden.py \
+        python src/modules/GeneBurden.py \
             --az_binary_data {input.azPhewasBinary} \
             --az_quant_data {input.azPhewasQuant} \
             --az_genes_links {input.azGenesLinks} \
@@ -290,7 +290,7 @@ rule gene2Phenotype:          # Processes four gene panels from Gene2Phenotype
         cp {input.cardiacPanel} {output.cardiacBucket}
         cp {input.skeletalPanel} {output.skeletalBucket}
         cp {input.hearingLossPanel} {output.hearingLossBucket}
-        python modules/Gene2Phenotype.py \
+        python src/modules/Gene2Phenotype.py \
           --panels {input.ddPanel} {input.eyePanel} {input.skinPanel} {input.cancerPanel} {input.cardiacPanel} {input.skeletalPanel} {input.hearingLossPanel} \
           --output_file {output.evidenceFile} \
           --cache_dir {params.cacheDir}
@@ -311,7 +311,7 @@ rule intogen:                 # Process cohorts and driver genes data from intOG
     shell:
         """
         exec &> {log}
-        python modules/IntOGen.py \
+        python src/modules/IntOGen.py \
           --inputGenes {input.inputGenes} \
           --inputCohorts {input.inputCohorts} \
           --diseaseMapping {input.diseaseMapping} \
@@ -332,7 +332,7 @@ rule orphanet:                # Process disease/target evidence from Orphanet.
     shell:
         """
         exec &> {log}
-        python modules/Orphanet.py \
+        python src/modules/Orphanet.py \
           --input_file {input} \
           --output_file {output} \
           --cache_dir {params.cacheDir}
@@ -352,7 +352,7 @@ rule panelApp:                # Process gene panels data curated by Genomics Eng
     shell:
         """
         exec &> {log}
-        python modules/PanelApp.py \
+        python src/modules/PanelApp.py \
           --input-file {input.inputFile} \
           --output-file {output.evidenceFile} \
           --cache_dir {params.cacheDir}
@@ -371,7 +371,7 @@ rule impc:                    # Process target-disease evidence and mouseModels 
     shell:
         """
         exec &> {log}
-        python modules/IMPC.py \
+        python src/modules/IMPC.py \
           --cache-dir {params.cacheDir} \
           --output-evidence {output.evidenceFile} \
           --output-mouse-phenotypes {output.mousePhenotypes} \
@@ -393,7 +393,7 @@ rule progeny:                 # Process gene expression data from TCGA derived f
     shell:
         """
         exec &> {log}
-        python modules/PROGENY.py \
+        python src/modules/PROGENY.py \
           --inputFile {input.inputFile} \
           --diseaseMapping {input.diseaseMapping} \
           --pathwayMapping {input.pathwayMapping} \
@@ -414,7 +414,7 @@ rule slapenrich:              # Process cancer-target evidence strings derived f
     shell:
         """
         exec &> {log}
-        python modules/SLAPEnrich.py \
+        python src/modules/SLAPEnrich.py \
           --inputFile {input.inputFile} \
           --diseaseMapping {input.diseaseMapping} \
           --outputFile {output.evidenceFile}
@@ -434,7 +434,7 @@ rule sysbio:                  # Process key driver genes for specific diseases t
     shell:
         """
         exec &> {log}
-        python modules/SystemsBiology.py \
+        python src/modules/SystemsBiology.py \
           --evidenceFile {input.evidenceFile} \
           --studyFile {input.studyFile} \
           --outputFile {output.evidenceFile}
@@ -452,7 +452,7 @@ rule targetEnablingPackages:  # Fetching Target Enabling Packages (TEP) data fro
     shell:
         """
         exec &> {log}
-        python modules/TEP.py  \
+        python src/modules/TEP.py  \
           --output_file {output}
         opentargets_validator --schema {params.schema} {output}
         """
@@ -468,7 +468,7 @@ rule crisprScreens:           # Generating disease/target evidence based on vari
     shell:
         """
         exec &> {log}
-        python modules/crispr_screens.py  \
+        python src/modules/crispr_screens.py  \
             --crispr_brain_mapping {params.crispr_brain_mapping} \
             --output {output}
         opentargets_validator --schema {params.schema} {output}
@@ -492,7 +492,7 @@ rule chemicalProbes:          # Process data from the Probes&Drugs portal.
         # Retain the inputs. They will be later uploaded to GCS.
         cp {input.rawProbesExcel} {output.rawProbesExcel}
         cp {input.probesXrefsTable} {output.probesXrefsTable}
-        python modules/chemicalProbes.py \
+        python src/modules/chemicalProbes.py \
             --probes_excel_path {input.rawProbesExcel} \
             --probes_mappings_path {input.probesXrefsTable} \
             --output {output.evidenceFile}
@@ -518,7 +518,7 @@ rule ot_crispr:               # Generating PPP evidence for OTAR CRISPR screens
         gsutil -m cp -r "{params.data_folder}/*" ~/ot_crispr_data/
         
         # Call parser script:
-        python partner_preview_scripts/ot_crispr.py \
+        python src/partner_preview_scripts/ot_crispr.py \
             --study_table {input.study_table} \
             --data_folder ~/ot_crispr_data \
             --output {output}
@@ -547,7 +547,7 @@ rule encore:                  # Generating PPP evidence for ENCORE
 	mkdir -p ~/encore_data
 	gsutil -m cp -r "{params.data_folder}/*" ~/encore_data/
 
-        python partner_preview_scripts/encore_parser.py \
+        python src/partner_preview_scripts/encore_parser.py \
             --output_file {output} \
             --parameter_file {params.config} \
             --data_folder ~/encore_data \
@@ -575,7 +575,7 @@ rule validation_lab:          # Generating PPP evidence for Validation Lab
         mkdir -p ~/validation_lab_data
         gsutil -m cp -r "{params.data_folder}/*" ~/validation_lab_data/
 
-        python partner_preview_scripts/ValidationLab.py \
+        python src/partner_preview_scripts/ValidationLab.py \
             --parameter_file {params.config} \
             --data_folder ~/validation_lab_data \
             --cell_passport_file {input.cell_passport_table} \
@@ -602,7 +602,7 @@ rule Pharmacogenetics:                     # Generating pharmacogenetics evidenc
     shell:
         """
         exec &> {log}
-        python modules/Pharmacogenetics.py \
+        python src/modules/Pharmacogenetics.py \
             --pharmgkb_evidence_path {input.evidenceFile} \
             --extracted_phenotypes_path {params.phenotypes} \
             --openai_api_key {params.openai_api_key} \
@@ -630,7 +630,7 @@ rule targetSafety:            # Process data from different sources that describ
     shell:
         """
         exec &> {log}
-        python modules/TargetSafety.py  \
+        python src/modules/TargetSafety.py  \
             --adverse_events {params.ae} \
             --safety_risk {params.sr} \
             --toxcast {input.toxcast} \

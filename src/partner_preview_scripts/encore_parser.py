@@ -15,7 +15,7 @@ from pyspark.sql import SparkSession, functions as f, types as t
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.window import Window
 
-from common.evidence import (
+from src.common.evidence import (
     initialize_sparksession,
     write_evidence_strings,
     GenerateDiseaseCellLines,

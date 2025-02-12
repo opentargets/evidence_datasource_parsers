@@ -12,9 +12,9 @@ from pyspark.sql.dataframe import DataFrame
 import pyspark.sql.functions as f
 import pyspark.sql.types as T
 
-from common.evidence import apply_bonferroni_correction, import_trait_mappings, initialize_sparksession, write_evidence_strings
-from AzGeneBurden import main as process_az_gene_burden
-from GenebassGeneBurden import main as process_genebass_gene_burden
+from src.common.evidence import apply_bonferroni_correction, import_trait_mappings, initialize_sparksession, write_evidence_strings
+from src.modules.AzGeneBurden import main as process_az_gene_burden
+from src.modules.GenebassGeneBurden import main as process_genebass_gene_burden
 
 
 def main(

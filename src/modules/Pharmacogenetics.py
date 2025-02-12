@@ -13,8 +13,8 @@ from pyspark import SparkFiles
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.types import StructType, StructField, StringType, ArrayType
 
-from common.evidence import initialize_sparksession, write_evidence_strings
-from common.ontology import add_efo_mapping
+from src.common.evidence import initialize_sparksession, write_evidence_strings
+from src.common.ontology import add_efo_mapping
 
 def parse_phenotype_with_gpt(genotype_text: str, openai_client: OpenAI, gpt_model: str = "gpt-3.5-turbo-1106") -> Optional[List[str]]:
     """Query the OpenAI API to extract the phenotype from the genotype text."""

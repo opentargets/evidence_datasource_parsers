@@ -8,7 +8,7 @@ import logging
 
 from pyspark.sql import DataFrame, functions as f
 
-from common.evidence import (
+from src.common.evidence import (
     write_evidence_strings,
     initialize_sparksession,
 )

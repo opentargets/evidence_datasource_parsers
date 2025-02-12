@@ -10,12 +10,12 @@ from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as f
 from pyspark.sql import types as t
 
-from common.evidence import (
+from src.common.evidence import (
     initialize_logger,
     initialize_sparksession,
     write_evidence_strings,
 )
-from common.ontology import add_efo_mapping
+from src.common.ontology import add_efo_mapping
 
 G2P_mutationCsq2functionalCsq = OrderedDict(
     [

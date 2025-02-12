@@ -7,7 +7,7 @@ import logging
 import sys
 from pyspark.sql import SparkSession, DataFrame
 
-from common.evidence import initialize_sparksession, write_evidence_strings
+from src.common.evidence import initialize_sparksession, write_evidence_strings
 from BrainCRISPR import CRISPRBrain
 
 
