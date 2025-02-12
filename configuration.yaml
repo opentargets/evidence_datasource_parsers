@@ -1,16 +1,16 @@
 global:
   logDir: gs://otar000-evidence_input/parser_logs
   cacheDir: cache_dir
-  schema: https://raw.githubusercontent.com/opentargets/json_schema/2.8.0
-  EFOVersion: v3.68.0
+  schema: https://raw.githubusercontent.com/opentargets/json_schema/2.8.2
+  EFOVersion: v3.74.0
   cell_passport_file: https://cog.sanger.ac.uk/cmp/download/model_list_latest.csv.gz
-  curation_repo: https://raw.githubusercontent.com/opentargets/curation/24.09.1
+  curation_repo: https://raw.githubusercontent.com/opentargets/curation/25.03
 baselineExpression:
   gtexSourceDataPath: https://storage.googleapis.com/adult-gtex/bulk-gex/v8/rna-seq/GTEx_Analysis_2017-06-05_v8_RNASeQCv1.1.9_gene_median_tpm.gct.gz
   tissueNameToUberonMappingPath: mappings/biosystem/gtex_v8_tissues.tsv
   schema: schemas/baseline_expression.json
   outputBucket: gs://otar000-evidence_input/BaselineExpression/json
-cancerBiomarkers:
+cancerBiomarkers: 
   inputAssociationsTable: gs://otar000-evidence_input/CancerBiomarkers/data_files/cancerbiomarkers-2018-05-01.tsv
   inputSourceTable: gs://otar000-evidence_input/CancerBiomarkers/data_files/cancer_biomarker_source.jsonl
   inputDiseaseTable: gs://otar000-evidence_input/CancerBiomarkers/data_files/cancer_biomarker_disease.jsonl
@@ -29,7 +29,7 @@ ProjectScore:
   geneScores: gs://otar000-evidence_input/CRISPR/data_files/project_score_v2/mapped_diseases.tsv
   outputBucket: gs://otar000-evidence_input/CRISPR/json
 Essentiality:
-  inputBucket: gs://otar000-evidence_input/Essentiality/DepMap/2023Q4
+  inputBucket: gs://otar000-evidence_input/Essentiality/DepMap/2024Q4
   depmap_tissue_mapping: mappings/biosystem/depmap_uberon_mapping.csv
   outputBucket: gs://otar000-evidence_input/Essentiality/json
 GeneBurden:
@@ -53,15 +53,15 @@ Gene2Phenotype:
   inputBucket: gs://otar000-evidence_input/Gene2Phenotype/data_files
   outputBucket: gs://otar000-evidence_input/Gene2Phenotype/json
 intOGen:
-  inputAssociationsTable: gs://otar000-evidence_input/IntOgen/data_files/2023.05/Compendium_Cancer_Genes.tsv
-  inputCohortsTable: gs://otar000-evidence_input/IntOgen/data_files/2023.05/cohorts.tsv
+  inputAssociationsTable: gs://otar000-evidence_input/IntOgen/data_files/2024.06/Compendium_Cancer_Genes.tsv
+  inputCohortsTable: gs://otar000-evidence_input/IntOgen/data_files/2024.06/cohorts.tsv
   diseaseMapping: resources/cancer2EFO_mappings.tsv
   outputBucket: gs://otar000-evidence_input/IntOgen/json
 Orphanet:
   webSource: http://www.orphadata.org/data/xml/en_product6.xml
   outputBucket: gs://otar000-evidence_input/Orphanet/json
 PanelApp:
-  inputAssociationsTable: gs://otar000-evidence_input/GenomicsEngland/data_files/All_genes_20240514_public_v1plus_panels_all_ratings.tsv
+  inputAssociationsTable: gs://otar000-evidence_input/GenomicsEngland/data_files/PanelApp_genes_all_ratings_public_v1plus_2024-11-28.tsv
   outputBucket: gs://otar000-evidence_input/GenomicsEngland/json
 IMPC:
   evidenceOutputBucket: gs://otar000-evidence_input/IMPC/json
@@ -89,8 +89,8 @@ TargetSafety:
   brennan: gs://otar001-core/TargetSafety/data_files/brennan/secondary_pharmacology.json
   outputBucket: gs://otar001-core/TargetSafety/json
 ChemicalProbes:
-  probesExcelDump: pd_export_01_2024_probes_standardized.xlsx
-  probesMappingsTable: pd_export_01_2024_links_standardized.csv
+  probesExcelDump: pd_export_02_2024_probes_standardized.xlsx
+  probesMappingsTable: pd_export_02_2024_links_standardized.csv
   inputBucket: gs://otar001-core/ChemicalProbes/data_files
   outputBucket: gs://otar001-core/ChemicalProbes/annotation
 OT_CRISPR:
@@ -102,7 +102,7 @@ ValidationLab:
   config: gs://otar013-ppp/PPP-evidence-configuration/ValidationLab_config.json
   outputBucket: gs://otar013-ppp/validation_lab
 Encore:
-  data_directory: gs://otar013-ppp/encore/input
+  data_directory: gs://otar013-ppp/encore/input/2024.01.11-Freeze4
   config: gs://otar013-ppp/PPP-evidence-configuration/encore_config.json
   outputBucket: gs://otar013-ppp/encore
 CrisprScreens:

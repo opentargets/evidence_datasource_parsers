@@ -111,7 +111,7 @@ class IMPC:
     """Retrieve the data, load it into Spark, process and write the resulting evidence strings."""
 
     # Human gene mappings.
-    HGNC_DATASET_URI = 'http://ftp.ebi.ac.uk/pub/databases/genenames/hgnc/tsv/hgnc_complete_set.txt'
+    HGNC_DATASET_URI = 'https://storage.googleapis.com/public-download-files/hgnc/tsv/tsv/hgnc_complete_set.txt'
     HGNC_DATASET_FILENAME = 'hgnc_complete_set.txt'
 
     # Mouse gene mappings.
