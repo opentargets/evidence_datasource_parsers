@@ -22,3 +22,5 @@ echo "Activating virtual environment..."
 source .venv/bin/activate
 echo "Installing dependencies with UV..."
 uv sync --all-groups --frozen
+echo "Installing project in editable mode..."
+uv pip install -e .
