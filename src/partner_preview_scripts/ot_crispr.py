@@ -19,7 +19,7 @@ from pyspark.sql import Column, DataFrame, Row, SparkSession
 from pyspark.sql import functions as f
 from pyspark.sql import types as t
 
-from common.evidence import (
+from src.common.evidence import (
     initialize_logger,
     initialize_sparksession,
     write_evidence_strings,

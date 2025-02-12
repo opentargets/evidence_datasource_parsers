@@ -11,7 +11,7 @@ import pyspark.sql.functions as f
 
 from pyspark.sql.dataframe import DataFrame
 
-from common.evidence import initialize_sparksession, write_evidence_strings
+from src.common.evidence import initialize_sparksession, write_evidence_strings
 
 
 def main(chembl_evidence: str, predictions: str, output_file: str) -> None:

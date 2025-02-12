@@ -10,8 +10,8 @@ import xml.etree.ElementTree as ET
 from pyspark.sql import DataFrame, Row
 from pyspark.sql.functions import array_distinct, col, create_map, lit, split
 
-from common.ontology import add_efo_mapping
-from common.evidence import initialize_sparksession, write_evidence_strings
+from src.common.ontology import add_efo_mapping
+from src.common.evidence import initialize_sparksession, write_evidence_strings
 
 # The rest of the types are assigned to -> germline for allele origins
 EXCLUDED_ASSOCIATIONTYPES = [

@@ -54,14 +54,12 @@ screen
 
 # Install the system dependencies.
 sudo apt update
-sudo apt install -y openjdk-8-jdk-headless python3-pip python3.8-venv r-base-core
+sudo apt install -y openjdk-8-jdk-headless python3-pip r-base-core
 
 # Activate the environment and install Python dependencies.
 git clone https://github.com/opentargets/evidence_datasource_parsers
 cd evidence_datasource_parsers
-pip install uv
-uv sync --all-groups --frozen
-export PYTHONPATH="$PYTHONPATH:$(pwd)"
+bash setup.sh
 
 # Workaround for a potential OnToma race condition: pre-initialise cache directory.
 # This prevents an issue where several OnToma instances are trying to do this at once and fail.
@@ -70,10 +68,10 @@ echo 'asthma' | ontoma --cache-dir cache_dir
 
 At this point, we are ready to run the Snakemake pipeline. The following options are available:
 
-* `snakemake --cores all`: Display help (the list of possible rules to be run) and do not run anything.
-* `snakemake --cores all --until local`: Generate all files, but do not upload them to Google Cloud Storage. The files generated in this way do not have prefixes, e.g. `cancer_biomarkers.json.gz`. This is done intentionally, so that the pipeline can be re-run the next day without having to re-generate all the files.
+* `uv run snakemake --cores all`: Display help (the list of possible rules to be run) and do not run anything.
+* `uv run snakemake --cores all --until local`: Generate all files, but do not upload them to Google Cloud Storage. The files generated in this way do not have prefixes, e.g. `cancer_biomarkers.json.gz`. This is done intentionally, so that the pipeline can be re-run the next day without having to re-generate all the files.
   * It is also possible to locally run only a single rule by substituting its name instead of “local”.
-* `snakemake --cores all --until all`: Generate all files and then upload them to Google Cloud Storage.
+* `uv run snakemake --cores all --until all`: Generate all files and then upload them to Google Cloud Storage.
 
 All individual parser rules are strictly local. The only rule which uploads files to Google Cloud Storage (all at once) is "all".
 

@@ -7,7 +7,7 @@ from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as f
 from pyspark.sql import types as t
 
-from common.evidence import (
+from src.common.evidence import (
     GenerateDiseaseCellLines,
     initialize_logger,
     initialize_sparksession,

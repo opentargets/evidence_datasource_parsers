@@ -8,7 +8,7 @@ import sys
 from pyspark.sql import functions as f
 from pyspark import SparkFiles
 
-from common.evidence import (
+from src.common.evidence import (
     write_evidence_strings,
     initialize_sparksession,
 )
