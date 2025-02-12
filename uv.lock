@@ -244,7 +244,7 @@ wheels = [
 [[package]]
 name = "evidence-datasource-parsers"
 version = "2.5.0"
-source = { editable = "." }
+source = { virtual = "." }
 dependencies = [
     { name = "gcsfs" },
     { name = "google-api-python-client" },

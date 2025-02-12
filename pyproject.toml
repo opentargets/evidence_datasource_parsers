@@ -24,5 +24,6 @@ dependencies = [
     "scipy==1.10.1",
     "snakemake==7.20.0",
     "openai==1.8",
-    "PuLP==2.7.0"
+    "PuLP==2.7.0",
+    "setuptools>=65.0.0"
 ]
