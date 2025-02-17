@@ -159,6 +159,7 @@ rule chembl:                  # Add the category of why a clinical trial has sto
     input:
         evidenceFile = GS.remote(config['ChEMBL']['evidence']),
         stopReasonCategories = GS.remote(config['ChEMBL']['stopReasonCategories'])
+        drugIndications = GS.remote(config['ChEMBL']['drugIndications'])
     params:
         schema = f"{config['global']['schema']}/schemas/disease_target_evidence.json"
     output:
@@ -171,6 +172,7 @@ rule chembl:                  # Add the category of why a clinical trial has sto
         python modules/ChEMBL.py  \
             --chembl_evidence {input.evidenceFile} \
             --predictions {input.stopReasonCategories} \
+            --chembl_indications {input.drugIndications} \
             --output {output.evidenceFile}
         opentargets_validator --schema {params.schema} {output}
         """
