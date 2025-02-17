@@ -126,8 +126,9 @@ def remove_unvalidated_target_disease(evidence: DataFrame, drug_approvals_df: Da
             # Keep all <Phase IV evidence
             (f.col("clinicalPhase") != 4) |
             # Keep all Phase IV evidence clinically validated
-            (f.col("clinicalPhase") == 4 & f.col("isApproved") == True)
+            ((f.col("clinicalPhase") == 4) & (f.col("isApproved") == True))
         )
+        .drop("isApproved")
     )
 
 def get_parser():

@@ -158,7 +158,7 @@ rule cancerBiomarkers:        # Process the Cancers Biomarkers database from Can
 rule chembl:                  # Add the category of why a clinical trial has stopped early to the ChEMBL evidence.
     input:
         evidenceFile = GS.remote(config['ChEMBL']['evidence']),
-        stopReasonCategories = GS.remote(config['ChEMBL']['stopReasonCategories'])
+        stopReasonCategories = GS.remote(config['ChEMBL']['stopReasonCategories']),
         drugIndications = GS.remote(config['ChEMBL']['drugIndications'])
     params:
         schema = f"{config['global']['schema']}/schemas/disease_target_evidence.json"
