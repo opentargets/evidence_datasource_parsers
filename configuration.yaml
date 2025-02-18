@@ -56,7 +56,7 @@ Gene2Phenotype:
 intOGen:
   inputAssociationsTable: gs://otar000-evidence_input/IntOgen/data_files/2023.05/Compendium_Cancer_Genes.tsv
   inputCohortsTable: gs://otar000-evidence_input/IntOgen/data_files/2023.05/cohorts.tsv
-  diseaseMapping: src/resources/cancer2EFO_mappings.tsv
+  diseaseMapping: resources/cancer2EFO_mappings.tsv
   outputBucket: gs://otar000-evidence_input/IntOgen/json
 Orphanet:
   webSource: http://www.orphadata.org/data/xml/en_product6.xml
@@ -69,12 +69,12 @@ IMPC:
   phenotypesOutputBucket: gs://otar001-core/MousePhenotypes
 PROGENy:
   inputAssociationsTable: gs://otar000-evidence_input/PROGENy/data_files/progeny_normalVStumor_opentargets.txt
-  inputDiseaseMapping: src/resources/cancer2EFO_mappings.tsv
-  inputPathwayMapping: src/resources/pathway2Reactome_mappings.tsv
+  inputDiseaseMapping: resources/cancer2EFO_mappings.tsv
+  inputPathwayMapping: resources/pathway2Reactome_mappings.tsv
   outputBucket: gs://otar000-evidence_input/PROGENy/json
 SLAPEnrich:
   inputAssociationsTable: gs://otar000-evidence_input/SLAPEnrich/data_file/slapenrich_opentargets-21-12-2017.tsv
-  inputDiseaseMapping: src/resources/cancer2EFO_mappings.tsv
+  inputDiseaseMapping: resources/cancer2EFO_mappings.tsv
   outputBucket: gs://otar000-evidence_input/SLAPEnrich/json
 SysBio:
   inputAssociationsTable: gs://otar000-evidence_input/SysBio/data_files/sysbio_evidence-31-01-2019.tsv

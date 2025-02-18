@@ -4,7 +4,6 @@
 import argparse
 from datetime import datetime
 import logging
-from os import replace
 import re
 import sys
 
