@@ -100,7 +100,7 @@ def generate_evidence(
         cache_dir: Directory to store the OnToma cache files in.
     """
     enriched_pharmgkb_df = (
-        pharmgkb_df.drop("phenotypeText", "phenotypeFromSourceId").join(pgx_phenotypes_df, on="genotypeAnnotationText", how="left")
+        pharmgkb_evidence_df.drop("phenotypeText", "phenotypeFromSourceId").join(extracted_phenotypes_df, on="genotypeAnnotationText", how="left")
         .withColumn("phenotypeText", f.explode_outer("phenotypeText"))
         .distinct()
         .persist()
@@ -196,15 +196,10 @@ if __name__ == "__main__":
     unparsed_texts = pgx_df.filter(f.col("phenotypeText").isNull()).select("genotypeAnnotationText").distinct()
     if unparsed_texts.count() == 0:
         logging.info("All evidence have been correctly parsed.")
-        pgx_df = add_variantid_column(pgx_df)
-        logging.info("Added variantId column.")
-        write_evidence_strings(pgx_df, args.output_evidence_path)
-        logging.info(f"{pgx_df.count()} evidence strings have been saved to {args.output_evidence_path}. Exiting.")
-        
     else:
-        logging.error("There are evidence without a phenotype. Please update the extracted phenotypes table before evidence generation.")
+        logging.error(f"There are  {unparsed_texts.count()} evidence without a phenotype. Please update the extracted phenotypes table before evidence generation.")
         client = OpenAI(api_key=args.openai_api_key)
-        
+
         new_phenotypes_df = parse_phenotypes(
             unparsed_texts.toPandas()["genotypeAnnotationText"].to_list(),
             client
@@ -218,10 +213,11 @@ if __name__ == "__main__":
             updated_phenotypes_df,
             args.cache_dir
         )
-        pgx_df = add_variantid_column(pgx_df)
-        logging.info("Added variantId column.")
-        write_evidence_strings(pgx_df, args.output_evidence_path)
-        logging.info(f"{pgx_df.count()} evidence strings have been saved to {args.output_evidence_path}. Exiting.")
+
+    pgx_df = add_variantid_column(pgx_df)
+    logging.info("Added variantId column.")
+    write_evidence_strings(pgx_df, args.output_evidence_path)
+    logging.info(f"{pgx_df.count()} evidence strings have been saved to {args.output_evidence_path}. Exiting.")
 
         
 
