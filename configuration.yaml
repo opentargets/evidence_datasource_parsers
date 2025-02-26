@@ -1,7 +1,7 @@
 global:
   logDir: gs://otar000-evidence_input/parser_logs
   cacheDir: cache_dir
-  schema: https://raw.githubusercontent.com/opentargets/json_schema/2.8.3
+  schema: https://raw.githubusercontent.com/opentargets/json_schema/2.8.4
   EFOVersion: v3.73.0
   cell_passport_file: https://cog.sanger.ac.uk/cmp/download/model_list_latest.csv.gz
   curation_repo: https://raw.githubusercontent.com/opentargets/curation/25.03
@@ -44,13 +44,13 @@ GeneBurden:
   genebass: gs://otar000-evidence_input/GeneBurden/data_files/genebass_entries
   outputBucket: gs://otar000-evidence_input/GeneBurden/json
 Gene2Phenotype:
-  webSource_dd_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/DDG2P.csv.gz
-  webSource_eye_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/EyeG2P.csv.gz
-  webSource_skin_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/SkinG2P.csv.gz
-  webSource_cancer_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/CancerG2P.csv.gz
-  webSource_cardiac_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/CardiacG2P.csv.gz
-  webSource_skeletal_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/SkeletalG2P.csv.gz
-  webSource_hearing_loss_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/Hearing_lossG2P.csv.gz
+  webSource_dd_panel: https://ftp.ebi.ac.uk/pub/databases/gene2phenotype/G2P_data_downloads_archive/2025_01_28/DDG2P_2025-01-28.csv.gz
+  webSource_eye_panel: https://ftp.ebi.ac.uk/pub/databases/gene2phenotype/G2P_data_downloads_archive/2025_01_28/EyeG2P_2025-01-28.csv.gz
+  webSource_skin_panel: https://ftp.ebi.ac.uk/pub/databases/gene2phenotype/G2P_data_downloads_archive/2025_01_28/SkinG2P_2025-01-28.csv.gz
+  webSource_cancer_panel: https://ftp.ebi.ac.uk/pub/databases/gene2phenotype/G2P_data_downloads_archive/2025_01_28/CancerG2P_2025-01-28.csv.gz
+  webSource_cardiac_panel: https://ftp.ebi.ac.uk/pub/databases/gene2phenotype/G2P_data_downloads_archive/2025_01_28/CardiacG2P_2025-01-28.csv.gz
+  webSource_skeletal_panel: https://ftp.ebi.ac.uk/pub/databases/gene2phenotype/G2P_data_downloads_archive/2025_01_28/SkeletalG2P_2025-01-28.csv.gz
+  webSource_hearing_loss_panel: https://ftp.ebi.ac.uk/pub/databases/gene2phenotype/G2P_data_downloads_archive/2025_01_28/Hearing_lossG2P_2025-01-28.csv.gz
   inputBucket: gs://otar000-evidence_input/Gene2Phenotype/data_files
   outputBucket: gs://otar000-evidence_input/Gene2Phenotype/json
 intOGen:
