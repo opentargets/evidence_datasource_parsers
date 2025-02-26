@@ -1,10 +1,10 @@
 global:
   logDir: gs://otar000-evidence_input/parser_logs
   cacheDir: cache_dir
-  schema: https://raw.githubusercontent.com/opentargets/json_schema/2.8.2
-  EFOVersion: v3.71.0
+  schema: https://raw.githubusercontent.com/opentargets/json_schema/2.8.3
+  EFOVersion: v3.73.0
   cell_passport_file: https://cog.sanger.ac.uk/cmp/download/model_list_latest.csv.gz
-  curation_repo: https://raw.githubusercontent.com/opentargets/curation/24.12
+  curation_repo: https://raw.githubusercontent.com/opentargets/curation/25.03
 baselineExpression:
   gtexSourceDataPath: https://storage.googleapis.com/adult-gtex/bulk-gex/v8/rna-seq/GTEx_Analysis_2017-06-05_v8_RNASeQCv1.1.9_gene_median_tpm.gct.gz
   tissueNameToUberonMappingPath: mappings/biosystem/gtex_v8_tissues.tsv
@@ -30,7 +30,7 @@ ProjectScore:
   geneScores: gs://otar000-evidence_input/CRISPR/data_files/project_score_v2/mapped_diseases.tsv
   outputBucket: gs://otar000-evidence_input/CRISPR/json
 Essentiality:
-  inputBucket: gs://otar000-evidence_input/Essentiality/DepMap/2023Q4
+  inputBucket: gs://otar000-evidence_input/Essentiality/DepMap/2024Q4
   depmap_tissue_mapping: mappings/biosystem/depmap_uberon_mapping.csv
   outputBucket: gs://otar000-evidence_input/Essentiality/json
 GeneBurden:
@@ -38,8 +38,8 @@ GeneBurden:
   azPhewasQuantitative: gs://otar000-evidence_input/GeneBurden/data_files/azphewas-com-470k-phewas-quantitative
   azPhewasGenesLinks: gs://otar000-evidence_input/GeneBurden/data_files/azphewas_com_genes_UK_Biobank_470k.csv
   azPhewasPhenotypesLinks: gs://otar000-evidence_input/GeneBurden/data_files/azphewas_com_phenotypes_UK_Biobank_470k.csv
-  finngen: gs://finngen-public-data-r11/lof_2.0/data/finngen_R11_lof.txt
-  finngenManifest: https://r11.finngen.fi/api/phenos
+  finngen: gs://finngen-public-data-r12/lof/data/finngen_R12_lof.txt.gz
+  finngenManifest: https://r12.finngen.fi/api/phenos  # gs://finngen-public-data-r11/lof_2.0/data/finngen_R11_lof.txt
   curation: gene_burden/curated_evidence.tsv
   genebass: gs://otar000-evidence_input/GeneBurden/data_files/genebass_entries
   outputBucket: gs://otar000-evidence_input/GeneBurden/json
@@ -54,8 +54,8 @@ Gene2Phenotype:
   inputBucket: gs://otar000-evidence_input/Gene2Phenotype/data_files
   outputBucket: gs://otar000-evidence_input/Gene2Phenotype/json
 intOGen:
-  inputAssociationsTable: gs://otar000-evidence_input/IntOgen/data_files/2023.05/Compendium_Cancer_Genes.tsv
-  inputCohortsTable: gs://otar000-evidence_input/IntOgen/data_files/2023.05/cohorts.tsv
+  inputAssociationsTable: gs://otar000-evidence_input/IntOgen/data_files/2024.06/Compendium_Cancer_Genes.tsv
+  inputCohortsTable: gs://otar000-evidence_input/IntOgen/data_files/2024.06/cohorts.tsv
   diseaseMapping: resources/cancer2EFO_mappings.tsv
   outputBucket: gs://otar000-evidence_input/IntOgen/json
 Orphanet:
