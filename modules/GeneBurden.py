@@ -83,7 +83,7 @@ def process_finngen_gene_burden(spark: SparkSession, finngen_data: str, finngen_
             f.col("BETA").alias("beta").cast("float"),
             (f.col("BETA") - f.col("SE")).alias("betaConfidenceIntervalLower").cast("float"),
             (f.col("BETA") + f.col("SE")).alias("betaConfidenceIntervalUpper").cast("float"),
-            f.lit("FinnGen R11").alias("cohortId"),
+            f.lit("FinnGen R12").alias("cohortId"),
             f.lit("genetic_association").alias("datatypeId"),
             f.col("diseaseFromSource"),
             f.col("PHENO").alias("diseaseFromSourceId"),
