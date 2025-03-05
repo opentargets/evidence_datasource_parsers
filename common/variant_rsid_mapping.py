@@ -216,6 +216,8 @@ class RsIdMapper:
             )
             .select("*", "transcript_consequences.*")
             .withColumn("uniprot_id", f.explode_outer("swissprot"))
+            # Dropping mappings from non-canonical chromosomes:
+            .filter(f.col("seq_region_name").rlike(r"^\d{1,2}|X|Y$"))
             # Do transformations to get the final schema:
             .select(
                 # Selecting only the necessary columns:

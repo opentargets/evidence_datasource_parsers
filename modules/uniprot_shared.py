@@ -6,7 +6,7 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Any
 
-from pyspark.sql import Column, DataFrame
+from pyspark.sql import Column, DataFrame, SparkSession
 from pyspark.sql import functions as f
 from SPARQLWrapper import JSON, SPARQLWrapper
 
@@ -40,6 +40,14 @@ class UniprotShared(ABC):
     EVIDENCE_COLUMNS: list[str] = []
 
     evidence_dataframe: DataFrame | None = None
+
+    def __init__(self: UniprotShared, spark: SparkSession) -> None:
+        """Initialize the UniProt shared class.
+
+        Args:
+            spark (SparkSession): The Spark session.
+        """
+        self.SPARK_SESSION = spark
 
     @abstractmethod
     def extract_evidence_from_uniprot(

@@ -131,14 +131,6 @@ class UniprotVariantsParser(UniprotShared):
         "variantRsId",
     ]
 
-    def __init__(self: UniprotVariantsParser, spark: SparkSession) -> None:
-        """Initialise the UniprotVariantsParser.
-
-        Args:
-            spark (SparkSession): The Spark session.
-        """
-        self.SPARK_SESSION = spark
-
     def extract_evidence_from_uniprot(
         self: UniprotVariantsParser,
     ) -> UniprotVariantsParser:
@@ -284,6 +276,7 @@ def main(
     rsid_cache: str,
     output_file: str,
     ontoma_cache_dir: str,
+    debug: bool = False,
 ) -> None:
     """Main functin to build Uniprot variant evidence.
 
@@ -291,6 +284,7 @@ def main(
         rsid_cache (str): Cache file containing existing rsid to variant id mapping.
         output_file (str): Path to the output file.
         ontoma_cache_dir (str): Cache directory for the OnToma data.
+        debug (bool, optional): Whether to run in debug mode. Defaults to False.
     """
     # Get logger:
     logger.info("Starting Uniprot evidence parser.")
@@ -313,7 +307,7 @@ def main(
         # Map EFO terms:
         .add_efo_mapping(ontoma_cache_dir)
         # Accessing evidence data:
-        .get_evidence(debug=True)
+        .get_evidence(debug=debug)
     )
 
     # Write data:
@@ -355,6 +349,11 @@ def parse_command_line_arguments() -> argparse.Namespace:
         type=str,
         help="Path to the OnToma cache directory.",
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Whether to run in debug mode.",
+    )
     return parser.parse_args()
 
 
@@ -370,4 +369,5 @@ if __name__ == "__main__":
         args.rsid_cache,
         args.output_file,
         args.ontoma_cache_dir,
+        args.debug,
     )

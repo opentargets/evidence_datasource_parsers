@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import logging
 
-from pyspark.sql import SparkSession
 from pyspark.sql import functions as f
 from uniprot_shared import UniprotShared
 
@@ -84,14 +83,6 @@ class UniprotLiteratureExtractor(UniprotShared):
         "targetModulation",
     ]
 
-    def __init__(self: UniprotLiteratureExtractor, spark: SparkSession) -> None:
-        """Initialize the UniprotLiteratureExtractor class.
-
-        Args:
-            spark (SparkSession): The Spark session.
-        """
-        self.SPARK_SESSION = spark
-
     def extract_evidence_from_uniprot(
         self: UniprotLiteratureExtractor,
     ) -> UniprotLiteratureExtractor:
@@ -132,12 +123,14 @@ class UniprotLiteratureExtractor(UniprotShared):
 def main(
     output_file: str,
     ontoma_cache_dir: str,
+    debug: bool = False,
 ) -> None:
     """Main function to extract Uniprot evidence.
 
     Args:
         output_file (str): The path to the output file.
         ontoma_cache_dir (str): The path to the OnToma cache directory.
+        debug (bool, optional): Whether to run in debug mode. Defaults to False.
     """
     # Get logger:
     logger.info("Starting Uniprot evidence parser.")
@@ -155,7 +148,7 @@ def main(
         # Map EFO terms:
         .add_efo_mapping(ontoma_cache_dir)
         # Accessing evidence data:
-        .get_evidence(debug=True)
+        .get_evidence(debug=debug)
     )
 
     # Write data:
@@ -192,6 +185,11 @@ def parse_command_line_arguments() -> argparse.Namespace:
         type=str,
         help="Path to the OnToma cache directory.",
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Whether to run in debug mode.",
+    )
     return parser.parse_args()
 
 
@@ -206,4 +204,5 @@ if __name__ == "__main__":
     main(
         args.output_file,
         args.ontoma_cache_dir,
+        args.debug,
     )
