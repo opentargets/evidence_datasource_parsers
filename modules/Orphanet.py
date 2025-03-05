@@ -107,12 +107,15 @@ def parse_orphanet_xml(orphanet_file: str, spark_instance) -> DataFrame:
             evidence['targetFromSource'] = gene.find('Name').text
 
             # Extracting ensembl gene id from cross references:
-            ensembl_gene_id = [
-                xref.find('Reference').text
-                for xref in gene.find('ExternalReferenceList')
-                if 'ENSG' in xref.find('Reference').text
-            ]
-            evidence['targetFromSourceId'] = ensembl_gene_id[0] if len(ensembl_gene_id) > 0 else None
+            try:
+                ensembl_gene_id = [
+                    xref.find('Reference').text
+                    for xref in gene.find('ExternalReferenceList')
+                    if 'ENSG' in xref.find('Reference').text
+                ]
+                evidence['targetFromSourceId'] = ensembl_gene_id[0] if len(ensembl_gene_id) > 0 else None
+            except TypeError:
+                evidence['targetFromSourceId'] = None
 
             # Collect evidence:
             orphanet_disorders.append(evidence)

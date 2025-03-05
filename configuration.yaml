@@ -1,8 +1,8 @@
 global:
   logDir: gs://otar000-evidence_input/parser_logs
   cacheDir: cache_dir
-  schema: https://raw.githubusercontent.com/opentargets/json_schema/2.8.2
-  EFOVersion: v3.74.0
+  schema: https://raw.githubusercontent.com/opentargets/json_schema/2.8.4
+  EFOVersion: v3.73.0
   cell_passport_file: https://cog.sanger.ac.uk/cmp/download/model_list_latest.csv.gz
   curation_repo: https://raw.githubusercontent.com/opentargets/curation/25.03
 baselineExpression:
@@ -19,6 +19,7 @@ cancerBiomarkers:
 ChEMBL:
   evidence: gs://otar008-chembl/cttv008_2024-08-09.json.gz
   stopReasonCategories: gs://otar000-evidence_input/ChEMBL/data_files/chembl_predictions-2024-08-12.json
+  drugIndications: gs://otar000-evidence_input/ChEMBL/json/chembl35_drug_indication.jsonl
   outputBucket: gs://otar000-evidence_input/ChEMBL/json
 ClinGen:
   webSource: https://search.clinicalgenome.org/kb/gene-validity/download
@@ -37,19 +38,19 @@ GeneBurden:
   azPhewasQuantitative: gs://otar000-evidence_input/GeneBurden/data_files/azphewas-com-470k-phewas-quantitative
   azPhewasGenesLinks: gs://otar000-evidence_input/GeneBurden/data_files/azphewas_com_genes_UK_Biobank_470k.csv
   azPhewasPhenotypesLinks: gs://otar000-evidence_input/GeneBurden/data_files/azphewas_com_phenotypes_UK_Biobank_470k.csv
-  finngen: gs://finngen-public-data-r11/lof_2.0/data/finngen_R11_lof.txt
-  finngenManifest: https://r11.finngen.fi/api/phenos
+  finngen: gs://finngen-public-data-r12/lof/data/finngen_R12_lof.txt.gz
+  finngenManifest: https://r12.finngen.fi/api/phenos  # gs://finngen-public-data-r11/lof_2.0/data/finngen_R11_lof.txt
   curation: gene_burden/curated_evidence.tsv
   genebass: gs://otar000-evidence_input/GeneBurden/data_files/genebass_entries
   outputBucket: gs://otar000-evidence_input/GeneBurden/json
 Gene2Phenotype:
-  webSource_dd_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/DDG2P.csv.gz
-  webSource_eye_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/EyeG2P.csv.gz
-  webSource_skin_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/SkinG2P.csv.gz
-  webSource_cancer_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/CancerG2P.csv.gz
-  webSource_cardiac_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/CardiacG2P.csv.gz
-  webSource_skeletal_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/SkeletalG2P.csv.gz
-  webSource_hearing_loss_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/Hearing_lossG2P.csv.gz
+  webSource_dd_panel: https://ftp.ebi.ac.uk/pub/databases/gene2phenotype/G2P_data_downloads_archive/2025_01_28/DDG2P_2025-01-28.csv.gz
+  webSource_eye_panel: https://ftp.ebi.ac.uk/pub/databases/gene2phenotype/G2P_data_downloads_archive/2025_01_28/EyeG2P_2025-01-28.csv.gz
+  webSource_skin_panel: https://ftp.ebi.ac.uk/pub/databases/gene2phenotype/G2P_data_downloads_archive/2025_01_28/SkinG2P_2025-01-28.csv.gz
+  webSource_cancer_panel: https://ftp.ebi.ac.uk/pub/databases/gene2phenotype/G2P_data_downloads_archive/2025_01_28/CancerG2P_2025-01-28.csv.gz
+  webSource_cardiac_panel: https://ftp.ebi.ac.uk/pub/databases/gene2phenotype/G2P_data_downloads_archive/2025_01_28/CardiacG2P_2025-01-28.csv.gz
+  webSource_skeletal_panel: https://ftp.ebi.ac.uk/pub/databases/gene2phenotype/G2P_data_downloads_archive/2025_01_28/SkeletalG2P_2025-01-28.csv.gz
+  webSource_hearing_loss_panel: https://ftp.ebi.ac.uk/pub/databases/gene2phenotype/G2P_data_downloads_archive/2025_01_28/Hearing_lossG2P_2025-01-28.csv.gz
   inputBucket: gs://otar000-evidence_input/Gene2Phenotype/data_files
   outputBucket: gs://otar000-evidence_input/Gene2Phenotype/json
 intOGen:

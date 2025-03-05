@@ -83,7 +83,7 @@ def process_finngen_gene_burden(spark: SparkSession, finngen_data: str, finngen_
             f.col("BETA").alias("beta").cast("float"),
             (f.col("BETA") - f.col("SE")).alias("betaConfidenceIntervalLower").cast("float"),
             (f.col("BETA") + f.col("SE")).alias("betaConfidenceIntervalUpper").cast("float"),
-            f.lit("FinnGen R11").alias("cohortId"),
+            f.lit("FinnGen R12").alias("cohortId"),
             f.lit("genetic_association").alias("datatypeId"),
             f.col("diseaseFromSource"),
             f.col("PHENO").alias("diseaseFromSourceId"),
@@ -92,10 +92,10 @@ def process_finngen_gene_burden(spark: SparkSession, finngen_data: str, finngen_
             f.col("resourceScore"),
             f.col("pValueExponent"),
             f.col("pValueMantissa"),
-            f.lit("R11").alias("releaseVersion"),
+            f.lit("R12").alias("releaseVersion"),
             f.lit("LoF burden").alias("statisticalMethod"),
             f.lit("Burden test carried out with LoF variants with MAF smaller than 1%.").alias("statisticalMethodOverview"),
-            f.lit(453733).alias("studySampleSize"),
+            f.lit(500348).alias("studySampleSize"),
             f.split(f.col("ID"), "\.")[0].alias("targetFromSourceId"),
         )
     )
