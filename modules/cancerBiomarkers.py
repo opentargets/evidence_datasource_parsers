@@ -14,6 +14,7 @@ from pyspark.sql.types import StringType, ArrayType
 
 from common.evidence import write_evidence_strings
 
+    
 
 ALTERATIONTYPE2FUNCTIONCSQ = {
     # TODO: Map BIA
