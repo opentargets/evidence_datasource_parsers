@@ -213,9 +213,19 @@ class UniprotShared(ABC):
         Returns:
             Column: The PMIDs.
         """
-        return f.transform(
+        # Split literature string into a list, and extract last element of the URI in the element:
+        pmid_list = f.transform(
             # Literature references are separated by a comma:
             f.split(literature, ", "),
             # Each element needs to be further split, and extract the last element:
             lambda uri: f.split(uri, "/")[f.size(f.split(uri, "/")) - 1],
+        )
+
+        # Extract strings that looks like pmids:
+        return f.array_distinct(
+            f.filter(
+                pmid_list,
+                # Filtering resulting strings to only include strings looking like pmid ids:
+                lambda pmid: pmid.rlike("^\\d+$"),
+            )
         )
