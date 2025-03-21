@@ -3,8 +3,6 @@ import pandas as pd
 import scanpy as sc
 import os
 import argparse
-import multiprocessing
-from anndata import AnnData
 
 
 class PseudobulkExpression:
@@ -20,7 +18,7 @@ class PseudobulkExpression:
         self.adata.strings_to_categoricals()
         # Check AnnData object for some basic requirements.
         if self.adata.var.index.name != 'ensg':
-            raise ValueError(f"Expected index name 'ensg', got '{self.adata.var.index.name}'")
+            raise ValueError(f"Expected index name 'ensg', got '{adata.var.index.name}'")
         
 
     def filter_anndata(self,min_cells=0,min_genes=0,method='10X'):
@@ -53,15 +51,15 @@ class PseudobulkExpression:
         annotation_colnames: List of column names to combine.
         """
         adata = self.adata
-        combined_colname = '::'.join(annotation_colnames)
+        combined_colname = '__'.join(annotation_colnames)
         # Combine annotation columns into a single column.
-        adata.obs[combined_colname] = adata.obs[annotation_colnames].astype(str).agg('::'.join, axis=1)
+        adata.obs[combined_colname] = adata.obs[annotation_colnames].astype(str).agg('__'.join, axis=1)
 
     def make_annotation_translation_map(self,organ_column_dict,cell_type_column_dict):
         """
         Create a translation map for labels.
         organ_column_dict: Dictionary of organ columns e.g. {'tissue':'tissue_ontology_term_id'}
-        cell_type_column_dict: Dictionary of cell type columns e.g. {'cell_type::tissue':'cell_type_ontology_term_id'}
+        cell_type_column_dict: Dictionary of cell type columns e.g. {'cell_type__tissue':'cell_type_ontology_term_id'}
         """
         # Structure of the translation map is based on gs://open-targets-pre-data-releases/2503-testrun-3/intermediate/expression/tissue-translation-map.parquet
         # +-------------------------------------+--------------+-----------------------------------------------+---------------------+-----------------------------------------------+
@@ -77,110 +75,38 @@ class PseudobulkExpression:
             # Slide obs for unique values in the organ column and the corresponding EFO code
             organ_translation_map = obs_df[[organ_column, organ_efo_code_column]].drop_duplicates()
             # For the anatomical_systems column, I will make all rows ['immmune system'] for now
-            organ_translation_map['anatomical_systems'] = ['immune system']
-            organ_translation_map['efo_code'] = organ_translation_map[organ_efo_code_column]
-            organ_translation_map['label'] = organ_translation_map[organ_column]
+            organ_translation_map['anatomical_systems'] = [['immune system']] * organ_translation_map.shape[0]
             # For the organ column I will take the value from each row in the organ column but as a list e.g. 'blood' -> ['blood']
             organ_translation_map['organs'] = [[organ] for organ in organ_translation_map[organ_column]]
             organ_translation_map['tissue_id'] = organ_translation_map[organ_column]
+            organ_translation_map = organ_translation_map.rename(columns={organ_column:'label', organ_efo_code_column:'efo_code'})
             translation_map = pd.concat([translation_map, organ_translation_map])
         # Slightly different approach for cell type as each cell type belongs to a tissue
         for cell_type_column, cell_type_efo_code_column in cell_type_column_dict.items():
             cell_type_translation_map = obs_df[[cell_type_column, cell_type_efo_code_column]].drop_duplicates()
             # For the anatomical_systems column, I will make all rows ['immmune system'] for now
-            cell_type_translation_map['anatomical_systems'] = ['immune system']
-            cell_type_translation_map['efo_code'] = cell_type_translation_map[cell_type_efo_code_column]
-            cell_type_translation_map['label'] = cell_type_translation_map[cell_type_column]
-            # To get the organ I will split the cell type column by '::' and take the first element and
-            # put it in a list e.g. 'lung::CD4 T cell' -> ['lung']
-            cell_type_translation_map['organs'] = cell_type_translation_map[cell_type_column].str.split('::').apply(lambda x: [x[0]])
+            cell_type_translation_map['anatomical_systems'] = [['immune system']] * cell_type_translation_map.shape[0]
+            # To get the organ I will split the cell type column by '__' and take the first element and
+            # put it in a list e.g. 'lung__CD4 T cell' -> ['lung']
+            cell_type_translation_map['organs'] = cell_type_translation_map[cell_type_column].str.split('__').apply(lambda x: [x[0]])
             cell_type_translation_map['tissue_id'] = cell_type_translation_map[cell_type_column]
+            cell_type_translation_map = cell_type_translation_map.rename(columns={cell_type_column:'label', cell_type_efo_code_column:'efo_code'})
             translation_map = pd.concat([translation_map, cell_type_translation_map])
         # Save the translation map to a file
         os.makedirs('results', exist_ok=True)
-        translation_map.to_parquet('results/translation_map.parquet')
+        translation_map.to_parquet('~/results/translation_map.parquet', index=False)
 
-    def create_minimal_anndata(self, obs, var, layers=None, uns=None, obsm=None, varm=None, obsp=None, raw=False):
-        """Create a minimal AnnData object with only the specified attributes."""
-        new_adata = AnnData(X=self.adata.X, obs=self.adata.obs[obs], var=self.adata.var[var])
-        # Optionally, copy additional attributes if provided.
-        if layers:
-            new_adata.layers = {k: self.adata.layers[k] for k in layers if k in self.adata.layers}
-        if uns:
-            new_adata.uns = {k: self.adata.uns[k] for k in uns if k in self.adata.uns}
-        if obsm:
-            new_adata.obsm = {k: self.adata.obsm[k] for k in obsm if k in self.adata.obsm}
-        if varm:
-            new_adata.varm = {k: self.adata.varm[k] for k in varm if k in self.adata.varm}
-        if obsp:
-            new_adata.obsp = {k: self.adata.obsp[k] for k in obsp if k in self.adata.obsp}
-        if raw and self.adata.raw is not None:
-            new_adata.raw = self.adata.raw
-        
-        # Ensure categoricals are set.
-        new_adata.strings_to_categoricals()
 
-        del self.adata  # Free up memory
 
-        self.adata = new_adata
-        
-    def process_annotation(self, annotation):
-        """
-        Worker function to process one annotation for pseudobulking.
-
-        annotation: The annotation to process.
-        """
-        adata = self.adata  # Use the AnnData from the instance
-        output_dir = f'results/pseudobulk/{self.aggregation_colname}/{self.method}'
-        file_path = f'{output_dir}/{annotation}.tsv'
-
-        if os.path.exists(file_path):
-            print(f"File {file_path} already exists, skipping")
-            return
-
-        print(f"Aggregating data for {annotation}")
-
-        # Subset by the current annotation.
-        annot_adata = adata[adata.obs[self.aggregation_colname] == annotation]
-        aggregated_data = pd.DataFrame()
-
-        # Loop over donors within the annotation.
-        for donor in annot_adata.obs[self.donor_colname].unique():
-            # Subset further by donor.
-            donor_adata = annot_adata[annot_adata.obs[self.donor_colname] == donor]
-            if donor_adata.obs.shape[0] >= self.min_cells:
-                f = donor_adata.to_df()
-                if self.method == 'dSum':
-                    data_aggregated = pd.DataFrame(f.sum(axis=0))
-                elif self.method == 'dMean':
-                    data_aggregated = pd.DataFrame(f.mean(axis=0))
-                else:
-                    raise ValueError('Wrong method specified, please use dMean or dSum')
-                # Rename the aggregated column to the donor's name.
-                data_aggregated.rename(columns={0: donor}, inplace=True)
-                aggregated_data = pd.concat([aggregated_data, data_aggregated], axis=1)
-
-        if aggregated_data.shape[0] == 0:
-            print(f"No pseudobulked data for {annotation}, with {annot_adata.obs.shape[0]} cells. Skipping.")
-            return
-
-        os.makedirs(output_dir, exist_ok=True)
-        aggregated_data.to_csv(file_path, sep='\t', index=True)
-
-    def pseudobulk_data(self, aggregation_colname, donor_colname, min_cells, method='dMean'):
-        """Calculate pseudobulk data in parallel.
+    def pseudobulk_data(self,aggregation_colname,donor_colname,min_cells,method='dMean'):
+        """Calculate pseudobulk data.
         aggregation_colname: The annotation column name to aggregate on.
         donor_colname: The donor column name to aggregate on.
         min_cells: Minimum number of cells that an annotation-donor combination must have to be included.
         method: The method used to aggregate the data, e.g. dMean, dSum.
         """
-
-        self.aggregation_colname = aggregation_colname
-        self.donor_colname = donor_colname
-        self.min_cells = min_cells
-        self.method = method
-        
-        # List all unique annotations.
+        # Code adapted from https://github.com/wtsi-hgi/QTLight/blob/main/bin/aggregate_sc_data.py
+        adata = self.adata
         print(aggregation_colname)
         print("----------")
 
@@ -205,13 +131,11 @@ class PseudobulkExpression:
                 print(f"File {file_path} already exists, skipping")
                 continue
 
-            
 
-        # Launch a multiprocessing pool and process annotations in parallel.
-        pool = multiprocessing.Pool(processes=4)
-        pool.map(self.process_annotation, annotations)
-        pool.close()
-        pool.join()
+            # Slice the AnnData object to only include the current annotation.
+            annot_adata = adata[adata.obs[aggregation_colname]==annotation]
+            annot_index = set(adata[adata.obs[aggregation_colname]==annotation].obs.index)
+            aggregated_data_pre=pd.DataFrame()
 
             # Perform the aggregation for each donor.
             for donor in annot_adata.obs[donor_colname].unique():
@@ -244,7 +168,8 @@ class PseudobulkExpression:
         self.filter_anndata(min_cells=0,min_genes=0,method='10X')
         self.normalise_anndata()
         self.combine_annotations(['tissue','cell_type'])
-        for annotation in ['tissue', 'tissue::cell_type', 'cell_type']:
+        self.make_annotation_translation_map({'tissue':'tissue_ontology_term_id'},{'tissue__cell_type':'cell_type_ontology_term_id'})
+        for annotation in ['tissue', 'tissue__cell_type', 'cell_type']:
             for method in ['dMean','dSum']:
                 self.pseudobulk_data(aggregation_colname=annotation,
                                      donor_colname='donor_id',
@@ -264,4 +189,3 @@ if __name__ == "__main__":
     args = parser.parse_args()
     PseudobulkExpression(args.h5ad_path).main()
     
-

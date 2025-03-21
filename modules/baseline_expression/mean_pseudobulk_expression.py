@@ -3,10 +3,11 @@ from pyspark.sql.functions import col, expr
 from functools import reduce
 import os
 import argparse
+import pandas as pd
 
 class AveragePseudobulkExpression:
     """
-    This class is used to take the average of the Psuedobulk expression data so we have a single value per gene per annotation. The output of this class is a dataframe with the average expression of each gene (rows) per annotation (columns)
+    This class is used to take the average of the Pseudobulk expression data so we have a single value per gene per annotation. The output of this class is a dataframe with the average expression of each gene (rows) per annotation (columns)
     """
     def list_files(self, directory):
         """
@@ -59,6 +60,9 @@ class AveragePseudobulkExpression:
             self.spark = spark = SparkSession.builder.master("local").appName("spark_etl").config("spark.hadoop.fs.defaultFS", "file:///").getOrCreate()
         else:
             self.spark = SparkSession.builder.appName("AveragePseudobulkExpression").getOrCreate()
+        
+        # Disable whole-stage code generation
+        self.spark.conf.set("spark.sql.codegen.wholeStage", "false")
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -81,10 +85,14 @@ if __name__ == "__main__":
     file_list = ape.list_files(directory)
     dfs = []
     ape.calculate_average()
-    df = reduce(lambda x, y: x.join(y, on="ID", how="outer"), dfs)
+    # Convert each df to pandas as spark is struggling to write to a single file
+    df_list = [df_avg.toPandas() for df_avg in dfs]
+    print('Merging dataframes')
+    df_merged = reduce(lambda left, right: pd.merge(left, right, on="ID", how="outer"), df_list)
     outpath = os.path.join(output_dir, "average_pseudobulk_expression.tsv")
+    print(f"Writing to {outpath}")
     if local:
-        df.write.option("header", "true").option("sep", "\t").csv(f"file://{outpath}")
+        df_merged.to_csv(outpath, sep="\t", index=False)
     else:
-        df.write.option("header", "true").option("sep", "\t").csv("average_pseudobulk_expression.tsv")
+        df_merged.to_csv(f"file://{outpath}", sep="\t", index=False)
     ape.spark.stop()
