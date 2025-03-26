@@ -164,16 +164,15 @@ class PseudobulkExpression:
 
     def main(self):
         self.read_h5ad()
-        # self.filter_h5ad(min_cells=3,min_genes=200,method='10X')
-        self.filter_anndata(min_cells=0,min_genes=0,method='10X')
-        self.normalise_anndata()
+        self.filter_anndata(min_cells=args.min_cells,min_genes=args.min_genes,method=args.method)
+        self.normalise_anndata(method=args.normalisation_method)
         self.combine_annotations(['tissue','cell_type'])
         self.make_annotation_translation_map({'tissue':'tissue_ontology_term_id'},{'tissue__cell_type':'cell_type_ontology_term_id'})
         for annotation in ['tissue', 'tissue__cell_type', 'cell_type']:
-            for method in ['dMean','dSum']:
+            for method in aggregation_methods:
                 self.pseudobulk_data(aggregation_colname=annotation,
-                                     donor_colname='donor_id',
-                                     min_cells=5,
+                                     donor_colname=args.donor_colname,
+                                     min_cells=args.aggregation_min_cells,
                                      method=method)
         print("Pseudobulk expression completed")
 
@@ -184,8 +183,31 @@ parser = argparse.ArgumentParser()
 parser.add_argument(
     "--h5ad_path", required=True, type=str, help="Input h5ad file."
 )
+parser.add_argument(
+    "--min_cells", type=int, help="Minimum number of cells a gene must be expressed in.", default=0
+)
+parser.add_argument(
+    "--min_genes", type=int, help="Minimum number of genes a cell must express.", default=0
+)
+parser.add_argument(
+    "--method", type=str, help="The method used to generate the data, e.g. 10X, SmartSeq2.",default='10X'
+)
+parser.add_argument(
+    "--normalisation_method", type=str, help="The normalisation method to use e.g. logcp10k, scTransform.",default='logcp10k'
+)
+parser.add_argument(
+    "--donor_colname", type=str, help="The donor column name to aggregate on."
+)
+parser.add_argument(
+    "--aggregation_min_cells", type=int, help="Minimum number of cells that an annotation-donor combination must have to be included."
+)
+parser.add_argument(
+    "--aggregation_method", type=str, help="The method used to aggregate the data, e.g. dMean, dSum.", default='dMean,dSum'
+)
+
 
 if __name__ == "__main__":
     args = parser.parse_args()
+    aggregation_methods = args.aggregation_method.split(',')
     PseudobulkExpression(args.h5ad_path).main()
     
