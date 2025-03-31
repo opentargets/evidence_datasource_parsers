@@ -4,6 +4,7 @@
 import argparse
 import logging
 import sys
+from typing import Optional
 
 from pyspark.sql import SparkSession
 import pyspark.sql.functions as f
@@ -26,7 +27,9 @@ METHOD_DESC = {
 }
 
 
-def main(spark: SparkSession, input_path: str, ontoma_cache_dir: str | None = None) -> DataFrame:
+def main(
+    spark: SparkSession, input_path: str, ontoma_cache_dir: Optional[str] = None
+) -> DataFrame:
     """
     This module extracts and processes target/disease evidence from the raw Broad CVDI Human Disease Portal.
 
@@ -196,7 +199,6 @@ def parse_evidence(spark: SparkSession, associations_df: pd_dataframe) -> DataFr
             f.translate("phenotype", "_", " ").alias("diseaseFromSource"),
             f.lit(None).alias("diseaseFromSourceId"),
             f.col("Gene ID Ensembl").alias("targetFromSourceId"),
-            f.col("Gene").alias("targetFromSource"),
             f.col("cMAC").cast("int").alias("studyCasesWithQualifyingVariants"),
             f.lit(748879).alias("studySampleSize"),
             f.col("resourceScore"),
@@ -206,16 +208,26 @@ def parse_evidence(spark: SparkSession, associations_df: pd_dataframe) -> DataFr
             f.col("method_name").alias("statisticalMethod"),
             f.col("statisticalMethodOverview"),
             f.array(
-                # E.g. https://hugeamp.org:8000/research.html?ancestry=mixed&cohort=UKB_450k_AoU_250k_MGB_53k_META_overlapcorrected&file=600Traits.csv&gene=MYBPC3&pageid=600_traits_app
-                f.concat(
-                    f.lit(
-                        "https://hugeamp.org:8000/research.html?ancestry=mixed&cohort=UKB_450k_AoU_250k_MGB_53k_META_overlapcorrected&file=600Traits.csv&gene="
-                    ),
-                    f.col("Gene"),
-                    f.lit("&pageid=600_traits_app"),
+                f.struct(
+                    f.lit("Broad CVDI Human Disease Portal").alias("niceName"),
+                    # E.g. https://hugeamp.org:8000/research.html?ancestry=mixed&cohort=UKB_450k_AoU_250k_MGB_53k_META_overlapcorrected&file=600Traits.csv&gene=MYBPC3&pageid=600_traits_app
+                    f.concat(
+                        f.lit(
+                            "https://hugeamp.org:8000/research.html?ancestry=mixed&cohort=UKB_450k_AoU_250k_MGB_53k_META_overlapcorrected&file=600Traits.csv&gene="
+                        ),
+                        f.col("Gene"),
+                        f.lit("&pageid=600_traits_app"),
+                    ).alias("url"),
                 )
-            ).alias("url"),
+            ).alias("urls"),
             f.array(f.lit("39210047")).alias("literature"),
+        )
+        .withColumn(
+            "pValueExponent", f.log10(f.col("resourceScore")).cast("int") - f.lit(1)
+        )
+        .withColumn(
+            "pValueMantissa",
+            f.round(f.col("resourceScore") / f.pow(f.lit(10), f.col("pValueExponent")), 3),
         )
         .withColumn(
             "studyCasesWithQualifyingVariants",
