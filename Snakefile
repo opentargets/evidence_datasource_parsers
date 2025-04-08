@@ -235,7 +235,8 @@ rule geneBurden:              # Processes gene burden data from various burden a
         curation = HTTP.remote(f"{config['global']['curation_repo']}/{config['GeneBurden']['curation']}"),
         genebass = GS.remote(config['GeneBurden']['genebass']),
         finngen = GS.remote(config['GeneBurden']['finngen']),
-        finngen_manifest = HTTP.remote(f"{config['GeneBurden']['finngenManifest']}")
+        finngen_manifest = HTTP.remote(f"{config['GeneBurden']['finngenManifest']}"),
+        cvdi = HTTP.remote(f"{config['GeneBurden']['cvdi']}")
     output:
         evidenceFile = "gene_burden.json.gz"
     params:
@@ -254,6 +255,7 @@ rule geneBurden:              # Processes gene burden data from various burden a
             --genebass_data {input.genebass} \
             --finngen_data {input.finngen} \
             --finngen_manifest {input.finngen_manifest} \
+            --cvdi_data {input.cvdi} \
             --output {output.evidenceFile}
         opentargets_validator --schema {params.schema} {output.evidenceFile}
         """

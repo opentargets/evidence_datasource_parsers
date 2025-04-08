@@ -42,6 +42,7 @@ GeneBurden:
   finngenManifest: https://r12.finngen.fi/api/phenos  # gs://finngen-public-data-r11/lof_2.0/data/finngen_R11_lof.txt
   curation: gene_burden/curated_evidence.tsv
   genebass: gs://otar000-evidence_input/GeneBurden/data_files/genebass_entries
+  cvdi: https://static-content.springer.com/esm/art%3A10.1038%2Fs41588-024-01894-5/MediaObjects/41588_2024_1894_MOESM4_ESM.xlsx
   outputBucket: gs://otar000-evidence_input/GeneBurden/json
 Gene2Phenotype:
   webSource_dd_panel: https://ftp.ebi.ac.uk/pub/databases/gene2phenotype/G2P_data_downloads_archive/2025_01_28/DDG2P_2025-01-28.csv.gz
