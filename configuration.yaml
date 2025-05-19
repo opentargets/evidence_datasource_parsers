@@ -45,13 +45,13 @@ GeneBurden:
   cvdi: https://static-content.springer.com/esm/art%3A10.1038%2Fs41588-024-01894-5/MediaObjects/41588_2024_1894_MOESM4_ESM.xlsx
   outputBucket: gs://otar000-evidence_input/GeneBurden/json
 Gene2Phenotype:
-  webSource_dd_panel: https://ftp.ebi.ac.uk/pub/databases/gene2phenotype/G2P_data_downloads/2025_04_28/DDG2P_2025-04-28.csv.gz
-  webSource_eye_panel: https://ftp.ebi.ac.uk/pub/databases/gene2phenotype/G2P_data_downloads/2025_04_28/EyeG2P_2025-04-28.csv.gz
-  webSource_skin_panel: https://ftp.ebi.ac.uk/pub/databases/gene2phenotype/G2P_data_downloads/2025_04_28/SkinG2P_2025-04-28.csv.gz
-  webSource_cancer_panel: https://ftp.ebi.ac.uk/pub/databases/gene2phenotype/G2P_data_downloads/2025_04_28/CancerG2P_2025-04-28.csv.gz
-  webSource_cardiac_panel: https://ftp.ebi.ac.uk/pub/databases/gene2phenotype/G2P_data_downloads/2025_04_28/CardiacG2P_2025-04-28.csv.gz
-  webSource_skeletal_panel: https://ftp.ebi.ac.uk/pub/databases/gene2phenotype/G2P_data_downloads/2025_04_28/SkeletalG2P_2025-04-28.csv.gz
-  webSource_hearing_loss_panel: https://ftp.ebi.ac.uk/pub/databases/gene2phenotype/G2P_data_downloads/2025_04_28/HearingLossG2P_2025-04-28.csv.gz
+  webSource_dd_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/G2P_data_downloads/2025_04_28/DDG2P_2025-04-28.csv.gz
+  webSource_eye_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/G2P_data_downloads/2025_04_28/EyeG2P_2025-04-28.csv.gz
+  webSource_skin_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/G2P_data_downloads/2025_04_28/SkinG2P_2025-04-28.csv.gz
+  webSource_cancer_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/G2P_data_downloads/2025_04_28/CancerG2P_2025-04-28.csv.gz
+  webSource_cardiac_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/G2P_data_downloads/2025_04_28/CardiacG2P_2025-04-28.csv.gz
+  webSource_skeletal_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/G2P_data_downloads/2025_04_28/SkeletalG2P_2025-04-28.csv.gz
+  webSource_hearing_loss_panel: https://www.ebi.ac.uk/gene2phenotype/downloads/G2P_data_downloads/2025_04_28/HearingLossG2P_2025-04-28.csv.gz
   inputBucket: gs://otar000-evidence_input/Gene2Phenotype/data_files
   outputBucket: gs://otar000-evidence_input/Gene2Phenotype/json
 intOGen:
