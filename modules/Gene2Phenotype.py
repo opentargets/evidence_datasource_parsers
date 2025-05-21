@@ -76,45 +76,36 @@ def read_input_files(
     Returns:
         DataFrame: The DataFrame with the parsed data.
     """
-
     gene2phenotype_schema = (
         t.StructType()
+        .add("g2p id", t.StringType())
         .add("gene symbol", t.StringType())
         .add("gene mim", t.IntegerType())
+        .add("hgnc id", t.IntegerType())
+        .add("previous gene symbols", t.StringType())
         .add("disease name", t.StringType())
         .add("disease mim", t.StringType())
-        .add("confidence category", t.StringType())
+        .add("disease MONDO", t.StringType())
         .add("allelic requirement", t.StringType())
-        .add("mutation consequence", t.StringType())
-        .add("phenotypes", t.StringType())
-        .add("organ specificity list", t.StringType())
-        .add("pmids", t.StringType())
-        .add("panel", t.StringType())
-        .add("prev symbols", t.StringType())
-        .add("hgnc id", t.IntegerType())
-        .add("gene disease pair entry date", t.TimestampType())
         .add("cross cutting modifier", t.StringType())
-        .add("mutation consequence flag", t.StringType())
-        .add("confidence value flag", t.StringType())
-        .add("comments", t.StringType())
+        .add("confidence", t.StringType())
         .add("variant consequence", t.StringType())
-        .add("disease ontology", t.StringType())
+        .add("variant types", t.StringType())
+        .add("molecular mechanism", t.StringType())
+        .add("molecular mechanism categorisation", t.StringType())
+        .add("molecular mechanism evidence", t.StringType())
+        .add("phenotypes", t.StringType())
+        .add("publications", t.StringType())
+        .add("panel", t.StringType())
+        .add("comments", t.StringType())
+        .add("date of last review", t.StringType())
     )
 
-    return (
-        spark.read.option("multiLine", True)
-        .option("encoding", "UTF-8")
-        # There are rows with newlines and quotes, so there must be some escaping:
-        .option("quote", '"')
-        .option("escape", '"')
-        .csv(
-            gene2phenotype_panels,
-            schema=gene2phenotype_schema,
-            enforceSchema=True,
-            header=True,
-            sep=",",
-            multiLine=True,
-        )
+    return spark.read.csv(
+        gene2phenotype_panels,
+        schema=gene2phenotype_schema,
+        header=True,
+        sep=",",
     )
 
 
@@ -123,19 +114,21 @@ def process_gene2phenotype(gene2phenotype_df: DataFrame) -> DataFrame:
     The JSON Schema format is applied to the df
     """
     return gene2phenotype_df.select(
-        # Split pubmed IDs to list:
-        f.split(f.col("pmids"), ";").alias("literature"),
+        # Split pubmed IDs to list when not null:
+        f.when(
+            f.col("publications").isNotNull(), f.split(f.col("publications"), ";")
+        ).alias("literature"),
         # Renaming a few columns:
         f.col("gene symbol").alias("targetFromSourceId"),
         f.col("panel").alias("studyId"),
-        f.col("confidence category").alias("confidence"),
+        f.col("confidence"),
         # Parsing allelic requirements:
         f.when(
             f.col("allelic requirement").isNotNull(),
             f.array(f.col("allelic requirement")),
         ).alias("allelicRequirements"),
         # Parsing disease from source identifier:
-        f.when(f.col("disease ontology").isNotNull(), f.col("disease ontology"))
+        f.when(f.col("disease MONDO").isNotNull(), f.col("disease MONDO"))
         .when(
             (~f.col("disease mim").contains("No disease mim"))
             & (f.col("disease mim").isNotNull()),
@@ -149,7 +142,7 @@ def process_gene2phenotype(gene2phenotype_df: DataFrame) -> DataFrame:
         ),
         # Map functional consequences:
         parse_functional_consequence(G2P_mutationCsq2functionalCsq)(
-            "mutation consequence"
+            "variant consequence"
         ).alias("variantFunctionalConsequenceId"),
         # Adding constant columns:
         f.lit("gene2phenotype").alias("datasourceId"),
@@ -168,17 +161,32 @@ def parse_functional_consequence(mapping):
     """
 
     def __translate(col):
-        return sorted(
-            # Get a list of consequence labels mapped to SO terms:
-            [
-                mapping.get(consequence_term)
-                for consequence_term in col.split(";")
-                if consequence_term in mapping
-            ],
-            # Sort SO terms based on the order in the consequnce map:
-            key=lambda x: list(G2P_mutationCsq2functionalCsq.values()).index(x),
-            # Get the most severe SO term:
-        )[-1]
+        if col is None:
+            return None
+
+        # Split the string and clean up any whitespace
+        consequence_terms = [term.strip() for term in col.split(";") if term.strip()]
+
+        if not consequence_terms:
+            return None
+
+        # Get mapped SO terms that exist in the mapping
+        mapped_terms = [
+            mapping.get(consequence_term)
+            for consequence_term in consequence_terms
+            if consequence_term in mapping
+        ]
+
+        if not mapped_terms:
+            return None
+
+        # Sort SO terms based on the order in the mapping
+        try:
+            return sorted(mapped_terms, key=lambda x: list(mapping.values()).index(x))[
+                -1
+            ]
+        except ValueError:
+            return None
 
     return f.udf(__translate, t.StringType())
 

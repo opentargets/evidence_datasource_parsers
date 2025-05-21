@@ -1,8 +1,8 @@
 global:
   logDir: gs://otar000-evidence_input/parser_logs
   cacheDir: cache_dir
-  schema: https://raw.githubusercontent.com/opentargets/json_schema/2.8.4
-  EFOVersion: v3.73.0
+  schema: https://raw.githubusercontent.com/opentargets/json_schema/2.9.1
+  EFOVersion: v3.77.0
   cell_passport_file: https://cog.sanger.ac.uk/cmp/download/model_list_latest.csv.gz
   curation_repo: https://raw.githubusercontent.com/opentargets/curation/25.03
 baselineExpression:
@@ -19,7 +19,7 @@ cancerBiomarkers:
 ChEMBL:
   evidence: gs://otar008-chembl/cttv008_2024-08-09.json.gz
   stopReasonCategories: gs://otar000-evidence_input/ChEMBL/data_files/chembl_predictions-2024-08-12.json
-  drugIndications: gs://otar000-evidence_input/ChEMBL/json/chembl35_drug_indication.jsonl
+  drugIndications: gs://open-targets-pre-data-releases/25.03/input/drug/chembl_drug_indication.jsonl
   outputBucket: gs://otar000-evidence_input/ChEMBL/json
 ClinGen:
   webSource: https://search.clinicalgenome.org/kb/gene-validity/download
@@ -45,13 +45,13 @@ GeneBurden:
   cvdi: https://static-content.springer.com/esm/art%3A10.1038%2Fs41588-024-01894-5/MediaObjects/41588_2024_1894_MOESM4_ESM.xlsx
   outputBucket: gs://otar000-evidence_input/GeneBurden/json
 Gene2Phenotype:
-  webSource_dd_panel: https://ftp.ebi.ac.uk/pub/databases/gene2phenotype/G2P_data_downloads_archive/2025_01_28/DDG2P_2025-01-28.csv.gz
-  webSource_eye_panel: https://ftp.ebi.ac.uk/pub/databases/gene2phenotype/G2P_data_downloads_archive/2025_01_28/EyeG2P_2025-01-28.csv.gz
-  webSource_skin_panel: https://ftp.ebi.ac.uk/pub/databases/gene2phenotype/G2P_data_downloads_archive/2025_01_28/SkinG2P_2025-01-28.csv.gz
-  webSource_cancer_panel: https://ftp.ebi.ac.uk/pub/databases/gene2phenotype/G2P_data_downloads_archive/2025_01_28/CancerG2P_2025-01-28.csv.gz
-  webSource_cardiac_panel: https://ftp.ebi.ac.uk/pub/databases/gene2phenotype/G2P_data_downloads_archive/2025_01_28/CardiacG2P_2025-01-28.csv.gz
-  webSource_skeletal_panel: https://ftp.ebi.ac.uk/pub/databases/gene2phenotype/G2P_data_downloads_archive/2025_01_28/SkeletalG2P_2025-01-28.csv.gz
-  webSource_hearing_loss_panel: https://ftp.ebi.ac.uk/pub/databases/gene2phenotype/G2P_data_downloads_archive/2025_01_28/Hearing_lossG2P_2025-01-28.csv.gz
+  webSource_dd_panel: https://ftp.ebi.ac.uk/pub/databases/gene2phenotype/G2P_data_downloads/2025_04_28/DDG2P_2025-04-28.csv.gz
+  webSource_eye_panel: https://ftp.ebi.ac.uk/pub/databases/gene2phenotype/G2P_data_downloads/2025_04_28/EyeG2P_2025-04-28.csv.gz
+  webSource_skin_panel: https://ftp.ebi.ac.uk/pub/databases/gene2phenotype/G2P_data_downloads/2025_04_28/SkinG2P_2025-04-28.csv.gz
+  webSource_cancer_panel: https://ftp.ebi.ac.uk/pub/databases/gene2phenotype/G2P_data_downloads/2025_04_28/CancerG2P_2025-04-28.csv.gz
+  webSource_cardiac_panel: https://ftp.ebi.ac.uk/pub/databases/gene2phenotype/G2P_data_downloads/2025_04_28/CardiacG2P_2025-04-28.csv.gz
+  webSource_skeletal_panel: https://ftp.ebi.ac.uk/pub/databases/gene2phenotype/G2P_data_downloads/2025_04_28/SkeletalG2P_2025-04-28.csv.gz
+  webSource_hearing_loss_panel: https://ftp.ebi.ac.uk/pub/databases/gene2phenotype/G2P_data_downloads/2025_04_28/HearingLossG2P_2025-04-28.csv.gz
   inputBucket: gs://otar000-evidence_input/Gene2Phenotype/data_files
   outputBucket: gs://otar000-evidence_input/Gene2Phenotype/json
 intOGen:
@@ -111,7 +111,7 @@ CrisprScreens:
   outputBucket: gs://otar000-evidence_input/Crispr_screens/json
   crispr_brain_mapping: mappings/disease/brain_crispr_studies.tsv
 Pharmacogenetics:
-  evidence: gs://otar012-eva/pharmacogenomics/cttv012-2024-07-24.json.gz
+  evidence: gs://otar012-eva/pharmacogenomics/cttv012-2025-05-14.json.gz
   phenotypes: pharmacogenetics/pharmgkb_phenotypes.json
   outputBucket: gs://otar001-core/Pharmacogenetics/json
   schema: schemas/pharmacogenomics.json
