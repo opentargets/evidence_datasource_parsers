@@ -1,162 +1,151 @@
-#!/usr/bin/env python
+"""Module to generate SLAPenrich disease/target evidence."""
 
-import sys
+from __future__ import annotations
+
 import argparse
-import gzip
 import logging
-import json
+from typing import TYPE_CHECKING
 
-from pyspark.sql import SparkSession
-import pyspark.sql.functions as F
+import pyspark.sql.functions as f
+
+from common.evidence import (
+    initialize_logger,
+    initialize_sparksession,
+    write_evidence_strings,
+)
+
+if TYPE_CHECKING:
+    from pyspark.sql import DataFrame
+
+logger = logging.getLogger(__name__)
 
 
-class SLAPEnrichEvidenceGenerator:
+class SLAPEnrichEvidenceParser:
+    """Logic to generate SLAPenrich evidence."""
 
-    def __init__(self):
-        # Create spark session
-        self.spark = (
-            SparkSession.builder
-            .appName('SLAPEnrich')
-            .getOrCreate()
+    evidence_data: DataFrame | None = None
+
+    # Hardcoded values for this type of evidence:
+    CONSTANT_COLUMNS = []
+
+    def __init__(
+        self: SLAPEnrichEvidenceParser,
+        input_file: str,
+        disease_mapping_file: str,
+        p_value_threshold: float = 1e-4,
+    ) -> None:
+        """Initialise parser object.
+
+        Args:
+            input_file (str): SLAPenrich input file with evidence
+            disease_mapping_file (str): file from disease mapping is read
+            p_value_threshold (float): p-value threshold applied on evidence. Default: 1e-4
+        """
+        logger.info("SLAPenrich parser was called with the following parameters:")
+        logger.info(f"Input file: {input_file}")
+        logger.info(f"Disease mapping file: {disease_mapping_file}")
+        logger.info(f"P-value threshold: {p_value_threshold}")
+
+        spark = initialize_sparksession()
+
+        # Reading raw evidence:
+        raw_evidence: DataFrame = spark.read.csv(
+            input_file, sep=r"\t", header=True, inferSchema=True
         )
-        logging.info(f'Spark version: {self.spark.version}')
 
-        # Initialize source table
-        self.dataframe = None
+        logger.info(f"Number of raw evidnece: {raw_evidence.count()}")
 
-    def generateEvidenceFromSource(self, inputFile, diseaseMapping, skipMapping):
-        '''
-        Processing of the input file to build all the evidences from its data
+        # Read disease mapping file:
+        disease_mapping: DataFrame = spark.read.csv(
+            disease_mapping_file, sep=r"\t", header=True
+        ).select(f.col("Cancer_type_acronym").alias("ctype"), "EFO_id")
+
+        # Read evidence file:
+        self.evidence_data = (
+            raw_evidence
+            # Drop sub-significant rows:
+            .filter(f.col("SLAPEnrichPval") <= p_value_threshold)
+            # Join with disease mappings:
+            .join(disease_mapping, on="ctype", how="left")
+            # Extract relevant columns:
+            .select(
+                f.lit("slapenrich").alias("datasourceId"),
+                f.lit("affected_pathway").alias("datatypeId"),
+                f.array(f.lit("29713020")).alias("literature"),
+                f.col("ctype").alias("diseaseFromSource"),
+                f.col("gene").alias("targetFromSourceId"),
+                f.col("SLAPEnrichPval").alias("resourceScore"),
+                f.col("EFO_id").alias("diseaseFromSourceMappedId"),
+                f.array(
+                    f.struct(
+                        f.split(f.col("pathway"), ": ").getItem(0).alias("id"),
+                        f.split(f.col("pathway"), ": ").getItem(1).alias("name"),
+                    )
+                ).alias("pathways"),
+            )
+        )
+
+        logger.info(f"Number of parsed evidence: {self.evidence_data.count()}")
+
+    def get_evidence(self):
+        """Retrun evidence data.
+
         Returns:
-            evidences (array): Object with all the generated evidences strings from source file
-        '''
-        # Read input file
-        self.dataframe = (
-            self.spark
-            .read.csv(inputFile, sep=r'\t', header=True, inferSchema=True)
-            .select('ctype', 'gene', 'pathway', 'SLAPEnrichPval')
-            .withColumnRenamed('ctype', 'Cancer_type_acronym')
-            .withColumnRenamed('SLAPEnrichPval', 'pval')
-            .withColumn('pathwayId', F.split(F.col('pathway'), ': ').getItem(0))
-            .withColumn('pathwayDescription', F.split(F.col('pathway'), ': ').getItem(1))
-        )
+            DataFrame: parsed evidence data
+        """
+        return self.evidence_data
 
-        # Filter by p-value
-        self.dataframe = self.dataframe.filter(F.col('pval') < 1e-4)
+    def save_evidence(self, output_file_name: str) -> None:
+        """Save evidence as gzipped json.
 
-        # Mapping step
-        if not skipMapping:
-            try:
-                self.dataframe = self.cancer2EFO(diseaseMapping)
-                logging.info('Disease mappings have been imported.')
-            except Exception as e:
-                logging.error(f'An error occurred while importing disease mappings: \n{e}.')
-        else:
-            logging.info('Disease mapping has been skipped.')
-            self.dataframe = self.dataframe.withColumn('EFO_id', F.lit(None))
-
-        # Build evidence strings per row
-        logging.info('Generating evidence:')
-        evidences = (
-            self.dataframe.rdd
-            .map(SLAPEnrichEvidenceGenerator.parseEvidenceString)
-            .collect()
-        )  # list of dictionaries
-
-        return evidences
-
-    def cancer2EFO(self, diseaseMapping):
-        diseaseMappingsFile = (
-            self.spark
-            .read.csv(diseaseMapping, sep=r'\t', header=True)
-            .select('Cancer_type_acronym', 'EFO_id')
-        )
-
-        self.dataframe = self.dataframe.join(
-            diseaseMappingsFile,
-            on='Cancer_type_acronym',
-            how='left'
-        )
-
-        return self.dataframe
-
-    @staticmethod
-    def parseEvidenceString(row):
-        try:
-            evidence = {
-                'datasourceId': 'slapenrich',
-                'datatypeId': 'affected_pathway',
-                'resourceScore': row['pval'],
-                'targetFromSourceId': row['gene'],
-                'diseaseFromSource': row['Cancer_type_acronym'],
-                'pathways': [
-                    {
-                        'id': row['pathwayId'],
-                        'name': row['pathwayDescription']
-                    }
-                ]
-            }
-
-            # For unmapped diseases, we skip the mappedID key:
-            if row['EFO_id']:
-                evidence['diseaseFromSourceMappedId'] = row['EFO_id']
-
-            return evidence
-        except Exception as e:
-            raise
+        Args:
+            output_file_name (str): the name of the output evidence file.
+        """
+        write_evidence_strings(self.evidence_data, output_file=output_file_name)
+        logger.info("Saving evidence strings finished.")
 
 
-def main(inputFile, diseaseMapping, outputFile, skipMapping):
+def main(input_file: str, disease_mapping_file: str, output_file: str) -> None:
+    # Initialiase parser object:
+    parser_object = SLAPEnrichEvidenceParser(
+        input_file=input_file, disease_mapping_file=disease_mapping_file
+    )
 
-    # Logging parameters
-    logging.info(f'SLAPEnrich input table: {inputFile}')
-    logging.info(f'Cancer type to EFO ID table: {diseaseMapping}')
-    logging.info(f'Output file: {outputFile}')
-
-    # Initialize evidence builder object
-    evidenceBuilder = SLAPEnrichEvidenceGenerator()
-
-    # Writing evidence strings into a json file
-    evidences = evidenceBuilder.generateEvidenceFromSource(inputFile, diseaseMapping, skipMapping)
-
-    with gzip.open(outputFile, 'wt') as f:
-        for evidence in evidences:
-            json.dump(evidence, f)
-            f.write('\n')
-    logging.info(f'{len(evidences)} evidence strings saved into {outputFile}. Exiting.')
+    # Save data:
+    parser_object.save_evidence(output_file_name=output_file)
 
 
-if __name__ == '__main__':
-
+if __name__ == "__main__":
     # Initiating parser
-    parser = argparse.ArgumentParser(description='This script generates evidences for the SLAPEnrich data source.')
+    parser = argparse.ArgumentParser(
+        description="This script generates evidences for the SLAPEnrich data source."
+    )
 
-    parser.add_argument('-i', '--inputFile', required=True, type=str, help='Input source .tsv file.')
-    parser.add_argument('-d', '--diseaseMapping', required=False, type=str,
-                        help='Input look-up table containing the cancer type mappings to an EFO ID.')
-    parser.add_argument('-o', '--outputFile', required=True, type=str,
-                        help='Gzipped JSON file containing the evidence strings.')
-    parser.add_argument('-s', '--skipMapping', required=False, action='store_true',
-                        help='State whether to skip the disease to EFO mapping step.')
-    parser.add_argument('-l', '--logFile', help='Destination of the logs generated by this script.',
-                        type=str, required=False)
+    parser.add_argument(
+        "-i", "--input_file", required=True, type=str, help="Input source .tsv file."
+    )
+    parser.add_argument(
+        "-d",
+        "--disease_mapping",
+        required=False,
+        type=str,
+        help="Input look-up table containing the cancer type mappings to an EFO ID.",
+    )
+    parser.add_argument(
+        "-o",
+        "--output_file",
+        required=True,
+        type=str,
+        help="Gzipped JSON file containing the evidence strings.",
+    )
 
     # Parsing parameters
     args = parser.parse_args()
-    inputFile = args.inputFile
-    diseaseMapping = args.diseaseMapping
-    outputFile = args.outputFile
-    skipMapping = args.skipMapping
+    input_file = args.input_file
+    disease_mapping = args.disease_mapping
+    output_file = args.output_file
 
     # Initialize logging:
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(name)s - %(levelname)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S',
-    )
-    if args.logFile:
-        logging.config.fileConfig(filename=args.logFile)
-    else:
-        logging.StreamHandler(sys.stderr)
+    initialize_logger(__name__)
 
-    main(inputFile, diseaseMapping, outputFile, skipMapping)
+    main(input_file, disease_mapping, output_file)
