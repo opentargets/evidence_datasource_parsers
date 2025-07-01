@@ -86,7 +86,7 @@ def add_efo_mapping(evidence_strings, spark_instance, ontoma_cache_dir=None, efo
     )
     # WARNING: Spark's join operator is not null safe by default and most of the times, `diseaseFromSourceId` will be null.
     # `eqNullSafe` is a special null safe equality operator that is used to join the two dataframes.
-    join_cond = (evidence_strings.diseaseFromSource == disease_info_df.diseaseFromSource_right) & (
+    join_cond = (evidence_strings.diseaseFromSource.eqNullSafe(disease_info_df.diseaseFromSource_right)) & (
         evidence_strings.diseaseFromSourceId.eqNullSafe(disease_info_df.diseaseFromSourceId_right)
     )
     return evidence_strings.join(disease_info_df, on=join_cond, how='left').drop(

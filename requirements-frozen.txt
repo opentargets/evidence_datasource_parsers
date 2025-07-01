@@ -70,7 +70,7 @@ pox==0.3.4
 ppft==1.7.6.8
 pronto==2.5.3
 proto-plus==1.24.0
-protobuf==5.27.3
+protobuf==5.29.5
 psutil==6.0.0
 PuLP==2.7.0
 py4j==0.10.9.5
