@@ -25,9 +25,6 @@ class SLAPEnrichEvidenceParser:
 
     evidence_data: DataFrame | None = None
 
-    # Hardcoded values for this type of evidence:
-    CONSTANT_COLUMNS = []
-
     def __init__(
         self: SLAPEnrichEvidenceParser,
         input_file: str,
