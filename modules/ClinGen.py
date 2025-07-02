@@ -1,47 +1,30 @@
-#!/usr/bin/env python3
 """Evidence parser for ClinGen's Gene Validity Curations."""
 
 import argparse
 import logging
 
 import pyspark.sql.functions as f
-from pyspark.conf import SparkConf
-from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql import DataFrame
 from pyspark.sql.types import StringType, StructType, TimestampType
 
-from common.evidence import write_evidence_strings
+from common.evidence import (
+    initialize_logger,
+    initialize_sparksession,
+    write_evidence_strings,
+)
 from common.ontology import add_efo_mapping
 
+logger = logging.getLogger(__name__)
 
-def main(
-    input_file: str, output_file: str, cache_dir: str, local: bool = False
-) -> None:
+
+def main(input_file: str, output_file: str, cache_dir: str) -> None:
     # Initialize spark session
-    if local:
-        sparkConf = (
-            SparkConf()
-            .set("spark.driver.memory", "15g")
-            .set("spark.executor.memory", "15g")
-            .set("spark.driver.maxResultSize", "0")
-            .set("spark.debug.maxToStringFields", "2000")
-            .set("spark.sql.execution.arrow.maxRecordsPerBatch", "500000")
-        )
-        spark = (
-            SparkSession.builder.config(conf=sparkConf).master("local[*]").getOrCreate()
-        )
-    else:
-        sparkConf = (
-            SparkConf()
-            .set("spark.driver.maxResultSize", "0")
-            .set("spark.debug.maxToStringFields", "2000")
-            .set("spark.sql.execution.arrow.maxRecordsPerBatch", "500000")
-        )
-        spark = SparkSession.builder.config(conf=sparkConf).getOrCreate()
+    spark = initialize_sparksession()
 
     # Read and process Clingen's table into evidence strings
 
     clingen_df = read_input_file(input_file, spark_instance=spark)
-    logging.info(
+    logger.info(
         "Gene Validity Curations table has been imported. Processing evidence strings."
     )
 
@@ -50,10 +33,10 @@ def main(
     evidence_df = add_efo_mapping(
         evidence_strings=evidence_df, spark_instance=spark, ontoma_cache_dir=cache_dir
     )
-    logging.info("Disease mappings have been added.")
+    logger.info("Disease mappings have been added.")
 
     write_evidence_strings(evidence_df, output_file)
-    logging.info(
+    logger.info(
         f"{evidence_df.count()} evidence strings have been saved to {output_file}"
     )
 
@@ -140,32 +123,18 @@ if __name__ == "__main__":
         required=False,
         help="Directory to store the OnToma cache files in.",
     )
-    parser.add_argument(
-        "--local",
-        action="store_true",
-        required=False,
-        default=False,
-        help="Flag to indicate if the script is executed locally or on the cluster",
-    )
     args = parser.parse_args()
 
-    # Initialize logging:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(name)s - %(levelname)s - %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
-    if args.log_file:
-        logging.config.fileConfig(filename=args.log_file)
+    # Initialize logger:
+    initialize_logger(__name__)
 
     # Report input data:
-    logging.info(f"Clingen input file path: {args.input_file}")
-    logging.info(f"Evidence output file path: {args.output_file}")
-    logging.info(f"Cache directory: {args.cache_dir}")
+    logger.info(f"Clingen input file path: {args.input_file}")
+    logger.info(f"Evidence output file path: {args.output_file}")
+    logger.info(f"Cache directory: {args.cache_dir}")
 
     main(
         input_file=args.input_file,
         output_file=args.output_file,
         cache_dir=args.cache_dir,
-        local=args.local,
     )
