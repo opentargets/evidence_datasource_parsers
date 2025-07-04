@@ -5,14 +5,14 @@ import argparse
 import logging
 import sys
 
-from pyspark.sql import SparkSession
-from pyspark.sql.dataframe import DataFrame
 import pyspark.sql.functions as F
 import pyspark.sql.types as T
+from pyspark.sql import SparkSession
+from pyspark.sql.dataframe import DataFrame
 
 from common.evidence import (
-    initialize_sparksession,
     import_trait_mappings,
+    initialize_sparksession,
     write_evidence_strings,
 )
 
@@ -63,7 +63,7 @@ def main(spark: SparkSession, genebass_data: str) -> DataFrame:
         )
     if not 8_000 < evd_df.count() < 10_000:
         logging.exception(
-            f"Genebass number of evidence are different from expected: {evd_df.count()}"
+            f"Genebass number of evidence are different from expected: {evd_df.count()} (expected between 8k and 10k)"
         )
         raise AssertionError("Genebass number of evidence are different from expected.")
     logging.info(f"{evd_df.count()} evidence strings have been processed.")
