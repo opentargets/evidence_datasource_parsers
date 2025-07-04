@@ -104,7 +104,7 @@ tqdm==4.66.5
 traitlets==5.14.3
 typing_extensions==4.12.2
 uritemplate==4.1.1
-urllib3==2.2.2
+urllib3==2.5.0
 wrapt==1.16.0
 yarl==1.15.2
 yte==1.5.4
