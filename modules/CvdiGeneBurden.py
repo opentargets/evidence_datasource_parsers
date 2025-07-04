@@ -56,7 +56,7 @@ def main(
         .drop("Mask", axis=1)
         .drop_duplicates()
         # Dropping rows with no odds ratio:
-        .loc[lambda df: df["OR [95%CI]"].isna()]
+        .astype({"OR [95%CI]": str})
     )
     evd_df = parse_evidence(spark, associations_df=associations_df)
     evd_df = add_efo_mapping(
