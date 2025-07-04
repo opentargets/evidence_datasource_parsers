@@ -197,7 +197,7 @@ rule clingen:                 # Process the Gene Validity Curations table from C
         python modules/ClinGen.py \
           --input_file clingen_summary.csv \
           --output_file {output.evidenceFile} \
-          --cache_dir {params.cacheDir} \
+          --cache_dir {params.cacheDir} 
         opentargets_validator --schema {params.schema} {output.evidenceFile}
         """
 
