@@ -6,11 +6,10 @@ import logging
 import sys
 from typing import Optional
 
-from pyspark.sql import SparkSession
-import pyspark.sql.functions as f
 import pandas as pd
-from pyspark.sql import DataFrame
+import pyspark.sql.functions as f
 from pandas import DataFrame as pd_dataframe
+from pyspark.sql import DataFrame, SparkSession
 
 from common.evidence import (
     initialize_sparksession,
@@ -56,6 +55,8 @@ def main(
         associations_df.merge(p_value_cutoff_df, left_on="method_name", right_on="Mask")
         .drop("Mask", axis=1)
         .drop_duplicates()
+        # Dropping rows with no odds ratio:
+        .astype({"OR [95%CI]": str})
     )
     evd_df = parse_evidence(spark, associations_df=associations_df)
     evd_df = add_efo_mapping(
@@ -227,7 +228,9 @@ def parse_evidence(spark: SparkSession, associations_df: pd_dataframe) -> DataFr
         )
         .withColumn(
             "pValueMantissa",
-            f.round(f.col("resourceScore") / f.pow(f.lit(10), f.col("pValueExponent")), 3),
+            f.round(
+                f.col("resourceScore") / f.pow(f.lit(10), f.col("pValueExponent")), 3
+            ),
         )
         .withColumn(
             "studyCasesWithQualifyingVariants",
