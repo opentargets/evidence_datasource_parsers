@@ -25,11 +25,17 @@ class SLAPEnrichEvidenceParser:
 
     evidence_data: DataFrame | None = None
 
+    # Hard-coded values for SLAPEnrich evidence:
+    DATASOURCE_ID: str = "slapenrich"
+    DATATYPE_ID: str = "affected_pathway"
+    LITERATURE_REFERENCE: str = "29713020"
+    PVALUE_THRESHOLD: float = 1e-4
+
     def __init__(
         self: SLAPEnrichEvidenceParser,
         input_file: str,
         disease_mapping_file: str,
-        p_value_threshold: float = 1e-4,
+        p_value_threshold: float | None = None,
     ) -> None:
         """Initialise parser object.
 
@@ -44,6 +50,10 @@ class SLAPEnrichEvidenceParser:
         logger.info(f"P-value threshold: {p_value_threshold}")
 
         spark = initialize_sparksession()
+
+        # If p-value threshold is not provided:
+        if p_value_threshold is None:
+            p_value_threshold = self.PVALUE_THRESHOLD
 
         # Reading raw evidence:
         raw_evidence: DataFrame = spark.read.csv(
@@ -66,9 +76,9 @@ class SLAPEnrichEvidenceParser:
             .join(disease_mapping, on="ctype", how="left")
             # Extract relevant columns:
             .select(
-                f.lit("slapenrich").alias("datasourceId"),
-                f.lit("affected_pathway").alias("datatypeId"),
-                f.array(f.lit("29713020")).alias("literature"),
+                f.lit(self.DATASOURCE_ID).alias("datasourceId"),
+                f.lit(self.DATATYPE_ID).alias("datatypeId"),
+                f.array(f.lit(self.LITERATURE_REFERENCE)).alias("literature"),
                 f.col("ctype").alias("diseaseFromSource"),
                 f.col("gene").alias("targetFromSourceId"),
                 f.col("SLAPEnrichPval").alias("resourceScore"),
