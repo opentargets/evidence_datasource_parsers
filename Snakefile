@@ -197,8 +197,7 @@ rule clingen:                 # Process the Gene Validity Curations table from C
         python modules/ClinGen.py \
           --input_file clingen_summary.csv \
           --output_file {output.evidenceFile} \
-          --cache_dir {params.cacheDir} \
-          --local
+          --cache_dir {params.cacheDir} 
         opentargets_validator --schema {params.schema} {output.evidenceFile}
         """
 
@@ -419,9 +418,9 @@ rule slapenrich:              # Process cancer-target evidence strings derived f
         """
         exec &> {log}
         python modules/SLAPEnrich.py \
-          --inputFile {input.inputFile} \
-          --diseaseMapping {input.diseaseMapping} \
-          --outputFile {output.evidenceFile}
+          --input_file {input.inputFile} \
+          --disease_mapping {input.diseaseMapping} \
+          --output_file {output.evidenceFile}
         opentargets_validator --schema {params.schema} {output.evidenceFile}
         """
 
