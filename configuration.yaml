@@ -30,7 +30,7 @@ ProjectScore:
   geneScores: gs://otar000-evidence_input/CRISPR/data_files/project_score_v2/mapped_diseases.tsv
   outputBucket: gs://otar000-evidence_input/CRISPR/json
 Essentiality:
-  inputBucket: gs://otar000-evidence_input/Essentiality/DepMap/2024Q4
+  inputBucket: gs://otar000-evidence_input/Essentiality/DepMap/2025Q2
   depmap_tissue_mapping: mappings/biosystem/depmap_uberon_mapping.csv
   outputBucket: gs://otar000-evidence_input/Essentiality/json
 GeneBurden:
