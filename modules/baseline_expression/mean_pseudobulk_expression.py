@@ -5,7 +5,7 @@ import os
 import argparse
 import pandas as pd
 
-class AveragePseudobulkExpression:
+class ExpressionQuartiles:
     """
     This class is used to take the average of the Pseudobulk expression data so we have a single value per gene per annotation. The output of this class is a dataframe with the average expression of each gene (rows) per annotation (columns)
     """
@@ -15,9 +15,9 @@ class AveragePseudobulkExpression:
         """
         return [os.path.join(directory, file) for file in os.listdir(directory) if file.endswith(".tsv")]
 
-    def calculate_average(self, local=False):
+    def calculate_quartiles(self, local=False):
         """
-        This function calculates the average expression of each gene across all donors.
+        This function calculates the expression quartiles of each gene across all donors.
         """
         for i,file in enumerate(file_list):
             print(f"Processing file {i+1}/{len(file_list)}: {file}")
@@ -38,12 +38,15 @@ class AveragePseudobulkExpression:
             # Extract the annotation from the file name.
             annotation = os.path.basename(file).split(".")[0]
             
-            # Compute the average across replicate columns.
-            # This builds an expression like: (`col1` + `col2` + ...)/N.
-            avg_expr = "(" + " + ".join([f"`{c}`" for c in donor_cols]) + f")/{len(donor_cols)}"
+            # Use the ApproxQuantile function to compute the quartiles.
+
+            quartiles = df.approxQuantile(donor_cols, [0, 0.25, 0.5, 0.75, 1], 0.01)
+            # Create a new DataFrame with the quartiles.
+            df_quartiles = self.spark.createDataFrame(
+                [(annotation, *quartiles)],
+                schema=["annotation", "Min", "Q1", "Q2", "Q3", "Max"]
+            )
             
-            # Select gene id and the computed average (renaming the column to the cell type).
-            df_avg = df.select("ensg", expr(avg_expr).alias(annotation))
 
             # Rename gene id from "ensg" to "ID".
             df_avg = df_avg.withColumnRenamed("ensg", "ID")
@@ -59,7 +62,7 @@ class AveragePseudobulkExpression:
         if local:
             self.spark = spark = SparkSession.builder.master("local").appName("spark_etl").config("spark.hadoop.fs.defaultFS", "file:///").getOrCreate()
         else:
-            self.spark = SparkSession.builder.appName("AveragePseudobulkExpression").getOrCreate()
+            self.spark = SparkSession.builder.appName("ProcessExpression").getOrCreate()
         
         # Disable whole-stage code generation
         self.spark.conf.set("spark.sql.codegen.wholeStage", "false")
@@ -69,7 +72,10 @@ parser.add_argument(
     "--local", action="store_true", help="Run in local mode", default=False
 )
 parser.add_argument(
-    "--directory", required=True, type=str, help="Directory containing pseudobulk expression data"
+    "--directory", required=True, type=str, help="Directory containing expression data"
+)
+parser.add_argument(
+    "--schema", required=True, type=str, help="Path to the expression_aggregated.json schema"
 )
 parser.add_argument(
     "--output", required=True, type=str, help="Output directory"
@@ -81,18 +87,18 @@ if __name__ == "__main__":
     local = args.local
     output_dir = args.output
 
-    ape = AveragePseudobulkExpression()
-    file_list = ape.list_files(directory)
+    eq = ExpressionQuartiles()
+    file_list = eq.list_files(directory)
     dfs = []
-    ape.calculate_average()
-    # Convert each df to pandas as spark is struggling to write to a single file
+    eq.calculate_quartiles()
+    
     df_list = [df_avg.toPandas() for df_avg in dfs]
     print('Merging dataframes')
     df_merged = reduce(lambda left, right: pd.merge(left, right, on="ID", how="outer"), df_list)
-    outpath = os.path.join(output_dir, "average_pseudobulk_expression.tsv")
+    # outpath = os.path.join(output_dir, "average_pseudobulk_expression.tsv")
     print(f"Writing to {outpath}")
     if local:
         df_merged.to_csv(outpath, sep="\t", index=False)
     else:
         df_merged.to_csv(f"file://{outpath}", sep="\t", index=False)
-    ape.spark.stop()
+    eq.spark.stop()
