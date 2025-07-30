@@ -1,13 +1,18 @@
-
-
 import os
 import argparse
 import numpy as np
 import pandas as pd
 import scanpy as sc
 from pyspark.sql import SparkSession, functions as f
+from pyspark.sql.types import StructType, StructField, StringType, ArrayType, DoubleType, IntegerType
 
 class PseudobulkExpression:
+    """
+    Process cellxgene formatted single-cell AnnData into pseudobulked JSON.
+    This class reads an AnnData object, filters it, normalizes it,
+    and then aggregates the data into pseudobulk format.
+    """
+
     @property
     def spark(self):
         if self._spark is None:
@@ -21,13 +26,28 @@ class PseudobulkExpression:
                 .config("spark.memory.offHeap.size","16g") \
                 .getOrCreate()
         return self._spark
-    """
-    Process cellxgene formatted single-cell AnnData into pseudobulked
-    JSON per gene, matching the unaggregated schema.
-    This class reads an AnnData object, filters it, normalizes it,
-    and then aggregates the data into pseudobulk format.
-    It also generates a translation map for tissue and cell type annotations.
-    """
+
+    @property
+    def schema(self):
+        return StructType([
+            StructField("targetId", StringType(), True),
+            StructField("datasourceId", StringType(), True),
+            StructField("datatypeId", StringType(), True),
+            StructField("unit", StringType(), True),
+            StructField("tissueBiosampleId", StringType(), True),
+            StructField("celltypeBiosampleId", StringType(), True),
+            StructField("tissueBiosampleFromSource", StringType(), True),
+            StructField("celltypeBiosampleFromSource", StringType(), True),
+            StructField("targetFromSource", StringType(), True),
+            StructField("UnaggregatedExpression", ArrayType(StructType([
+                StructField("expression", DoubleType(), True),
+                StructField("sampleId", StringType(), True),
+                StructField("cellCount", IntegerType(), True),
+                StructField("sex", StringType(), True),
+                StructField("age", StringType(), True),
+                StructField("ethnicity", StringType(), True),
+            ])), True)
+        ])
 
     def __init__(self, h5ad_path, datasource_id, datatype_id, unit, biosample_index_path=None):
         self.h5ad_path     = h5ad_path
@@ -80,183 +100,140 @@ class PseudobulkExpression:
             sc.pp.log1p(self.adata)
 
 
-    def pseudobulk_data(self, donor_colname='donor_id', min_cells=5, 
-                        tissue_agg_colname=None, celltype_agg_colname=None,  agg_method='dMean'):
+    def pseudobulk_data(self, donor_colname='donor_id', min_cells=5,
+                        tissue_agg_colname=None, celltype_agg_colname=None,
+                        agg_method='mean', age_colname='age', sex_colname='sex', ethnicity_colname='ethnicity'):
         adata = self.adata
-        if tissue_agg_colname is None and celltype_agg_colname is None:
-            raise ValueError("At least one aggregation column must be specified: tissue_agg_colname or celltype_agg_colname")
-        elif tissue_agg_colname is not None and celltype_agg_colname is not None:
-            # Make a list of tuples for the annotations list that will be looped through e.g.
-            # [('liver', 'neuron'), ('liver', 'glia'), ('ileum', 'enterocyte')]
-            annotations = adata.obs[[tissue_agg_colname, celltype_agg_colname]].drop_duplicates()
-            # Make a list of tuples for each unique combination
-            annotations = list(zip(annotations[tissue_agg_colname], annotations[celltype_agg_colname]))
-        elif tissue_agg_colname is not None:
-            # If only tissue aggregation is specified, use unique tissue annotations
-            annotations = adata.obs[tissue_agg_colname].unique()
-            # Make into a list of tuples where the second element is None
-            annotations = [(annot, None) for annot in annotations]
-        elif celltype_agg_colname is not None:
-            # If only cell type aggregation is specified, use unique cell type annotations
-            annotations = adata.obs[celltype_agg_colname].unique()
-            # Make into a list of tuples where the first element is None
-            annotations = [(None, annot) for annot in annotations]
 
-        # Ensure the donor column exists
-        if donor_colname not in adata.obs.columns:
-            raise ValueError(f"Donor column '{donor_colname}' not found in AnnData.obs")
-        for annot in annotations:
-            print(f"Aggregating {annot}")
+        if tissue_agg_colname and celltype_agg_colname:
+            annotations = adata.obs[[tissue_agg_colname, celltype_agg_colname]].drop_duplicates()
+            annotations = [(row[tissue_agg_colname], row[celltype_agg_colname]) for _, row in annotations.iterrows()]
+        elif tissue_agg_colname:
+            annotations = [(tissue, None) for tissue in adata.obs[tissue_agg_colname].unique()]
+        elif celltype_agg_colname:
+            annotations = [(None, celltype) for celltype in adata.obs[celltype_agg_colname].unique()]
+        else:
+            raise ValueError("Provide at least one aggregation column.")
+
+        all_data = []
+
+        for tissue_id, celltype_id in annotations:
+            print(f"Aggregating tissue={tissue_id}, celltype={celltype_id}")
+
             subset = adata
-            if tissue_agg_colname:
-                subset = subset[subset.obs[tissue_agg_colname] == annot[0]]
-            if celltype_agg_colname:
-                subset = subset[subset.obs[celltype_agg_colname] == annot[1]]
-            agg_df = pd.DataFrame()
+            if tissue_id:
+                subset = subset[subset.obs[tissue_agg_colname] == tissue_id]
+            if celltype_id:
+                subset = subset[subset.obs[celltype_agg_colname] == celltype_id]
+
             donor_meta = []
-            # per-donor aggregation
+            agg_df = pd.DataFrame()
+
             for donor in subset.obs[donor_colname].unique():
-                mask = subset.obs[donor_colname] == donor
-                donor_cells = subset[mask]
-                count = donor_cells.shape[0]
-                if count < min_cells:
+                donor_cells = subset[subset.obs[donor_colname] == donor]
+                if donor_cells.shape[0] < min_cells:
                     continue
+
                 donor_meta.append({
                     'sampleId': donor,
-                    'cellCount': count,
-                    'sex':   np.nan if 'sex' not in donor_cells.obs else donor_cells.obs['sex'].iat[0],
-                    'age':  np.nan if 'age' not in donor_cells.obs else donor_cells.obs['age'].iat[0],
-                    'ethnicity' : np.nan if 'self_reported_ethnicity' not in donor_cells.obs else donor_cells.obs['self_reported_ethnicity'].iat[0]
+                    'cellCount': donor_cells.shape[0],
+                    'sex': donor_cells.obs[sex_colname].iat[0] if sex_colname in donor_cells.obs and len(donor_cells.obs[sex_colname]) > 0 else np.nan,
+                    'age': donor_cells.obs[age_colname].iat[0] if age_colname in donor_cells.obs and len(donor_cells.obs[age_colname]) > 0 else np.nan,
+                    'ethnicity': donor_cells.obs[ethnicity_colname].iat[0] if ethnicity_colname in donor_cells.obs and len(donor_cells.obs[ethnicity_colname]) > 0 else np.nan
                 })
+
                 matrix = donor_cells.to_df()
-                vector = matrix.mean(axis=0) if agg_method=='dMean' else matrix.sum(axis=0)
-                agg_df = pd.concat([agg_df, pd.DataFrame(vector, columns=[donor])], axis=1)
-            # JSON all genes
-            self.save_json(agg_df, donor_meta, annot, agg_method,
-                           tissue_agg_colname, celltype_agg_colname)
+                vector = matrix.mean(axis=0) if agg_method == 'mean' else matrix.sum(axis=0)
+                agg_df[donor] = vector
 
-    def save_json(self,
-            agg_df,
-            donor_meta,
-            annotation,
-            agg_method,
-            tissue_agg_colname,
-            celltype_agg_colname,
-            per_gene=False):
-            # if per_gene=True, writes one file per gene under
-            # results/json/{annotation_label}/{agg_method}/{gene}.json
-            # 1) wide → Spark DF
-            index_name = agg_df.index.name if agg_df.index.name is not None else 'index'
-            pdf = agg_df.reset_index().rename(columns={index_name: 'targetId'})
-            if pdf.empty:
-                print(f"No data for annotation {annotation} with method {agg_method}")
-                return
-            sdf = self.spark.createDataFrame(pdf)
+            if agg_df.empty:
+                continue
 
-            # 2) pivot to long: (targetId, sampleId, expression)
-            sample_cols = [c for c in pdf.columns if c != 'targetId']
-            N = len(sample_cols)
-            packed = ", ".join([f"'{c}', `{c}`" for c in sample_cols])
-            long_df = sdf.selectExpr(
-                "targetId",
-                f"stack({N}, {packed}) as (sampleId, expression)"
-            )
+            agg_df.index.name = 'targetId'
+            agg_df.reset_index(inplace=True)
 
-            # 3) join donor metadata
-            meta_df = self.spark.createDataFrame(donor_meta)
-            joined = long_df.join(meta_df, on='sampleId', how='left')
+            melted_df = agg_df.melt(id_vars='targetId', var_name='sampleId', value_name='expression')
+            meta_df = pd.DataFrame(donor_meta)
+            merged_df = melted_df.merge(meta_df, on='sampleId')
 
-            # 4) figure out tissue / celltype IDs and labels
-            tissue_id, celltype_id = None, None
-            tissue_label, ct_label = None, None
+            merged_df['tissueBiosampleId'] = tissue_id
+            merged_df['celltypeBiosampleId'] = celltype_id
+            merged_df['datasourceId'] = self.datasource_id
+            merged_df['datatypeId'] = self.datatype_id
+            merged_df['unit'] = f"{agg_method} {self.unit}"
 
             if tissue_agg_colname:
-                tissue_id = annotation[0]
-                tissue_label = tissue_id
-                # If tissue ID starts with EFO, CLO or UBERON get the label from the biosample index
-                if tissue_id.startswith(('EFO', 'CLO', 'UBERON')) and self.biosample_index is not None:
-                    match = self.biosample_index.loc[self.biosample_index['ontology_term_id'] == tissue_id.replace(':', '_'), 'label']
-                    if not match.empty:
-                        tissue_label = match.values[0]
-                    
+                tissue_label = self.map_biosample_label(tissue_id) if tissue_id else None
             if celltype_agg_colname:
-                celltype_id = annotation[1]
-                ct_label = celltype_id
-                # If cell type ID starts with CL, UBERON or EFO get the label from the biosample index
-                if celltype_id.startswith(('CL', 'UBERON', 'EFO')) and self.biosample_index is not None:
-                    match = self.biosample_index.loc[self.biosample_index['ontology_term_id'] == celltype_id.replace(':', '_'), 'label']
-                    if not match.empty:
-                        ct_label = match.values[0]
+                ct_label = self.map_biosample_label(celltype_id) if celltype_id else None
 
-            # 5) add constant columns
-            consts = {
-                'datasourceId':               self.datasource_id,
-                'datatypeId':                 self.datatype_id,
-                'unit':                       self.unit,
-                'tissueBiosampleId':          tissue_id,
-                'celltypeBiosampleId':        celltype_id,
-                'tissueBiosampleFromSource':  tissue_label,
-                'celltypeBiosampleFromSource':ct_label,
-                'targetFromSource':           None
-            }
-            for k, v in consts.items():
-                joined = joined.withColumn(k,  f.lit(v))
+            merged_df['tissueBiosampleFromSource'] = tissue_label if tissue_agg_colname else None
+            merged_df['celltypeBiosampleFromSource'] = ct_label if celltype_agg_colname else None
 
-            # 6) build the nested struct and aggregate
-            expr_struct =  f.struct(
-                f.col('expression').alias('expression'),
-                f.col('sampleId').alias('sampleId'),
-                f.col('cellCount').alias('cellCount'),
-                f.col('sex').alias('sex'),
-                f.col('ethnicity').alias('ethnicity'),
-                f.col('age').alias('age'),
-            )
-            nested = joined.withColumn('expression', expr_struct)
+            all_data.append(merged_df)
 
-            group_cols = ['targetId'] + list(consts.keys())
-            result = nested.groupBy(*group_cols) \
-                        .agg( f.collect_list('expression').alias('expression'))
+        if not all_data:
+            print("No data to save.")
+            return
 
-            # 7) build a friendly annotation label for the path
-            parts = []
-            if tissue_agg_colname:
-                parts.append(tissue_id)
-            if celltype_agg_colname:
-                parts.append(celltype_id)
-            annotation_label = "__".join(parts) or "all"
-            annotation_label = annotation_label.replace(":", "_").replace("/", "_")
+        final_df = pd.concat(all_data, ignore_index=True)
+        self.save_json(final_df, agg_method, tissue_agg_colname, celltype_agg_colname)
 
-            base_dir = f'results/json/{agg_method}'
-            os.makedirs(base_dir, exist_ok=True)
-            if per_gene:
-                # 1 file-per-gene via DataFrameWriter
-                # -----------------------------------
-                # collect the distinct gene IDs (small metadata collect only)
-                gene_ids = [r.targetId for r in result.select('targetId').collect()]
-                
-                for gene in gene_ids:
-                    safe = gene.replace('/', '_')
-                    # Generate a directory for each gene and save by annotation_label
-                    gene_dir = os.path.join(base_dir, safe)
-                    os.makedirs(gene_dir, exist_ok=True)
-                    out_path = os.path.join(gene_dir, f'{annotation_label}.json')
-                    # filter down to this one gene
-                    result.filter(f.col('targetId') == gene).coalesce(1).write \
-                        .mode("overwrite") \
-                        .json(out_path)                # this writes a _SUCCESS + part-*.json folder
+    def save_json(self, final_df, agg_method, tissue_agg_colname=None, celltype_agg_colname=None):
+        # Output directory convention: aggregation columns are joined by double underscores (__).
+        # Example: results/json/datasourceId__tissue_agg_colname__celltype_agg_colname__agg_method
+        agg_cols = "__".join(filter(None, [tissue_agg_colname, celltype_agg_colname]))
+        output_dir = f"results/json/{self.datasource_id}__{agg_cols}__{agg_method}"
+        os.makedirs(output_dir, exist_ok=True)
+        print(final_df.head())
+        final_df_formatted = self.format_final_df(final_df, tissue_agg_colname, celltype_agg_colname)
+        print(final_df_formatted.head())
 
-                print(f"Wrote {len(gene_ids)} per‑gene JSON files under {base_dir}/")
-            else:
-                # single JSON‑lines file with one record per gene
-                single_dir = os.path.join(base_dir, annotation_label)
-                result.coalesce(1).write \
-                    .mode("overwrite") \
-                    .json(single_dir)
+        # Check which columns are missing compared to the schema and add them with None values
+        for field in self.schema.fields:
+            if field.name not in final_df_formatted.columns:
+                final_df_formatted[field.name] = None
+        # Ensure the order of columns matches the schema and warn if extra columns exist
+        schema_cols = self.schema.fieldNames()
+        extra_cols = set(final_df_formatted.columns) - set(schema_cols)
+        if extra_cols:
+            print(f"Warning: Extra columns not in schema will be dropped: {extra_cols}")
+        final_df_formatted = final_df_formatted[schema_cols]
+        print(final_df_formatted.head())
 
-                # if you need exactly one .jsonl file instead of a folder+part-*, you can
-                # move/rename the part file afterward in Python.
-                cnt = result.count()
-                print(f"Wrote JSONL with {cnt} gene records to {single_dir}/")
+        sdf = self.spark.createDataFrame(final_df_formatted, schema=self.schema)
+        sdf.write.mode('overwrite').json(output_dir)
+        print(f"JSON saved to {output_dir}")
+
+    def format_final_df(self, df, tissue_agg_colname=None, celltype_agg_colname=None):
+        groupby_cols = ['targetId', 'datasourceId', 'datatypeId', 'unit']
+        if celltype_agg_colname:
+            groupby_cols.append('celltypeBiosampleId')
+            groupby_cols.append('celltypeBiosampleFromSource')
+        if tissue_agg_colname:
+            groupby_cols.append('tissueBiosampleId')
+            groupby_cols.append('tissueBiosampleFromSource')
+        grouped_df = (
+            df
+            .apply(lambda x: x[
+                [col for col in ['expression', 'sampleId', 'cellCount', 'sex', 'age', 'ethnicity'] if col in x.columns]
+            ].to_dict('records'))
+            ]].to_dict('records'))
+            .reset_index(drop=False)
+            .rename(columns={0: 'UnaggregatedExpression'})
+        )
+
+        return grouped_df
+
+    def map_biosample_label(self, biosample_label):
+        # If cell type ID starts with CL, UBERON or EFO get the label from the biosample index
+        if biosample_label.startswith(('CL', 'UBERON', 'EFO')) and self.biosample_index is not None:
+            biosample_label = biosample_label.replace(':', '_')
+            match = self.biosample_index.loc[self.biosample_index['ontology_term_id'] == biosample_label, 'label']
+            if not match.empty:
+                return match.values[0]
+        # Otherwise return the biosample label as is
+        return biosample_label
 
 
 
@@ -264,27 +241,28 @@ class PseudobulkExpression:
         self.read_h5ad()
         self.filter_anndata(args.min_cells, args.min_genes, args.technology)
         self.normalise_anndata(args.normalisation_method)
+
         for m in agg_methods:
-            # self.pseudobulk_data(
-            #     args.donor_colname,
-            #     args.aggregation_min_cells,
-            #     tissue_agg_colname=args.tissue_agg_colname,
-            #     agg_method=m
-            # )
-            # self.pseudobulk_data(
-            #     args.donor_colname,
-            #     args.aggregation_min_cells,
-            #     celltype_agg_colname=args.celltype_agg_colname,
-            #     agg_method=m
-            # )
             self.pseudobulk_data(
                 args.donor_colname,
                 args.aggregation_min_cells,
                 tissue_agg_colname=args.tissue_agg_colname,
+                agg_method=m
+            )
+            self.pseudobulk_data(
+                args.donor_colname,
+                args.aggregation_min_cells,
                 celltype_agg_colname=args.celltype_agg_colname,
                 agg_method=m
             )
-        print("Done: pseudobulk + per-gene JSON export.")
+            self.pseudobulk_data(
+                donor_colname=args.donor_colname,
+                min_cells=args.aggregation_min_cells,
+                tissue_agg_colname=args.tissue_agg_colname,
+                celltype_agg_colname=args.celltype_agg_colname,
+                agg_method=m
+            )
+        print("All done.")
 
 
 if __name__ == "__main__":
@@ -294,15 +272,17 @@ if __name__ == "__main__":
     p.add_argument("--min_genes", type=int, default=5)
     p.add_argument("--technology", type=str, default='10X')
     p.add_argument("--normalisation_method", type=str, default='logCP10K')
-    p.add_argument("--donor_colname", type=str, default='donor_id')
     p.add_argument("--aggregation_min_cells", type=int, default=5)
-    p.add_argument("--aggregation_method", type=str, default='dMean')
+    p.add_argument("--aggregation_method", type=str, default='mean', help="Aggregation method(s) to use, e.g. 'mean' or 'mean,sum'")
     p.add_argument("--datasource_id", type=str, required=True)
     p.add_argument("--datatype_id", type=str, default="scrna-seq")
-    p.add_argument("--unit", type=str, default="logCP10K")
     p.add_argument("--biosample_index_path", type=str, required=True)
+    p.add_argument("--donor_colname", type=str, default='donor_id')
     p.add_argument("--tissue_agg_colname", type=str, default='tissue_ontology_term_id')
     p.add_argument("--celltype_agg_colname", type=str, default='cell_type_ontology_term_id')
+    p.add_argument("--age_colname", type=str, default='age')
+    p.add_argument("--sex_colname", type=str, default='sex')
+    p.add_argument("--ethnicity_colname", type=str, default='ethnicity')
 
     args = p.parse_args()
     methods = args.aggregation_method.split(',') 
@@ -311,12 +291,12 @@ if __name__ == "__main__":
         args.h5ad_path,
         datasource_id = args.datasource_id,
         datatype_id   = args.datatype_id,
-        unit          = args.unit,
-        biosample_index_path = args.biosample_index_path
+        unit          = args.normalisation_method,
+        biosample_index_path = args.biosample_index_path,
     ).main(args, methods)
 
 # For example usage, uncomment the following lines:
-# agg_methods = ['dMean']
+# agg_methods = ['mean']
 # pe = PseudobulkExpression(
 #     '/home/alegbe/data/tabula_sapiens-small_intestine-CxG.h5ad',
 #     datasource_id = 'tabula_sapiens',
@@ -331,5 +311,5 @@ if __name__ == "__main__":
 #     donor_colname='donor_id',
 #     min_cells=5,
 #     tissue_agg_colname='tissue_ontology_term_id',
-#     agg_method='dMean'
+#     agg_method='mean'
 # )
