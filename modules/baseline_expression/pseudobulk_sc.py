@@ -25,29 +25,29 @@ class PseudobulkExpression:
                 .config("spark.memory.offHeap.enabled",True) \
                 .config("spark.memory.offHeap.size","16g") \
                 .getOrCreate()
+        self._spark.conf.set("hive.exec.default.partition.name", "None")
         return self._spark
 
     @property
-    def schema(self):
+    def flat_schema(self):
+        # the schema for the FLAT pandas slice before we do the Spark grouping
         return StructType([
             StructField("targetId", StringType(), True),
             StructField("datasourceId", StringType(), True),
             StructField("datatypeId", StringType(), True),
             StructField("unit", StringType(), True),
             StructField("tissueBiosampleId", StringType(), True),
-            StructField("celltypeBiosampleId", StringType(), True),
             StructField("tissueBiosampleFromSource", StringType(), True),
+            StructField("celltypeBiosampleId", StringType(), True),
             StructField("celltypeBiosampleFromSource", StringType(), True),
-            StructField("targetFromSource", StringType(), True),
-            StructField("UnaggregatedExpression", ArrayType(StructType([
-                StructField("expression", DoubleType(), True),
-                StructField("sampleId", StringType(), True),
-                StructField("cellCount", IntegerType(), True),
-                StructField("sex", StringType(), True),
-                StructField("age", StringType(), True),
-                StructField("ethnicity", StringType(), True),
-            ])), True)
+            StructField("expression", DoubleType(), True),
+            StructField("sampleId", StringType(), True),
+            StructField("cellCount", IntegerType(), True),
+            StructField("sex", StringType(), True),
+            StructField("age", StringType(), True),
+            StructField("ethnicity", StringType(), True),
         ])
+    
 
     def __init__(self, h5ad_path, datasource_id, datatype_id, unit, biosample_index_path=None):
         self.h5ad_path     = h5ad_path
@@ -115,7 +115,10 @@ class PseudobulkExpression:
         else:
             raise ValueError("Provide at least one aggregation column.")
 
-        all_data = []
+        # define a single output directory for this whole aggregation
+        agg_cols = "__".join(filter(None, [tissue_agg_colname, celltype_agg_colname]))
+        output_dir = f"results/json/{self.datasource_id}__{agg_cols}__{agg_method}".replace(":", "_")
+        os.makedirs(output_dir, exist_ok=True)
 
         for tissue_id, celltype_id in annotations:
             print(f"Aggregating tissue={tissue_id}, celltype={celltype_id}")
@@ -156,8 +159,8 @@ class PseudobulkExpression:
             meta_df = pd.DataFrame(donor_meta)
             merged_df = melted_df.merge(meta_df, on='sampleId')
 
-            merged_df['tissueBiosampleId'] = tissue_id
-            merged_df['celltypeBiosampleId'] = celltype_id
+            merged_df['tissueBiosampleId'] = tissue_id.replace(':', '_') if tissue_id else None
+            merged_df['celltypeBiosampleId'] = celltype_id.replace(':', '_') if celltype_id else None
             merged_df['datasourceId'] = self.datasource_id
             merged_df['datatypeId'] = self.datatype_id
             merged_df['unit'] = f"{agg_method} {self.unit}"
@@ -170,40 +173,57 @@ class PseudobulkExpression:
             merged_df['tissueBiosampleFromSource'] = tissue_label if tissue_agg_colname else None
             merged_df['celltypeBiosampleFromSource'] = ct_label if celltype_agg_colname else None
 
-            all_data.append(merged_df)
+            if merged_df.empty:
+                continue
 
-        if not all_data:
-            print("No data to save.")
-            return
+            # instead of appending to all_data, write _this_ merged_df immediately:
+            self._save_chunk(merged_df, output_dir)
 
-        final_df = pd.concat(all_data, ignore_index=True)
-        self.save_json(final_df, agg_method, tissue_agg_colname, celltype_agg_colname)
+        print(f"Finished writing JSON to {output_dir}")
 
-    def save_json(self, final_df, agg_method, tissue_agg_colname=None, celltype_agg_colname=None):
-        # Output directory convention: aggregation columns are joined by double underscores (__).
-        # Example: results/json/datasourceId__tissue_agg_colname__celltype_agg_colname__agg_method
-        agg_cols = "__".join(filter(None, [tissue_agg_colname, celltype_agg_colname]))
-        output_dir = f"results/json/{self.datasource_id}__{agg_cols}__{agg_method}"
-        os.makedirs(output_dir, exist_ok=True)
-        print(final_df.head())
-        final_df_formatted = self.format_final_df(final_df, tissue_agg_colname, celltype_agg_colname)
-        print(final_df_formatted.head())
+    def _save_chunk(self, df: pd.DataFrame, output_dir: str):
+        # Make sure the df contains all the right columns and that they are in the right order
+        for col in self.flat_schema.fieldNames():
+            if col not in df.columns:
+                df[col] = None  # Fill missing columns with None
+        # Ensure the order of columns matches the schema
+        df = df[self.flat_schema.fieldNames()]
+        # Lift into Spark
+        raw_sdf = self.spark.createDataFrame(df, schema=self.flat_schema)
 
-        # Check which columns are missing compared to the schema and add them with None values
-        for field in self.schema.fields:
-            if field.name not in final_df_formatted.columns:
-                final_df_formatted[field.name] = None
-        # Ensure the order of columns matches the schema and warn if extra columns exist
-        schema_cols = self.schema.fieldNames()
-        extra_cols = set(final_df_formatted.columns) - set(schema_cols)
-        if extra_cols:
-            print(f"Warning: Extra columns not in schema will be dropped: {extra_cols}")
-        final_df_formatted = final_df_formatted[schema_cols]
-        print(final_df_formatted.head())
+        # Define the per‐sample struct
+        expr_struct = f.struct(
+            f.col("expression"),
+            f.col("sampleId"),
+            f.col("cellCount"),
+            f.col("sex"),
+            f.col("age"),
+            f.col("ethnicity"),
+        )
 
-        sdf = self.spark.createDataFrame(final_df_formatted, schema=self.schema)
-        sdf.write.mode('overwrite').json(output_dir)
-        print(f"JSON saved to {output_dir}")
+        # Do groupBy + nest
+        grouped = (
+            raw_sdf
+            .groupBy(
+                "targetId",
+                "datasourceId",
+                "datatypeId",
+                "unit",
+                "tissueBiosampleId",
+                "tissueBiosampleFromSource",
+                "celltypeBiosampleId",
+                "celltypeBiosampleFromSource",
+            )
+            .agg(f.collect_list(expr_struct).alias("unaggregatedExpression"))
+        )
+
+        # Append into JSON output (partitioned by biosample IDs)
+        grouped.write.mode("append") \
+               .partitionBy("tissueBiosampleId", "celltypeBiosampleId") \
+               .json(output_dir)
+
+        print(f"  → Appended {df.shape[0]} rows into Spark and wrote JSON chunk.")
+
 
     def format_final_df(self, df, tissue_agg_colname=None, celltype_agg_colname=None):
         groupby_cols = ['targetId', 'datasourceId', 'datatypeId', 'unit']
@@ -214,14 +234,14 @@ class PseudobulkExpression:
             groupby_cols.append('tissueBiosampleId')
             groupby_cols.append('tissueBiosampleFromSource')
         grouped_df = (
-            df
-            .apply(lambda x: x[
-                [col for col in ['expression', 'sampleId', 'cellCount', 'sex', 'age', 'ethnicity'] if col in x.columns]
-            ].to_dict('records'))
-            ]].to_dict('records'))
-            .reset_index(drop=False)
-            .rename(columns={0: 'UnaggregatedExpression'})
-        )
+                    df
+                    .groupby(groupby_cols)
+                    .apply(lambda x: x[[
+                        'expression', 'sampleId', 'cellCount', 'sex', 'age', 'ethnicity'
+                    ]].to_dict('records'))
+                    .reset_index(drop=False)
+                    .rename(columns={0: 'unaggregatedExpression'})
+                )
 
         return grouped_df
 
@@ -247,12 +267,18 @@ class PseudobulkExpression:
                 args.donor_colname,
                 args.aggregation_min_cells,
                 tissue_agg_colname=args.tissue_agg_colname,
+                age_colname=args.age_colname,
+                sex_colname=args.sex_colname,
+                ethnicity_colname=args.ethnicity_colname,
                 agg_method=m
             )
             self.pseudobulk_data(
                 args.donor_colname,
                 args.aggregation_min_cells,
                 celltype_agg_colname=args.celltype_agg_colname,
+                age_colname=args.age_colname,
+                sex_colname=args.sex_colname,
+                ethnicity_colname=args.ethnicity_colname,
                 agg_method=m
             )
             self.pseudobulk_data(
@@ -260,6 +286,9 @@ class PseudobulkExpression:
                 min_cells=args.aggregation_min_cells,
                 tissue_agg_colname=args.tissue_agg_colname,
                 celltype_agg_colname=args.celltype_agg_colname,
+                age_colname=args.age_colname,
+                sex_colname=args.sex_colname,
+                ethnicity_colname=args.ethnicity_colname,
                 agg_method=m
             )
         print("All done.")

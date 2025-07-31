@@ -1,4 +1,4 @@
-"""Ingests GTEx V8 data and computes the baseline expression metrics."""
+"""Ingests GTEx V10 data and generates the unaggregated baseline expression data."""
 
 import argparse
 import functools
@@ -11,7 +11,7 @@ import metrics
 
 
 class BaselineExpression:
-    """Collection of steps and configuration to process the baseline expression data."""
+    """Collection of steps to generate unaggregated baseline expression data."""
 
     def read_gtex_data(self):
         """Read and preprocess source GTEx data."""
@@ -114,7 +114,7 @@ class BaselineExpression:
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    "--gtex-source-data-path", required=True, type=str, help="GTEx by-gene median TPM counts, in gzipped GCT format."
+    "--gtex-source-data-path", required=True, type=str, help="GTEx by-gene TPM counts, in gzipped GCT format."
 )
 parser.add_argument(
     "--tissue-name-to-uberon-mapping-path",
