@@ -12,8 +12,10 @@ import argparse
 import functools
 import gzip
 import json
+import os
 
 from pyspark.sql.functions import split, col, array, struct, lit, explode, concat_ws, when
+from pyspark.sql import SparkSession
 
 
 class BaselineExpression:
@@ -81,7 +83,7 @@ class BaselineExpression:
             .option("header", "true")
             .csv(self.sample_metadata_path)
             .select(
-                col("SAMPID").alias("sampleId"),
+                col("SAMPID").alias("OrigSample"),
                 col("SMTSD").alias("Tissue"),
                 col("SMUBRID").alias("TissueOntologyID"),
             )
@@ -106,35 +108,68 @@ class BaselineExpression:
         )
 
         # Join the long DataFrame with metadata
-        self.df = (
+        df_long = (
             df_long
-            .join(meta_sample,  on="sampleId", how="left")
+            .join(meta_sample,  on="OrigSample", how="left")
             .join(meta_subject, on="donorId",    how="left")
             .select(
                 "Name", "donorId", "sampleId", "TPM",
                 "Tissue", "TissueOntologyID", "Age", "Sex"
             )
+            # Replace : with _ in TissueOntologyID
+            .withColumn(
+                "TissueOntologyID",
+                when(col("TissueOntologyID").isNotNull(), 
+                     concat_ws("_", split(col("TissueOntologyID"), ":")))
+                .otherwise(lit(None))
+            )
         )
 
-    def pack_data_for_output(self, local: bool = False):
-        """Use spark to write the DataFrame to JSONL format."""
-        import os
+        # # Renamed most columns to match the desired output format
+        self.df = (
+            df_long
+            .withColumnRenamed("Name", "targetId")
+            .withColumnRenamed("Tissue", "tissueBiosampleFromSource")
+            .withColumnRenamed("TissueOntologyID", "tissueBiosampleId")
+            .withColumn("unit", lit("TPM"))  # Add unit column with constant value "TPM"
+            .withColumn("datasourceId", lit("gtex"))  # Add datasourceId column with constant value "gtex"
+            .withColumn("datatypeId", lit("bulk rna-seq"))  # Add datatypeId column with constant value "bulk rna-seq"
+            .withColumnRenamed("TPM", "expression")
+            .withColumn("donorId", col("DonorID"))
+            .withColumnRenamed("Sex", "sex")
+            .withColumnRenamed("Age", "age")
+        ).drop("sampleId")
 
-        import os
-        output_path = os.path.abspath(os.path.join(self.output_directory_path, "gtex_baseline_expression"))
-        self.df.write.mode("overwrite").json(output_path)
+    def pack_data_for_output(self, local: bool = False, json: bool = False):
+        """Use spark to write the DataFrame to parquet format."""
+        if local:
+            output_path = f"file://{self.output_directory_path}/"
+        else:
+            output_path = f"{self.output_directory_path}/"
+        if json:
+            output_path = f"{output_path}/json/gtex_baseline_expression"
+            # If JSON output is requested, convert DataFrame to JSON format
+            self.df.write.mode("overwrite").json(output_path)
+            print(f"Data written to {output_path} in JSON format")
+        else:
+            output_path = f"{output_path}/parquet/gtex_baseline_expression"
+            # If parquet output is requested, convert DataFrame to parquet format
+            self.df.write.mode("overwrite").parquet(output_path)
         print(f"Data written to {output_path}")
-        # If local mode, write to a local file
-        self.df.write.mode("overwrite").json(f"file://{self.output_directory_path}/gtex_baseline_expression")
-        print(f"Data written to {self.output_directory_path}/gtex_baseline_expression")
 
     def main(self):
-        from pyspark.sql import SparkSession
-        self.spark = SparkSession.builder.appName("GTExBaselineExpression").getOrCreate()
+        self.spark = SparkSession.builder \
+                .appName("GTExUnaggregatedExpression") \
+                .config("spark.jars", "https://storage.googleapis.com/hadoop-lib/gcs/gcs-connector-hadoop3-latest.jar") \
+                .config("spark.executor.memory", "70g") \
+                .config("spark.driver.memory", "50g") \
+                .config("spark.memory.offHeap.enabled",True) \
+                .config("spark.memory.offHeap.size","16g") \
+                .getOrCreate()
         print("Reading GTEx data...")
         self.read_gtex_data()
         print("Packing data for output...")
-        self.pack_data_for_output(local=True)
+        self.pack_data_for_output(local=True, json=self.json)
         self.spark.stop()
 
     def __init__(
@@ -142,11 +177,13 @@ class BaselineExpression:
         output_directory_path: str,
         sample_metadata_path: str,
         subject_metadata_path: str, 
+        json: bool = False
     ):
         self.gtex_source_data_path = gtex_source_data_path
         self.output_directory_path = output_directory_path
         self.sample_metadata_path = sample_metadata_path
         self.subject_metadata_path = subject_metadata_path
+        self.json = json
         self.spark = None  # Will be initialized in main()
 
 parser = argparse.ArgumentParser(description="Generate unaggregated baseline expression data from GTEx V10.")
@@ -156,13 +193,17 @@ parser.add_argument(
 )
 parser.add_argument(
     "--output-directory-path", required=True, type=str, default='.',
-    help="A path to output the output file. GZIP-compressed JSON, one object per line.",
+    help="A path to output the output file. One object per line.",
 )
 parser.add_argument(
     "--sample-metadata-path", required=True, type=str, help="A path to the sample metadata file.",
 )
 parser.add_argument(
     "--subject-metadata-path", required=True, type=str, help="A path to the subject metadata file.",
+)
+parser.add_argument(
+    "--json", action='store_true', default=False,
+     help="Save output as JSON instead of parquet.",
 )
 
 
@@ -173,4 +214,5 @@ if __name__ == "__main__":
         args.output_directory_path,
         args.sample_metadata_path,
         args.subject_metadata_path,
+        args.json
     ).main()

@@ -19,11 +19,10 @@ class PseudobulkExpression:
             # Initialize Spark session lazily with google cloud connector
             self._spark = SparkSession.builder \
                 .appName("PseudobulkJSON") \
-                .config("spark.jars", "https://storage.googleapis.com/hadoop-lib/gcs/gcs-connector-hadoop3-latest.jar") \
-                .config("spark.executor.memory", "70g") \
-                .config("spark.driver.memory", "50g") \
+                .config("spark.executor.memory", "30g") \
+                .config("spark.driver.memory", "25g") \
                 .config("spark.memory.offHeap.enabled",True) \
-                .config("spark.memory.offHeap.size","16g") \
+                .config("spark.memory.offHeap.size","8g") \
                 .getOrCreate()
         self._spark.conf.set("hive.exec.default.partition.name", "None")
         return self._spark
@@ -41,7 +40,7 @@ class PseudobulkExpression:
             StructField("celltypeBiosampleId", StringType(), True),
             StructField("celltypeBiosampleFromSource", StringType(), True),
             StructField("expression", DoubleType(), True),
-            StructField("sampleId", StringType(), True),
+            StructField("donorId", StringType(), True),
             StructField("cellCount", IntegerType(), True),
             StructField("sex", StringType(), True),
             StructField("age", StringType(), True),
@@ -49,20 +48,13 @@ class PseudobulkExpression:
         ])
     
 
-    def __init__(self, h5ad_path, datasource_id, datatype_id, unit, biosample_index_path=None):
+    def __init__(self, h5ad_path, datasource_id, datatype_id, unit, json):
         self.h5ad_path     = h5ad_path
         self.datasource_id = datasource_id
         self.datatype_id   = datatype_id
         self.unit          = unit
         self._spark = None  # Lazy initialization
-        self.biosample_index_path = biosample_index_path
-        self.biosample_index = None
-        if biosample_index_path is not None:
-            self.biosample_index = self.spark.read.parquet(biosample_index_path) \
-                .select('biosampleId', 'biosampleName') \
-                .withColumnRenamed('biosampleId', 'ontology_term_id') \
-                .withColumnRenamed('biosampleName', 'label') \
-                .toPandas()
+        self.json = json
 
     def read_h5ad(self):
         print(f"Reading h5ad file: {self.h5ad_path}")
@@ -117,7 +109,8 @@ class PseudobulkExpression:
 
         # define a single output directory for this whole aggregation
         agg_cols = "__".join(filter(None, [tissue_agg_colname, celltype_agg_colname]))
-        output_dir = f"results/json/{self.datasource_id}__{agg_cols}__{agg_method}".replace(":", "_")
+        file_format = "json" if self.json else "parquet"
+        output_dir = f"results/{self.datasource_id}/{file_format}/{agg_cols}__{agg_method}/".replace(":", "_")
         os.makedirs(output_dir, exist_ok=True)
 
         for tissue_id, celltype_id in annotations:
@@ -132,17 +125,21 @@ class PseudobulkExpression:
             donor_meta = []
             agg_df = pd.DataFrame()
 
+            # Get tissue and cell type labels
+            tissue_label = subset.obs['tissue'].iat[0] if tissue_agg_colname else None
+            celltype_label = subset.obs['cell_type'].iat[0] if celltype_agg_colname else None
+
             for donor in subset.obs[donor_colname].unique():
                 donor_cells = subset[subset.obs[donor_colname] == donor]
                 if donor_cells.shape[0] < min_cells:
                     continue
 
                 donor_meta.append({
-                    'sampleId': donor,
+                    'donorId': donor,
                     'cellCount': donor_cells.shape[0],
                     'sex': donor_cells.obs[sex_colname].iat[0] if sex_colname in donor_cells.obs and len(donor_cells.obs[sex_colname]) > 0 else np.nan,
                     'age': donor_cells.obs[age_colname].iat[0] if age_colname in donor_cells.obs and len(donor_cells.obs[age_colname]) > 0 else np.nan,
-                    'ethnicity': donor_cells.obs[ethnicity_colname].iat[0] if ethnicity_colname in donor_cells.obs and len(donor_cells.obs[ethnicity_colname]) > 0 else np.nan
+                    'ethnicity': donor_cells.obs[ethnicity_colname].iat[0] if ethnicity_colname in donor_cells.obs and len(donor_cells.obs[ethnicity_colname]) > 0 else np.nan,
                 })
 
                 matrix = donor_cells.to_df()
@@ -155,23 +152,17 @@ class PseudobulkExpression:
             agg_df.index.name = 'targetId'
             agg_df.reset_index(inplace=True)
 
-            melted_df = agg_df.melt(id_vars='targetId', var_name='sampleId', value_name='expression')
+            melted_df = agg_df.melt(id_vars='targetId', var_name='donorId', value_name='expression')
             meta_df = pd.DataFrame(donor_meta)
-            merged_df = melted_df.merge(meta_df, on='sampleId')
+            merged_df = melted_df.merge(meta_df, on='donorId')
 
-            merged_df['tissueBiosampleId'] = tissue_id.replace(':', '_') if tissue_id else None
-            merged_df['celltypeBiosampleId'] = celltype_id.replace(':', '_') if celltype_id else None
             merged_df['datasourceId'] = self.datasource_id
             merged_df['datatypeId'] = self.datatype_id
             merged_df['unit'] = f"{agg_method} {self.unit}"
-
-            if tissue_agg_colname:
-                tissue_label = self.map_biosample_label(tissue_id) if tissue_id else None
-            if celltype_agg_colname:
-                ct_label = self.map_biosample_label(celltype_id) if celltype_id else None
-
-            merged_df['tissueBiosampleFromSource'] = tissue_label if tissue_agg_colname else None
-            merged_df['celltypeBiosampleFromSource'] = ct_label if celltype_agg_colname else None
+            merged_df['tissueBiosampleId'] = tissue_id.replace(':', '_') if tissue_agg_colname else None
+            merged_df['celltypeBiosampleId'] = celltype_id.replace(':', '_') if celltype_agg_colname else None
+            merged_df['tissueBiosampleFromSource'] =  tissue_label
+            merged_df['celltypeBiosampleFromSource'] = celltype_label
 
             if merged_df.empty:
                 continue
@@ -191,70 +182,16 @@ class PseudobulkExpression:
         # Lift into Spark
         raw_sdf = self.spark.createDataFrame(df, schema=self.flat_schema)
 
-        # Define the per‐sample struct
-        expr_struct = f.struct(
-            f.col("expression"),
-            f.col("sampleId"),
-            f.col("cellCount"),
-            f.col("sex"),
-            f.col("age"),
-            f.col("ethnicity"),
-        )
-
-        # Do groupBy + nest
-        grouped = (
-            raw_sdf
-            .groupBy(
-                "targetId",
-                "datasourceId",
-                "datatypeId",
-                "unit",
-                "tissueBiosampleId",
-                "tissueBiosampleFromSource",
-                "celltypeBiosampleId",
-                "celltypeBiosampleFromSource",
-            )
-            .agg(f.collect_list(expr_struct).alias("unaggregatedExpression"))
-        )
-
-        # Append into JSON output (partitioned by biosample IDs)
-        grouped.write.mode("append") \
-               .partitionBy("tissueBiosampleId", "celltypeBiosampleId") \
-               .json(output_dir)
+        # Append into JSON output
+        if self.json:
+            raw_sdf.write.mode("append") \
+                .json(output_dir)
+        else:
+            # If not JSON, write as parquet
+            raw_sdf.write.mode("append") \
+                .parquet(output_dir)
 
         print(f"  → Appended {df.shape[0]} rows into Spark and wrote JSON chunk.")
-
-
-    def format_final_df(self, df, tissue_agg_colname=None, celltype_agg_colname=None):
-        groupby_cols = ['targetId', 'datasourceId', 'datatypeId', 'unit']
-        if celltype_agg_colname:
-            groupby_cols.append('celltypeBiosampleId')
-            groupby_cols.append('celltypeBiosampleFromSource')
-        if tissue_agg_colname:
-            groupby_cols.append('tissueBiosampleId')
-            groupby_cols.append('tissueBiosampleFromSource')
-        grouped_df = (
-                    df
-                    .groupby(groupby_cols)
-                    .apply(lambda x: x[[
-                        'expression', 'sampleId', 'cellCount', 'sex', 'age', 'ethnicity'
-                    ]].to_dict('records'))
-                    .reset_index(drop=False)
-                    .rename(columns={0: 'unaggregatedExpression'})
-                )
-
-        return grouped_df
-
-    def map_biosample_label(self, biosample_label):
-        # If cell type ID starts with CL, UBERON or EFO get the label from the biosample index
-        if biosample_label.startswith(('CL', 'UBERON', 'EFO')) and self.biosample_index is not None:
-            biosample_label = biosample_label.replace(':', '_')
-            match = self.biosample_index.loc[self.biosample_index['ontology_term_id'] == biosample_label, 'label']
-            if not match.empty:
-                return match.values[0]
-        # Otherwise return the biosample label as is
-        return biosample_label
-
 
 
     def main(self, args, agg_methods):
@@ -296,22 +233,69 @@ class PseudobulkExpression:
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
-    p.add_argument("--h5ad_path", required=True)
-    p.add_argument("--min_cells", type=int, default=5)
-    p.add_argument("--min_genes", type=int, default=5)
-    p.add_argument("--technology", type=str, default='10X')
-    p.add_argument("--normalisation_method", type=str, default='logCP10K')
-    p.add_argument("--aggregation_min_cells", type=int, default=5)
-    p.add_argument("--aggregation_method", type=str, default='mean', help="Aggregation method(s) to use, e.g. 'mean' or 'mean,sum'")
-    p.add_argument("--datasource_id", type=str, required=True)
-    p.add_argument("--datatype_id", type=str, default="scrna-seq")
-    p.add_argument("--biosample_index_path", type=str, required=True)
-    p.add_argument("--donor_colname", type=str, default='donor_id')
-    p.add_argument("--tissue_agg_colname", type=str, default='tissue_ontology_term_id')
-    p.add_argument("--celltype_agg_colname", type=str, default='cell_type_ontology_term_id')
-    p.add_argument("--age_colname", type=str, default='age')
-    p.add_argument("--sex_colname", type=str, default='sex')
-    p.add_argument("--ethnicity_colname", type=str, default='ethnicity')
+    p.add_argument(
+        "--h5ad_path", required=True
+        )
+    p.add_argument(
+        "--min_cells", type=int, default=5,
+        help="Minimum number of cells per gene to keep in the dataset."
+        )
+    p.add_argument(
+        "--min_genes", type=int, default=5,
+        help="Minimum number of genes per cell to keep in the dataset."
+        )
+    p.add_argument(
+        "--technology", type=str, default='10X',
+        help="Technology used for the dataset."
+        )
+    p.add_argument(
+        "--normalisation_method", type=str, default='logCP10K',
+        help="Normalisation method to use."
+        )
+    p.add_argument(
+        "--aggregation_min_cells", type=int, default=5,
+        help="Minimum number of cells per donor to keep in the pseudobulk aggregation."
+        )
+    p.add_argument(
+        "--aggregation_method", type=str, default='mean', 
+        help="Aggregation method(s) to use, e.g. 'mean' or 'mean,sum'"
+        )
+    p.add_argument(
+        "--datasource_id", type=str, required=True,
+        help="Datasource ID for the pseudobulk expression data."
+        )
+    p.add_argument(
+        "--datatype_id", type=str, default="scrna-seq",
+        help="Datatype ID for the pseudobulk expression data."
+        )
+    p.add_argument(
+        "--json", action='store_true', default=False,
+        help="Save output as JSON instead of parquet.",
+    )
+    p.add_argument(
+        "--donor_colname", type=str, default='donor_id',
+        help="Column name for the donor ID."
+        )
+    p.add_argument(
+        "--tissue_agg_colname", type=str, default='tissue_ontology_term_id',
+        help="Column name for the tissue aggregation."
+        )
+    p.add_argument(
+        "--celltype_agg_colname", type=str, default='cell_type_ontology_term_id',
+        help="Column name for the cell type aggregation."
+        )
+    p.add_argument(
+        "--age_colname", type=str, default='age',
+        help="Column name for the age."
+        )
+    p.add_argument(
+        "--sex_colname", type=str, default='sex',
+        help="Column name for the sex."
+        )
+    p.add_argument(
+        "--ethnicity_colname", type=str, default='ethnicity',
+        help="Column name for the ethnicity."
+        )
 
     args = p.parse_args()
     methods = args.aggregation_method.split(',') 
@@ -321,7 +305,7 @@ if __name__ == "__main__":
         datasource_id = args.datasource_id,
         datatype_id   = args.datatype_id,
         unit          = args.normalisation_method,
-        biosample_index_path = args.biosample_index_path,
+        json           = args.json
     ).main(args, methods)
 
 # For example usage, uncomment the following lines:
