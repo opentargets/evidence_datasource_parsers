@@ -201,6 +201,13 @@ def process_adverse_events(adverse_events: str) -> DataFrame:
                 f.element_at(f.col("effects"), 2).alias("dosing"),
             ),
         )
+        .withColumn("studies", f.array(
+            f.struct(
+                f.col("event").alias("description"),
+                f.col("eventId").alias("name"),
+                f.lit("preclinical").alias("type"),
+            )
+        ))
     )
 
     # Multiple dosing effects need to be grouped in the same record.
@@ -401,7 +408,7 @@ def process_pharmacogenetics(
                 f.concat(f.col("drugFromSource"), f.lit(" induced effect")).alias(
                     "name"
                 ),
-                f.lit("patient-level").alias("type"),
+                f.lit("clinical").alias("type"),
             ),
         )
     )
