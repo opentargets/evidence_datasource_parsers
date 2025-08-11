@@ -117,6 +117,7 @@ def process_aop(aopwiki: str) -> DataFrame:
     """Loads and processes the AOPWiki input JSON."""
     return (
         spark.read.json(aopwiki)
+        .withColumn("studies", f.array(f.struct(f.lit("cell-based").alias("type"))))
         # data bug: some events have the substring "NA" at the start - removal and trim the string
         .withColumn("event", f.trim(f.regexp_replace(f.col("event"), "^NA", "")))
         # data bug: effects.direction need to be in lowercase, this field is an enum
