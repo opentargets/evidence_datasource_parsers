@@ -117,7 +117,7 @@ def process_aop(aopwiki: str) -> DataFrame:
     """Loads and processes the AOPWiki input JSON."""
     return (
         spark.read.json(aopwiki)
-        .withColumn("studies", f.array(f.struct(f.lit("cell-based").alias("type"))))
+        .withColumn("study", f.struct(f.lit("cell-based").alias("type")))
         # data bug: some events have the substring "NA" at the start - removal and trim the string
         .withColumn("event", f.trim(f.regexp_replace(f.col("event"), "^NA", "")))
         # data bug: effects.direction need to be in lowercase, this field is an enum
@@ -169,6 +169,11 @@ def process_adverse_events(adverse_events: str) -> DataFrame:
         biosample   | {gastrointestinal, UBERON_0005409, null, null, null}
         effects     | [{Activation/Increase/Upregulation, general}]
     """
+    source_to_study_type = {
+        "Lynch et al. (2017)": "preclinical",
+        "Bowes et al. (2012)": "preclinical",
+        "Urban et al. (2012)": "clinical"
+    }
     ae_df = (
         spark.read.csv(adverse_events, sep="\t", header=True)
         .select(
@@ -202,13 +207,14 @@ def process_adverse_events(adverse_events: str) -> DataFrame:
                 f.element_at(f.col("effects"), 2).alias("dosing"),
             ),
         )
-        .withColumn("studies", f.array(
-            f.struct(
-                f.col("event").alias("description"),
-                f.col("eventId").alias("name"),
-                f.lit("preclinical").alias("type"),
-            )
+        .withColumn("studyType", f.col("datasource"))
+        .replace(to_replace=source_to_study_type, subset=['studyType'])
+        .withColumn("study", f.struct(
+            f.col("event").alias("description"),
+            f.col("eventId").alias("name"),
+            f.col("studyType").alias("type"),
         ))
+        .drop("studyType")
     )
 
     # Multiple dosing effects need to be grouped in the same record.
@@ -276,8 +282,8 @@ def process_safety_risk(safety_risk: str) -> DataFrame:
         spark.read.csv(safety_risk, sep="\t", header=True)
         .withColumn(
             "studyType",
-            f.when(f.col("datasource").contains("Force"), "preclinical").when(
-                f.col("datasource").contains("Lamore"), "cell-based"
+            f.when(f.col("ref").contains("Force"), "preclinical").when(
+                f.col("ref").contains("Lamore"), "cell-based"
             ),
         )
         .select(
