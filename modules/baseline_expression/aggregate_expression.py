@@ -66,11 +66,11 @@ class AggregateExpression:
         if not os.path.exists(output_directory):
             os.makedirs(output_directory)
         if json:
-            raw_sdf.write.mode("overwrite") \
+            self.df.write.mode("overwrite") \
                 .json(output_directory)
         else:
             # If not JSON, write as parquet
-            raw_sdf.write.mode("overwrite") \
+            self.df.write.mode("overwrite") \
                 .parquet(output_directory)
             
 
