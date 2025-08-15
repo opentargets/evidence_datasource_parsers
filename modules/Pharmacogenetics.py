@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""This module adds a more granular description of the phenotype observed in the PharmGKB evidence."""
+"""This module adds a more granular description of the phenotype observed in the ClinPGX evidence."""
 
 import argparse
 import json
@@ -19,7 +19,7 @@ from common.ontology import add_efo_mapping
 def parse_phenotype_with_gpt(genotype_text: str, openai_client: OpenAI, gpt_model: str = "gpt-3.5-turbo-1106") -> Optional[List[str]]:
     """Query the OpenAI API to extract the phenotype from the genotype text."""
     prompt = f"""
-        Context: We want to analyze PharmGKB clinical annotations. Their data includes a column, "genotypeAnnotationText", which typically informs about efficacy,side effects, or patient response variability given a specific genotype. The data is presented in a lengthy and complex format, making it challenging to quickly grasp the key phenotypic outcomes.
+        Context: We want to analyze ClinPGx clinical annotations. Their data includes a column, "genotypeAnnotationText", which typically informs about efficacy,side effects, or patient response variability given a specific genotype. The data is presented in a lengthy and complex format, making it challenging to quickly grasp the key phenotypic outcomes.
 
         Aim: To parse the observed effect in a short string so that the effect can be easily interpreted at a glance. The goal is to extract the essence of the pharmacogenetic relationship. This extraction helps in summarizing the data for faster and more efficient analysis.
 
@@ -74,7 +74,6 @@ def parse_phenotypes(texts_to_parse: List[str], openai_client: OpenAI) -> DataFr
     )
 
 def update_phenotypes_lut(
-    spark: SparkSession,
     new_phenotypes_df: DataFrame,
     extracted_phenotypes_df: DataFrame,
 ) -> DataFrame:
@@ -86,34 +85,34 @@ def update_phenotypes_lut(
 
 def generate_evidence(
     spark: SparkSession,
-    pharmgkb_evidence_df: DataFrame,
+    pgx_evidence_df: DataFrame,
     extracted_phenotypes_df: DataFrame,
     cache_dir: str
 ) -> DataFrame:
-    """This module overwrites the `phenotypeText` and adds `diseaseFromSourceMappedId` field in the PharmGKB evidence dataset.
+    """This module overwrites the `phenotypeText` and adds `diseaseFromSourceMappedId` field in the PGx evidence dataset.
     
-    The original `phenotypeText` comes from PharmGKB directly, however it is tipically of little value for the user (more context in https://github.com/opentargets/curation/blob/master/docs/pharmacogenetics.md).
+    The original `phenotypeText` comes from PGx directly, however it is tipically of little value for the user (more context in https://github.com/opentargets/curation/blob/master/docs/pharmacogenetics.md).
 
     Args:
-        pharmgkb_evidence_df: Dataframe with the PGx evidence submitted by EVA.
+        pgx_evidence_df: Dataframe with the PGx evidence submitted by EVA.
         extracted_phenotypes_df: Dataframe containing the phenotypes extracted from `genotypeAnnotationText`
         cache_dir: Directory to store the OnToma cache files in.
     """
-    enriched_pharmgkb_df = (
-        pharmgkb_evidence_df.drop("phenotypeText", "phenotypeFromSourceId").join(extracted_phenotypes_df, on="genotypeAnnotationText", how="left")
+    enriched_pgx_df = (
+        pgx_evidence_df.drop("phenotypeText", "phenotypeFromSourceId").join(extracted_phenotypes_df, on="genotypeAnnotationText", how="left")
         .withColumn("phenotypeText", f.explode_outer("phenotypeText"))
         .distinct()
         .persist()
     )
-    enriched_pharmgkb_df = add_efo_mapping(
-        enriched_pharmgkb_df.select("*", f.col("phenotypeText").alias("diseaseFromSource"), f.lit(None).alias("diseaseFromSourceId")),
+    enriched_pgx_df = add_efo_mapping(
+        enriched_pgx_df.select("*", f.col("phenotypeText").alias("diseaseFromSource"), f.lit(None).alias("diseaseFromSourceId")),
         spark,
         cache_dir
     ).withColumnRenamed("diseaseFromSourceMappedId", "phenotypeFromSourceId").drop("diseaseFromSource")
     logging.info("Disease mappings have been added.")
 
-    assert enriched_pharmgkb_df.select("studyId").distinct().count() >= pharmgkb_df.select("studyId").distinct().count(), "Fewer PharmGKB references after processing."
-    return enriched_pharmgkb_df
+    assert enriched_pgx_df.select("studyId").distinct().count() >= pgx_df.select("studyId").distinct().count(), "Fewer ClinPGx references after processing."
+    return enriched_pgx_df
 
 def add_variantid_column(input_df: DataFrame) -> DataFrame:
     """Based on the content of the genotypeId column, adds a variantId column to the dataset"""
@@ -130,11 +129,11 @@ def add_variantid_column(input_df: DataFrame) -> DataFrame:
     )
 
 def get_parser():
-    """Get parser object for script pharmgkb.py."""
+    """Get parser object for script ClinPGx.py."""
     parser = argparse.ArgumentParser(description=__doc__)
 
     parser.add_argument(
-        "--pharmgkb_evidence_path",
+        "--evidence_path",
         help="Input gzipped JSON with the PharmGKB evidence submitted by EVA",
         type=str,
         required=True,
@@ -180,15 +179,15 @@ if __name__ == "__main__":
     args = get_parser().parse_args()
 
     # Read data
-    logging.info(f"PharmGKB evidence JSON file: {args.pharmgkb_evidence_path}")
+    logging.info(f"PGx evidence JSON file: {args.evidence_path}")
     logging.info(f"Table of genotype descriptions to extract traits: {args.extracted_phenotypes_path}")
     spark.sparkContext.addFile(args.extracted_phenotypes_path)
     pgx_phenotypes_df = spark.read.json(SparkFiles.get(args.extracted_phenotypes_path.split("/")[-1]))
-    pharmgkb_df = spark.read.json(args.pharmgkb_evidence_path)
+    pgx_df = spark.read.json(args.pharmgkb_evidence_path)
 
     pgx_df = generate_evidence(
         spark,
-        pharmgkb_df,
+        pgx_df,
         pgx_phenotypes_df,
         args.cache_dir
     )
@@ -209,7 +208,7 @@ if __name__ == "__main__":
         logging.info(f"Updated phenotypes have been saved to {args.output_phenotypes_path}. Exiting.")
         pgx_df = generate_evidence(
             spark,
-            pharmgkb_df,
+            pgx_df,
             updated_phenotypes_df,
             args.cache_dir
         )
