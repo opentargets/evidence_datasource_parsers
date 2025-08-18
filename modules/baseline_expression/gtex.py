@@ -169,7 +169,7 @@ class BaselineExpression:
         print("Reading GTEx data...")
         self.read_gtex_data()
         print("Packing data for output...")
-        self.pack_data_for_output(local=True, json=self.json)
+        self.pack_data_for_output(local=self.local, json=self.json)
         self.spark.stop()
 
     def __init__(
@@ -177,16 +177,22 @@ class BaselineExpression:
         output_directory_path: str,
         sample_metadata_path: str,
         subject_metadata_path: str, 
-        json: bool = False
+        json: bool = False,
+        local: bool = True
     ):
         self.gtex_source_data_path = gtex_source_data_path
         self.output_directory_path = output_directory_path
         self.sample_metadata_path = sample_metadata_path
         self.subject_metadata_path = subject_metadata_path
         self.json = json
+        self.local = local
         self.spark = None  # Will be initialized in main()
 
 parser = argparse.ArgumentParser(description="Generate unaggregated baseline expression data from GTEx V10.")
+parser.add_argument(
+    "--local", action="store_true", default=False, 
+    help="Run in local mode" 
+)
 parser.add_argument(
     "--gtex-source-data-path", required=True, type=str, 
     help="GTEx downloaded sample-by-gene TPM counts, in gzipped GCT format."
@@ -214,5 +220,6 @@ if __name__ == "__main__":
         args.output_directory_path,
         args.sample_metadata_path,
         args.subject_metadata_path,
-        args.json
+        args.json,
+        args.local
     ).main()
