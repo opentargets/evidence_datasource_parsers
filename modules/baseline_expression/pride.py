@@ -15,7 +15,7 @@ import gzip
 import json
 import os
 
-from pyspark.sql.functions import split, col, array, struct, lit, explode, concat_ws, when, regexp_replace, element_at, concat
+from pyspark.sql.functions import split, col, array, struct, lit, explode, concat_ws, when, regexp_replace, element_at, concat, coalesce
 from pyspark.sql import SparkSession
 
 class BaselineExpression:
@@ -55,6 +55,8 @@ class BaselineExpression:
                 element_at(split(col("Protein IDs"), r"\|"), 2)
             )
             .withColumn("proteinId", regexp_replace("proteinId", r"-\d+$", ""))  # optional, removes isoform suffix
+            # if the proteinId column is NULL use the original Protein IDs
+            .withColumn("proteinId", coalesce(col("proteinId"), col("Protein IDs")))
             .join(target_mapping, on="proteinId", how="left")
             .select("id", "proteinId", "Gene Symbol", "Protein IDs", *orig_cols)
             .drop("ENSG")
@@ -120,6 +122,9 @@ class BaselineExpression:
         # Drop rows where tissueOntologyTerm is null
         pride_long = pride_long.filter(col("tissueOntologyTerm").isNotNull())
 
+        # Drop rows where PPB is null
+        pride_long = pride_long.filter(col("PPB").isNotNull())
+
         pride_long = (pride_long
             .withColumnRenamed("id", "targetId")
             .withColumnRenamed("PPB", "expression")
@@ -130,6 +135,8 @@ class BaselineExpression:
             .withColumn("datatypeId", lit("mass-spectrometry proteomics"))  # Add datatypeId column with constant value "mass-spectrometry proteomics"
             .withColumn("datasourceId", lit("PRIDE"))  # Add datasourceId column with constant value "PRIDE"
         )
+
+        pride_long.show()
         # Bind the pride long dataframe to the existing self.df DataFrame
         if hasattr(self, 'df'):
             self.df = self.df.unionByName(pride_long, allowMissingColumns=True)
