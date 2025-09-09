@@ -60,7 +60,7 @@ class AggregateExpression:
             .option("inferSchema", True)
             .option("sep", "\t")
             .csv(biosample_mapping_reference_path)
-        )
+        ).drop('Count')  # drop any extraneous columns
         if key_col not in mapping_df.columns:
             raise ValueError(f"Mapping file must contain '{key_col}'")
 
@@ -106,9 +106,9 @@ class AggregateExpression:
             )
             return f.array_join(words2, " ")
 
-        def clean_tokens(colname):
+        def clean_tokens(colname, delim=";"):
             s = f.coalesce(f.col(colname).cast("string"), f.lit(""))
-            arr = f.split(s, ",")
+            arr = f.split(s, delim)
             arr = f.transform(arr, lambda x: f.trim(x))
             return f.filter(arr, lambda x: x.isNotNull() & (x != "") & (f.lower(x) != f.lit("null")))
 
@@ -135,12 +135,12 @@ class AggregateExpression:
         )
 
         # ---- normalize df[source_col], join, and replace ----
-        df_norm = df.withColumn("norm", norm(source_col))
+        df_norm = df.withColumn("norm", norm(source_col)).drop(id_col)
         joined = df_norm.join(mapping_norm, on="norm", how="left")
 
         df_updated = (
             joined
-            .withColumn(id_col, f.coalesce(f.col(key_col), f.col(id_col)))
+            .withColumn(id_col, f.col(key_col))
             .withColumn(source_col, f.coalesce(f.col("pretty"), f.col(source_col)))
             .drop("norm", key_col, "pretty")
         )
@@ -148,6 +148,26 @@ class AggregateExpression:
         # store and return
         self.df = df_updated
 
+    def drop_null_biosample_ids(self):
+        """
+        Drop rows where any of the specified celltypeBiosampleId AND tissueBiosampleId are null
+        """
+        # First check if the columns exist and add them if they don't, populating with nulls
+        if "tissueBiosampleId" not in self.df.columns:
+            self.df = self.df.withColumn("tissueBiosampleId", f.lit(None).cast("string"))
+            self.df = self.df.withColumn("tissueBiosampleFromSource", f.lit(None).cast("string"))
+        if "celltypeBiosampleId" not in self.df.columns:
+            self.df = self.df.withColumn("celltypeBiosampleId", f.lit(None).cast("string"))
+            self.df = self.df.withColumn("celltypeBiosampleFromSource", f.lit(None).cast("string"))
+
+        # Find the rows where both tissue and celltype biosample ID are null
+        nulls = self.df.filter(
+            (self.df["tissueBiosampleId"].isNull()) & (self.df["celltypeBiosampleId"].isNull())
+        )
+        print("The following biosample from source have null biosample IDs:")
+        print(nulls.select("tissueBiosampleFromSource", "celltypeBiosampleFromSource").distinct().show(100,truncate=False))
+        # Then drop those rows from the dataframe
+        self.df = self.df.filter(~((self.df["tissueBiosampleId"].isNull()) & (self.df["celltypeBiosampleId"].isNull())))
 
     def within_donor_mean(self,
                         tissue_col: str = "tissueBiosampleFromSource",
@@ -245,25 +265,25 @@ class AggregateExpression:
             f.col("q_vals")[3].alias("q3"),
             f.col("q_vals")[4].alias("max")
         )
-        return quartile_df
+        self.df = quartile_df
 
-    def calculate_expression_distribution(self, local=False):
-        """
-        This function groups the dataframe by datasourceId, targetId and datatypeId
-        then calculates the distribution of expression values for each gene e.g.
-        if a gene is expressed (> 0) in 7 out of a possible 10 samples, its distribution would be 0.7.
-        It works on the maximum expression value.
-        """
-        # Group by the relevant columns and count the number of non-zero expressions
-        exp_distribution_df = self.df.groupBy(
-            "targetId",
-            "datasourceId",
-            "datatypeId",
-            "unit"
-        ).agg(
-            (f.sum(f.when(f.col("max") > 0, 1).otherwise(0)) / f.count("*")).alias("distribution")
-        )
-        return exp_distribution_df
+    # def calculate_expression_distribution(self, local=False):
+    #     """
+    #     This function groups the dataframe by datasourceId, targetId and datatypeId
+    #     then calculates the distribution of expression values for each gene e.g.
+    #     if a gene is expressed (> 0) in 7 out of a possible 10 samples, its distribution would be 0.7.
+    #     It works on the maximum expression value.
+    #     """
+    #     # Group by the relevant columns and count the number of non-zero expressions
+    #     exp_distribution_df = self.df.groupBy(
+    #         "targetId",
+    #         "datasourceId",
+    #         "datatypeId",
+    #         "unit"
+    #     ).agg(
+    #         (f.sum(f.when(f.col("max") > 0, 1).otherwise(0)) / f.count("*")).alias("distribution")
+    #     )
+    #     return exp_distribution_df
 
     def write_data(self, output_directory, json = False):
         """
@@ -306,8 +326,16 @@ parser.add_argument(
     help="Save output as JSON instead of parquet.",
 )
 parser.add_argument(
-    "--combined-annots-reference", action='store_true', default=False,
-    help="A dataframe containing which annotations should be combined ",
+    "--override-before", action='store_true', default=False,
+    help="Flag indicating to override before aggregating expression data rather than after.",
+)
+parser.add_argument(
+    "--override-tissue-reference", type=str, default=None,
+    help="A path to a TSV containing which annotations should be overridden ",
+)
+parser.add_argument(
+    "--override-celltype-reference", type=str, default=None,
+    help="A path to a TSV containing which annotations should be overridden ",
 )
 parser.add_argument(
     "--output", required=True, type=str, 
@@ -320,6 +348,9 @@ if __name__ == "__main__":
     local = args.local
     json = args.json
     output_dir = args.output
+    override_before = args.override_before
+    override_tissue_reference = args.override_tissue_reference
+    override_celltype_reference = args.override_celltype_reference
 
     eq = AggregateExpression(local=local)
     eq.spark = SparkSession.builder \
@@ -331,10 +362,56 @@ if __name__ == "__main__":
         .config("spark.memory.offHeap.size", "16g") \
         .getOrCreate()
     eq.load_data(directory, local=local)
-    print("Calculating expression distribution...")
-    distribution_df = eq.calculate_expression_distribution()
+
+    # print("Calculating expression distribution...")
+    # distribution_df = eq.calculate_expression_distribution()
+
+    if override_before:
+        if override_tissue_reference is not None:
+            print("Overriding tissue biosample IDs before aggregation...")
+            eq.override_biosample_id(
+                biosample_mapping_reference_path=override_tissue_reference,
+                key_col="BiosampleId",
+                source_col="tissueBiosampleFromSource",
+                id_col="tissueBiosampleId"
+            )
+        if override_celltype_reference is not None:
+            print("Overriding celltype biosample IDs before aggregation...")
+            eq.override_biosample_id(
+                biosample_mapping_reference_path=override_celltype_reference,
+                key_col="BiosampleId",
+                source_col="celltypeBiosampleFromSource",
+                id_col="celltypeBiosampleId"
+            )
+        print("Dropping rows where both tissue AND celltype biosample ID are null...")
+        eq.drop_null_biosample_ids()
+
+        print("Calculating within-donor mean expression...")
+        eq.within_donor_mean()
+
     print("Calculating quartiles...")
     quartile_df = eq.calculate_quartiles(local=local)
+
+    if not override_before:
+        if override_tissue_reference is not None:
+            print("Overriding tissue biosample IDs after aggregation...")
+            eq.override_biosample_id(
+                biosample_mapping_reference_path=override_tissue_reference,
+                key_col="BiosampleId",
+                source_col="tissueBiosampleFromSource",
+                id_col="tissueBiosampleId"
+            )
+        if override_celltype_reference is not None:
+            print("Overriding celltype biosample IDs after aggregation...")
+            eq.override_biosample_id(
+                biosample_mapping_reference_path=override_celltype_reference,
+                key_col="BiosampleId",
+                source_col="celltypeBiosampleFromSource",
+                id_col="celltypeBiosampleId"
+            )
+        print("Dropping rows where both tissue AND celltype biosample ID are null...")
+        eq.drop_null_biosample_ids()
+
     print("Packing data for output...")
     file_format = "json" if json else "parquet"
     # Pull out the output directory structure from the input directory
