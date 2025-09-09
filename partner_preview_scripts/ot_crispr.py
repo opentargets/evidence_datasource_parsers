@@ -14,6 +14,7 @@ import argparse
 import logging
 from functools import reduce
 from typing import Optional
+import operator
 
 from pyspark.sql import Column, DataFrame, Row, SparkSession
 from pyspark.sql import functions as f
@@ -60,7 +61,7 @@ class OTAR_CRISPR_study_parser:
         Returns:
             Column: A column with split values.
         """
-        return f.split(f.regexp_replace(col, r"^\s+", ""), separator)
+        return f.array_distinct(f.split(f.regexp_replace(col, r"^\s+", ""), separator))
 
     def log_study_table(self: OTAR_CRISPR_study_parser) -> None:
         """Report key metrics on study table.
@@ -119,9 +120,7 @@ class OTAR_CRISPR_study_parser:
                 "contrast",
                 "dataFileType",
                 # Splitting and exploding study if both tail of the distribution are used:
-                f.explode_outer(
-                    self.split_column_value(f.col("filterColumn"), ",")
-                ).alias("filterColumn"),
+                self.split_column_value(f.col("filterColumn"), ",").alias("filterColumns"),
                 # Casting threshold to float:
                 f.col("threshold").cast(t.FloatType()).alias("threshold"),
                 "dataFile",
@@ -147,7 +146,7 @@ class OTAR_CRISPR_study_parser:
                 "cellType",
                 "cellLineBackground",
                 "contrast",
-                "filterColumn",
+                "filterColumns",
                 "threshold",
             )
             # Collecting replicates for each study:
@@ -193,31 +192,17 @@ class OTAR_CRISPR_evidence_generator:
         self.logger = logging.getLogger(__name__)
         self.data_path = data_path
 
-    @staticmethod
-    def _get_test_side(filter_column: str) -> Column:
-        """Get the test side based on the filter column.
-
-        Args:
-            filter_column (str): A filter column name.
-
-        Returns:
-            Column: A column with the test side.
-        """
-        return f.when(f.lit(filter_column).contains("pos"), f.lit("upper tail")).when(
-            f.lit(filter_column).contains("neg"), f.lit("lower tail")
-        )
-
     def _read_and_filter_mageck_file(
         self: OTAR_CRISPR_evidence_generator,
         mageck_file: str,
-        filter_column: str,
+        filter_columns: list[str],
         threshold: float,
     ) -> DataFrame:
         """Read and filter MAGeCK files based on the provided threshold applied on the specified column.
 
         Args:
             mageck_file (str): A list of files to be read.
-            filter_column (str): A filter column name.
+            filter_columns (list[str]): A filter column name.
             threshold (float): A threshold to filter the data.
 
         Returns:
@@ -226,13 +211,63 @@ class OTAR_CRISPR_evidence_generator:
         Raises:
             ValueError: If the label separator is not recognized.
         """
-        side = filter_column.split("|")[0]
+        # Reading input data and immediately fix the headers:
+        raw_data = self.adjust_column_names(
+            self.spark.read.csv(mageck_file, header=True, sep="\t")
+        )
 
-        # Some MAGEcK files have different column label separators eg. "pos|lfc" vs "pos.lfc" We have to sort this out:
-        label_separator = "|"
-        raw_data = self.spark.read.csv(mageck_file, header=True, sep="\t")
+        # Converting filter columns to float:
+        return (
+            raw_data
+            # Get values for all filter columns:
+            .withColumn(
+                "filter_value_map",
+                f.create_map(
+                    *sum([[f.lit(col), f.col(col).cast("double")] for col in filter_columns], [])
+                )
+            )
+            # Get the minimal value:
+            .withColumn(
+                "resourceScore", f.array_min(f.array([f.col(col).cast("double") for col in filter_columns]))
+            )
+            # Dropping non-significant hits:
+            .filter(f.col('resourceScore') < threshold)
+            # Finish parsing:
+            .withColumn(
+                "sourceLabel", f.expr(f"filter(map_keys(filter_value_map), x -> filter_value_map[x] = resourceScore)[0]")
+            )
+            .select(
+                # extract target name:
+                f.split(f.col("id"), "_")[0].alias("targetFromSourceId"), 
+                
+                # Extract log2Fold change value based on where the hit is coming from:
+                f.when(f.col("sourceLabel").contains("pos"), f.col("pos|lfc"))
+                .when(f.col("sourceLabel").contains("neg"), f.col("neg|lfc"))
+                .otherwise(None).alias("log2FoldChangeValue"),
+                
+                # Extract which tail of distribution the hit is coming from:
+                f.when(f.col("sourceLabel").contains("pos"), f.lit("upper tail")).when(
+                    f.col("sourceLabel").contains("neg"), f.lit("lower tail")
+                ).alias('statisticalTestTail'),
+                
+                "resourceScore",
+            )
+        )
 
+    @staticmethod
+    def adjust_column_names(raw_data: DataFrame) -> DataFrame:
+        """Adjust column names, as not all MageCK output has the same names.
+        
+        Some files have "pos|p-value" others might have "pos.p-value". This method normalises to the first.
+        
+        Args:
+            raw_data (DataFrame): raw input, as read from the original files.
+
+        Returns:
+            DataFrame: where all dots from the columns are replaced with "|"
+        """
         # Checking label separator in the third column, which expected to be: neg|p-value or neg.p-value:
+        label_separator = "|"
         if "|" in raw_data.columns[3]:
             label_separator = "|"
         elif "." in raw_data.columns[3]:
@@ -241,7 +276,7 @@ class OTAR_CRISPR_evidence_generator:
             raise ValueError(f"Unrecognized label separator in {raw_data.columns[2]}")
 
         # Updating column names according to the identified label separator:
-        raw_data = reduce(
+        return reduce(
             # Rename all columns:
             lambda df, col: df.withColumnRenamed(
                 col, col.replace(label_separator, "|")
@@ -250,18 +285,11 @@ class OTAR_CRISPR_evidence_generator:
             raw_data,
         )
 
-        return raw_data.select(
-            f.split(f.col("id"), "_")[0].alias("targetFromSourceId"),
-            f.col(f"{side}|lfc").cast(t.FloatType()).alias("log2FoldChangeValue"),
-            f.col(filter_column).cast(t.FloatType()).alias("resourceScore"),
-            self._get_test_side(filter_column).alias("statisticalTestTail"),
-        ).filter(f.col("resourceScore") < threshold)
-
     def _process_replicate(
         self: OTAR_CRISPR_evidence_generator,
         data_file: str,
         control_dataset: Optional[str],
-        filter_column: str,
+        filter_columns: list[str],
         threshold: float,
     ) -> DataFrame:
         """Process a single replicate: finding hits, exclude controls if provided.
@@ -269,20 +297,20 @@ class OTAR_CRISPR_evidence_generator:
         Args:
             data_file (str): A single file in mageck format.
             control_dataset (Optional[str]): A control dataset in mageck format.
-            filter_column (str): A filter column name.
+            filter_columns (list[str]): A filter column name.
             threshold (float): A threshold to filter the data.
 
         Returns:
             DataFrame: A DataFrame with processed data.
         """
         # Extract hist from the data files:
-        hits = self._read_and_filter_mageck_file(data_file, filter_column, threshold)
+        hits = self._read_and_filter_mageck_file(data_file, filter_columns, threshold)
         # If control dataset is provided, filter out the hits:
         if control_dataset:
             hits = hits.join(
                 (
                     self._read_and_filter_mageck_file(
-                        control_dataset, filter_column, threshold
+                        control_dataset, filter_columns, threshold
                     )
                     .select("targetFromSourceId")
                     .distinct()
@@ -310,7 +338,7 @@ class OTAR_CRISPR_evidence_generator:
                 control_dataset=f"{self.data_path}/{row.projectId}/{replicate.ControlDataset}"
                 if replicate.ControlDataset
                 else None,
-                filter_column=row.filterColumn,
+                filter_columns=row.filterColumns,
                 threshold=row.threshold,
             )
             for replicate in row.replicates
