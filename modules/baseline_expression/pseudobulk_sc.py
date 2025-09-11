@@ -80,7 +80,7 @@ class PseudobulkExpression:
         """
         print("Normalising data using logCP10K")
         # Check that the .X layer is truly counts by checking if the sum of one column is an integer
-        if not np.sum(self.adata.X) % 1 == 0:
+        if not np.sum(self.adata.X[:, 0]) % 1 == 0:
             raise ValueError("The .X layer is not truly counts")
         sc.pp.normalize_total(self.adata, target_sum=1e4)
         sc.pp.log1p(self.adata)
