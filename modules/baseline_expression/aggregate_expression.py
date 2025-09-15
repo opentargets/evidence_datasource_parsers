@@ -80,6 +80,7 @@ class AggregateExpression:
             - split camelCase and 'TReg' → 'T Reg'
             - keep acronyms/digit mixes (CD4, HLA, NK) and single-letter caps as-is
             - lowercase other words
+            - remove , and .
             """
             s = f.coalesce(f.col(col).cast("string"), f.lit(""))
 
@@ -92,6 +93,8 @@ class AggregateExpression:
             # number/letter boundaries (won't split inside 'CD4')
             s = f.regexp_replace(s, r"(?<=[a-z])(?=\d)", " ")
             s = f.regexp_replace(s, r"(?<=\d)(?=[a-z])", " ")
+            # remove , and .
+            s = f.regexp_replace(s, r"[.,]", "")
             # normalize spaces
             s = f.regexp_replace(s, r"\s+", " ")
             s = f.trim(s)
@@ -196,16 +199,16 @@ class AggregateExpression:
                 df.groupBy(group_cols)
                 .agg(
                     f.avg(f.col(expr_col)).alias(expr_col),
-                    f.collect_list(f.col(tissue_col)).alias("_tissues"),
-                    f.collect_list(f.col(celltype_col)).alias("_celltypes"),
+                    f.collect_set(f.col(tissue_col)).alias("_tissues"),
+                    f.collect_set(f.col(celltype_col)).alias("_celltypes"),
                 )
             )
         else:
             # If nothing to group by, aggregate globally
             agg_df = df.agg(
                 f.avg(f.col(expr_col)).alias(expr_col),
-                f.collect_list(f.col(tissue_col)).alias("_tissues"),
-                f.collect_list(f.col(celltype_col)).alias("_celltypes"),
+                f.collect_set(f.col(tissue_col)).alias("_tissues"),
+                f.collect_set(f.col(celltype_col)).alias("_celltypes"),
             )
 
         # Helper: trim -> drop null/empty -> sort -> join
@@ -267,23 +270,23 @@ class AggregateExpression:
         )
         self.df = quartile_df
 
-    # def calculate_expression_distribution(self, local=False):
-    #     """
-    #     This function groups the dataframe by datasourceId, targetId and datatypeId
-    #     then calculates the distribution of expression values for each gene e.g.
-    #     if a gene is expressed (> 0) in 7 out of a possible 10 samples, its distribution would be 0.7.
-    #     It works on the maximum expression value.
-    #     """
-    #     # Group by the relevant columns and count the number of non-zero expressions
-    #     exp_distribution_df = self.df.groupBy(
-    #         "targetId",
-    #         "datasourceId",
-    #         "datatypeId",
-    #         "unit"
-    #     ).agg(
-    #         (f.sum(f.when(f.col("max") > 0, 1).otherwise(0)) / f.count("*")).alias("distribution")
-    #     )
-    #     return exp_distribution_df
+    def calculate_expression_distribution(self, local=False):
+        """
+        This function groups the dataframe by datasourceId, targetId and datatypeId
+        then calculates the distribution of expression values for each gene e.g.
+        if a gene is expressed (> 0) in 7 out of a possible 10 samples, its distribution would be 0.7.
+        It works on the median expression value.
+        """
+        # Group by the relevant columns and count the number of non-zero expressions
+        exp_distribution_df = self.df.groupBy(
+            "targetId",
+            "datasourceId",
+            "datatypeId",
+            "unit"
+        ).agg(
+            (f.sum(f.when(f.col("median") > 0, 1).otherwise(0)) / f.count("*")).alias("distribution")
+        )
+        return exp_distribution_df
 
     def write_data(self, output_directory, json = False):
         """
@@ -363,9 +366,6 @@ if __name__ == "__main__":
         .getOrCreate()
     eq.load_data(directory, local=local)
 
-    # print("Calculating expression distribution...")
-    # distribution_df = eq.calculate_expression_distribution()
-
     if override_before:
         if override_tissue_reference is not None:
             print("Overriding tissue biosample IDs before aggregation...")
@@ -411,6 +411,9 @@ if __name__ == "__main__":
             )
         print("Dropping rows where both tissue AND celltype biosample ID are null...")
         eq.drop_null_biosample_ids()
+    
+    print("Calculating expression distribution...")
+    distribution_df = eq.calculate_expression_distribution()
 
     print("Packing data for output...")
     file_format = "json" if json else "parquet"
