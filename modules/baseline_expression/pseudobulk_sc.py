@@ -228,11 +228,13 @@ class PseudobulkExpression:
             self.normalise_anndata()
 
         # Run pseudobulking for tissue, celltype, and both
-        aggregation_configs = [
-            {'tissue_agg_colname': args.tissue_agg_colname, 'celltype_agg_colname': None},
-            {'tissue_agg_colname': None, 'celltype_agg_colname': args.celltype_agg_colname},
-            {'tissue_agg_colname': args.tissue_agg_colname, 'celltype_agg_colname': args.celltype_agg_colname}
-        ]
+        aggregation_configs = []
+        if args.tissue_agg_colname:
+            aggregation_configs.append({'tissue_agg_colname': args.tissue_agg_colname})
+        if args.celltype_agg_colname:
+            aggregation_configs.append({'celltype_agg_colname': args.celltype_agg_colname})
+        if args.tissue_agg_colname and args.celltype_agg_colname:
+            aggregation_configs.append({'tissue_agg_colname': args.tissue_agg_colname, 'celltype_agg_colname': args.celltype_agg_colname})
         
         for config in aggregation_configs:
             self.pseudobulk_data(
@@ -323,18 +325,3 @@ if __name__ == "__main__":
         json           = args.json
     ).main(args, args.aggregation_method)
 
-# For example usage, uncomment the following lines:
-# pe = PseudobulkExpression(
-#     '/home/alegbe/data/tabula_sapiens-small_intestine-CxG.h5ad',
-#     datasource_id = 'tabula_sapiens',
-#     datatype_id   = 'scrna-seq'
-# )
-# pe.read_h5ad()
-# pe.filter_anndata(min_cells=5, min_genes=0, technology='10X')
-# pe.normalise_anndata()
-# pe.pseudobulk_data(
-#     donor_colname='donor_id',
-#     min_cells=5,
-#     tissue_agg_colname='tissue_ontology_term_id',
-#     agg_method='mean'
-# )
