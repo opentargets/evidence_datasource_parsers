@@ -243,7 +243,7 @@ class OTAR_CRISPR_evidence_generator:
                 # Extract log2Fold change value based on where the hit is coming from:
                 f.when(f.col("sourceLabel").contains("pos"), f.col("pos|lfc"))
                 .when(f.col("sourceLabel").contains("neg"), f.col("neg|lfc"))
-                .otherwise(None).alias("log2FoldChangeValue"),
+                .otherwise(None).cast(t.FloatType()).alias("log2FoldChangeValue"),
                 
                 # Extract which tail of distribution the hit is coming from:
                 f.when(f.col("sourceLabel").contains("pos"), f.lit("upper tail")).when(
