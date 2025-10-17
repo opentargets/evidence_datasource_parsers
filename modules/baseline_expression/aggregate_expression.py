@@ -316,14 +316,14 @@ class AggregateExpression:
         )
         return exp_distribution_df
 
-    def load_adatiss_data(self, adatiss_path, biosample_type="tissue"):
+    def load_cellex_data(self, cellex_path, biosample_type="tissue"):
         """
-        Load adatiss biosample scores and convert from wide to long format.
+        Load cellex biosample scores and convert from wide to long format.
         
         Parameters
         ----------
-        adatiss_path : str
-            Path to the adatiss TSV file
+        cellex_path : str
+            Path to the cellex CSV.gz file
         biosample_type : str
             Either "tissue" or "celltype" to determine which biosample column to use
             
@@ -332,18 +332,18 @@ class AggregateExpression:
         pyspark.sql.DataFrame
             Long format DataFrame with columns: targetId, biosampleFromSource, specificity_score
         """
-        # Read the adatiss data
-        adatiss_df = (
+        # Read the cellex data (CSV.gz format)
+        cellex_df = (
             self.spark.read
             .option("header", True)
             .option("inferSchema", True)
-            .option("sep", "\t")
-            .csv(adatiss_path)
+            .option("sep", ",")
+            .csv(cellex_path)
         )
         
         # Get the first column (gene IDs) and all other columns (biosample names)
-        gene_col = adatiss_df.columns[0]  # First column is gene ID
-        biosample_cols = adatiss_df.columns[1:]  # All other columns are biosample names
+        gene_col = cellex_df.columns[0]  # First column is gene ID
+        biosample_cols = cellex_df.columns[1:]  # All other columns are biosample names
         
         # Create array of structs for each biosample
         biosample_structs = f.array(*[
@@ -353,8 +353,8 @@ class AggregateExpression:
         ]).alias("biosample_scores")
         
         # Convert to long format
-        adatiss_long = (
-            adatiss_df
+        cellex_long = (
+            cellex_df
             .select(f.col(gene_col).alias("targetId"), 
                    f.explode(biosample_structs).alias("x"))
             .select(
@@ -365,21 +365,21 @@ class AggregateExpression:
             .filter(f.col("specificity_score").isNotNull())  # Remove null scores
         )
         
-        return adatiss_long
+        return cellex_long
 
-    def add_expression_specificity(self, adatiss_path, biosample_type="tissue"):
+    def add_expression_specificity(self, cellex_path, biosample_type="tissue"):
         """
         Add expression specificity scores to the aggregated expression data.
         
         Parameters
         ----------
-        adatiss_path : str
-            Path to the adatiss TSV file
+        cellex_path : str
+            Path to the cellex CSV.gz file
         biosample_type : str
             Either "tissue" or "celltype" to determine which biosample column to join on
         """
-        # Load adatiss data
-        adatiss_df = self.load_adatiss_data(adatiss_path, biosample_type)
+        # Load cellex data
+        cellex_df = self.load_cellex_data(cellex_path, biosample_type)
         
         # Determine which biosample column to join on
         if biosample_type == "tissue":
@@ -390,12 +390,12 @@ class AggregateExpression:
             raise ValueError("biosample_type must be either 'tissue' or 'celltype'")
 
         # rename the biosample column to the biosample column in the main dataframe
-        adatiss_df = adatiss_df.withColumnRenamed("biosampleFromSource", biosample_col)
+        cellex_df = cellex_df.withColumnRenamed("biosampleFromSource", biosample_col)
         
         # Join with the main dataframe
         self.df = (
             self.df
-            .join(adatiss_df, 
+            .join(cellex_df, 
                   on=["targetId", biosample_col], 
                   how="left")
         )
@@ -457,12 +457,12 @@ parser.add_argument(
     help="Output directory"
 )
 parser.add_argument(
-    "--tissue-adatiss", type=str, default=None,
-    help="Path to tissue-specific adatiss biosample scores file (TSV format)"
+    "--tissue-cellex", type=str, default=None,
+    help="Path to tissue-specific cellex biosample scores file (CSV.gz format)"
 )
 parser.add_argument(
-    "--celltype-adatiss", type=str, default=None,
-    help="Path to celltype-specific adatiss biosample scores file (TSV format)"
+    "--celltype-cellex", type=str, default=None,
+    help="Path to celltype-specific cellex biosample scores file (CSV.gz format)"
 )
 
 if __name__ == "__main__":
@@ -474,14 +474,14 @@ if __name__ == "__main__":
     override_before = args.override_before
     override_tissue_reference = args.override_tissue_reference
     override_celltype_reference = args.override_celltype_reference
-    tissue_adatiss = args.tissue_adatiss
-    celltype_adatiss = args.celltype_adatiss
+    tissue_cellex = args.tissue_cellex
+    celltype_cellex = args.celltype_cellex
 
-    # Validate that only one adatiss file is provided
-    if tissue_adatiss and celltype_adatiss:
-        raise ValueError("Cannot specify both --tissue-adatiss and --celltype-adatiss. Choose one.")
-    if not tissue_adatiss and not celltype_adatiss:
-        print("No adatiss file provided. Skipping expression specificity calculation.")
+    # Validate that only one cellex file is provided
+    if tissue_cellex and celltype_cellex:
+        raise ValueError("Cannot specify both --tissue-cellex and --celltype-cellex. Choose one.")
+    if not tissue_cellex and not celltype_cellex:
+        print("No cellex file provided. Skipping expression specificity calculation.")
 
     eq = AggregateExpression(local=local)
     eq.spark = SparkSession.builder \
@@ -517,8 +517,8 @@ if __name__ == "__main__":
         print("Calculating within-donor mean expression...")
         eq.within_donor_mean()
 
-    print("Applying QC threshold (set expression < 0.5 to 0)...")
-    eq.apply_qc_threshold(expr_col="expression", threshold=0.5)
+    # print("Applying QC threshold (set expression < 0.5 to 0)...")
+    # eq.apply_qc_threshold(expr_col="expression", threshold=0.5)
 
     print("Calculating quartiles...")
     quartile_df = eq.calculate_quartiles(local=local)
@@ -529,13 +529,13 @@ if __name__ == "__main__":
     # Add the distribution score to the main dataframe
     eq.df = eq.df.join(distribution_df, on=["targetId", "datasourceId", "datatypeId", "unit"], how="left")
 
-    # Add expression specificity scores if adatiss file is provided
-    if tissue_adatiss:
+    # Add expression specificity scores if cellex file is provided
+    if tissue_cellex:
         print("Adding tissue-specific expression specificity scores...")
-        eq.add_expression_specificity(tissue_adatiss, biosample_type="tissue")
-    elif celltype_adatiss:
+        eq.add_expression_specificity(tissue_cellex, biosample_type="tissue")
+    elif celltype_cellex:
         print("Adding celltype-specific expression specificity scores...")
-        eq.add_expression_specificity(celltype_adatiss, biosample_type="celltype")
+        eq.add_expression_specificity(celltype_cellex, biosample_type="celltype")
 
     if not override_before:
         if override_tissue_reference is not None:
