@@ -230,11 +230,14 @@ class PseudobulkExpression:
         # Run pseudobulking for tissue, celltype, and both
         aggregation_configs = []
         if args.tissue_agg_colname:
-            aggregation_configs.append({'tissue_agg_colname': args.tissue_agg_colname})
+            aggregation_configs.append({'tissue_agg_colname': args.tissue_agg_colname,
+                                        'celltype_agg_colname': None})
         if args.celltype_agg_colname:
-            aggregation_configs.append({'celltype_agg_colname': args.celltype_agg_colname})
+            aggregation_configs.append({'celltype_agg_colname': args.celltype_agg_colname,
+                                        'tissue_agg_colname': None})
         if args.tissue_agg_colname and args.celltype_agg_colname:
-            aggregation_configs.append({'tissue_agg_colname': args.tissue_agg_colname, 'celltype_agg_colname': args.celltype_agg_colname})
+            aggregation_configs.append({'tissue_agg_colname': args.tissue_agg_colname,
+                                        'celltype_agg_colname': args.celltype_agg_colname})
         
         for config in aggregation_configs:
             self.pseudobulk_data(
@@ -276,7 +279,7 @@ if __name__ == "__main__":
         help="Minimum number of cells per donor to keep in the pseudobulk aggregation."
         )
     p.add_argument(
-        "--aggregation_method", type=str, default='mean', choices=['mean', 'sum'],
+        "--aggregation_method", type=str, default='sum', choices=['mean', 'sum'],
         help="Aggregation method to use: 'mean' or 'sum'"
         )
     p.add_argument(

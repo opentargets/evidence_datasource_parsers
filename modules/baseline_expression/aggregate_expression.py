@@ -270,12 +270,40 @@ class AggregateExpression:
         )
         self.df = quartile_df
 
-    def calculate_expression_distribution(self, local=False):
+    def apply_qc_threshold(self, expr_col: str = "expression", threshold: float = 0.5):
+        """
+        Quality control step: set expression values below `threshold` to 0.
+
+        Parameters
+        ----------
+        expr_col : str
+            Name of the expression column to threshold.
+        threshold : float
+            Values strictly below this threshold will be set to 0.
+        """
+        if expr_col not in self.df.columns:
+            # nothing to do
+            return
+
+        # Use when/otherwise to set values < threshold to 0
+        self.df = self.df.withColumn(expr_col, f.when(f.col(expr_col) < f.lit(threshold), f.lit(0)).otherwise(f.col(expr_col)))
+
+    def calculate_expression_distribution(self, local=False, threshold: float = 0.5):
         """
         This function groups the dataframe by datasourceId, targetId and datatypeId
         then calculates the distribution of expression values for each gene e.g.
-        if a gene is expressed (> 0) in 7 out of a possible 10 samples, its distribution would be 0.7.
+        if a gene is expressed (> 0.5) in 7 out of a possible 10 biosamples, its distribution would be 0.7.
         It works on the median expression value.
+        
+        Parameters
+        ----------
+        local : bool
+            Whether to run in local mode
+            
+        Returns
+        -------
+        pyspark.sql.DataFrame
+            DataFrame with columns: targetId, datasourceId, datatypeId, unit, distribution_score
         """
         # Group by the relevant columns and count the number of non-zero expressions
         exp_distribution_df = self.df.groupBy(
@@ -284,9 +312,93 @@ class AggregateExpression:
             "datatypeId",
             "unit"
         ).agg(
-            (f.sum(f.when(f.col("median") > 0, 1).otherwise(0)) / f.count("*")).alias("distribution")
+            (f.sum(f.when(f.col("median") > threshold, 1).otherwise(0)) / f.count("*")).alias("distribution_score")
         )
         return exp_distribution_df
+
+    def load_adatiss_data(self, adatiss_path, biosample_type="tissue"):
+        """
+        Load adatiss biosample scores and convert from wide to long format.
+        
+        Parameters
+        ----------
+        adatiss_path : str
+            Path to the adatiss TSV file
+        biosample_type : str
+            Either "tissue" or "celltype" to determine which biosample column to use
+            
+        Returns
+        -------
+        pyspark.sql.DataFrame
+            Long format DataFrame with columns: targetId, biosampleFromSource, specificity_score
+        """
+        # Read the adatiss data
+        adatiss_df = (
+            self.spark.read
+            .option("header", True)
+            .option("inferSchema", True)
+            .option("sep", "\t")
+            .csv(adatiss_path)
+        )
+        
+        # Get the first column (gene IDs) and all other columns (biosample names)
+        gene_col = adatiss_df.columns[0]  # First column is gene ID
+        biosample_cols = adatiss_df.columns[1:]  # All other columns are biosample names
+        
+        # Create array of structs for each biosample
+        biosample_structs = f.array(*[
+            f.struct(f.lit(col_name).alias("biosampleFromSource"), 
+                    f.col(col_name).alias("specificity_score"))
+            for col_name in biosample_cols
+        ]).alias("biosample_scores")
+        
+        # Convert to long format
+        adatiss_long = (
+            adatiss_df
+            .select(f.col(gene_col).alias("targetId"), 
+                   f.explode(biosample_structs).alias("x"))
+            .select(
+                "targetId",
+                f.col("x.biosampleFromSource").alias("biosampleFromSource"),
+                f.col("x.specificity_score").alias("specificity_score")
+            )
+            .filter(f.col("specificity_score").isNotNull())  # Remove null scores
+        )
+        
+        return adatiss_long
+
+    def add_expression_specificity(self, adatiss_path, biosample_type="tissue"):
+        """
+        Add expression specificity scores to the aggregated expression data.
+        
+        Parameters
+        ----------
+        adatiss_path : str
+            Path to the adatiss TSV file
+        biosample_type : str
+            Either "tissue" or "celltype" to determine which biosample column to join on
+        """
+        # Load adatiss data
+        adatiss_df = self.load_adatiss_data(adatiss_path, biosample_type)
+        
+        # Determine which biosample column to join on
+        if biosample_type == "tissue":
+            biosample_col = "tissueBiosampleFromSource"
+        elif biosample_type == "celltype":
+            biosample_col = "celltypeBiosampleFromSource"
+        else:
+            raise ValueError("biosample_type must be either 'tissue' or 'celltype'")
+
+        # rename the biosample column to the biosample column in the main dataframe
+        adatiss_df = adatiss_df.withColumnRenamed("biosampleFromSource", biosample_col)
+        
+        # Join with the main dataframe
+        self.df = (
+            self.df
+            .join(adatiss_df, 
+                  on=["targetId", biosample_col], 
+                  how="left")
+        )
 
     def write_data(self, output_directory, json = False):
         """
@@ -344,6 +456,14 @@ parser.add_argument(
     "--output", required=True, type=str, 
     help="Output directory"
 )
+parser.add_argument(
+    "--tissue-adatiss", type=str, default=None,
+    help="Path to tissue-specific adatiss biosample scores file (TSV format)"
+)
+parser.add_argument(
+    "--celltype-adatiss", type=str, default=None,
+    help="Path to celltype-specific adatiss biosample scores file (TSV format)"
+)
 
 if __name__ == "__main__":
     args = parser.parse_args()
@@ -354,6 +474,14 @@ if __name__ == "__main__":
     override_before = args.override_before
     override_tissue_reference = args.override_tissue_reference
     override_celltype_reference = args.override_celltype_reference
+    tissue_adatiss = args.tissue_adatiss
+    celltype_adatiss = args.celltype_adatiss
+
+    # Validate that only one adatiss file is provided
+    if tissue_adatiss and celltype_adatiss:
+        raise ValueError("Cannot specify both --tissue-adatiss and --celltype-adatiss. Choose one.")
+    if not tissue_adatiss and not celltype_adatiss:
+        print("No adatiss file provided. Skipping expression specificity calculation.")
 
     eq = AggregateExpression(local=local)
     eq.spark = SparkSession.builder \
@@ -389,8 +517,25 @@ if __name__ == "__main__":
         print("Calculating within-donor mean expression...")
         eq.within_donor_mean()
 
+    print("Applying QC threshold (set expression < 0.5 to 0)...")
+    eq.apply_qc_threshold(expr_col="expression", threshold=0.5)
+
     print("Calculating quartiles...")
     quartile_df = eq.calculate_quartiles(local=local)
+
+        
+    print("Calculating expression distribution...")
+    distribution_df = eq.calculate_expression_distribution()
+    # Add the distribution score to the main dataframe
+    eq.df = eq.df.join(distribution_df, on=["targetId", "datasourceId", "datatypeId", "unit"], how="left")
+
+    # Add expression specificity scores if adatiss file is provided
+    if tissue_adatiss:
+        print("Adding tissue-specific expression specificity scores...")
+        eq.add_expression_specificity(tissue_adatiss, biosample_type="tissue")
+    elif celltype_adatiss:
+        print("Adding celltype-specific expression specificity scores...")
+        eq.add_expression_specificity(celltype_adatiss, biosample_type="celltype")
 
     if not override_before:
         if override_tissue_reference is not None:
@@ -411,9 +556,7 @@ if __name__ == "__main__":
             )
         print("Dropping rows where both tissue AND celltype biosample ID are null...")
         eq.drop_null_biosample_ids()
-    
-    print("Calculating expression distribution...")
-    distribution_df = eq.calculate_expression_distribution()
+
 
     print("Packing data for output...")
     file_format = "json" if json else "parquet"

@@ -46,8 +46,18 @@ class BaselineExpression:
         df = (
             df
             .drop("Description")                      # drop unused col
+            .filter(~col("Name").endswith("_PAR_Y"))  # remove genes ending in _PAR_Y
             .withColumn("Name", split(col("Name"), r"\.").getItem(0))  # strip .2 etc.
         )
+
+        # If matrix mode, keep in wide format and store separately
+        if self.matrix:
+            # Store the wide format matrix
+            data_cols = [c for c in df.columns if c != "Name"]
+            self.df_matrix = df.withColumnRenamed("Name", "targetId")
+            self.sample_ids = data_cols  # Keep track of sample column names
+            # Don't convert to long format, just return
+            return
 
         # Wide→long: explode an array of structs (one per sample column)
         data_cols = [c for c in df.columns if c != "Name"]
@@ -140,22 +150,128 @@ class BaselineExpression:
             .withColumnRenamed("Age", "age")
         ).drop("sampleId")
 
-    def pack_data_for_output(self, local: bool = False, json: bool = False):
+    def pack_data_for_output(self, local: bool = False, json: bool = False, matrix: bool = False):
         """Use spark to write the DataFrame to parquet format."""
         if local:
             output_path = f"file://{self.output_directory_path}/"
         else:
             output_path = f"{self.output_directory_path}/"
-        if json:
-            output_path = f"{output_path}/json/gtex_baseline_expression"
+        
+        if matrix:
+            # Save in matrix form with separate metadata
+            self.save_as_matrix(output_path)
+        elif json:
+            output_path = f"{output_path}/json/gtex_tissue"
             # If JSON output is requested, convert DataFrame to JSON format
             self.df.write.mode("overwrite").json(output_path)
             print(f"Data written to {output_path} in JSON format")
         else:
-            output_path = f"{output_path}/parquet/gtex_baseline_expression"
+            output_path = f"{output_path}/parquet/gtex_tissue"
             # If parquet output is requested, convert DataFrame to parquet format
             self.df.write.mode("overwrite").parquet(output_path)
-        print(f"Data written to {output_path}")
+            print(f"Data written to {output_path}")
+
+    def save_as_matrix(self, output_path: str):
+        """Save expression data in matrix form with separate metadata file."""
+        import pandas as pd
+        
+        # Matrix is already in wide format from read_gtex_data
+        # Just need to prepare metadata from the sample IDs
+        
+        # Read sample metadata
+        meta_sample = (
+            self.spark.read
+            .option("sep", "\t")
+            .option("header", "true")
+            .csv(self.sample_metadata_path)
+            .select(
+                col("SAMPID").alias("OrigSample"),
+                col("SMTSD").alias("tissueBiosampleFromSource"),
+                col("SMUBRID").alias("TissueOntologyID"),
+            )
+        )
+        
+        # Read subject metadata and map sex from 1/2 to M/F
+        meta_subject = (
+            self.spark.read
+            .option("sep", "\t")
+            .option("header", "true")
+            .csv(self.subject_metadata_path)
+            .select(
+                col("SUBJID").alias("donorId"),
+                col("AGE").alias("age"),
+                col("SEX").alias("sex")
+            )
+            .withColumn(
+                "sex",
+                when(col("sex") == "1", lit("M"))
+                .when(col("sex") == "2", lit("F"))
+                .otherwise(lit("U"))
+            )
+        )
+        
+        # Create metadata for each sample column
+        # Split OrigSample into donorId + sampleId
+        from pyspark.sql.functions import lit as spark_lit
+        sample_metadata_rows = []
+        for sample_id in self.sample_ids:
+            parts = sample_id.split("-", 2)
+            donor_id = f"{parts[0]}-{parts[1]}"
+            sample_metadata_rows.append((sample_id, donor_id))
+        
+        # Create dataframe from sample IDs
+        df_samples = self.spark.createDataFrame(sample_metadata_rows, ["OrigSample", "donorId"])
+        
+        # Join with metadata
+        df_metadata = (
+            df_samples
+            .join(meta_sample, on="OrigSample", how="left")
+            .join(meta_subject, on="donorId", how="left")
+            .withColumn(
+                "tissueBiosampleId",
+                when(col("TissueOntologyID").isNotNull(), 
+                     concat_ws("_", split(col("TissueOntologyID"), ":")))
+                .otherwise(lit(None))
+            )
+            .withColumn("unit", lit("TPM"))
+            .withColumn("datasourceId", lit("gtex"))
+            .withColumn("datatypeId", lit("bulk rna-seq"))
+            .select("OrigSample", "donorId", "tissueBiosampleFromSource", "tissueBiosampleId",
+                   "age", "sex", "unit", "datasourceId", "datatypeId")
+        )
+        
+        # Convert to pandas and save as TSV
+        print("Converting matrix to pandas...")
+        matrix_pd = self.df_matrix.toPandas()
+        metadata_pd = df_metadata.toPandas()
+        
+        # Sort by targetId and sample ID for consistent output
+        matrix_pd = matrix_pd.sort_values("targetId")
+        metadata_pd = metadata_pd.sort_values("OrigSample")
+        
+        # Save matrix as compressed TSV
+        matrix_output = f"{output_path}matrix/gtex_expression_matrix.tsv.gz"
+        metadata_output = f"{output_path}matrix/gtex_sample_metadata.tsv.gz"
+        
+        # Create directory if it doesn't exist (for local mode)
+        import os
+        dir_path = f"{output_path}matrix/"
+        if dir_path.startswith("file://"):
+            dir_path = dir_path.replace("file://", "")
+            matrix_output = matrix_output.replace("file://", "")
+            metadata_output = metadata_output.replace("file://", "")
+        
+        os.makedirs(dir_path, exist_ok=True)
+        
+        print(f"Writing matrix to {matrix_output}...")
+        matrix_pd.to_csv(matrix_output, sep="\t", index=False, compression="gzip")
+        
+        print(f"Writing metadata to {metadata_output}...")
+        metadata_pd.to_csv(metadata_output, sep="\t", index=False, compression="gzip")
+        
+        print(f"Matrix data written to {matrix_output}")
+        print(f"Metadata written to {metadata_output}")
+        print(f"Matrix shape: {matrix_pd.shape[0]} genes x {matrix_pd.shape[1]-1} samples")
 
     def main(self):
         self.spark = SparkSession.builder \
@@ -169,7 +285,7 @@ class BaselineExpression:
         print("Reading GTEx data...")
         self.read_gtex_data()
         print("Packing data for output...")
-        self.pack_data_for_output(local=self.local, json=self.json)
+        self.pack_data_for_output(local=self.local, json=self.json, matrix=self.matrix)
         self.spark.stop()
 
     def __init__(
@@ -178,7 +294,8 @@ class BaselineExpression:
         sample_metadata_path: str,
         subject_metadata_path: str, 
         json: bool = False,
-        local: bool = True
+        local: bool = True,
+        matrix: bool = False
     ):
         self.gtex_source_data_path = gtex_source_data_path
         self.output_directory_path = output_directory_path
@@ -186,6 +303,7 @@ class BaselineExpression:
         self.subject_metadata_path = subject_metadata_path
         self.json = json
         self.local = local
+        self.matrix = matrix
         self.spark = None  # Will be initialized in main()
 
 parser = argparse.ArgumentParser(description="Generate unaggregated baseline expression data from GTEx V10.")
@@ -211,6 +329,10 @@ parser.add_argument(
     "--json", action='store_true', default=False,
      help="Save output as JSON instead of parquet.",
 )
+parser.add_argument(
+    "--matrix", action='store_true', default=False,
+     help="Save output as matrix form (genes x samples) with separate metadata TSV files, both gzipped.",
+)
 
 
 if __name__ == "__main__":
@@ -221,5 +343,6 @@ if __name__ == "__main__":
         args.sample_metadata_path,
         args.subject_metadata_path,
         args.json,
-        args.local
+        args.local,
+        args.matrix
     ).main()

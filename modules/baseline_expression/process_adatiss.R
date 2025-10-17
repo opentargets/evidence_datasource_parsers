@@ -71,28 +71,39 @@ cat("Data sources:", unique(data$datasourceId), "\n")
 
 # Transform from long format to wide format matrix (genes x samples)
 # Create sample identifier based on available columns
-if ("celltypeBiosampleFromSource" %in% colnames(data)) {
-  # For cell-type data (DICE, Tabula Sapiens)
+cat("Checking for biosample columns...\n")
+
+if ("celltypeBiosampleFromSource" %in% colnames(data) && 
+    !all(is.na(data$celltypeBiosampleFromSource)) && 
+    any(!is.na(data$celltypeBiosampleFromSource))) {
+  # For cell-type data (DICE, Tabula Sapiens) - only if column exists and has non-null values
+  cat("Using celltypeBiosampleFromSource for sample identification\n")
   data <- data %>%
     mutate(sample_id = paste(donorId, celltypeBiosampleFromSource, sep = "_"))
   biosample_col <- "celltypeBiosampleFromSource"
-} else if ("tissueBiosampleFromSource" %in% colnames(data)) {
-  # For tissue data (GTEX, PRIDE)
+} else if ("tissueBiosampleFromSource" %in% colnames(data) && 
+           !all(is.na(data$tissueBiosampleFromSource)) && 
+           any(!is.na(data$tissueBiosampleFromSource))) {
+  # For tissue data (GTEX, PRIDE) - only if column exists and has non-null values
+  cat("Using tissueBiosampleFromSource for sample identification\n")
   data <- data %>%
     mutate(sample_id = paste(donorId, tissueBiosampleFromSource, sep = "_"))
   biosample_col <- "tissueBiosampleFromSource"
 } else {
-  # Fallback to just donorId
+  # Fallback to just donorId when biosample columns don't exist or are all null
+  cat("Biosample columns not available or all null, using donorId for sample identification\n")
   data <- data %>%
     mutate(sample_id = donorId)
   biosample_col <- "donorId"
 }
 
+cat("Selected biosample column:", biosample_col, "\n")
+
 # Create expression matrix
 cat("Creating expression matrix...\n")
 expr_matrix <- data %>%
   select(targetId, sample_id, expression) %>%
-  pivot_wider(names_from = sample_id, values_from = expression, values_fill = 0) %>%
+  pivot_wider(names_from = sample_id, values_from = expression, values_fill = NA) %>%
   column_to_rownames("targetId") %>%
   as.matrix()
 
