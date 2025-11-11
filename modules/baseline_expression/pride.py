@@ -25,8 +25,8 @@ class BaselineExpression:
         self,
         pride_code: str
     ):
-        pride_source_data_path = f"{self.pride_source_data_dir}/{pride_code}/{pride_code}_OpenTargets_Quant_ppb.txt"
-        pride_sdrf_path = f"{self.pride_source_data_dir}/{pride_code}/{pride_code}_OpenTargets_SDRF.json"
+        pride_source_data_path = f"{self.pride_source_data_dir}/{pride_code}/{pride_code}_OpenTargets_ppb.txt"
+        pride_sdrf_path = f"{self.pride_source_data_dir}/{pride_code}/{pride_code}_OpenTargets_sdrf.json"
         # Read the PRIDE matrix file
         pride_matrix = (
             self.spark.read
