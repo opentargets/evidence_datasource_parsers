@@ -15,6 +15,7 @@ Outputs:
 """
 
 import argparse
+import glob
 import os
 
 from pyspark.sql import SparkSession
@@ -32,12 +33,19 @@ class MergeParquetDatasets:
             for d in self.datasets
         ]
 
+
         if not paths:
             raise ValueError("No dataset paths were constructed. Check --datasets.")
 
         print("Reading parquet inputs:")
         for p in paths:
-            print(f"  • {p}")
+            # Expand wildcards to show actual files/directories being read
+            expanded = glob.glob(p)
+            if expanded:
+                for exp_path in expanded:
+                    print(f"  • {exp_path}")
+            else:
+                print(f"  • {p} (no matches found)")
 
         # Read first dataset
         df = self.spark.read.parquet(paths[0])

@@ -151,30 +151,153 @@ class AggregateExpression:
         # store and return
         self.df = df_updated
 
+    def add_parental_biosample_id(self, 
+                                   biosample_index_path: str,
+                                   potential_parents_path: str,
+                                   id_col: str):
+        """
+        Add a parental biosample ID by finding the first ancestor that matches
+        a list of potential parents. For rows where no parent is found via ancestry,
+        use the potential_parents TSV as an override mapping fallback.
+
+        Parameters
+        ----------
+        biosample_index_path : str
+            Path to the biosample index parquet file containing biosample IDs and their ancestors.
+        potential_parents_path : str
+            Path to TSV file containing potential parent biosample IDs (first column) and 
+            labels/synonyms in other columns. Used for both ancestry lookup and override mapping.
+        id_col : str
+            The column name in self.df containing the biosample ID must be either "tissueBiosampleId" or "celltypeBiosampleId".
+
+        Returns
+        -------
+        pyspark.sql.DataFrame
+            Updated DataFrame with new column `celltype/tissueBiosampleParentId` (also stored back into self.df).
+        """
+        
+        spark = self.spark
+        df = self.df
+        
+        # Check that id_col exists
+        if id_col not in df.columns:
+            raise ValueError(f"`self.df` must contain '{id_col}'")
+        
+        # Determine parent column name and source column name
+        if id_col == "tissueBiosampleId":
+            parent_col_name = "tissueBiosampleParentId"
+            source_col = "tissueBiosampleFromSource"
+        elif id_col == "celltypeBiosampleId":
+            parent_col_name = "celltypeBiosampleParentId"
+            source_col = "celltypeBiosampleFromSource"
+        else:
+            raise ValueError(f"id_col must be 'tissueBiosampleId' or 'celltypeBiosampleId', got '{id_col}'")
+        
+        # Load biosample index (parquet) - expecting columns: biosampleId, ancestors (array)
+        biosample_index = spark.read.parquet(biosample_index_path)
+        
+        # Load potential parents (TSV) - expecting at least one column with biosample IDs
+        potential_parents_df = (
+            spark.read
+            .option("header", True)
+            .option("inferSchema", True)
+            .option("sep", "\t")
+            .csv(potential_parents_path)
+        )
+        
+        # Get the list of potential parents as an ordered array
+        # Assuming first column contains the parent IDs
+        # Order is preserved from the TSV file (top to bottom = highest to lowest priority)
+        parent_col = potential_parents_df.columns[0]
+        potential_parents_list = [row[parent_col] for row in potential_parents_df.select(parent_col).collect()]
+        
+        # Join with biosample index to get ancestors
+        df_with_ancestors = df.join(
+            biosample_index.select(
+                f.col("biosampleId").alias(id_col),
+                f.col("ancestors")
+            ),
+            on=id_col,
+            how="left"
+        )
+        
+        # Build a CASE WHEN expression that checks parents in order
+        # Start with None/null as the default
+        parent_expr = f.lit(None).cast("string")
+        
+        # Iterate through parents in reverse order (so first parent has highest priority)
+        for parent_id in reversed(potential_parents_list):
+            parent_expr = f.when(
+                f.array_contains(f.coalesce(f.col("ancestors"), f.array()), f.lit(parent_id)),
+                f.lit(parent_id)
+            ).otherwise(parent_expr)
+        
+        df_with_parent = df_with_ancestors.withColumn(
+            parent_col_name,
+            parent_expr
+        ).drop("ancestors")
+        
+        # Store temporarily
+        self.df = df_with_parent
+        
+        # Use potential_parents TSV as fallback for null parents via override mapping
+        print(f"  Using override mapping as fallback for null {parent_col_name}...")
+        
+        # Save original dataframe
+        original_df = self.df
+        
+        # Filter to rows with null parent
+        null_parent_df = self.df.filter(f.col(parent_col_name).isNull())
+        
+        if null_parent_df.count() > 0:
+            # Apply override_biosample_id to get parent from mapping
+            # Use the same potential_parents TSV which has BiosampleId + labels/synonyms
+            self.df = null_parent_df
+            self.override_biosample_id(
+                biosample_mapping_reference_path=potential_parents_path,
+                key_col="BiosampleId",
+                source_col=source_col,
+                id_col=parent_col_name  # Write directly to parent column
+            )
+            override_df = self.df
+            
+            # Filter to rows with non-null parent
+            non_null_parent_df = original_df.filter(f.col(parent_col_name).isNotNull())
+            
+            # Union the two dataframes back together
+            self.df = non_null_parent_df.unionByName(override_df)
+        else:
+            print(f"  No null {parent_col_name} found, skipping override fallback.")
+            self.df = original_df
+
     def drop_null_biosample_ids(self):
         """
-        Drop rows where any of the specified celltypeBiosampleId AND tissueBiosampleId are null
+        Drop rows where any of the specified celltypeBiosample AND tissueBiosample are null
         """
         # First check if the columns exist and add them if they don't, populating with nulls
         if "tissueBiosampleId" not in self.df.columns:
             self.df = self.df.withColumn("tissueBiosampleId", f.lit(None).cast("string"))
             self.df = self.df.withColumn("tissueBiosampleFromSource", f.lit(None).cast("string"))
+            self.df = self.df.withColumn("tissueBiosampleParentId", f.lit(None).cast("string"))
         if "celltypeBiosampleId" not in self.df.columns:
             self.df = self.df.withColumn("celltypeBiosampleId", f.lit(None).cast("string"))
             self.df = self.df.withColumn("celltypeBiosampleFromSource", f.lit(None).cast("string"))
+            self.df = self.df.withColumn("celltypeBiosampleParentId", f.lit(None).cast("string"))
 
-        # Find the rows where both tissue and celltype biosample ID are null
+        # Find the rows where both tissue and celltype biosample ID are null or tissue and cell biosample parent ID are null
         nulls = self.df.filter(
-            (self.df["tissueBiosampleId"].isNull()) & (self.df["celltypeBiosampleId"].isNull())
+            ((self.df["tissueBiosampleId"].isNull()) & (self.df["celltypeBiosampleId"].isNull())) |
+            ((self.df["tissueBiosampleParentId"].isNull()) & (self.df["celltypeBiosampleParentId"].isNull()))
         )
         print("The following biosample from source have null biosample IDs:")
         print(nulls.select("tissueBiosampleFromSource", "celltypeBiosampleFromSource").distinct().show(100,truncate=False))
         # Then drop those rows from the dataframe
         self.df = self.df.filter(~((self.df["tissueBiosampleId"].isNull()) & (self.df["celltypeBiosampleId"].isNull())))
+        self.df = self.df.filter(~((self.df["tissueBiosampleParentId"].isNull()) & (self.df["celltypeBiosampleParentId"].isNull())))
 
     def within_donor_mean(self,
-                        tissue_col: str = "tissueBiosampleFromSource",
-                        celltype_col: str = "celltypeBiosampleFromSource",
+                        tissue_col: str = "tissueBiosampleId",
+                        celltype_col: str = "celltypeBiosampleId",
                         expr_col: str = "expression",
                         sep: str = ", "):
         """
@@ -238,12 +361,12 @@ class AggregateExpression:
             "datatypeId",
             "unit"
         ]
-        if 'tissueBiosampleFromSource' in self.df.columns:
-            groupby_cols.append("tissueBiosampleFromSource")
+        if 'tissueBiosampleId' in self.df.columns:
             groupby_cols.append("tissueBiosampleId")
-        if 'celltypeBiosampleFromSource' in self.df.columns:
-            groupby_cols.append("celltypeBiosampleFromSource")
+            groupby_cols.append("tissueBiosampleFromSource")
+        if 'celltypeBiosampleId' in self.df.columns:
             groupby_cols.append("celltypeBiosampleId")
+            groupby_cols.append("celltypeBiosampleFromSource")
         
         # Partition by grouping keys
         quartile_df = self.df.repartition(
@@ -325,12 +448,12 @@ class AggregateExpression:
         cellex_path : str
             Path to the cellex CSV.gz file
         biosample_type : str
-            Either "tissue" or "celltype" to determine which biosample column to use
+            Either "tissue" or "celltype" or "both" to determine which biosample column to use
             
         Returns
         -------
         pyspark.sql.DataFrame
-            Long format DataFrame with columns: targetId, biosampleFromSource, specificity_score
+            Long format DataFrame with columns: targetId, biosampleId, specificity_score
         """
         # Read the cellex data (CSV.gz format)
         cellex_df = (
@@ -341,13 +464,13 @@ class AggregateExpression:
             .csv(cellex_path)
         )
         
-        # Get the first column (gene IDs) and all other columns (biosample names)
+        # Get the first column (gene IDs) and all other columns (biosample IDs)
         gene_col = cellex_df.columns[0]  # First column is gene ID
-        biosample_cols = cellex_df.columns[1:]  # All other columns are biosample names
+        biosample_cols = cellex_df.columns[1:]  # All other columns are biosample IDs
         
         # Create array of structs for each biosample
         biosample_structs = f.array(*[
-            f.struct(f.lit(col_name).alias("biosampleFromSource"), 
+            f.struct(f.lit(col_name).alias("biosampleId"), 
                     f.col(col_name).alias("specificity_score"))
             for col_name in biosample_cols
         ]).alias("biosample_scores")
@@ -359,7 +482,7 @@ class AggregateExpression:
                    f.explode(biosample_structs).alias("x"))
             .select(
                 "targetId",
-                f.col("x.biosampleFromSource").alias("biosampleFromSource"),
+                f.col("x.biosampleId").alias("biosampleId"),
                 f.col("x.specificity_score").alias("specificity_score")
             )
             .filter(f.col("specificity_score").isNotNull())  # Remove null scores
@@ -376,21 +499,28 @@ class AggregateExpression:
         cellex_path : str
             Path to the cellex CSV.gz file
         biosample_type : str
-            Either "tissue" or "celltype" to determine which biosample column to join on
+            One of "tissue", "celltype", or "both" to determine which biosample column to join on
         """
         # Load cellex data
         cellex_df = self.load_cellex_data(cellex_path, biosample_type)
         
         # Determine which biosample column to join on
         if biosample_type == "tissue":
-            biosample_col = "tissueBiosampleFromSource"
+            biosample_col = "tissueBiosampleId"
         elif biosample_type == "celltype":
-            biosample_col = "celltypeBiosampleFromSource"
+            biosample_col = "celltypeBiosampleId"
+        elif biosample_type == "both":
+            biosample_col = "celltypeBiosampleId__tissueBiosampleId"
+            # Create the combined column in the main dataframe
+            self.df = self.df.withColumn(
+                biosample_col,
+                f.concat(f.col("celltypeBiosampleId"), f.lit("__"), f.col("tissueBiosampleId"))
+            )
         else:
-            raise ValueError("biosample_type must be either 'tissue' or 'celltype'")
+            raise ValueError("biosample_type must be  'tissue', 'celltype' or 'both'")
 
         # rename the biosample column to the biosample column in the main dataframe
-        cellex_df = cellex_df.withColumnRenamed("biosampleFromSource", biosample_col)
+        cellex_df = cellex_df.withColumnRenamed("biosampleId", biosample_col)
         
         # Join with the main dataframe
         self.df = (
@@ -420,9 +550,27 @@ class AggregateExpression:
         This function initializes the class.
         """
         if local:
-            self.spark = SparkSession.builder.master("local").appName("spark_etl").config("spark.hadoop.fs.defaultFS", "file:///").getOrCreate()
+            self.spark = SparkSession.builder.master("local").appName("aggregate") \
+                .config("spark.hadoop.fs.defaultFS", "file:///") \
+                .config("spark.jars", "https://storage.googleapis.com/hadoop-lib/gcs/gcs-connector-hadoop3-latest.jar") \
+                .config("spark.executor.memory", "70g") \
+                .config("spark.driver.memory", "50g") \
+                .config("spark.memory.offHeap.enabled",True) \
+                .config("spark.memory.offHeap.size","16g") \
+                .config("spark.driver.maxResultSize", "32g") \
+                .config("spark.sql.pivotMaxValues", "1000000") \
+                .getOrCreate()
         else:
-            self.spark = SparkSession.builder.appName("ProcessExpression").getOrCreate()
+            self.spark = SparkSession.builder \
+                    .appName("aggregate") \
+                    .config("spark.jars", "https://storage.googleapis.com/hadoop-lib/gcs/gcs-connector-hadoop3-latest.jar") \
+                    .config("spark.executor.memory", "70g") \
+                    .config("spark.driver.memory", "50g") \
+                    .config("spark.memory.offHeap.enabled",True) \
+                    .config("spark.memory.offHeap.size","16g") \
+                    .config("spark.driver.maxResultSize", "32g") \
+                    .config("spark.sql.pivotMaxValues", "1000000") \
+                    .getOrCreate()
         
         # Disable whole-stage code generation
         self.spark.conf.set("spark.sql.codegen.wholeStage", "false")
@@ -441,16 +589,16 @@ parser.add_argument(
     help="Save output as JSON instead of parquet.",
 )
 parser.add_argument(
-    "--override-before", action='store_true', default=False,
-    help="Flag indicating to override before aggregating expression data rather than after.",
+    "--biosample-index", type=str, default=None,
+    help="Path to parquet file containing biosample IDs and their ancestors",
 )
 parser.add_argument(
-    "--override-tissue-reference", type=str, default=None,
-    help="A path to a TSV containing which annotations should be overridden ",
+    "--tissue-parents", type=str, default=None,
+    help="Path to TSV containing potential tissue parent biosample IDs",
 )
 parser.add_argument(
-    "--override-celltype-reference", type=str, default=None,
-    help="A path to a TSV containing which annotations should be overridden ",
+    "--celltype-parents", type=str, default=None,
+    help="Path to TSV containing potential celltype parent biosample IDs",
 )
 parser.add_argument(
     "--output", required=True, type=str, 
@@ -464,6 +612,10 @@ parser.add_argument(
     "--celltype-cellex", type=str, default=None,
     help="Path to celltype-specific cellex biosample scores file (CSV.gz format)"
 )
+parser.add_argument(
+    "--both-cellex", type=str, default=None,
+    help="Path to cellex biosample scores file (CSV.gz format) containing both tissue and celltype columns with biosample IDs separated by '__'"
+)
 
 if __name__ == "__main__":
     args = parser.parse_args()
@@ -471,51 +623,34 @@ if __name__ == "__main__":
     local = args.local
     json = args.json
     output_dir = args.output
-    override_before = args.override_before
-    override_tissue_reference = args.override_tissue_reference
-    override_celltype_reference = args.override_celltype_reference
+    biosample_index = args.biosample_index
+    tissue_parents = args.tissue_parents
+    celltype_parents = args.celltype_parents
     tissue_cellex = args.tissue_cellex
     celltype_cellex = args.celltype_cellex
+    both_cellex = args.both_cellex
 
     # Validate that only one cellex file is provided
-    if tissue_cellex and celltype_cellex:
-        raise ValueError("Cannot specify both --tissue-cellex and --celltype-cellex. Choose one.")
-    if not tissue_cellex and not celltype_cellex:
+    cellex_count = sum([tissue_cellex is not None, celltype_cellex is not None, both_cellex is not None])
+    if cellex_count > 1:
+        raise ValueError("Must only specify one of --tissue-cellex, --celltype-cellex or --both-cellex. Choose one.")
+    if cellex_count == 0:
         print("No cellex file provided. Skipping expression specificity calculation.")
+    
+    # Validate biosample index is provided if parents are specified
+    if (tissue_parents or celltype_parents) and not biosample_index:
+        raise ValueError("--biosample-index must be provided when using --tissue-parents or --celltype-parents")
 
     eq = AggregateExpression(local=local)
     eq.spark = SparkSession.builder \
         .appName("AggregateExpression") \
         .config("spark.jars", "https://storage.googleapis.com/hadoop-lib/gcs/gcs-connector-hadoop3-latest.jar") \
         .config("spark.executor.memory", "70g") \
-        .config("spark.driver.memory", "50g") \
+        .config("spark.driver.memory", "150g") \
         .config("spark.memory.offHeap.enabled", True) \
         .config("spark.memory.offHeap.size", "16g") \
         .getOrCreate()
     eq.load_data(directory, local=local)
-
-    if override_before:
-        if override_tissue_reference is not None:
-            print("Overriding tissue biosample IDs before aggregation...")
-            eq.override_biosample_id(
-                biosample_mapping_reference_path=override_tissue_reference,
-                key_col="BiosampleId",
-                source_col="tissueBiosampleFromSource",
-                id_col="tissueBiosampleId"
-            )
-        if override_celltype_reference is not None:
-            print("Overriding celltype biosample IDs before aggregation...")
-            eq.override_biosample_id(
-                biosample_mapping_reference_path=override_celltype_reference,
-                key_col="BiosampleId",
-                source_col="celltypeBiosampleFromSource",
-                id_col="celltypeBiosampleId"
-            )
-        print("Dropping rows where both tissue AND celltype biosample ID are null...")
-        eq.drop_null_biosample_ids()
-
-        print("Calculating within-donor mean expression...")
-        eq.within_donor_mean()
 
     # print("Applying QC threshold (set expression < 0.5 to 0)...")
     # eq.apply_qc_threshold(expr_col="expression", threshold=0.5)
@@ -529,6 +664,8 @@ if __name__ == "__main__":
     # Add the distribution score to the main dataframe
     eq.df = eq.df.join(distribution_df, on=["targetId", "datasourceId", "datatypeId", "unit"], how="left")
 
+    # eq.df.show(5)
+
     # Add expression specificity scores if cellex file is provided
     if tissue_cellex:
         print("Adding tissue-specific expression specificity scores...")
@@ -536,26 +673,29 @@ if __name__ == "__main__":
     elif celltype_cellex:
         print("Adding celltype-specific expression specificity scores...")
         eq.add_expression_specificity(celltype_cellex, biosample_type="celltype")
+    elif both_cellex:
+        print("Adding combined tissue+celltype expression specificity scores...")
+        eq.add_expression_specificity(both_cellex, biosample_type="both")
+    
+    # eq.df.show(5)
 
-    if not override_before:
-        if override_tissue_reference is not None:
-            print("Overriding tissue biosample IDs after aggregation...")
-            eq.override_biosample_id(
-                biosample_mapping_reference_path=override_tissue_reference,
-                key_col="BiosampleId",
-                source_col="tissueBiosampleFromSource",
-                id_col="tissueBiosampleId"
-            )
-        if override_celltype_reference is not None:
-            print("Overriding celltype biosample IDs after aggregation...")
-            eq.override_biosample_id(
-                biosample_mapping_reference_path=override_celltype_reference,
-                key_col="BiosampleId",
-                source_col="celltypeBiosampleFromSource",
-                id_col="celltypeBiosampleId"
-            )
-        print("Dropping rows where both tissue AND celltype biosample ID are null...")
-        eq.drop_null_biosample_ids()
+    # Add parental biosample IDs if requested
+    if tissue_parents is not None:
+        print("Adding tissue parental biosample IDs...")
+        eq.add_parental_biosample_id(
+            biosample_index_path=biosample_index,
+            potential_parents_path=tissue_parents,
+            id_col="tissueBiosampleId"
+        )
+    if celltype_parents is not None:
+        print("Adding celltype parental biosample IDs...")
+        eq.add_parental_biosample_id(
+            biosample_index_path=biosample_index,
+            potential_parents_path=celltype_parents,
+            id_col="celltypeBiosampleId"
+        )
+
+    # eq.df.show(5)
 
 
     print("Packing data for output...")

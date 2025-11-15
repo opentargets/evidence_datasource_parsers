@@ -173,7 +173,6 @@ class BaselineExpression:
 
     def save_as_matrix(self, output_path: str):
         """Save expression data in matrix form with separate metadata file."""
-        import pandas as pd
         
         # Matrix is already in wide format from read_gtex_data
         # Just need to prepare metadata from the sample IDs
@@ -240,38 +239,45 @@ class BaselineExpression:
                    "age", "sex", "unit", "datasourceId", "datatypeId")
         )
         
-        # Convert to pandas and save as TSV
-        print("Converting matrix to pandas...")
-        matrix_pd = self.df_matrix.toPandas()
-        metadata_pd = df_metadata.toPandas()
+        print("Saving matrix and metadata as TSV files using Spark...")
         
-        # Sort by targetId and sample ID for consistent output
-        matrix_pd = matrix_pd.sort_values("targetId")
-        metadata_pd = metadata_pd.sort_values("OrigSample")
+        # Save matrix as TSV (Spark will handle the write)
+        matrix_output = f"{output_path}matrix/gtex_expression_matrix"
+        metadata_output = f"{output_path}matrix/gtex_sample_metadata"
         
-        # Save matrix as compressed TSV
-        matrix_output = f"{output_path}matrix/gtex_expression_matrix.tsv.gz"
-        metadata_output = f"{output_path}matrix/gtex_sample_metadata.tsv.gz"
-        
-        # Create directory if it doesn't exist (for local mode)
-        import os
-        dir_path = f"{output_path}matrix/"
-        if dir_path.startswith("file://"):
-            dir_path = dir_path.replace("file://", "")
+        # Clean up paths for local mode
+        if output_path.startswith("file://"):
             matrix_output = matrix_output.replace("file://", "")
             metadata_output = metadata_output.replace("file://", "")
         
-        os.makedirs(dir_path, exist_ok=True)
+        # Sort by targetId for consistent output
+        df_matrix_sorted = self.df_matrix.orderBy("targetId")
+        
+        # Sort metadata by OrigSample for consistent output  
+        df_metadata_sorted = df_metadata.orderBy("OrigSample")
         
         print(f"Writing matrix to {matrix_output}...")
-        matrix_pd.to_csv(matrix_output, sep="\t", index=False, compression="gzip")
-        
-        print(f"Writing metadata to {metadata_output}...")
-        metadata_pd.to_csv(metadata_output, sep="\t", index=False, compression="gzip")
-        
+        # Write as single CSV file with tab separator and compression
+        (df_matrix_sorted
+            .coalesce(1)  # Single output file
+            .write
+            .mode("overwrite")
+            .option("header", "true")
+            .option("sep", "\t")
+            .csv(matrix_output))
         print(f"Matrix data written to {matrix_output}")
+
+        print(f"Writing metadata to {metadata_output}...")
+        (df_metadata_sorted
+            .coalesce(1)  # Single output file
+            .write
+            .mode("overwrite")
+            .option("header", "true")
+            .option("sep", "\t")
+            .csv(metadata_output))
         print(f"Metadata written to {metadata_output}")
-        print(f"Matrix shape: {matrix_pd.shape[0]} genes x {matrix_pd.shape[1]-1} samples")
+        
+        print(f"Matrix shape: {self.df_matrix.count()} genes x {len(self.sample_ids)} samples")
 
     def main(self):
         self.spark = SparkSession.builder \
@@ -281,6 +287,7 @@ class BaselineExpression:
                 .config("spark.driver.memory", "50g") \
                 .config("spark.memory.offHeap.enabled",True) \
                 .config("spark.memory.offHeap.size","16g") \
+                .config("spark.driver.maxResultSize","0") \
                 .getOrCreate()
         print("Reading GTEx data...")
         self.read_gtex_data()

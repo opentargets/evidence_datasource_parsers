@@ -102,9 +102,31 @@ class BaselineExpression:
             .option("header", "true")
             .option("sep", "\t")
             .csv(self.tissue_ontology_mapping_path)
-            .withColumnRenamed("PROPERTY VALUE", "tissue")
-            .withColumnRenamed("ONTOLOGY TERM(S)", "tissueOntologyTerm")
-            .select("tissue", "tissueOntologyTerm") # Only select the relevant terms
+        )
+        
+        # Drop the Count column
+        pride_ontology_mapping = pride_ontology_mapping.drop("Count")
+        
+        # Get all columns except BiosampleId to unpivot
+        tissue_columns = [c for c in pride_ontology_mapping.columns if c != "BiosampleId"]
+        
+        # Create an array of structs for unpivoting (wide to long transformation)
+        tissue_structs = array(*[
+            struct(lit(c).alias("source"), col(c).alias("tissue"))
+            for c in tissue_columns
+        ])
+        
+        # Unpivot: explode the array and filter out null tissue values
+        pride_ontology_mapping = (
+            pride_ontology_mapping
+            .select("BiosampleId", explode(tissue_structs).alias("tissue_struct"))
+            .select(
+                col("BiosampleId"),
+                col("tissue_struct.tissue").alias("tissue")
+            )
+            .filter(col("tissue").isNotNull())
+            .filter(col("tissue") != "")
+            .distinct()  # Remove any duplicates that may arise
         )
 
         # Join the long DataFrame with the SDRF metadata and ontology mapping
@@ -114,22 +136,19 @@ class BaselineExpression:
             .withColumn("donorId", concat(col("experimentId"), lit("-"), col("individual"))) # Add a column for donor
             .join(pride_ontology_mapping, on="tissue", how="left")
             .select(
-                "id", "proteinId", "donorId", "PPB", "tissueOntologyTerm",
+                "id", "proteinId", "donorId", "PPB", "BiosampleId",
                 "age", "sex", "tissue"
             )
         )
 
         # Drop rows where tissueOntologyTerm is null
-        pride_long = pride_long.filter(col("tissueOntologyTerm").isNotNull())
-
-        # Drop rows where PPB is null
-        pride_long = pride_long.filter(col("PPB").isNotNull())
+        pride_long = pride_long.filter(col("BiosampleId").isNotNull())
 
         pride_long = (pride_long
             .withColumnRenamed("id", "targetId")
             .withColumnRenamed("PPB", "expression")
             .withColumnRenamed("tissue", "tissueBiosampleFromSource")
-            .withColumnRenamed("tissueOntologyTerm", "tissueBiosampleId")
+            .withColumnRenamed("BiosampleId", "tissueBiosampleId")
             .withColumnRenamed("proteinId", "targetFromSourceId")
             .withColumn("unit", lit("PPB (iBAQ)"))  # Add unit column with constant value "PPB (iBAQ)"
             .withColumn("datatypeId", lit("mass-spectrometry proteomics"))  # Add datatypeId column with constant value "mass-spectrometry proteomics"
