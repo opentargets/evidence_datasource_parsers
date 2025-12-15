@@ -109,7 +109,7 @@ class PseudobulkExpression:
 
     def pseudobulk_data(self, donor_colname='donor_id', min_cells=5,
                         tissue_agg_colname=None, celltype_agg_colname=None,
-                        agg_method='mean', age_colname='age', sex_colname='sex', ethnicity_colname='ethnicity'):
+                        agg_method='sum', age_colname='age', sex_colname='sex', ethnicity_colname='ethnicity'):
         adata = self.adata
 
         if tissue_agg_colname and celltype_agg_colname:

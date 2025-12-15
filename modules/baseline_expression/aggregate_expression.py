@@ -207,9 +207,24 @@ class AggregateExpression:
         
         # Get the list of potential parents as an ordered array
         # Assuming first column contains the parent IDs
-        # Order is preserved from the TSV file (top to bottom = highest to lowest priority)
         parent_col = potential_parents_df.columns[0]
         potential_parents_list = [row[parent_col] for row in potential_parents_df.select(parent_col).collect()]
+
+        # Calculate ancestor counts for potential parents to determine priority
+        # We want to prioritize parents with MORE ancestors (more specific)
+        parent_ancestor_counts = (
+            biosample_index
+            .filter(f.col("biosampleId").isin(potential_parents_list))
+            .select("biosampleId", f.size(f.coalesce(f.col("ancestors"), f.array())).alias("ancestor_count"))
+            .collect()
+        )
+        
+        # Create a map of id -> count
+        count_map = {row.biosampleId: row.ancestor_count for row in parent_ancestor_counts}
+        
+        # Sort the list by ancestor count descending
+        # Parents with no info in biosample_index get count -1 (lowest priority)
+        potential_parents_list.sort(key=lambda x: count_map.get(x, -1), reverse=True)
         
         # Join with biosample index to get ancestors
         df_with_ancestors = df.join(
@@ -228,7 +243,7 @@ class AggregateExpression:
         # Iterate through parents in reverse order (so first parent has highest priority)
         for parent_id in reversed(potential_parents_list):
             parent_expr = f.when(
-                f.array_contains(f.coalesce(f.col("ancestors"), f.array()), f.lit(parent_id)),
+                (f.col(id_col) == f.lit(parent_id)) | f.array_contains(f.coalesce(f.col("ancestors"), f.array()), f.lit(parent_id)),
                 f.lit(parent_id)
             ).otherwise(parent_expr)
         
@@ -240,9 +255,6 @@ class AggregateExpression:
         # Store temporarily
         self.df = df_with_parent
         
-        # Use potential_parents TSV as fallback for null parents via override mapping
-        print(f"  Using override mapping as fallback for null {parent_col_name}...")
-        
         # Save original dataframe
         original_df = self.df
         
@@ -250,6 +262,8 @@ class AggregateExpression:
         null_parent_df = self.df.filter(f.col(parent_col_name).isNull())
         
         if null_parent_df.count() > 0:
+            # Use potential_parents TSV as fallback for null parents via override mapping
+            print(f"  Using override mapping as fallback for null {parent_col_name}...")    
             # Apply override_biosample_id to get parent from mapping
             # Use the same potential_parents TSV which has BiosampleId + labels/synonyms
             self.df = null_parent_df
@@ -529,6 +543,9 @@ class AggregateExpression:
                   on=["targetId", biosample_col], 
                   how="left")
         )
+        # Drop the celltypeBiosampleId__tissueBiosampleId column
+        if biosample_type == "both":
+            self.df = self.df.drop('celltypeBiosampleId__tissueBiosampleId')
 
     def write_data(self, output_directory, json = False):
         """

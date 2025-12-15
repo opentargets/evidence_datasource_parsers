@@ -57,6 +57,8 @@ class BaselineExpression:
             .withColumn("proteinId", regexp_replace("proteinId", r"-\d+$", ""))  # optional, removes isoform suffix
             # if the proteinId column is NULL use the original Protein IDs
             .withColumn("proteinId", coalesce(col("proteinId"), col("Protein IDs")))
+            # Split on semicolon and take the first value (e.g. Q9ULB1;P58400 -> Q9ULB1)
+            .withColumn("proteinId", element_at(split(col("proteinId"), ";"), 1))
             .join(target_mapping, on="proteinId", how="left")
             .select("id", "proteinId", "Gene Symbol", "Protein IDs", *orig_cols)
             .drop("ENSG")
@@ -259,8 +261,3 @@ if __name__ == "__main__":
         args.json,
         args.local
     ).main()
-
-
-# Run the script with:
-# python pride.py --pride-codes PXD000000,PXD000001 --pride-source-data-dir /path/to/pride/data  --output-directory-path /path/to/output --tissue-ontology-mapping /path/to/tissue/ontology/mapping.tsv
-# python /home/alegbe/repos/evidence_datasource_parsers/modules/baseline_expression/pride.py --pride-codes PXD020192,PXD000865,PXD000561 --pride-source-data-dir /home/alegbe/data/bulkProteomics/ --output-directory-path /home/alegbe/results/unaggregated/pride/ --tissue-ontology-mapping /home/alegbe/data/bulkProteomics/pride_ontology_mapping_sorted.txt --target-index gs://open-targets-ppp-data-releases/25.06/output/target/

@@ -135,6 +135,9 @@ class BaselineExpression:
             )
         )
 
+        if self.no_efo:
+            df_long = df_long.filter(~col("TissueOntologyID").startswith("EFO"))
+
         # # Renamed most columns to match the desired output format
         self.df = (
             df_long
@@ -189,6 +192,17 @@ class BaselineExpression:
                 col("SMUBRID").alias("TissueOntologyID"),
             )
         )
+
+        if self.no_efo:
+            # Identify samples to drop (those starting with EFO)
+            efo_samples = [row.OrigSample for row in meta_sample.filter(col("TissueOntologyID").startswith("EFO")).select("OrigSample").collect()]
+            # Filter sample_ids
+            self.sample_ids = [s for s in self.sample_ids if s not in efo_samples]
+            # Filter df_matrix columns
+            cols_to_keep = ["targetId"] + self.sample_ids
+            self.df_matrix = self.df_matrix.select(*cols_to_keep)
+            # Filter meta_sample to exclude EFOs
+            meta_sample = meta_sample.filter(~col("TissueOntologyID").startswith("EFO"))
         
         # Read subject metadata and map sex from 1/2 to M/F
         meta_subject = (
@@ -302,7 +316,8 @@ class BaselineExpression:
         subject_metadata_path: str, 
         json: bool = False,
         local: bool = True,
-        matrix: bool = False
+        matrix: bool = False,
+        no_efo: bool = False
     ):
         self.gtex_source_data_path = gtex_source_data_path
         self.output_directory_path = output_directory_path
@@ -311,6 +326,7 @@ class BaselineExpression:
         self.json = json
         self.local = local
         self.matrix = matrix
+        self.no_efo = no_efo
         self.spark = None  # Will be initialized in main()
 
 parser = argparse.ArgumentParser(description="Generate unaggregated baseline expression data from GTEx V10.")
@@ -340,6 +356,10 @@ parser.add_argument(
     "--matrix", action='store_true', default=False,
      help="Save output as matrix form (genes x samples) with separate metadata TSV files, both gzipped.",
 )
+parser.add_argument(
+    "--no-efo", action='store_true', default=False,
+     help="Filter out samples where TissueOntologyID starts with EFO.",
+)
 
 
 if __name__ == "__main__":
@@ -351,5 +371,6 @@ if __name__ == "__main__":
         args.subject_metadata_path,
         args.json,
         args.local,
-        args.matrix
+        args.matrix,
+        args.no_efo
     ).main()

@@ -20,6 +20,7 @@ import os
 
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, rand, row_number
+from pyspark.sql.types import DoubleType
 from pyspark.sql.window import Window
 
 
@@ -28,32 +29,61 @@ class MergeParquetDatasets:
 
     def read_input_data(self):
         """Read the input parquet datasets and union them with schema alignment."""
-        paths = [
-            f"{self.base_directory_path.rstrip('/')}/{self.aggregation}/{d}/parquet/*"
-            for d in self.datasets
-        ]
+        # Expand globs first to handle files individually and avoid schema inference conflicts
+        expanded_paths = []
+        for d in self.datasets:
+            pattern = f"{self.base_directory_path.rstrip('/')}/{self.aggregation}/{d}/parquet/*"
+            matches = glob.glob(pattern)
+            if matches:
+                for m in matches:
+                    # Filter out _SUCCESS or other metadata files if they are not directories
+                    if os.path.basename(m).startswith("_") and os.path.isfile(m):
+                        continue
+                    expanded_paths.append(m)
+            else:
+                print(f"Warning: No files found for {pattern}")
 
-
-        if not paths:
+        if not expanded_paths:
             raise ValueError("No dataset paths were constructed. Check --datasets.")
 
         print("Reading parquet inputs:")
-        for p in paths:
-            # Expand wildcards to show actual files/directories being read
-            expanded = glob.glob(p)
-            if expanded:
-                for exp_path in expanded:
-                    print(f"  • {exp_path}")
-            else:
-                print(f"  • {p} (no matches found)")
+        for p in expanded_paths:
+            print(f"  • {p}")
+
+        def read_and_standardize(path):
+            df = self.spark.read.parquet(path)
+            # Handle schema mismatch for 'specificity score'
+            # It might be inferred as Binary in some files but Double in others.
+            # We cast to String then Double to handle Binary(UTF8) -> Double.
+            for col_name in df.columns:
+                if col_name == "specificity score":
+                    df = df.withColumn(col_name, col(col_name).cast("string").cast("double"))
+            return df
 
         # Read first dataset
-        df = self.spark.read.parquet(paths[0])
+        df = read_and_standardize(expanded_paths[0])
 
         # Union remaining datasets, aligning by column name
-        for p in paths[1:]:
-            df_next = self.spark.read.parquet(p)
+        for p in expanded_paths[1:]:
+            df_next = read_and_standardize(p)
             df = df.unionByName(df_next, allowMissingColumns=True)
+
+        if self.aggregation == "aggregated":
+            # Filter any rows where tissue/celltypeBiosampleId is populated but tissue/celltypeBiosampleParentId is null
+            for coltype in ["tissue", "celltype"]:
+                biosample_id_col = f"{coltype}BiosampleId"
+                biosample_parent_id_col = f"{coltype}BiosampleParentId"
+                if biosample_id_col in df.columns and biosample_parent_id_col in df.columns:
+                    df = df.filter(~(
+                            (col(biosample_id_col).isNotNull()) &
+                            (col(biosample_parent_id_col).isNull())))
+        
+        # Reorder the columns so that identifier columns come first (if present)
+        id_cols = ["targetId","datasourceId","datatypeId","unit", "tissueBiosampleId", "tissueBiosampleParentId",
+                   "celltypeBiosampleId", "celltypeBiosampleParentId"]
+        existing_id_cols = [c for c in id_cols if c in df.columns]
+        other_cols = [c for c in df.columns if c not in existing_id_cols]
+        df = df.select(existing_id_cols + other_cols)
 
         self.df = df
         print("Finished reading and merging input data.")
