@@ -1,3 +1,6 @@
+> [!NOTE]
+> This repository is obsolete, the evidence datasource parsers are now a part of [PTS](https://github.com/opentargets/pts).
+
 # Open Targets internal evidence generation
 
 This repository contains a collection of modules which generate evidence for several internal data sources (“internal” meaning that the code is maintained by the data team; the data itself usually comes from sources outside Open Targets).
